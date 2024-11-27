@@ -3,40 +3,27 @@ import React, { useState, useEffect } from "react";
 
 // TODO: kebab case for file name
 
-import { Box, Typography, Card, CardContent } from '@mui/material';
+import { Box, Typography, Card, CardContent, CircularProgress } from '@mui/material';
 import { Line, Pie, Scatter } from 'react-chartjs-2';
 import { Chart as ChartJS, registerables } from 'chart.js';
 import zoomPlugin from 'chartjs-plugin-zoom';
 
 ChartJS.register(...registerables, zoomPlugin);
 
-const Utils = {
-    months: ({ count }: { count: number }) => {
-        const monthNames = ["January", "February", "March", "April", "May", "June", "July"];
-        return monthNames.slice(0, count);
-    }
-};
 
-const labels = Utils.months({ count: 7 });
-// const data = {
-//     labels: labels,
-//     datasets: [{
-//         label: 'My First Dataset',
-//         data: [65, 59, 80, 81, 56, 55, 40],
-//         fill: false,
-//         borderColor: 'rgb(75, 192, 192)',
-//         tension: 0.1
-//     }]
-// };
+
 
 function parse_data(data, metricName) {
-    const labels = data.map((d) => new Date(d.time).toISOString().slice(0, 19).replace('T', ' '));
-    const values = data.map((d) => d.score);
+    const parsed_data = data.map((d) => {
+        return {
+            'x': new Date(d.time).toISOString().slice(0, 19).replace('T', ' '),
+            'y': d.score
+        }
+    });
     return {
-        labels: labels,
         datasets: [{
             label: metricName,
-            data: values,
+            data: parsed_data,
             fill: false,
             borderColor: 'rgb(75, 192, 192)',
             tension: 0.1
@@ -44,42 +31,91 @@ function parse_data(data, metricName) {
     };
 }
 
+function parse_datas(metrics) {
+    const datasets = metrics.map(metric => {
+        const parsed_data = metric.map((d) => {
+            return {
+                'x': new Date(d.time).toISOString().slice(0, 19).replace('T', ' '),
+                'y': d.score
+            }
+        });
+        return {
+            label: metric[0].name,
+            data: parsed_data,
+            fill: false,
+            // borderColor: 'rgb(75, 192, 192)',
+            tension: 0.1
+        };
+    });
+    return { datasets };
+}
+
+
+function Loading() {
+    return (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+            <CircularProgress />
+        </Box>
+    );
+
+}
+
+function ErrorComponent() {
+    return (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+            <Typography component="h3" variant="subtitle2" gutterBottom>
+                Error loading data
+            </Typography>
+        </Box>
+    );
+}
 
 // TODO: keep only function and then export later, and not default
-export default function MetricTimeline(props: { metricName: string }) {
-    const { metricName } = props;
-    const [graph, setGraph] = useState({
-        labels: [],
-        datasets: [{
-            label: 'My First Dataset',
-            data: [],
-            fill: false,
-            borderColor: 'rgb(75, 192, 192)',
-            tension: 0.1
-        }]
-    });
+
+interface MetricTimelineProps {
+    cardTitle: string;
+    metricNames: string[];
+
+}
+
+function fetchMetricData(url: string) {
+    return fetch(url)
+        .then(response => response.json())
+        .then(data => data);
+}
+export default function MetricTimeline(props: MetricTimelineProps) {
+    const { metricNames, cardTitle } = props;
+
+    const [chartData, setChartData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
+
     useEffect(() => {
-        fetch(`/api/metrics?name=${metricName}`, {
-            method: "GET",
-        })
-            .then((response) => response.json())
-            .then((data) => {
-                setGraph(parse_data(data, metricName));
+        Promise.all(metricNames.map(metricName => `/api/metrics?name=${metricName}`).map((url: string) => fetchMetricData(url)))
+            .then(metrics => {
+                const parsedData = parse_datas(metrics);
+                setChartData(parsedData);
+                setLoading(false);
             })
-            .catch((error) => console.log(error));
-    }, [metricName]);
+            .catch(() => {
+                console.error('Error loading data');
+                setError(true);
+                setLoading(false);
+            });
+    }, [metricNames]);
 
-
+    if (loading) return <Loading />;
+    if (error) return <ErrorComponent />;
 
     return (
-        <Box>
-            <Card variant="outlined" sx={{ flexGrow: 1, mb: 2 }}>
+        <Box sx={{ width: 1 }}>
+            <Card variant="outlined" sx={{ flexGrow: 1, mb: 2, }}>
                 <CardContent>
-                    <Typography component="h3" variant="subtitle2" gutterBottom>
-                        Hello
+                    <Typography component="h3" variant="h5" gutterBottom>
+                        {cardTitle}
                     </Typography>
                     <Box>
-                        <Line data={graph} />
+                        <Line data={chartData} />
                     </Box>
                 </CardContent>
             </Card>

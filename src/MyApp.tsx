@@ -47,7 +47,6 @@ export default function PermanentDrawerLeft() {
                     {
                         navs.map((nav) => {
                             if (!nav.element) {
-                                console.log('No element found for nav: ', nav);
                                 return (
                                     <Route key={nav.id} path={nav.path} element={<Construction title={nav.name} />} />
                                 );
