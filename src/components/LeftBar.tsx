@@ -16,6 +16,7 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import SettingsIcon from '@mui/icons-material/Settings';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import { Box } from '@mui/material';
+import { Link } from 'react-router-dom';
 
 interface LeftBarProps {
     drawerWidth: number;
@@ -24,86 +25,85 @@ interface LeftBarProps {
 export default function LeftBar({ drawerWidth }: LeftBarProps) {
     return (
         <Drawer
-        variant="permanent"
-        sx={{
-          width: drawerWidth,
-          flexShrink: 0,
-          [`& .MuiDrawer-paper`]: { width: drawerWidth, boxSizing: 'border-box' },
-        }}
+            variant="permanent"
+            sx={{
+                width: drawerWidth,
+                flexShrink: 0,
+                [`& .MuiDrawer-paper`]: { width: drawerWidth, boxSizing: 'border-box' },
+            }}
         >
             <Toolbar />
             <Box sx={{ overflow: 'auto' }}>
-            <List>
-
-                <ListItem key={0} disablePadding>
-                        <ListItemButton>
+                <List>
+                    <ListItem key={0} disablePadding>
+                        <ListItemButton component={Link} to="/">
                             <ListItemIcon>
-                                <DashboardIcon  />
+                                <DashboardIcon />
                             </ListItemIcon>
                             <ListItemText primary="Overview" />
                         </ListItemButton>
-                </ListItem>
-            </List>
-            <Divider />
-            <List>
-                <ListItem>
-                    <ListItemText primary="Data Quality" />
-                </ListItem>
-                {[
-                    { text: 'Training Data Analysis', icon: <DatasetIcon /> },
-                    { text: 'Data Anomalies', icon: <FlagIcon /> },
-                ].map((item, index) => (
-                    <ListItem key={index} disablePadding>
-                        <ListItemButton>
-                            <ListItemIcon>
-                                {item.icon}
-                            </ListItemIcon>
-                            <ListItemText primary={item.text} />
-                        </ListItemButton>
                     </ListItem>
-                ))}
-            </List>
-            <Divider />
-            <List>
-                <ListItem>
-                    <ListItemText primary="Model Evaluation" />
-                </ListItem>
-                {[
-                    
-                    { text: 'Accuracy and Correctness', icon: <TimelineIcon /> },
-                    { text: 'Robustness', icon: <SecurityIcon /> },
-                    { text: 'Fairness', icon: <BalanceIcon /> },
-                ].map((item, index) => (
-                    <ListItem key={index} disablePadding>
-                        <ListItemButton>
-                            <ListItemIcon>
-                                {item.icon}
-                            </ListItemIcon>
-                            <ListItemText primary={item.text} />
-                        </ListItemButton>
+                </List>
+                <Divider />
+                <List>
+                    <ListItem>
+                        <ListItemText primary="Data Quality" />
                     </ListItem>
-                ))}
-            </List>
-            <Divider />
-            <List>
-                <ListItem>
-                    <ListItemText primary="Risk Management" />
-                </ListItem>
-                {[
-                    
-                    { text: 'Report Generation', icon: <AssignmentIcon /> },
-                    { text: 'Settings & Alerts', icon: <SettingsIcon /> },
-                ].map((item, index) => (
-                    <ListItem key={index} disablePadding>
-                        <ListItemButton>
-                            <ListItemIcon>
-                                {item.icon}
-                            </ListItemIcon>
-                            <ListItemText primary={item.text} />
-                        </ListItemButton>
+                    {[
+                        { text: 'Training Data Analysis', icon: <DatasetIcon /> },
+                        { text: 'Data Anomalies', icon: <FlagIcon /> },
+                    ].map((item, index) => (
+                        <ListItem key={index} disablePadding>
+                            <ListItemButton>
+                                <ListItemIcon>
+                                    {item.icon}
+                                </ListItemIcon>
+                                <ListItemText primary={item.text} />
+                            </ListItemButton>
+                        </ListItem>
+                    ))}
+                </List>
+                <Divider />
+                <List>
+                    <ListItem>
+                        <ListItemText primary="Model Evaluation" />
                     </ListItem>
-                ))}
-            </List>
+                    {[
+
+                        { text: 'Accuracy and Correctness', icon: <TimelineIcon /> },
+                        { text: 'Robustness', icon: <SecurityIcon /> },
+                        { text: 'Fairness', icon: <BalanceIcon /> },
+                    ].map((item, index) => (
+                        <ListItem key={index} disablePadding>
+                            <ListItemButton>
+                                <ListItemIcon>
+                                    {item.icon}
+                                </ListItemIcon>
+                                <ListItemText primary={item.text} />
+                            </ListItemButton>
+                        </ListItem>
+                    ))}
+                </List>
+                <Divider />
+                <List>
+                    <ListItem>
+                        <ListItemText primary="Risk Management" />
+                    </ListItem>
+                    {[
+
+                        { text: 'Report Generation', icon: <AssignmentIcon /> },
+                        { text: 'Settings & Alerts', icon: <SettingsIcon /> },
+                    ].map((item, index) => (
+                        <ListItem key={index} disablePadding>
+                            <ListItemButton>
+                                <ListItemIcon>
+                                    {item.icon}
+                                </ListItemIcon>
+                                <ListItemText primary={item.text} />
+                            </ListItemButton>
+                        </ListItem>
+                    ))}
+                </List>
             </Box>
-        </Drawer>)
+        </Drawer >)
 };

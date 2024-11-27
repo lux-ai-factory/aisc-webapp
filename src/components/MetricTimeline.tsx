@@ -1,6 +1,8 @@
 
 import React, { useState, useEffect } from "react";
 
+// TODO: kebab case for file name
+
 import { Box, Typography, Card, CardContent } from '@mui/material';
 import { Line, Pie, Scatter } from 'react-chartjs-2';
 import { Chart as ChartJS, registerables } from 'chart.js';
@@ -42,6 +44,8 @@ function parse_data(data, metricName) {
     };
 }
 
+
+// TODO: keep only function and then export later, and not default
 export default function MetricTimeline(props: { metricName: string }) {
     const { metricName } = props;
     const [graph, setGraph] = useState({
