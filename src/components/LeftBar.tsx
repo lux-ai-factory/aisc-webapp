@@ -18,6 +18,29 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import { Box } from '@mui/material';
 import { Link } from 'react-router-dom';
 
+interface MenuListProps { title: string, items: { text: string, icon: React.ReactNode, target: string }[] }
+
+function MenuList(props: MenuListProps) {
+    return (<List>
+
+        {props.title && (
+            <ListItem>
+                <ListItemText primary={props.title} />
+            </ListItem>
+        )}
+        {props.items.map((item, index) => (
+            <ListItem key={index} disablePadding>
+                <ListItemButton component={Link} to={item.target}>
+                    <ListItemIcon>
+                        {item.icon}
+                    </ListItemIcon>
+                    <ListItemText primary={item.text} />
+                </ListItemButton>
+            </ListItem>
+        ))}
+    </List>);
+}
+
 interface LeftBarProps {
     drawerWidth: number;
 }
@@ -34,76 +57,31 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
         >
             <Toolbar />
             <Box sx={{ overflow: 'auto' }}>
-                <List>
-                    <ListItem key={0} disablePadding>
-                        <ListItemButton component={Link} to="/">
-                            <ListItemIcon>
-                                <DashboardIcon />
-                            </ListItemIcon>
-                            <ListItemText primary="Overview" />
-                        </ListItemButton>
-                    </ListItem>
-                </List>
-                <Divider />
-                <List>
-                    <ListItem>
-                        <ListItemText primary="Data Quality" />
-                    </ListItem>
-                    {[
-                        { text: 'Training Data Analysis', icon: <DatasetIcon /> },
-                        { text: 'Data Anomalies', icon: <FlagIcon /> },
-                    ].map((item, index) => (
-                        <ListItem key={index} disablePadding>
-                            <ListItemButton>
-                                <ListItemIcon>
-                                    {item.icon}
-                                </ListItemIcon>
-                                <ListItemText primary={item.text} />
-                            </ListItemButton>
-                        </ListItem>
-                    ))}
-                </List>
-                <Divider />
-                <List>
-                    <ListItem>
-                        <ListItemText primary="Model Evaluation" />
-                    </ListItem>
-                    {[
 
-                        { text: 'Accuracy and Correctness', icon: <TimelineIcon /> },
-                        { text: 'Robustness', icon: <SecurityIcon /> },
-                        { text: 'Fairness', icon: <BalanceIcon /> },
-                    ].map((item, index) => (
-                        <ListItem key={index} disablePadding>
-                            <ListItemButton>
-                                <ListItemIcon>
-                                    {item.icon}
-                                </ListItemIcon>
-                                <ListItemText primary={item.text} />
-                            </ListItemButton>
-                        </ListItem>
-                    ))}
-                </List>
-                <Divider />
-                <List>
-                    <ListItem>
-                        <ListItemText primary="Risk Management" />
-                    </ListItem>
-                    {[
 
-                        { text: 'Report Generation', icon: <AssignmentIcon /> },
-                        { text: 'Settings & Alerts', icon: <SettingsIcon /> },
-                    ].map((item, index) => (
-                        <ListItem key={index} disablePadding>
-                            <ListItemButton>
-                                <ListItemIcon>
-                                    {item.icon}
-                                </ListItemIcon>
-                                <ListItemText primary={item.text} />
-                            </ListItemButton>
-                        </ListItem>
-                    ))}
-                </List>
+                <MenuList title="" items={[
+                    { text: 'Overview', icon: <DashboardIcon />, target: '/' },
+                ]} />
+
+                <Divider />
+
+                <MenuList title="Data" items={[
+                    { text: 'Training Data Analysis', icon: <DatasetIcon />, target: '/training-data' },
+                    { text: 'Data Anomalies', icon: <FlagIcon />, target: '/data-anomalies' },
+                ]} />
+                <Divider />
+
+                <MenuList title='Model Evaluation' items={[
+                    { text: 'Accuracy and Correctness', icon: <TimelineIcon />, target: '/model-accuracy' },
+                    { text: 'Robustness', icon: <SecurityIcon />, target: '/model-robustness' },
+                    { text: 'Fairness', icon: <BalanceIcon />, target: '/model-fairness' },
+                ]} />
+                <Divider />
+                <MenuList title='Risk Management' items={[
+                    { text: 'Report Generation', icon: <AssignmentIcon />, target: '/report' },
+                    { text: 'Settings & Alerts', icon: <SettingsIcon />, target: '/settings' },
+                ]} />
+
             </Box>
         </Drawer >)
 };

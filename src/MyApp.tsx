@@ -1,34 +1,33 @@
 import * as React from 'react';
 import Box from '@mui/material/Box';
 import CssBaseline from '@mui/material/CssBaseline';
-import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
-import Typography from '@mui/material/Typography';
 
 import LeftBar from './components/LeftBar';
 import ModelPerformance from './pages/ModelPerfromance';
-import { Route, Router, Link, BrowserRouter, Routes } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import Home from './pages/Home';
 import NotFound from './pages/NotFound';
-
+import Construction from './pages/Construction';
+import TopBar from './components/TopBar';
 const drawerWidth = 320;
 
 export default function PermanentDrawerLeft() {
 
     const navs = [
-        {id: 1, name: 'Home', path: '/', element: <Home/>},
-        {id: 2, name: 'About', path: '/model-performance', element: <ModelPerformance />},
+        { id: 1, name: 'Home', path: '/', element: <Home /> },
+        { id: 2, name: 'Training Data', path: '/training-data' },
+        { id: 3, name: 'Data Anomalies', path: '/data-anomalies' },
+        { id: 4, name: 'Model Accuracy', path: '/model-accuracy', element: <ModelPerformance /> },
+        { id: 5, name: 'Model Robustness', path: '/model-robustness' },
+        { id: 6, name: 'Model Fairness', path: '/model-fairness' },
+        { id: 7, name: 'Report', path: '/report' },
+        { id: 8, name: 'Settings', path: '/settings' },
     ];
     return (
         <Box sx={{ display: 'flex', flexDirection: 'row' }}>
             <CssBaseline />
-            <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }} className='gradient'>
-                <Toolbar>
-                    <Typography variant="h6" noWrap component="div">
-                        A4S - AI Testing Sandbox
-                    </Typography>
-                </Toolbar>
-            </AppBar>
+            <TopBar />
             <LeftBar drawerWidth={drawerWidth} />
             <Box
                 component="main"
@@ -43,12 +42,18 @@ export default function PermanentDrawerLeft() {
                 }}
             >
                 <Toolbar />
-              
+
                 <Routes>
                     {
                         navs.map((nav) => {
+                            if (!nav.element) {
+                                console.log('No element found for nav: ', nav);
+                                return (
+                                    <Route key={nav.id} path={nav.path} element={<Construction title={nav.name} />} />
+                                );
+                            }
                             return (
-                                <Route key={nav.id} path={nav.path} element={nav.element}/>
+                                <Route key={nav.id} path={nav.path} element={nav.element} />
                             );
                         })
                     }
