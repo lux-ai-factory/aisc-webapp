@@ -16,11 +16,14 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import SettingsIcon from '@mui/icons-material/Settings';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import { Box } from '@mui/material';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 interface MenuListProps { title: string, items: { text: string, icon: React.ReactNode, target: string }[] }
 
 function MenuList(props: MenuListProps) {
+
+    const location = useLocation().pathname;
+
     return (<List>
 
         {props.title && (
@@ -30,7 +33,7 @@ function MenuList(props: MenuListProps) {
         )}
         {props.items.map((item, index) => (
             <ListItem key={index} disablePadding>
-                <ListItemButton component={Link} to={item.target}>
+                <ListItemButton component={Link} to={item.target} selected={location === item.target}>
                     <ListItemIcon>
                         {item.icon}
                     </ListItemIcon>
