@@ -1,41 +1,25 @@
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 
 // TODO: kebab case for file name
 
 import { Box, Typography, Card, CardContent, CircularProgress } from '@mui/material';
-import { Line, Pie, Scatter } from 'react-chartjs-2';
+import { Line } from 'react-chartjs-2';
 import { Chart as ChartJS, registerables, ChartOptions } from 'chart.js';
 import zoomPlugin from 'chartjs-plugin-zoom';
-import { mapMetricsNames } from "../utils";
+import { mapMetricsName } from "../utils";
 ChartJS.register(...registerables, zoomPlugin);
 import { enGB } from 'date-fns/locale';
 import 'chartjs-adapter-date-fns';
 
 
-
-
-function parse_data(data, metricName) {
-    const parsed_data = data.map((d) => {
-        return {
-            // 'x': new Date(d.time).toISOString().slice(0, 19).replace('T', ' '),
-            'x': new Date(d.time).getTime(),
-            'y': d.score
-        }
-    });
-    console.log(parsed_data);
-    return {
-        datasets: [{
-            label: metricName,
-            data: parsed_data,
-            fill: false,
-            borderColor: 'rgb(75, 192, 192)',
-            tension: 0.1
-        }]
-    };
+interface MetricApiData {
+    name: string;
+    time: string;
+    score: number;
 }
 
-function parse_datas(metrics) {
+function parse_datas(metrics: MetricApiData[][]) {
     const datasets = metrics.map(metric => {
         const parsed_data = metric.map((d) => {
             return {
@@ -43,8 +27,9 @@ function parse_datas(metrics) {
                 'y': d.score
             }
         });
+        const label = metric.length > 0 ? mapMetricsName(metric[0].name) || 'Unknown' : 'Unknown';
         return {
-            label: mapMetricsNames(metric[0].name),
+            label: label,
             data: parsed_data,
             fill: false,
             tension: 0.1
@@ -90,12 +75,11 @@ function fetchMetricData(url: string) {
 
 export default function MetricTimeline(props: MetricTimelineProps) {
     const { metricNames, cardTitle } = props;
-
-    const [chartData, setChartData] = useState(null);
+    const [chartData, setChartData] = useState<{ datasets: { label: string; data: { x: string; y: number }[]; fill: boolean; tension: number }[] }>({ datasets: [] });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
 
-    const options: ChartOptions = {
+    const options: ChartOptions<'line'> = {
         scales: {
             x: {
                 type: 'time',

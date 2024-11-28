@@ -17,3 +17,7 @@ export function mapMetricsNames(metrics: string[] | string): string[] | string {
     }
     return mapNames(metrics, metricNames);
 }
+
+export function mapMetricsName(metrics: string): string {
+    return mapNames([metrics], metricNames)[0];
+}
