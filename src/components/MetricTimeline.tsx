@@ -5,10 +5,12 @@ import React, { useState, useEffect } from "react";
 
 import { Box, Typography, Card, CardContent, CircularProgress } from '@mui/material';
 import { Line, Pie, Scatter } from 'react-chartjs-2';
-import { Chart as ChartJS, registerables } from 'chart.js';
+import { Chart as ChartJS, registerables, ChartOptions } from 'chart.js';
 import zoomPlugin from 'chartjs-plugin-zoom';
-
+import { mapMetricsNames } from "../utils";
 ChartJS.register(...registerables, zoomPlugin);
+import { enGB } from 'date-fns/locale';
+import 'chartjs-adapter-date-fns';
 
 
 
@@ -16,10 +18,12 @@ ChartJS.register(...registerables, zoomPlugin);
 function parse_data(data, metricName) {
     const parsed_data = data.map((d) => {
         return {
-            'x': new Date(d.time).toISOString().slice(0, 19).replace('T', ' '),
+            // 'x': new Date(d.time).toISOString().slice(0, 19).replace('T', ' '),
+            'x': new Date(d.time).getTime(),
             'y': d.score
         }
     });
+    console.log(parsed_data);
     return {
         datasets: [{
             label: metricName,
@@ -40,10 +44,9 @@ function parse_datas(metrics) {
             }
         });
         return {
-            label: metric[0].name,
+            label: mapMetricsNames(metric[0].name),
             data: parsed_data,
             fill: false,
-            // borderColor: 'rgb(75, 192, 192)',
             tension: 0.1
         };
     });
@@ -83,12 +86,32 @@ function fetchMetricData(url: string) {
         .then(response => response.json())
         .then(data => data);
 }
+
+
 export default function MetricTimeline(props: MetricTimelineProps) {
     const { metricNames, cardTitle } = props;
 
     const [chartData, setChartData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
+
+    const options: ChartOptions = {
+        scales: {
+            x: {
+                type: 'time',
+                time: {
+                    unit: 'day'
+                },
+                adapters: {
+                    date: {
+                        locale: enGB
+                    }
+                }
+            }
+
+        }
+    }
+
 
     useEffect(() => {
         Promise.all(metricNames.map(metricName => `/api/metrics?name=${metricName}`).map((url: string) => fetchMetricData(url)))
@@ -115,7 +138,7 @@ export default function MetricTimeline(props: MetricTimelineProps) {
                         {cardTitle}
                     </Typography>
                     <Box>
-                        <Line data={chartData} />
+                        <Line data={chartData} options={options} />
                     </Box>
                 </CardContent>
             </Card>

@@ -35,7 +35,7 @@ export default function ModelPerformance() {
                 Accuracy and Correctness
             </Typography>
 
-            <MetricTimeline cardTitle='Performance over time' metricNames={['test_get_metric', 'mcc']} />
+            <MetricTimeline cardTitle='Performance over time' metricNames={['accuracy', 'test_get_metric', 'mcc', ]} />
             {/* <MetricTimeline cardTitle='MCC' metricName='mcc' /> */}
 
         </Box>
