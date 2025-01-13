@@ -1,5 +1,7 @@
 // src/components/Home.jsx
 
-const Home = () => <h1>Home Page</h1>;
+import Construction from "./Construction";
+
+const Home = () => <Construction title="Home" />;
 
 export default Home;

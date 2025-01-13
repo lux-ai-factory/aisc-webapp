@@ -1,3 +1,4 @@
+import { Typography } from '@mui/material';
 import React from 'react';
 
 interface ConstructionProps {
@@ -6,10 +7,9 @@ interface ConstructionProps {
 
 const Construction: React.FC<ConstructionProps> = ({ title }) => {
     return (
-        <div>
-            <h1>{title}</h1>
-            <p>Page under construction.</p>
-        </div>
+        <Typography component="h2" variant="h4" gutterBottom>
+            {title}
+        </Typography>
     );
 };
 
