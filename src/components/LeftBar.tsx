@@ -71,6 +71,7 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
                 <MenuList title="Data" items={[
                     { text: 'Training Data Analysis', icon: <DatasetIcon />, target: '/training-data' },
                     { text: 'Data Anomalies', icon: <FlagIcon />, target: '/data-anomalies' },
+                    { text: 'Data Drift', icon: <TimelineIcon />, target: '/data-drift' },
                 ]} />
                 <Divider />
 

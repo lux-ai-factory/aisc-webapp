@@ -9,6 +9,7 @@ import Home from './pages/Home';
 import NotFound from './pages/NotFound';
 import Construction from './pages/Construction';
 import TopBar from './components/TopBar';
+import DataDrift from './pages/DataDrift';
 const drawerWidth = 320;
 
 export default function PermanentDrawerLeft() {
@@ -17,11 +18,12 @@ export default function PermanentDrawerLeft() {
         { id: 1, name: 'Home', path: '/', element: <Home /> },
         { id: 2, name: 'Training Data', path: '/training-data' },
         { id: 3, name: 'Data Anomalies', path: '/data-anomalies' },
-        { id: 4, name: 'Model Accuracy', path: '/model-accuracy', element: <ModelPerformance /> },
-        { id: 5, name: 'Model Robustness', path: '/model-robustness' },
-        { id: 6, name: 'Model Fairness', path: '/model-fairness' },
-        { id: 7, name: 'Report', path: '/report' },
-        { id: 8, name: 'Settings', path: '/settings' },
+        { id: 4, name: 'Data Drift', path: '/data-drift', element: <DataDrift /> },
+        { id: 5, name: 'Model Accuracy', path: '/model-accuracy', element: <ModelPerformance /> },
+        { id: 6, name: 'Model Robustness', path: '/model-robustness' },
+        { id: 7, name: 'Model Fairness', path: '/model-fairness' },
+        { id: 8, name: 'Report', path: '/report' },
+        { id: 9, name: 'Settings', path: '/settings' },
     ];
     return (
         <Box sx={{ display: 'flex', flexDirection: 'row' }}>

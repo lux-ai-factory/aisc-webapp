@@ -11,14 +11,16 @@ import { mapMetricsName } from "../utils";
 ChartJS.register(...registerables, zoomPlugin);
 import { enGB } from 'date-fns/locale';
 import 'chartjs-adapter-date-fns';
-import PanToolIcon from '@mui/icons-material/PanTool';
-import { CropFree, Home } from "@mui/icons-material";
+import { CenterFocusWeak, Home, OpenWith } from "@mui/icons-material";
 
 
 interface MetricApiData {
     name: string;
     time: string;
     score: number;
+    feature: {
+        name: string;
+    }
 }
 
 function parse_datas(metrics: MetricApiData[][]) {
@@ -26,17 +28,55 @@ function parse_datas(metrics: MetricApiData[][]) {
         const parsed_data = metric.map((d) => {
             return {
                 'x': new Date(d.time).toISOString().slice(0, 19).replace('T', ' '),
-                'y': d.score
+                'y': d.score,
+                'feature': d.feature?.name
             }
         });
-        const label = metric.length > 0 ? mapMetricsName(metric[0].name) || 'Unknown' : 'Unknown';
+        const metric_label = metric.length > 0 ? mapMetricsName(metric[0].name) || 'Unknown' : 'Unknown';
+
         return {
-            label: label,
+            label: metric_label,
             data: parsed_data,
             fill: false,
             tension: 0.1
         };
     });
+    console.log(datasets);
+    return { datasets };
+}
+
+interface MetricData {
+    data: { x: string; y: number, feature: string }[];
+    label: string;
+    fill: boolean;
+    tension: number;
+
+}
+
+
+
+function extract_feature_name_one(metrics: MetricData) {
+    const unique_feature = Array.from(new Set(metrics.data.map((d) => d.feature)));
+
+    return unique_feature.map((feature) => {
+        return {
+            label: feature,
+            data: metrics.data.filter((d) => d.feature === feature).map((d) => {
+                return {
+                    x: d.x,
+                    y: d.y
+                }
+            }),
+            fill: metrics.fill,
+            tension: metrics.tension
+
+        }
+    }
+    );
+}
+
+function extract_feature_name(metrics: MetricData[]) {
+    const datasets = metrics.map((metric) => extract_feature_name_one(metric)).flat();
     return { datasets };
 }
 
@@ -65,7 +105,8 @@ function ErrorComponent() {
 interface MetricTimelineProps {
     cardTitle: string;
     metricNames: string[];
-
+    group_by_feature?: boolean;
+    sort_by_value?: boolean;
 }
 
 function fetchMetricData(url: string) {
@@ -79,6 +120,26 @@ type InteractionMode = 'Pan' | 'Zoom';
 interface GraphControlsProps {
     chart?: ChartJS<'line', { x: string; y: number }[], unknown> | null; // Current active mode
 }
+
+interface MetricData2 {
+    data: { x: string; y: number }[];
+    label: string;
+    fill: boolean;
+    tension: number;
+
+}
+function sort_datasets(datasets_in: MetricData2[]) {
+    const datasets = datasets_in.sort((a, b) => {
+        const a_max = Math.max(...a.data.map((d) => d.y));
+        const b_max = Math.max(...b.data.map((d) => d.y));
+        return b_max - a_max;
+    });
+    return { datasets };
+}
+
+
+
+
 
 export function GraphControls(props: GraphControlsProps) {
 
@@ -113,29 +174,29 @@ export function GraphControls(props: GraphControlsProps) {
     return (
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1 }}>
             <Tooltip title="Zoom">
-                <IconButton
+                <IconButton size="small"
                     onClick={() => handleZoom()}
                     sx={{
                         color: interactionMode === "Zoom" ? 'primary.main' : 'gray',
                         '&:hover': { color: 'primary.main' },
                     }}
                 >
-                    <CropFree />
+                    <CenterFocusWeak />
                 </IconButton>
             </Tooltip>
             <Tooltip title="Pan">
-                <IconButton
+                <IconButton size="small"
                     onClick={() => handlePan()}
                     sx={{
                         color: interactionMode === "Pan" ? 'primary.main' : 'gray',
                         '&:hover': { color: 'primary.main' },
                     }}
                 >
-                    <PanToolIcon />
+                    <OpenWith />
                 </IconButton>
             </Tooltip>
             <Tooltip title="Reset Zoom">
-                <IconButton
+                <IconButton size="small"
                     onClick={() => handleResetZoom()}
                     sx={{
                         color: 'gray',
@@ -151,8 +212,13 @@ export function GraphControls(props: GraphControlsProps) {
 }
 
 
-export default function MetricTimeline(props: MetricTimelineProps) {
-    const { metricNames, cardTitle } = props;
+export default function MetricTimeline({
+    cardTitle,
+    metricNames,
+    group_by_feature = false,  // Default value
+    sort_by_value = false      // Default value
+}: MetricTimelineProps) {
+    // const { metricNames, cardTitle, group_by_feature,  sort_by_value} = props;
     const [chartData, setChartData] = useState<{ datasets: { label: string; data: { x: string; y: number }[]; fill: boolean; tension: number }[] }>({ datasets: [] });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
@@ -173,7 +239,15 @@ export default function MetricTimeline(props: MetricTimelineProps) {
             }
         },
         plugins: {
+            legend: {
+                position: 'bottom',
+            },
+            // htmlLegend: {
+            //     // ID of the container to put the legend in
+            //     containerID: 'legend-container',
+            //   },
             zoom: {
+
                 pan: {
                     enabled: false, // Enable panning
                     mode: 'xy', // Allow panning on both x and y axes
@@ -205,10 +279,13 @@ export default function MetricTimeline(props: MetricTimelineProps) {
     const chartRef = useRef<ChartJS<'line', { x: string; y: number }[]>>(null);
 
     useEffect(() => {
-        Promise.all(metricNames.map(metricName => `/api/metrics?name=${metricName}`).map((url: string) => fetchMetricData(url)))
+        Promise.all(metricNames.map(metricName => `/api/projects/1/metrics?name=${metricName}`).map((url: string) => fetchMetricData(url)))
             .then(metrics => {
                 const parsedData = parse_datas(metrics);
-                setChartData(parsedData);
+                const chartData = group_by_feature ? extract_feature_name(parsedData.datasets) : parsedData;
+                const chartDataSorted = sort_by_value ? sort_datasets(chartData.datasets) : chartData;
+                // const chartData = extract_feature_name(parsedData.datasets);
+                setChartData(chartDataSorted);
                 setLoading(false);
             })
             .catch(() => {
@@ -217,12 +294,12 @@ export default function MetricTimeline(props: MetricTimelineProps) {
                 setLoading(false);
             });
 
-    }, [metricNames]);
+    }, [metricNames, group_by_feature, sort_by_value]);
 
     if (loading) return <Loading />;
     if (error) return <ErrorComponent />;
 
-
+    // console.log(chartData);
 
     return (
         <Box sx={{ width: 1 }}>
@@ -232,10 +309,13 @@ export default function MetricTimeline(props: MetricTimelineProps) {
                         {cardTitle}
                     </Typography>
                     {/* <GraphControls currentMode={interactionMode} onModeChange={setInteractionMode} /> */}
-                    <GraphControls chart={chartRef.current} />
+                    <Box display="flex" justifyContent="flex-end">
+                        <GraphControls chart={chartRef.current} />
+                    </Box>
                     <Box>
                         <Line ref={chartRef} data={chartData} options={options} />
                     </Box>
+                    <div id="legend-container"></div>
                 </CardContent>
             </Card>
         </Box>
