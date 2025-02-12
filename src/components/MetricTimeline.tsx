@@ -278,8 +278,11 @@ export default function MetricTimeline({
 
     const chartRef = useRef<ChartJS<'line', { x: string; y: number }[]>>(null);
 
+    const API_URL = import.meta.env.VITE_API_URL;
+
+
     useEffect(() => {
-        Promise.all(metricNames.map(metricName => `/api/projects/1/metrics?name=${metricName}`).map((url: string) => fetchMetricData(url)))
+        Promise.all(metricNames.map(metricName => `${API_URL}/api/projects/1/metrics?name=${metricName}`).map((url: string) => fetchMetricData(url)))
             .then(metrics => {
                 const parsedData = parse_datas(metrics);
                 const chartData = group_by_feature ? extract_feature_name(parsedData.datasets) : parsedData;
