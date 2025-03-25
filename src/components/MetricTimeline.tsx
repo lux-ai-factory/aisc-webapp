@@ -11,7 +11,7 @@ import { mapMetricsName } from "../utils";
 ChartJS.register(...registerables, zoomPlugin);
 import { enGB } from 'date-fns/locale';
 import 'chartjs-adapter-date-fns';
-import { CenterFocusWeak, Home, OpenWith } from "@mui/icons-material";
+import { CenterFocusWeak, Construction, Home, OpenWith } from "@mui/icons-material";
 
 
 interface MetricApiData {
@@ -117,9 +117,7 @@ function fetchMetricData(url: string) {
 
 type InteractionMode = 'Pan' | 'Zoom';
 
-interface GraphControlsProps {
-    chart?: ChartJS<'line', { x: string; y: number }[], unknown> | null; // Current active mode
-}
+
 
 interface MetricData2 {
     data: { x: string; y: number }[];
@@ -139,7 +137,9 @@ function sort_datasets(datasets_in: MetricData2[]) {
 
 
 
-
+interface GraphControlsProps {
+    chart?: ChartJS<'line', { x: string; y: number }[], unknown> | null; // Current active mode
+}
 
 export function GraphControls(props: GraphControlsProps) {
 
@@ -157,6 +157,7 @@ export function GraphControls(props: GraphControlsProps) {
     }
 
     const handlePan = () => {
+        console.log("Chart object in Zoom:", chart);
         if (!chart) return;
         if (chart.options.plugins?.zoom?.zoom?.drag?.enabled !== undefined)
             chart.options.plugins.zoom.zoom.drag.enabled = false;
@@ -297,7 +298,13 @@ export default function MetricTimeline({
                 setLoading(false);
             });
 
-    }, [metricNames, group_by_feature, sort_by_value]);
+    }, [metricNames, group_by_feature, sort_by_value, API_URL]);
+
+    useEffect(() => {
+        const chart = chartRef.current;
+        
+        console.log("Chart object in useEffect:", chart);
+      }, [chartRef]);
 
     if (loading) return <Loading />;
     if (error) return <ErrorComponent />;
