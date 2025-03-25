@@ -4,6 +4,7 @@ import Toolbar from '@mui/material/Toolbar';
 
 import LeftBar from './components/LeftBar';
 import ModelPerformance from './pages/ModelPerfromance';
+import NewProject from './pages/NewProject';
 import { Route, Routes } from 'react-router-dom';
 import Home from './pages/Home';
 import NotFound from './pages/NotFound';
@@ -24,6 +25,7 @@ export default function PermanentDrawerLeft() {
         { id: 7, name: 'Model Fairness', path: '/model-fairness' },
         { id: 8, name: 'Report', path: '/report' },
         { id: 9, name: 'Settings', path: '/settings' },
+        { id: 10, name: 'New Project', path: '/new-project', element:<NewProject /> }
     ];
     return (
         <Box sx={{ display: 'flex', flexDirection: 'row' }}>
