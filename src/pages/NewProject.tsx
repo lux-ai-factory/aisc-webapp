@@ -1,100 +1,182 @@
 
-import { Handshake } from '@mui/icons-material';
-import { Button, TextField, Box, Typography, Input, Stack } from '@mui/material';
-import { Chart as ChartJS, registerables } from 'chart.js';
-import zoomPlugin from 'chartjs-plugin-zoom';
+import { Button, TextField, Box, Typography, Stack } from '@mui/material';
 import React, { useState } from 'react';
 
+import UploadFileField from '../components/UploadFileField';
 
-import IconButton from "@mui/material/IconButton";
-import DeleteIcon from "@mui/icons-material/Delete";
-import UploadFileIcon from '@mui/icons-material/UploadFile';
 
-ChartJS.register(...registerables, zoomPlugin);
 
-interface UploadFileFieldProps {
-    label: string;
-    fileType: string;
-    handleSelectedFile: (e: React.ChangeEvent<HTMLInputElement>) => void
+import Stepper from '@mui/material/Stepper';
+import Step from '@mui/material/Step';
+import StepLabel from '@mui/material/StepLabel';
+
+const step_names = ['Project settings', 'File Upload', 'Data settings'];
+
+
+function ProjectSettingsForm() {
+
+    return (
+        <Box width={0.5} component="form" noValidate autoComplete="off">
+            <TextField label="Project name" />
+        </Box>
+    );
+
 }
 
 
-const UploadStateEnum = {
-    EMPTY: "empty",
-    SELECTED: "selected",
-    UPLOADING: "uploading",
-    SUCCESS: "success",
-    ERROR: "error",
-};
+interface StepsProps {
+    step: number;
+}
+function Steps(props: StepsProps) {
 
-function UploadFileField(props: UploadFileFieldProps) {
+    const { step } = props;
 
-    const { label, fileType, handleSelectedFile } = props;
+    switch (step) {
+        case 0:
+            return (
+                <ProjectSettingsForm/>
+            );
+        default:
+            <Box>Not implemented</Box>
+    }
 
+}
+
+
+function HorizontalLinearStepper() {
+    const [activeStep, setActiveStep] = React.useState(0);
+    const [skipped, setSkipped] = React.useState(new Set<number>());
+
+    const isStepOptional = (step: number) => {
+        return false;
+    };
+
+    const isStepSkipped = (step: number) => {
+        return skipped.has(step);
+    };
+
+    const handleNext = () => {
+        let newSkipped = skipped;
+        if (isStepSkipped(activeStep)) {
+            newSkipped = new Set(newSkipped.values());
+            newSkipped.delete(activeStep);
+        }
+
+        setActiveStep((prevActiveStep) => prevActiveStep + 1);
+        setSkipped(newSkipped);
+    };
+
+    const handleBack = () => {
+        setActiveStep((prevActiveStep) => prevActiveStep - 1);
+    };
+
+    const handleSkip = () => {
+        if (!isStepOptional(activeStep)) {
+            // You probably want to guard against something like this,
+            // it should never occur unless someone's actively trying to break something.
+            throw new Error("You can't skip a step that isn't optional.");
+        }
+
+        setActiveStep((prevActiveStep) => prevActiveStep + 1);
+        setSkipped((prevSkipped) => {
+            const newSkipped = new Set(prevSkipped.values());
+            newSkipped.add(activeStep);
+            return newSkipped;
+        });
+    };
+
+    const handleReset = () => {
+        setActiveStep(0);
+    };
 
     return (
-        <Box>
-            <Stack direction="row" spacing={1} alignItems="center">
-                <TextField
-                    type="file"
-                    variant="outlined"
-                    label={"label"}
-                    slotProps={{
-                        htmlInput: {
-                            accept: fileType, // Only accept CSV files
-                        },
-                        inputLabel: {
-                            shrink: true,
-                        },
-                    }}
-                    fullWidth
-                    margin="normal"
-                    onChange={handleSelectedFile}
-                />
-                <IconButton>
-                    <UploadFileIcon />
-                </IconButton>
-            </Stack>
+        <Box sx={{ width: '100%' }}>
+            <Stepper activeStep={activeStep}>
+                {step_names.map((label, index) => {
+                    const stepProps: { completed?: boolean } = {};
+                    const labelProps: {
+                        optional?: React.ReactNode;
+                    } = {};
+                    if (isStepOptional(index)) {
+                        labelProps.optional = (
+                            <Typography variant="caption">Optional</Typography>
+                        );
+                    }
+                    if (isStepSkipped(index)) {
+                        stepProps.completed = false;
+                    }
+                    return (
+                        <Step key={label} {...stepProps}>
+                            <StepLabel {...labelProps}>{label}</StepLabel>
+                        </Step>
+                    );
+                })}
+            </Stepper>
+            {activeStep === step_names.length ? (
+                <React.Fragment>
+                    <Typography sx={{ mt: 2, mb: 1 }}>
+                        All steps completed - you&apos;re finished
+                    </Typography>
+                    {/* <Box sx={{ display: 'flex', flexDirection: 'row', pt: 2 }}>
+                        <Box sx={{ flex: '1 1 auto' }} />
+                        <Button onClick={handleReset}>Reset</Button>
+                    </Box> */}
+                </React.Fragment>
+            ) : (
+                <React.Fragment>
+                    <Typography sx={{ mt: 2, mb: 1 }}>
+                        For debug: Step {activeStep + 1}
+                    </Typography>
+                    <Steps step={activeStep} />
+                    <Box sx={{ display: 'flex', flexDirection: 'row', pt: 2 }}>
+                        <Button
+                            color="inherit"
+                            disabled={activeStep === 0}
+                            onClick={handleBack}
+                            sx={{ mr: 1 }}
+                        >
+                            Back
+                        </Button>
+                        <Box sx={{ flex: '1 1 auto' }} />
+                        {isStepOptional(activeStep) && (
+                            <Button color="inherit" onClick={handleSkip} sx={{ mr: 1 }}>
+                                Skip
+                            </Button>
+                        )}
+                        <Button onClick={handleNext}>
+                            {activeStep === step_names.length - 1 ? 'Finish' : 'Next'}
+                        </Button>
+                    </Box>
+                </React.Fragment>
+            )}
         </Box>
-
     );
 }
 
 
-
 export default function NewProject() {
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, setFile: React.Dispatch<React.SetStateAction<File | null>>) => {
-        const selectedFile = e.target.files?.[0];
-        if (selectedFile) {
-            setFile(selectedFile)
-        }
-    };
+    const API_URL = import.meta.env.VITE_API_URL;
 
-    const [trainFile, setTrainFile] = useState<File | null>(null);
-    const [testFile, setTestFile] = useState<File | null>(null);
-    const [modelFile, setModelFile] = useState<File | null>(null);
+    const [trainFileName, setTrainFileName] = useState<string | null>(null);
 
     return (
-        <Box component="form" noValidate autoComplete="off">
+        <Box width={1}>
             <Typography variant="h6" gutterBottom>
                 New project Upload
             </Typography>
             <Stack spacing={2}>
+
+                <HorizontalLinearStepper />
+
                 <TextField label="Project name" />
-                <UploadFileField label="Training dataset" fileType='.csv' handleSelectedFile={(e) => handleFileChange(e, setTrainFile)} />
-                <UploadFileField label="Production dataset" fileType='.csv' handleSelectedFile={(e) => handleFileChange(e, setTestFile)} />
-                <UploadFileField label="Model (ONNX format)" fileType='.onnx' handleSelectedFile={(e) => handleFileChange(e, setModelFile)} />
-
-
-                {/* <Typography variant="h6" gutterBottom>
-                The selected file: {trainFile?.name}
-            </Typography> */}
-
+                <Box width={0.5} component="form" noValidate autoComplete="off">
+                    <UploadFileField label="Training dataset" fileType='.csv' uploadUrl={`${API_URL}/api/dataset_file`} setSuccessResponse={setTrainFileName} />
+                </Box>
                 <Button
                     // onClick={handleSubmit}
                     variant="contained"
-                    disabled={!trainFile || !testFile || !modelFile}
+                    disabled={!trainFileName}
                 >
                     Upload
                 </Button>
