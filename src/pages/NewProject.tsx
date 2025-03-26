@@ -9,16 +9,121 @@ import UploadFileField from '../components/UploadFileField';
 import Stepper from '@mui/material/Stepper';
 import Step from '@mui/material/Step';
 import StepLabel from '@mui/material/StepLabel';
+import axios, { AxiosResponse } from 'axios';
 
 const step_names = ['Project settings', 'File Upload', 'Data settings'];
 
 
-function ProjectSettingsForm() {
+
+
+function ProjectSettingsForm(props: {
+    nextPage: () => void;
+    setProjectPid: React.Dispatch<React.SetStateAction<string | null>>;
+}) {
+
+    const API_URL = import.meta.env.VITE_API_URL;
+
+    const MIN_PROJECT_NAME = 3;
+
+    const { nextPage, setProjectPid } = props;
+
+    const [projectName, setProjectName] = useState<string | null>(null);
+
+
+
+    const handleInputProjectName = (event: { target: { value: string; }; }) => {
+        setProjectName(event.target.value);
+    };
+
+
+    const handleError = () => {
+        console.error('Error')
+    }
+
+    const handleSuccess = (response: AxiosResponse) => {
+
+        setProjectPid(response.data["pid"])
+
+
+    }
+
+    function handleNext() {
+        if (!projectName) {
+            alert("Set project name")
+            return;
+        }
+        if (projectName.length < MIN_PROJECT_NAME) {
+            alert("Project name too short!")
+            return;
+        }
+
+        axios.post(
+            `${API_URL}/api/projects`,
+            {
+                name: `${projectName}`,
+            }
+        ).then(response => {
+            if (response.status === 201) {
+                handleSuccess(response)
+                nextPage()
+            } else {
+                handleError();
+            }
+        }).catch(error => {
+            handleError();
+        });
+
+
+    }
 
     return (
-        <Box width={0.5} component="form" noValidate autoComplete="off">
-            <TextField label="Project name" />
+        <Box width={1} component="form" noValidate autoComplete="off">
+            <TextField label="Project name" onChange={handleInputProjectName} />
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', pt: 2, width: 1 }}>
+
+                <Button onClick={handleNext}>
+                    {'Next'}
+                </Button>
+            </Box>
+
         </Box>
+    );
+
+}
+
+
+function FileUploadForm(props: {
+    nextPage: () => void;
+    projectPid: string;
+}) {
+
+    const { projectPid } = props;
+    const API_URL = import.meta.env.VITE_API_URL;
+
+    const [trainFileName, setTrainFileName] = useState<string | null>(null);
+    const [testFileName, setTestFileName] = useState<string | null>(null);
+    const [modelFileName, setModelFileName] = useState<string | null>(null);
+
+
+
+    function handleNext() {
+        if (!trainFileName || !testFileName || !modelFileName) {
+            alert("Please upload the files first.")
+            return
+        }
+
+
+    }
+
+    return (
+        <Box width={0.5} component="form" noValidate autoComplete="off" >
+            <Stack spacing={2}>
+                <UploadFileField label="Training dataset" fileType='.csv' uploadUrl={`${API_URL}/api/dataset_file?project_pid=${projectPid}`} setSuccessResponse={setTrainFileName} />
+                <UploadFileField label="Test dataset" fileType='.csv' uploadUrl={`${API_URL}/api/dataset_file?project_pid=${projectPid}`} setSuccessResponse={setTestFileName} />
+                <UploadFileField label="Model (as ONNX)" fileType='.onnx' uploadUrl={`${API_URL}/api/model_file?project_pid=${projectPid}`} setSuccessResponse={setModelFileName} />
+            </Stack>
+        </Box>
+
     );
 
 }
@@ -26,15 +131,22 @@ function ProjectSettingsForm() {
 
 interface StepsProps {
     step: number;
+    nextPage: () => void;
+    projectPid: string | null;
+    setProjectPid: React.Dispatch<React.SetStateAction<string | null>>
 }
 function Steps(props: StepsProps) {
 
-    const { step } = props;
+    const { step, nextPage, projectPid, setProjectPid } = props;
 
     switch (step) {
         case 0:
             return (
-                <ProjectSettingsForm/>
+                <ProjectSettingsForm nextPage={nextPage} setProjectPid={setProjectPid} />
+            );
+        case 1:
+            return (
+                <FileUploadForm />
             );
         default:
             <Box>Not implemented</Box>
@@ -42,47 +154,22 @@ function Steps(props: StepsProps) {
 
 }
 
+interface HorizontalLinearStepperProps {
+    projectPid: string | null;
+    setProjectPid: React.Dispatch<React.SetStateAction<string | null>>
 
-function HorizontalLinearStepper() {
+}
+function HorizontalLinearStepper(props: HorizontalLinearStepperProps) {
+
+    const { projectPid, setProjectPid } = props;
     const [activeStep, setActiveStep] = React.useState(0);
-    const [skipped, setSkipped] = React.useState(new Set<number>());
-
-    const isStepOptional = (step: number) => {
-        return false;
-    };
-
-    const isStepSkipped = (step: number) => {
-        return skipped.has(step);
-    };
 
     const handleNext = () => {
-        let newSkipped = skipped;
-        if (isStepSkipped(activeStep)) {
-            newSkipped = new Set(newSkipped.values());
-            newSkipped.delete(activeStep);
-        }
-
         setActiveStep((prevActiveStep) => prevActiveStep + 1);
-        setSkipped(newSkipped);
     };
 
     const handleBack = () => {
         setActiveStep((prevActiveStep) => prevActiveStep - 1);
-    };
-
-    const handleSkip = () => {
-        if (!isStepOptional(activeStep)) {
-            // You probably want to guard against something like this,
-            // it should never occur unless someone's actively trying to break something.
-            throw new Error("You can't skip a step that isn't optional.");
-        }
-
-        setActiveStep((prevActiveStep) => prevActiveStep + 1);
-        setSkipped((prevSkipped) => {
-            const newSkipped = new Set(prevSkipped.values());
-            newSkipped.add(activeStep);
-            return newSkipped;
-        });
     };
 
     const handleReset = () => {
@@ -97,14 +184,6 @@ function HorizontalLinearStepper() {
                     const labelProps: {
                         optional?: React.ReactNode;
                     } = {};
-                    if (isStepOptional(index)) {
-                        labelProps.optional = (
-                            <Typography variant="caption">Optional</Typography>
-                        );
-                    }
-                    if (isStepSkipped(index)) {
-                        stepProps.completed = false;
-                    }
                     return (
                         <Step key={label} {...stepProps}>
                             <StepLabel {...labelProps}>{label}</StepLabel>
@@ -127,8 +206,11 @@ function HorizontalLinearStepper() {
                     <Typography sx={{ mt: 2, mb: 1 }}>
                         For debug: Step {activeStep + 1}
                     </Typography>
-                    <Steps step={activeStep} />
-                    <Box sx={{ display: 'flex', flexDirection: 'row', pt: 2 }}>
+                    <Box sx={{
+                        display: 'flex'
+                    }}><Steps step={activeStep} nextPage={handleNext} projectPid={projectPid} setProjectPid={setProjectPid} /></Box>
+
+                    {/* <Box sx={{ display: 'flex', flexDirection: 'row', pt: 2 }}>
                         <Button
                             color="inherit"
                             disabled={activeStep === 0}
@@ -138,15 +220,10 @@ function HorizontalLinearStepper() {
                             Back
                         </Button>
                         <Box sx={{ flex: '1 1 auto' }} />
-                        {isStepOptional(activeStep) && (
-                            <Button color="inherit" onClick={handleSkip} sx={{ mr: 1 }}>
-                                Skip
-                            </Button>
-                        )}
                         <Button onClick={handleNext}>
                             {activeStep === step_names.length - 1 ? 'Finish' : 'Next'}
                         </Button>
-                    </Box>
+                    </Box> */}
                 </React.Fragment>
             )}
         </Box>
@@ -160,6 +237,8 @@ export default function NewProject() {
 
     const [trainFileName, setTrainFileName] = useState<string | null>(null);
 
+    const [projectPid, setProjectPid] = useState<string | null>(null);
+
     return (
         <Box width={1}>
             <Typography variant="h6" gutterBottom>
@@ -167,19 +246,9 @@ export default function NewProject() {
             </Typography>
             <Stack spacing={2}>
 
-                <HorizontalLinearStepper />
+                <HorizontalLinearStepper projectPid={projectPid} setProjectPid={setProjectPid} />
 
-                <TextField label="Project name" />
-                <Box width={0.5} component="form" noValidate autoComplete="off">
-                    <UploadFileField label="Training dataset" fileType='.csv' uploadUrl={`${API_URL}/api/dataset_file`} setSuccessResponse={setTrainFileName} />
-                </Box>
-                <Button
-                    // onClick={handleSubmit}
-                    variant="contained"
-                    disabled={!trainFileName}
-                >
-                    Upload
-                </Button>
+
             </Stack>
 
         </Box>
