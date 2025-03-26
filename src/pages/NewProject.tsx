@@ -1,9 +1,14 @@
 
 import { Handshake } from '@mui/icons-material';
-import { Button, TextField, Box, Typography, Input } from '@mui/material';
+import { Button, TextField, Box, Typography, Input, Stack } from '@mui/material';
 import { Chart as ChartJS, registerables } from 'chart.js';
 import zoomPlugin from 'chartjs-plugin-zoom';
 import React, { useState } from 'react';
+
+
+import IconButton from "@mui/material/IconButton";
+import DeleteIcon from "@mui/icons-material/Delete";
+import UploadFileIcon from '@mui/icons-material/UploadFile';
 
 ChartJS.register(...registerables, zoomPlugin);
 
@@ -13,26 +18,45 @@ interface UploadFileFieldProps {
     handleSelectedFile: (e: React.ChangeEvent<HTMLInputElement>) => void
 }
 
+
+const UploadStateEnum = {
+    EMPTY: "empty",
+    SELECTED: "selected",
+    UPLOADING: "uploading",
+    SUCCESS: "success",
+    ERROR: "error",
+};
+
 function UploadFileField(props: UploadFileFieldProps) {
 
     const { label, fileType, handleSelectedFile } = props;
+
+
     return (
-        <TextField
-            type="file"
-            variant="outlined"
-            label={label}
-            slotProps={{
-                htmlInput: {
-                    accept: fileType, // Only accept CSV files
-                },
-                inputLabel: {
-                    shrink: true,
-                },
-            }}
-            fullWidth
-            margin="normal"
-            onChange={handleSelectedFile}
-        />
+        <Box>
+            <Stack direction="row" spacing={1} alignItems="center">
+                <TextField
+                    type="file"
+                    variant="outlined"
+                    label={"label"}
+                    slotProps={{
+                        htmlInput: {
+                            accept: fileType, // Only accept CSV files
+                        },
+                        inputLabel: {
+                            shrink: true,
+                        },
+                    }}
+                    fullWidth
+                    margin="normal"
+                    onChange={handleSelectedFile}
+                />
+                <IconButton>
+                    <UploadFileIcon />
+                </IconButton>
+            </Stack>
+        </Box>
+
     );
 }
 
@@ -56,22 +80,25 @@ export default function NewProject() {
             <Typography variant="h6" gutterBottom>
                 New project Upload
             </Typography>
-            <TextField label="Project name" />
-            <UploadFileField label="Training dataset" fileType='.csv' handleSelectedFile={(e) => handleFileChange(e, setTrainFile)} />
-            <UploadFileField label="Production dataset" fileType='.csv' handleSelectedFile={(e) => handleFileChange(e, setTestFile)} />
-            <UploadFileField label="Model (ONNX format)" fileType='.onnx' handleSelectedFile={(e) => handleFileChange(e, setModelFile)} />
+            <Stack spacing={2}>
+                <TextField label="Project name" />
+                <UploadFileField label="Training dataset" fileType='.csv' handleSelectedFile={(e) => handleFileChange(e, setTrainFile)} />
+                <UploadFileField label="Production dataset" fileType='.csv' handleSelectedFile={(e) => handleFileChange(e, setTestFile)} />
+                <UploadFileField label="Model (ONNX format)" fileType='.onnx' handleSelectedFile={(e) => handleFileChange(e, setModelFile)} />
 
-            {/* <Typography variant="h6" gutterBottom>
+
+                {/* <Typography variant="h6" gutterBottom>
                 The selected file: {trainFile?.name}
             </Typography> */}
 
-            <Button
-                // onClick={handleSubmit}
-                variant="contained"
-                disabled={!trainFile || !testFile || !modelFile}
-            >
-                Upload
-            </Button>
+                <Button
+                    // onClick={handleSubmit}
+                    variant="contained"
+                    disabled={!trainFile || !testFile || !modelFile}
+                >
+                    Upload
+                </Button>
+            </Stack>
 
         </Box>
     );
