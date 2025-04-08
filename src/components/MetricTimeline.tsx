@@ -11,7 +11,7 @@ import { mapMetricsName } from "../utils";
 ChartJS.register(...registerables, zoomPlugin);
 import { enGB } from 'date-fns/locale';
 import 'chartjs-adapter-date-fns';
-import { CenterFocusWeak, Construction, Home, OpenWith } from "@mui/icons-material";
+import { CenterFocusWeak, Home, OpenWith } from "@mui/icons-material";
 
 
 interface MetricApiData {
@@ -302,7 +302,7 @@ export default function MetricTimeline({
 
     useEffect(() => {
         const chart = chartRef.current;
-        
+
         console.log("Chart object in useEffect:", chart);
       }, [chartRef]);
 

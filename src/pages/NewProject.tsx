@@ -69,7 +69,7 @@ function ProjectSettingsForm(props: {
             } else {
                 handleError();
             }
-        }).catch(error => {
+        }).catch(_ => {
             handleError();
         });
 
@@ -94,7 +94,7 @@ function ProjectSettingsForm(props: {
 
 function FileUploadForm(props: {
     nextPage: () => void;
-    projectPid: string;
+    projectPid: string | null;
 }) {
 
     const { projectPid } = props;
@@ -105,14 +105,11 @@ function FileUploadForm(props: {
     const [modelFileName, setModelFileName] = useState<string | null>(null);
 
 
-
     function handleNext() {
         if (!trainFileName || !testFileName || !modelFileName) {
             alert("Please upload the files first.")
             return
         }
-
-
     }
 
     return (
@@ -122,6 +119,12 @@ function FileUploadForm(props: {
                 <UploadFileField label="Test dataset" fileType='.csv' uploadUrl={`${API_URL}/api/dataset_file?project_pid=${projectPid}`} setSuccessResponse={setTestFileName} />
                 <UploadFileField label="Model (as ONNX)" fileType='.onnx' uploadUrl={`${API_URL}/api/model_file?project_pid=${projectPid}`} setSuccessResponse={setModelFileName} />
             </Stack>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', pt: 2, width: 1 }}>
+
+                <Button onClick={handleNext}>
+                    {'Next'}
+                </Button>
+            </Box>
         </Box>
 
     );
@@ -146,7 +149,7 @@ function Steps(props: StepsProps) {
             );
         case 1:
             return (
-                <FileUploadForm />
+                <FileUploadForm nextPage={nextPage} projectPid={projectPid} />
             );
         default:
             <Box>Not implemented</Box>
@@ -168,18 +171,18 @@ function HorizontalLinearStepper(props: HorizontalLinearStepperProps) {
         setActiveStep((prevActiveStep) => prevActiveStep + 1);
     };
 
-    const handleBack = () => {
-        setActiveStep((prevActiveStep) => prevActiveStep - 1);
-    };
+    // const handleBack = () => {
+    //     setActiveStep((prevActiveStep) => prevActiveStep - 1);
+    // };
 
-    const handleReset = () => {
-        setActiveStep(0);
-    };
+    // const handleReset = () => {
+    //     setActiveStep(0);
+    // };
 
     return (
         <Box sx={{ width: '100%' }}>
             <Stepper activeStep={activeStep}>
-                {step_names.map((label, index) => {
+                {step_names.map((label, _) => {
                     const stepProps: { completed?: boolean } = {};
                     const labelProps: {
                         optional?: React.ReactNode;
@@ -233,9 +236,9 @@ function HorizontalLinearStepper(props: HorizontalLinearStepperProps) {
 
 export default function NewProject() {
 
-    const API_URL = import.meta.env.VITE_API_URL;
+    // const API_URL = import.meta.env.VITE_API_URL;
 
-    const [trainFileName, setTrainFileName] = useState<string | null>(null);
+    // const [trainFileName, setTrainFileName] = useState<string | null>(null);
 
     const [projectPid, setProjectPid] = useState<string | null>(null);
 
