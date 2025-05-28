@@ -1,3 +1,9 @@
+/* 
+ * Global styles for the A4S web application
+ * Contains utility classes for gradients and other global styles
+ */
+
+/* Gradient utility class - applies a custom brand gradient from purple to red */
 .gradient {
   /* background: linear-gradient(to right, #af1060, #4b61b4) !important; */
   /* background: linear-gradient(to right, #D7193B, #50328C) !important; */
