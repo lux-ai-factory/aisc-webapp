@@ -1,50 +1,17 @@
-# React + TypeScript + Vite
+# A4S Web
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## About enviornment variables
 
-Currently, two official plugins are available:
+By default, vite as a system to manage environment variables.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Environment variables are defined in `.env` files, which are loaded based on the mode you are running.
+The default mode is `development`, so the `.env.development` file will be loaded when running `npm run dev`.
+The default mode when building is `production`, so the `.env.production` file will be loaded when running `npm run build`.
 
-## Expanding the ESLint configuration
+Read more here: https://vite.dev/guide/env-and-mode.
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+Because we only run whitin docker, in production mode, all variables in the `.env.production` file are place holders where `VITE_XXX` is replaced with `APP_XXX` for the `npm run build` command.
 
-- Configure the top-level `parserOptions` property like this:
+When you start the docker container the entrypoint script `env.sh` will replace the `APP_XXX` variables with the values from the environment variables set in the docker container.
 
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
-
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
-
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
-
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
-```
+Please do not change the name of the `.env.XXX` files as this will break autodiscovery of the environment variables.
