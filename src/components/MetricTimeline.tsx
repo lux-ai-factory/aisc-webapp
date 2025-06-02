@@ -1,3 +1,7 @@
+/**
+ * @fileoverview MetricTimeline component for visualizing time-series metric data
+ * using Chart.js. Supports zooming, panning, and feature-based grouping of metrics.
+ */
 
 import { useState, useEffect, useRef } from "react";
 
@@ -13,7 +17,9 @@ import { enGB } from 'date-fns/locale';
 import 'chartjs-adapter-date-fns';
 import { CenterFocusWeak, Home, OpenWith } from "@mui/icons-material";
 
-
+/**
+ * Interface representing the raw metric data from the API
+ */
 interface MetricApiData {
     name: string;
     time: string;
@@ -23,6 +29,11 @@ interface MetricApiData {
     }
 }
 
+/**
+ * Parses raw metric data into a format compatible with Chart.js
+ * @param metrics Array of metric data arrays from the API
+ * @returns Formatted dataset object for Chart.js
+ */
 function parse_datas(metrics: MetricApiData[][]) {
     const datasets = metrics.map(metric => {
         const parsed_data = metric.map((d) => {
@@ -45,16 +56,21 @@ function parse_datas(metrics: MetricApiData[][]) {
     return { datasets };
 }
 
+/**
+ * Interface for processed metric data ready for visualization
+ */
 interface MetricData {
     data: { x: string; y: number, feature: string }[];
     label: string;
     fill: boolean;
     tension: number;
-
 }
 
-
-
+/**
+ * Extracts and groups data by feature name for a single metric
+ * @param metrics Single metric dataset to process
+ * @returns Array of datasets grouped by feature
+ */
 function extract_feature_name_one(metrics: MetricData) {
     const unique_feature = Array.from(new Set(metrics.data.map((d) => d.feature)));
 
@@ -75,12 +91,19 @@ function extract_feature_name_one(metrics: MetricData) {
     );
 }
 
+/**
+ * Processes multiple metric datasets to group by feature names
+ * @param metrics Array of metric datasets to process
+ * @returns Combined datasets grouped by feature
+ */
 function extract_feature_name(metrics: MetricData[]) {
     const datasets = metrics.map((metric) => extract_feature_name_one(metric)).flat();
     return { datasets };
 }
 
-
+/**
+ * Loading indicator component
+ */
 function Loading() {
     return (
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
@@ -90,6 +113,9 @@ function Loading() {
 
 }
 
+/**
+ * Error display component
+ */
 function ErrorComponent() {
     return (
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
@@ -102,30 +128,49 @@ function ErrorComponent() {
 
 // TODO: keep only function and then export later, and not default
 
+/**
+ * Props interface for the MetricTimeline component
+ */
 interface MetricTimelineProps {
+    /** Title displayed at the top of the metric card */
     cardTitle: string;
+    /** Array of metric names to fetch and display */
     metricNames: string[];
+    /** Whether to group the data by feature */
     group_by_feature?: boolean;
+    /** Whether to sort datasets by maximum value */
     sort_by_value?: boolean;
 }
 
+/**
+ * Fetches metric data from the API
+ * @param url API endpoint URL
+ * @returns Promise resolving to metric data
+ */
 function fetchMetricData(url: string) {
     return fetch(url)
         .then(response => response.json())
         .then(data => data);
 }
 
+/** Type for interaction mode state */
 type InteractionMode = 'Pan' | 'Zoom';
 
-
-
+/**
+ * Interface for processed metric data without feature information
+ */
 interface MetricData2 {
     data: { x: string; y: number }[];
     label: string;
     fill: boolean;
     tension: number;
-
 }
+
+/**
+ * Sorts datasets by their maximum values
+ * @param datasets_in Input datasets to sort
+ * @returns Sorted datasets
+ */
 function sort_datasets(datasets_in: MetricData2[]) {
     const datasets = datasets_in.sort((a, b) => {
         const a_max = Math.max(...a.data.map((d) => d.y));
@@ -135,12 +180,17 @@ function sort_datasets(datasets_in: MetricData2[]) {
     return { datasets };
 }
 
-
-
+/**
+ * Props interface for the GraphControls component
+ */
 interface GraphControlsProps {
-    chart?: ChartJS<'line', { x: string; y: number }[], unknown> | null; // Current active mode
+    /** Reference to the Chart.js instance */
+    chart?: ChartJS<'line', { x: string; y: number }[], unknown> | null;
 }
 
+/**
+ * Component providing zoom and pan controls for the graph
+ */
 export function GraphControls(props: GraphControlsProps) {
 
     const { chart } = props;
@@ -212,7 +262,10 @@ export function GraphControls(props: GraphControlsProps) {
     );
 }
 
-
+/**
+ * Main component for displaying time-series metric data with interactive controls
+ * Supports zooming, panning, and various data grouping options
+ */
 export default function MetricTimeline({
     cardTitle,
     metricNames,
