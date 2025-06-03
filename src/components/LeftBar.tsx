@@ -18,8 +18,26 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import { Box } from '@mui/material';
 import { Link, useLocation } from 'react-router-dom';
 
-interface MenuListProps { title: string, items: { text: string, icon: React.ReactNode, target: string }[] }
+/**
+ * Props interface for the MenuList component
+ * @interface MenuListProps
+ * @property {string} title - The title of the menu section
+ * @property {Array<{text: string, icon: React.ReactNode, target: string}>} items - Array of menu items
+ */
+interface MenuListProps { 
+    title: string, 
+    items: { text: string, icon: React.ReactNode, target: string }[] 
+}
 
+/**
+ * MenuList component
+ * Renders a section of the navigation menu with a title and list of items
+ * Each item has an icon and links to a specific route
+ * Highlights the currently active route
+ * 
+ * @param {MenuListProps} props - Component props
+ * @returns {JSX.Element} A list of navigation items with icons and links
+ */
 function MenuList(props: MenuListProps) {
 
     const location = useLocation().pathname;
@@ -44,10 +62,29 @@ function MenuList(props: MenuListProps) {
     </List>);
 }
 
+/**
+ * Props interface for the LeftBar component
+ * @interface LeftBarProps
+ * @property {number} drawerWidth - The width of the drawer in pixels
+ */
 interface LeftBarProps {
     drawerWidth: number;
 }
 
+/**
+ * LeftBar component
+ * Main navigation drawer component for the application
+ * Contains multiple sections of navigation items:
+ * - Overview
+ * - Data Analysis
+ * - Model Evaluation
+ * - Risk Management
+ * 
+ * Uses Material-UI's permanent drawer with custom width
+ * 
+ * @param {LeftBarProps} props - Component props
+ * @returns {JSX.Element} A permanent drawer with navigation menu
+ */
 export default function LeftBar({ drawerWidth }: LeftBarProps) {
     return (
         <Drawer
