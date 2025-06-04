@@ -11,10 +11,24 @@ import NotFound from './pages/NotFound';
 import Construction from './pages/Construction';
 import TopBar from './components/TopBar';
 import DataDrift from './pages/DataDrift';
+
+/** Width of the left drawer in pixels */
 const drawerWidth = 320;
 
+/**
+ * Main application layout component
+ * Implements a permanent left drawer layout with Material-UI
+ * Contains the main navigation structure and routing setup
+ * 
+ * @returns {JSX.Element} The main application layout with navigation and content area
+ */
 export default function PermanentDrawerLeft() {
 
+    /** 
+     * Navigation configuration array
+     * Defines all available routes and their corresponding components
+     * If a route doesn't have an element, it will show the Construction component
+     */
     const navs = [
         { id: 1, name: 'Home', path: '/', element: <Home /> },
         { id: 2, name: 'Training Data', path: '/training-data' },

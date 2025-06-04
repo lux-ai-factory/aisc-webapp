@@ -9,15 +9,31 @@ import ReplayIcon from '@mui/icons-material/Replay';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import CircularProgressWithLabel from "./CircularProgressWithLabel";
 
+/**
+ * Enum representing the different states of file upload
+ * @enum {string}
+ */
 enum FileUploadStateEnum {
+    /** No file selected */
     EMPTY = "empty",
+    /** File selected but not uploaded */
     SELECTED = "selected",
+    /** File is currently being uploaded */
     UPLOADING = "uploading",
+    /** File upload completed successfully */
     SUCCESS = "success",
+    /** File upload failed */
     ERROR = "error",
 };
 
-
+/**
+ * Props interface for the UploadFileField component
+ * @interface UploadFileFieldProps
+ * @property {string} label - Label text for the file input field
+ * @property {string} fileType - Accepted file type (e.g., ".csv")
+ * @property {string} uploadUrl - URL endpoint for file upload
+ * @property {React.Dispatch<React.SetStateAction<string | null>>} setSuccessResponse - Callback to handle successful upload
+ */
 interface UploadFileFieldProps {
     label: string;
     fileType: string;
@@ -25,7 +41,21 @@ interface UploadFileFieldProps {
     setSuccessResponse: React.Dispatch<React.SetStateAction<string | null>>;
 }
 
-
+/**
+ * UploadFileField component
+ * A file upload field with progress indicator and status icons
+ * Handles file selection, upload, and displays upload progress
+ * 
+ * Features:
+ * - File type validation
+ * - Upload progress indicator
+ * - Status icons for different states
+ * - Error handling with retry option
+ * - Disabled state during upload
+ * 
+ * @param {UploadFileFieldProps} props - Component props
+ * @returns {JSX.Element} A file upload field with progress and status indicators
+ */
 function UploadFileField(props: UploadFileFieldProps){
 
 
