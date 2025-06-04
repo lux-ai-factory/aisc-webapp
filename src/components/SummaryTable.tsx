@@ -2,6 +2,18 @@ import React from "react";
 import { Box, Grid, Typography, Paper, Chip } from "@mui/material";
 import { green, orange, red } from "@mui/material/colors";
 
+/**
+ * Props interface for the MetricCard component
+ * @interface MetricCardProps
+ * @property {string} title - The title of the metric card
+ * @property {string | number} metric - The main metric value to display
+ * @property {string | number} change - The change in metric value (with direction)
+ * @property {string} changeColor - Color to display the change (from MUI colors)
+ * @property {string} observations - Detailed observations about the metric
+ * @property {string} takeaway - Key takeaway or conclusion
+ * @property {string} recommendation - Action recommendation
+ * @property {string} recommendationColor - Color for the recommendation chip
+ */
 interface MetricCardProps {
     title: string;
     metric: string | number;
@@ -13,6 +25,14 @@ interface MetricCardProps {
     recommendationColor: string;
 }
 
+/**
+ * MetricCard component
+ * Displays a single metric card with title, value, change, observations, and recommendations
+ * Used as a child component in the SummaryTable
+ * 
+ * @param {MetricCardProps} props - Component props
+ * @returns {JSX.Element} A paper component containing metric information
+ */
 const MetricCard: React.FC<MetricCardProps> = ({
     title,
     metric,
@@ -60,6 +80,22 @@ const MetricCard: React.FC<MetricCardProps> = ({
     );
 };
 
+/**
+ * SummaryTable component
+ * Displays a grid of metric cards showing various model and data metrics
+ * Includes metrics for:
+ * - Training & Test Data
+ * - Production Data & Anomalies
+ * - Model Output & Performance
+ * - Model Robustness
+ * - Explainability
+ * - Fairness
+ * 
+ * Each metric is displayed with its current value, change, observations,
+ * and recommended actions using color coding for status indication
+ * 
+ * @returns {JSX.Element} A grid of metric cards showing model and data health
+ */
 const SummaryTable: React.FC = () => {
     const metricsData = [
         {

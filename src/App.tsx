@@ -3,6 +3,13 @@ import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
 
+/**
+ * Default Vite + React demo component
+ * Displays a simple counter and logos for Vite and React
+ * Used as a template/example component showing HMR capabilities
+ * 
+ * @returns {JSX.Element} A demo page with Vite and React logos and a counter
+ */
 function App() {
   const [count, setCount] = useState(0)
 

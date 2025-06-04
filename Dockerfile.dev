@@ -1,7 +1,14 @@
+# Development Dockerfile for A4S webapp
+
 # Build Stage
 FROM node:22-alpine
+
+# Set working directory for all subsequent operations
 WORKDIR /app
+
+# Copy package files first to leverage Docker layer caching
 COPY package.json package-lock.json ./
 RUN npm install
 
+# Start development server using the shell script
 CMD ["tasks/start_dev.sh"]
