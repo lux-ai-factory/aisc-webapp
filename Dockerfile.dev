@@ -10,5 +10,5 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm install
 
-# Start development server using the shell script
-CMD ["tasks/start_dev.sh"]
+# Start development server directly
+CMD ["npm", "run", "dev"]
