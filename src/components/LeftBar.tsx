@@ -101,6 +101,7 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
 
                 <MenuList title="" items={[
                     { text: 'Overview', icon: <DashboardIcon />, target: '/' },
+                    { text: 'Start Evaluation', icon: <TimelineIcon />, target: '/start-eval' },
                 ]} />
 
                 <Divider />
