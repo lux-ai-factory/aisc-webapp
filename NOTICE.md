@@ -1,7 +1,6 @@
 # NOTICE
 
-This product includes software, originally developed as part of the **A4S** project, by the **Université du Luxembourg**  
-at the **Serval Research Group**, Interdisciplinary Centre for Security, Reliability and Trust (SnT).
+This product includes software, originally developed as the **A4S** project, by Maxime Cordy and Thibault Simonetto, at the **Université du Luxembourg**, **Interdisciplinary Centre for Security, Reliability and Trust (SnT)**, **SerVal Research Group**.
 
 © 2024–2025 Université du Luxembourg. All rights reserved.  
 
