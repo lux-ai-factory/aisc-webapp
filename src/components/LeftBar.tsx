@@ -15,6 +15,8 @@ import BalanceIcon from '@mui/icons-material/Balance';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import SettingsIcon from '@mui/icons-material/Settings';
 import DashboardIcon from '@mui/icons-material/Dashboard';
+import GradingIcon from '@mui/icons-material/Grading';
+import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 import { Box } from '@mui/material';
 import { Link, useLocation } from 'react-router-dom';
 
@@ -101,7 +103,7 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
 
                 <MenuList title="" items={[
                     { text: 'Overview', icon: <DashboardIcon />, target: '/' },
-                    { text: 'Start Evaluation', icon: <TimelineIcon />, target: '/start-eval' },
+                    { text: 'Start Evaluation', icon: <GradingIcon />, target: '/start-eval' },
                 ]} />
 
                 <Divider />
@@ -109,7 +111,7 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
                 <MenuList title="Data" items={[
                     { text: 'Training Data Analysis', icon: <DatasetIcon />, target: '/training-data' },
                     { text: 'Data Anomalies', icon: <FlagIcon />, target: '/data-anomalies' },
-                    { text: 'Data Drift', icon: <TimelineIcon />, target: '/data-drift' },
+                    { text: 'Data Drift', icon: <RocketLaunchIcon />, target: '/data-drift' },
                 ]} />
                 <Divider />
 
