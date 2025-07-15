@@ -214,7 +214,7 @@ export default function DataDrift() {
                                         <Box>
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                                 <Typography variant="body1">
-                                                    Evaluation #{evaluations.length - index}
+                                                    Evaluation #{index + 1}
                                                 </Typography>
                                                 {index === evaluations.length - 1 && (
                                                     <Chip label="Latest" size="small" color="primary" />
