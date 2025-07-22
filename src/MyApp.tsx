@@ -4,13 +4,14 @@ import Toolbar from '@mui/material/Toolbar';
 
 import LeftBar from './components/LeftBar';
 import ModelPerformance from './pages/ModelPerfromance';
-import NewProject from './pages/NewProject';
+import ProjectManagement from './pages/ProjectManagement';
 import { Route, Routes } from 'react-router-dom';
 import Home from './pages/Home';
 import NotFound from './pages/NotFound';
 import Construction from './pages/Construction';
 import TopBar from './components/TopBar';
 import DataDrift from './pages/DataDrift';
+import StartEvaluation from './pages/StartEvaluation';
 
 /** Width of the left drawer in pixels */
 const drawerWidth = 320;
@@ -31,15 +32,16 @@ export default function PermanentDrawerLeft() {
      */
     const navs = [
         { id: 1, name: 'Home', path: '/', element: <Home /> },
-        { id: 2, name: 'Training Data', path: '/training-data' },
-        { id: 3, name: 'Data Anomalies', path: '/data-anomalies' },
-        { id: 4, name: 'Data Drift', path: '/data-drift', element: <DataDrift /> },
-        { id: 5, name: 'Model Accuracy', path: '/model-accuracy', element: <ModelPerformance /> },
-        { id: 6, name: 'Model Robustness', path: '/model-robustness' },
-        { id: 7, name: 'Model Fairness', path: '/model-fairness' },
-        { id: 8, name: 'Report', path: '/report' },
-        { id: 9, name: 'Settings', path: '/settings' },
-        { id: 10, name: 'New Project', path: '/new-project', element:<NewProject /> }
+        { id: 2, name: 'Project Management', path: '/project-management', element:<ProjectManagement /> },
+        { id: 3, name:'Start evaluation', path: '/start-eval', element: <StartEvaluation />},
+        { id: 4, name: 'Training Data', path: '/training-data' },
+        { id: 5, name: 'Data Anomalies', path: '/data-anomalies' },
+        { id: 6, name: 'Data Drift', path: '/data-drift', element: <DataDrift /> },
+        { id: 7, name: 'Model Accuracy', path: '/model-accuracy', element: <ModelPerformance /> },
+        { id: 8, name: 'Model Robustness', path: '/model-robustness' },
+        { id: 9, name: 'Model Fairness', path: '/model-fairness' },
+        { id: 10, name: 'Report', path: '/report' },
+        { id: 11, name: 'Settings', path: '/settings' }
     ];
     return (
         <Box sx={{ display: 'flex', flexDirection: 'row' }}>

@@ -35,24 +35,39 @@ interface MetricApiData {
  * @returns Formatted dataset object for Chart.js
  */
 function parse_datas(metrics: MetricApiData[][]) {
-    const datasets = metrics.map(metric => {
-        const parsed_data = metric.map((d) => {
+    const datasets = metrics.map((metric, index) => {
+        // Remove duplicates based on time and feature
+        const uniqueData = metric.filter((item, idx, self) => 
+            idx === self.findIndex(t => 
+                t.time === item.time && 
+                t.feature?.name === item.feature?.name &&
+                t.name === item.name
+            )
+        );
+        
+        const parsed_data = uniqueData.map((d) => {
             return {
-                'x': new Date(d.time).toISOString().slice(0, 19).replace('T', ' '),
+                'x': new Date(d.time).toISOString(),
                 'y': d.score,
-                'feature': d.feature?.name
+                'feature': d.feature?.name || 'Unknown'
             }
         });
+        
+        // Sort data by time to ensure proper line connections
+        parsed_data.sort((a, b) => new Date(a.x).getTime() - new Date(b.x).getTime());
+        
         const metric_label = metric.length > 0 ? mapMetricsName(metric[0].name) || 'Unknown' : 'Unknown';
 
         return {
             label: metric_label,
             data: parsed_data,
             fill: false,
-            tension: 0.1
+            tension: 0,
+            borderWidth: 3,
+            pointRadius: 4,
         };
     });
-    console.log(datasets);
+    console.log('Parsed datasets:', datasets);
     return { datasets };
 }
 
@@ -136,6 +151,10 @@ interface MetricTimelineProps {
     cardTitle: string;
     /** Array of metric names to fetch and display */
     metricNames: string[];
+    /** Project PID to fetch metrics for */
+    projectPid?: string;
+    /** Evaluation PID to fetch metrics for (optional, if not provided uses project-level metrics) */
+    evaluationPid?: string;
     /** Whether to group the data by feature */
     group_by_feature?: boolean;
     /** Whether to sort datasets by maximum value */
@@ -269,6 +288,8 @@ export function GraphControls(props: GraphControlsProps) {
 export default function MetricTimeline({
     cardTitle,
     metricNames,
+    projectPid,
+    evaluationPid,
     group_by_feature = false,  // Default value
     sort_by_value = false      // Default value
 }: MetricTimelineProps) {
@@ -279,15 +300,63 @@ export default function MetricTimeline({
 
     const options: ChartOptions<'line'> = {
         responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+            mode: 'index',
+            intersect: false,
+        },
         scales: {
             x: {
                 type: 'time',
                 time: {
-                    unit: 'day'
+                    unit: 'day',
+                    displayFormats: {
+                        day: 'MMM dd, yyyy',   // Show date in day format
+                        week: 'MMM dd, yyyy',  // Show date in week format
+                        month: 'MMM yyyy',     // Show date in month format
+                        year: 'yyyy'           // Show date in year format
+                    },
+                    tooltipFormat: 'MMM dd, yyyy HH:mm', // Full date
                 },
                 adapters: {
                     date: {
                         locale: enGB
+                    }
+                },
+                grid: {
+                    color: 'rgba(0, 0, 0, 0.05)', // Subtle grid lines
+                },
+                ticks: {
+                    maxTicksLimit: 10, // Limit number of ticks for readability
+                }
+            },
+            y: {
+                grid: {
+                    color: 'rgba(0, 0, 0, 0.05)', // Subtle grid lines
+                },
+                ticks: {
+                    callback: function(value) {
+                        const numValue = Number(value);
+                        
+                        // Determine appropriate number of decimal places based on magnitude
+                        if (Math.abs(numValue) >= 1000) {
+                            return numValue.toFixed(0); // No decimals for large numbers
+                        } else if (Math.abs(numValue) >= 10) {
+                            return numValue.toFixed(1); // 1 decimal for numbers ≥ 10
+                        } else if (Math.abs(numValue) >= 1) {
+                            return numValue.toFixed(2); // 2 decimals for numbers ≥ 1
+                        } else if (Math.abs(numValue) >= 0.1) {
+                            return numValue.toFixed(3); // 3 decimals for numbers ≥ 0.1
+                        } else if (Math.abs(numValue) >= 0.01) {
+                            return numValue.toFixed(4); // 4 decimals for numbers ≥ 0.01
+                        } else if (Math.abs(numValue) >= 0.001) {
+                            return numValue.toFixed(5); // 5 decimals for numbers ≥ 0.001
+                        } else if (numValue === 0) {
+                            return '0'; // Just 0 for zero
+                        } else {
+                            // For very small numbers, use scientific notation or more decimals
+                            return numValue < 0.0001 ? numValue.toExponential(2) : numValue.toFixed(6);
+                        }
                     }
                 }
             }
@@ -295,36 +364,70 @@ export default function MetricTimeline({
         plugins: {
             legend: {
                 position: 'bottom',
+                labels: {
+                    usePointStyle: true, // Use circular points in legend
+                    pointStyle: 'circle',
+                    padding: 20,
+                }
             },
-            // htmlLegend: {
-            //     // ID of the container to put the legend in
-            //     containerID: 'legend-container',
-            //   },
+            tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                titleColor: 'white',
+                bodyColor: 'white',
+                borderColor: 'rgba(255, 255, 255, 0.2)',
+                borderWidth: 1,
+                cornerRadius: 8,
+                callbacks: {
+                    title: function(context) {
+                        const date = new Date(context[0].parsed.x);
+                        return date.toLocaleDateString('en-GB', { 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                    },
+                    label: function(context) {
+                        const numValue = Number(context.parsed.y);
+                        let formattedValue;
+                        
+                        // Use the same formatting logic as Y-axis ticks
+                        if (Math.abs(numValue) >= 1000) {
+                            formattedValue = numValue.toFixed(0);
+                        } else if (Math.abs(numValue) >= 10) {
+                            formattedValue = numValue.toFixed(1);
+                        } else if (Math.abs(numValue) >= 1) {
+                            formattedValue = numValue.toFixed(2);
+                        } else if (Math.abs(numValue) >= 0.1) {
+                            formattedValue = numValue.toFixed(3);
+                        } else if (Math.abs(numValue) >= 0.01) {
+                            formattedValue = numValue.toFixed(4);
+                        } else if (Math.abs(numValue) >= 0.001) {
+                            formattedValue = numValue.toFixed(5);
+                        } else if (numValue === 0) {
+                            formattedValue = '0';
+                        } else {
+                            formattedValue = numValue < 0.0001 ? numValue.toExponential(2) : numValue.toFixed(6);
+                        }
+                        
+                        return `${context.dataset.label}: ${formattedValue}`;
+                    }
+                }
+            },
             zoom: {
-
                 pan: {
                     enabled: false, // Enable panning
                     mode: 'xy', // Allow panning on both x and y axes
                 },
                 zoom: {
-                    // wheel: {
-                    //     enabled: true, // Enable zooming with the mouse wheel
-                    //     modifierKey: 'ctrl', // Require Ctrl key to zoom (similar to Plotly)
-                    // },
-                    // pinch: {
-                    //     enabled: true, // Enable zooming with pinch gestures
-                    // },
                     drag: {
-                        enabled: true, // Enable drag-to-zoom box (similar to Plotly)
-                        backgroundColor: 'rgba(0, 0, 255, 0.1)', // Highlight area being zoomed
-                        borderColor: 'blue', // Border of the drag box
-                        borderWidth: 1,
+                        enabled: true, // Enable drag-to-zoom box
+                        backgroundColor: 'rgba(54, 162, 235, 0.1)', // Modern blue highlight
+                        borderColor: '#36A2EB', // Modern blue border
+                        borderWidth: 2,
                     },
                     mode: 'xy', // Zoom both axes simultaneously
-                    // limits: {
-                    //     x: { min: 'original', max: 'original' }, // Do not exceed original data range
-                    //     y: { min: 'original', max: 'original' },
-                    // },
                 },
             },
         },
@@ -332,26 +435,99 @@ export default function MetricTimeline({
 
     const chartRef = useRef<ChartJS<'line', { x: string; y: number }[]>>(null);
 
-    const API_URL = import.meta.env.VITE_API_URL;
+    const API_URL = import.meta.env.VITE_BACKEND_API_URL;
 
 
     useEffect(() => {
-        Promise.all(metricNames.map(metricName => `${API_URL}/api/projects/1/metrics?name=${metricName}`).map((url: string) => fetchMetricData(url)))
-            .then(metrics => {
-                const parsedData = parse_datas(metrics);
-                const chartData = group_by_feature ? extract_feature_name(parsedData.datasets) : parsedData;
-                const chartDataSorted = sort_by_value ? sort_datasets(chartData.datasets) : chartData;
-                // const chartData = extract_feature_name(parsedData.datasets);
-                setChartData(chartDataSorted);
+        if (!projectPid) {
+            console.warn('No project PID provided to MetricTimeline');
+            setError(true);
+            setLoading(false);
+            return;
+        }
+
+        // Reset loading state
+        setLoading(true);
+        setError(false);
+
+        // Create URLs for each metric
+        const urls = metricNames.map(metricName => {
+            if (evaluationPid) {
+                return `${API_URL}/projects/${projectPid}/evaluations/${evaluationPid}/metrics?name=${metricName}`;
+            } else {
+                return `${API_URL}/metrics?project_pid=${projectPid}&name=${metricName}`;
+            }
+        });
+        
+        console.log('Fetching metrics from URLs:', urls);
+        
+        Promise.all(urls.map((url: string) => fetchMetricData(url)))
+            .then(metricsArrays => {
+                console.log('Raw metrics received:', metricsArrays);
+                
+                const parsedData = parse_datas(metricsArrays);
+                console.log('After parsing:', parsedData);
+                
+                // Apply modern color palette
+                const modernColors = [
+                    '#FF6B6B', // Coral
+                    '#4ECDC4', // Teal 
+                    '#45B7D1', // Sky Blue
+                    '#96CEB4', // Mint Green
+                    '#FFEAA7', // Light Yellow
+                    '#DDA0DD', // Plum
+                    '#98D8C8', // Aquamarine
+                    '#F7DC6F', // Banana Yellow
+                    '#BB8FCE', // Light Purple
+                    '#85C1E9', // Light Blue
+                    '#F8C471', // Orange
+                    '#82E0AA'  // Light Green
+                ];
+                
+                parsedData.datasets.forEach((dataset: any, index) => {
+                    const colorIndex = index % modernColors.length;
+                    dataset.borderColor = modernColors[colorIndex];
+                    dataset.backgroundColor = modernColors[colorIndex];
+                    dataset.pointBackgroundColor = modernColors[colorIndex];
+                    dataset.pointBorderColor = '#ffffff';
+                    dataset.pointBorderWidth = 2;
+                });
+                
+                let finalChartData = parsedData;
+                
+                if (group_by_feature) {
+                    finalChartData = extract_feature_name(parsedData.datasets as any);
+                    console.log('After feature grouping:', finalChartData);
+                    
+                    // Apply colors to feature-grouped data
+                    (finalChartData.datasets as any[]).forEach((dataset: any, index) => {
+                        const colorIndex = index % modernColors.length;
+                        dataset.borderColor = modernColors[colorIndex];
+                        dataset.backgroundColor = modernColors[colorIndex];
+                        dataset.pointBackgroundColor = modernColors[colorIndex];
+                        dataset.pointBorderColor = '#ffffff';
+                        dataset.pointBorderWidth = 2;
+                        dataset.borderWidth = 3;
+                        dataset.pointRadius = 4;
+                        dataset.tension = 0; // No curve smoothing - straight lines between points
+                    });
+                }
+                
+                if (sort_by_value) {
+                    finalChartData = sort_datasets(finalChartData.datasets as any);
+                    console.log('After sorting:', finalChartData);
+                }
+                
+                setChartData(finalChartData as any);
                 setLoading(false);
             })
-            .catch(() => {
-                console.error('Error loading data');
+            .catch((error) => {
+                console.error('Error loading data:', error);
                 setError(true);
                 setLoading(false);
             });
 
-    }, [metricNames, group_by_feature, sort_by_value, API_URL]);
+    }, [metricNames, group_by_feature, sort_by_value, API_URL, projectPid, evaluationPid]);
 
     useEffect(() => {
         const chart = chartRef.current;
@@ -375,7 +551,7 @@ export default function MetricTimeline({
                     <Box display="flex" justifyContent="flex-end">
                         <GraphControls chart={chartRef.current} />
                     </Box>
-                    <Box>
+                    <Box sx={{ height: '500px', width: '100%' }}>
                         <Line ref={chartRef} data={chartData} options={options} />
                     </Box>
                     <div id="legend-container"></div>

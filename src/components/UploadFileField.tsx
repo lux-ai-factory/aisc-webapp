@@ -1,93 +1,50 @@
 import React, { useState } from "react";
 import axios, { AxiosResponse } from "axios";
-
 import { TextField, Box, Stack, IconButton } from '@mui/material';
-
-import FileDownloadDoneIcon from '@mui/icons-material/FileDownloadDone';
-import ReplayIcon from '@mui/icons-material/Replay';
-
-import UploadFileIcon from '@mui/icons-material/UploadFile';
+import { FileDownloadDone, Replay, UploadFile } from '@mui/icons-material';
 import CircularProgressWithLabel from "./CircularProgressWithLabel";
 
-/**
- * Enum representing the different states of file upload
- * @enum {string}
- */
-enum FileUploadStateEnum {
-    /** No file selected */
+// Simplified enum - removed verbose comments
+enum FileUploadState {
     EMPTY = "empty",
-    /** File selected but not uploaded */
     SELECTED = "selected",
-    /** File is currently being uploaded */
     UPLOADING = "uploading",
-    /** File upload completed successfully */
     SUCCESS = "success",
-    /** File upload failed */
     ERROR = "error",
-};
+}
 
-/**
- * Props interface for the UploadFileField component
- * @interface UploadFileFieldProps
- * @property {string} label - Label text for the file input field
- * @property {string} fileType - Accepted file type (e.g., ".csv")
- * @property {string} uploadUrl - URL endpoint for file upload
- * @property {React.Dispatch<React.SetStateAction<string | null>>} setSuccessResponse - Callback to handle successful upload
- */
 interface UploadFileFieldProps {
     label: string;
     fileType: string;
     uploadUrl: string;
-    setSuccessResponse: React.Dispatch<React.SetStateAction<string | null>>;
+    onSuccess: (fileName: string) => void;
 }
 
-/**
- * UploadFileField component
- * A file upload field with progress indicator and status icons
- * Handles file selection, upload, and displays upload progress
- * 
- * Features:
- * - File type validation
- * - Upload progress indicator
- * - Status icons for different states
- * - Error handling with retry option
- * - Disabled state during upload
- * 
- * @param {UploadFileFieldProps} props - Component props
- * @returns {JSX.Element} A file upload field with progress and status indicators
- */
-function UploadFileField(props: UploadFileFieldProps){
-
-
-    const { label, fileType, setSuccessResponse, uploadUrl } = props;
-    const [progress, setProgress] = useState<number>(0);
+function UploadFileField({ label, fileType, uploadUrl, onSuccess }: UploadFileFieldProps) {
+    const [progress, setProgress] = useState(0);
     const [localFile, setLocalFile] = useState<File | null>(null);
+    const [status, setStatus] = useState<FileUploadState>(FileUploadState.EMPTY);
 
-    const [status, setStatus] = useState<FileUploadStateEnum>(FileUploadStateEnum.EMPTY);
-
-    const handleSelectedFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const selectedFile = e.target.files?.[0];
-        if (selectedFile) {
-            setLocalFile(selectedFile);
-            setStatus(FileUploadStateEnum.SELECTED)
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setLocalFile(file);
+            setStatus(FileUploadState.SELECTED);
         }
     };
 
     const handleUpload = async () => {
-        if (!localFile) {
-            alert("Please select a file first.");
-            return;
-        }
+        if (!localFile) return;
 
-        setStatus(FileUploadStateEnum.UPLOADING)
+        setStatus(FileUploadState.UPLOADING);
+        setProgress(0);
 
         const formData = new FormData();
         formData.append("file", localFile);
+
         try {
-            const response = await axios.post(uploadUrl, formData, {
-                headers: {
-                    "Content-Type": "multipart/form-data",
-                },
+            const response = await axios.put(uploadUrl, formData, {
+                headers: { "Content-Type": "multipart/form-data" },
                 onUploadProgress: (progressEvent) => {
                     if (progressEvent.total) {
                         const percentComplete = Math.round((progressEvent.loaded / progressEvent.total) * 100);
@@ -96,51 +53,32 @@ function UploadFileField(props: UploadFileFieldProps){
                 },
             });
 
-            if (response.status === 201) {
-                handleSuccess(response)
+            if (response.status === 200) {
+                setStatus(FileUploadState.SUCCESS);
+                onSuccess(response.data.file_name);
             } else {
-                handleError();
+                setStatus(FileUploadState.ERROR);
             }
         } catch {
-            handleError();
+            setStatus(FileUploadState.ERROR);
         }
     };
 
-    const handleSuccess = (response: AxiosResponse) => {
-        setStatus(FileUploadStateEnum.SUCCESS)
-        setSuccessResponse(response.data["file_name"])
-
-
-    }
-
-    const handleError = () => {
-        setStatus(FileUploadStateEnum.ERROR)
-    }
-
-
-    // https://stackoverflow.com/questions/35711724/upload-progress-indicators-for-fetch
-
-
-    const uploadStatusIcons = {
-        [FileUploadStateEnum.EMPTY]: (
-            <IconButton disabled>
-                <UploadFileIcon />
-            </IconButton>
-        ),
-        [FileUploadStateEnum.SELECTED]: (
-            <IconButton onClick={handleUpload}>
-                <UploadFileIcon />
-            </IconButton>
-        ),
-        [FileUploadStateEnum.UPLOADING]: (
-            <CircularProgressWithLabel value={progress} />
-        ),
-        [FileUploadStateEnum.SUCCESS]: <FileDownloadDoneIcon color="primary" />,
-        [FileUploadStateEnum.ERROR]: (
-            <IconButton onClick={handleUpload}>
-                <ReplayIcon />
-            </IconButton>
-        ),
+    const getStatusIcon = () => {
+        switch (status) {
+            case FileUploadState.EMPTY:
+                return <IconButton disabled><UploadFile /></IconButton>;
+            case FileUploadState.SELECTED:
+                return <IconButton onClick={handleUpload}><UploadFile /></IconButton>;
+            case FileUploadState.UPLOADING:
+                return <CircularProgressWithLabel value={progress} />;
+            case FileUploadState.SUCCESS:
+                return <FileDownloadDone color="primary" />;
+            case FileUploadState.ERROR:
+                return <IconButton onClick={handleUpload}><Replay /></IconButton>;
+            default:
+                return null;
+        }
     };
 
     return (
@@ -151,22 +89,17 @@ function UploadFileField(props: UploadFileFieldProps){
                     variant="outlined"
                     label={label}
                     slotProps={{
-                        htmlInput: {
-                            accept: fileType, // Only accept CSV files
-                        },
-                        inputLabel: {
-                            shrink: true,
-                        },
+                        htmlInput: { accept: fileType },
+                        inputLabel: { shrink: true },
                     }}
                     fullWidth
                     margin="normal"
-                    onChange={handleSelectedFile}
-                    disabled={status === FileUploadStateEnum.UPLOADING || status === FileUploadStateEnum.SUCCESS}
+                    onChange={handleFileSelect}
+                    disabled={status === FileUploadState.UPLOADING || status === FileUploadState.SUCCESS}
                 />
-                {uploadStatusIcons[status] || null}
+                {getStatusIcon()}
             </Stack>
         </Box>
-
     );
 }
 
