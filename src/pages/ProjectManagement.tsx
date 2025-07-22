@@ -31,7 +31,15 @@ import UploadFileField from '../components/UploadFileField';
 const STEP_NAMES = [
     'Project Details',
     'Models & Datasets',
-    'Upload Files (Required)',
+    'Upload Files',
+    'Summary'
+];
+
+/** Step names for adding to existing project */
+const ADD_TO_PROJECT_STEP_NAMES = [
+    'Select Project',
+    'Models & Datasets',
+    'Upload Files',
     'Summary'
 ];
 
@@ -51,6 +59,9 @@ interface ModelInfo {
     training_dataset_name: string;
     model_uploaded?: boolean;
     training_uploaded?: boolean;
+    // Staged files (held in browser until ready to create)
+    model_file?: File;
+    training_file?: File;
 }
 
 /** Interface for a test dataset to be created */
@@ -59,6 +70,7 @@ interface TestDatasetInfo {
     name: string;
     dataset_pid?: string;
     uploaded?: boolean;
+    test_file?: File;
 }
 
 /** Interface for existing project selection */
@@ -110,7 +122,178 @@ function useCollection<T extends { id: string }>(initialItems: T[] = []) {
     return { items, setItems, addItem, removeItem, updateItem };
 }
 
-/** Generic upload card component */
+/** Staged file upload component that stores files locally */
+interface StagedUploadFieldProps {
+    label: string;
+    fileType: string;
+    file?: File;
+    onFileSelect: (file: File | undefined) => void;
+    required?: boolean;
+}
+
+const StagedUploadField = React.memo(({ label, fileType, file, onFileSelect, required = false }: StagedUploadFieldProps) => {
+    const [isDragOver, setIsDragOver] = useState(false);
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const selectedFile = event.target.files?.[0];
+        onFileSelect(selectedFile);
+    };
+
+    const handleRemove = () => {
+        onFileSelect(undefined);
+    };
+
+    const handleDragOver = (event: React.DragEvent) => {
+        event.preventDefault();
+        setIsDragOver(true);
+    };
+
+    const handleDragLeave = (event: React.DragEvent) => {
+        event.preventDefault();
+        setIsDragOver(false);
+    };
+
+    const handleDrop = (event: React.DragEvent) => {
+        event.preventDefault();
+        setIsDragOver(false);
+        
+        const droppedFiles = event.dataTransfer.files;
+        if (droppedFiles.length > 0) {
+            const droppedFile = droppedFiles[0];
+            
+            // Validate file type
+            const acceptedTypes = fileType.split(',').map(t => t.trim());
+            const fileExtension = '.' + droppedFile.name.split('.').pop()?.toLowerCase();
+            
+            if (acceptedTypes.includes(fileExtension)) {
+                onFileSelect(droppedFile);
+            } else {
+                alert(`File type not supported. Please select a file with extension: ${fileType}`);
+            }
+        }
+    };
+
+    return (
+        <Box>
+            <Typography variant="subtitle2" gutterBottom>
+                {label} {required && <span style={{ color: 'red' }}>*</span>}
+            </Typography>
+            
+            {/* Drag & Drop Zone */}
+            <Box
+                sx={{
+                    border: isDragOver ? '2px dashed #1976d2' : '2px dashed #ccc',
+                    borderRadius: 2,
+                    p: 3,
+                    textAlign: 'center',
+                    backgroundColor: isDragOver ? 'rgba(25, 118, 210, 0.04)' : file ? 'rgba(76, 175, 80, 0.04)' : 'transparent',
+                    transition: 'all 0.3s ease',
+                    cursor: 'pointer',
+                    '&:hover': {
+                        backgroundColor: 'rgba(25, 118, 210, 0.04)',
+                        borderColor: '#1976d2'
+                    }
+                }}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => document.getElementById(`file-input-${label.replace(/\s+/g, '-')}`)?.click()}
+            >
+                {file ? (
+                    <Box>
+                        <Typography variant="body1" sx={{ mb: 1, fontWeight: 'bold', color: 'success.main' }}>
+                            📄 {file.name}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            File ready for upload
+                        </Typography>
+                        <Box sx={{ mt: 2 }}>
+                            <Button
+                                size="small"
+                                variant="outlined"
+                                color="error"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRemove();
+                                }}
+                                startIcon={<DeleteIcon />}
+                            >
+                                Remove
+                            </Button>
+                        </Box>
+                    </Box>
+                ) : (
+                    <Box>
+                        <Typography variant="h4" sx={{ mb: 1 }}>
+                            {isDragOver ? '📤' : '📁'}
+                        </Typography>
+                        <Typography variant="body1" sx={{ mb: 1 }}>
+                            {isDragOver ? 'Drop file here' : 'Drag & drop file here'}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            or click to browse ({fileType})
+                        </Typography>
+                        <Button variant="outlined" size="small">
+                            Browse Files
+                        </Button>
+                    </Box>
+                )}
+            </Box>
+
+            {/* Hidden File Input */}
+            <input
+                id={`file-input-${label.replace(/\s+/g, '-')}`}
+                type="file"
+                hidden
+                accept={fileType}
+                onChange={handleFileChange}
+            />
+        </Box>
+    );
+});
+
+/** Staged upload card component */
+interface StagedUploadCardProps {
+    title: string;
+    uploadItems: Array<{
+        label: string;
+        fileType: string;
+        file?: File;
+        onFileSelect: (file: File | undefined) => void;
+        required?: boolean;
+    }>;
+    isComplete?: boolean;
+}
+
+const StagedUploadCard = React.memo(({ title, uploadItems, isComplete }: StagedUploadCardProps) => {
+    return (
+        <Card>
+            <CardContent>
+                <Typography variant="h6" gutterBottom>
+                    {title}
+                    {isComplete && (
+                        <Chip label="Ready" color="success" size="small" sx={{ ml: 2 }} />
+                    )}
+                </Typography>
+                
+                <Stack spacing={3}>
+                    {uploadItems.map((item, index) => (
+                        <StagedUploadField
+                            key={index}
+                            label={item.label}
+                            fileType={item.fileType}
+                            file={item.file}
+                            onFileSelect={item.onFileSelect}
+                            required={item.required}
+                        />
+                    ))}
+                </Stack>
+            </CardContent>
+        </Card>
+    );
+});
+
+/** Generic upload card component (legacy, for adding to existing projects) */
 interface UploadCardProps {
     title: string;
     uploadItems: Array<{
@@ -423,6 +606,91 @@ function ModelsDatasetStep({ models, onModelsChange, testDatasets, onTestDataset
 }
 
 /** Step 3: File Uploads Component */
+interface StagedFileUploadsStepProps {
+    models: ModelInfo[];
+    onModelsChange: (models: ModelInfo[]) => void;
+    testDatasets: TestDatasetInfo[];
+    onTestDatasetsChange: (datasets: TestDatasetInfo[]) => void;
+}
+
+function StagedFileUploadsStep({ models, onModelsChange, testDatasets, onTestDatasetsChange }: StagedFileUploadsStepProps) {
+    const totalRequired = models.length * 2 + testDatasets.length;
+    const totalSelected = models.filter(m => m.model_file && m.training_file).length * 2 + 
+                         testDatasets.filter(d => d.test_file).length;
+
+    const handleModelFileSelect = (modelId: string, type: 'model' | 'training') => (file: File | undefined) => {
+        onModelsChange(models.map(m => 
+            m.id === modelId ? { ...m, [`${type}_file`]: file } : m
+        ));
+    };
+
+    const handleDatasetFileSelect = (datasetId: string) => (file: File | undefined) => {
+        onTestDatasetsChange(testDatasets.map(d => 
+            d.id === datasetId ? { ...d, test_file: file } : d
+        ));
+    };
+
+    return (
+        <Stack spacing={3}>            
+            <Alert severity={totalSelected === totalRequired ? "success" : "info"}>
+                {totalRequired === 0 
+                    ? "No files required. You can proceed to create the project."
+                    : `File selection: ${totalSelected}/${totalRequired} files selected. All files must be selected before creating the project.`
+                }
+            </Alert>
+
+            {models.map((model) => (
+                <StagedUploadCard
+                    key={model.id}
+                    title={model.name}
+                    isComplete={!!model.model_file && !!model.training_file}
+                    uploadItems={[
+                        {
+                            label: "Model File (ONNX)",
+                            fileType: ".onnx",
+                            file: model.model_file,
+                            onFileSelect: handleModelFileSelect(model.id, 'model'),
+                            required: true
+                        },
+                        {
+                            label: "Training Dataset (CSV/Parquet)",
+                            fileType: ".csv,.parquet",
+                            file: model.training_file,
+                            onFileSelect: handleModelFileSelect(model.id, 'training'),
+                            required: true
+                        }
+                    ]}
+                />
+            ))}
+
+            {testDatasets.map((dataset) => (
+                <StagedUploadCard
+                    key={dataset.id}
+                    title={dataset.name}
+                    isComplete={!!dataset.test_file}
+                    uploadItems={[
+                        {
+                            label: "Test Dataset (CSV/Parquet)",
+                            fileType: ".csv,.parquet",
+                            file: dataset.test_file,
+                            onFileSelect: handleDatasetFileSelect(dataset.id),
+                            required: true
+                        }
+                    ]}
+                />
+            ))}
+
+            {totalRequired === 0 && (
+                <Alert severity="info">
+                    <Typography variant="body2">
+                        No models or datasets configured. You can still create the project, or go back to add some models and datasets.
+                    </Typography>
+                </Alert>
+            )}
+        </Stack>
+    );
+}
+
 interface FileUploadsStepProps {
     models: ModelInfo[];
     onModelsChange: (models: ModelInfo[]) => void;
@@ -582,7 +850,179 @@ function SummaryStep({ project, models, testDatasets, projectPid, isProjectCreat
                         Project Created Successfully!
                     </Typography>
                     <Typography variant="body2">
-                        Your project has been created and is ready to use. You can now navigate to "Start Evaluation" to begin analyzing your models.
+                        All files were uploaded successfully, then your project and all resources were created in the database. Zero orphaned resources! You can now navigate to "Start Evaluation" to begin analyzing your models.
+                    </Typography>
+                </Alert>
+            )}
+
+            {!isProjectCreated && (
+                <Alert severity="info">
+                    <Typography variant="body1" fontWeight="bold">
+                        Ready to Create Project
+                    </Typography>
+                    <Typography variant="body2">
+                        All files have been selected and validated. Click "Create Project" to create the project with all resources and files in a single atomic operation.
+                    </Typography>
+                </Alert>
+            )}
+        </Stack>
+    );
+}
+
+/** Step 1: Project Selection Component */
+interface ProjectSelectionStepProps {
+    existingProjects: ExistingProject[];
+    selectedProject: string;
+    onProjectChange: (projectId: string) => void;
+    loading?: boolean;
+}
+
+function ProjectSelectionStep({ existingProjects, selectedProject, onProjectChange, loading }: ProjectSelectionStepProps) {
+    const handleProjectChange = (event: SelectChangeEvent) => {
+        onProjectChange(event.target.value);
+    };
+
+    return (
+        <Card>
+            <CardContent>
+                <Typography variant="h6" gutterBottom>
+                    Select Project
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                    Choose an existing project to add new models and test datasets to.
+                </Typography>
+                
+                <FormControl fullWidth>
+                    <InputLabel>Select Project</InputLabel>
+                    <Select
+                        value={selectedProject}
+                        label="Select Project"
+                        onChange={handleProjectChange}
+                        disabled={loading}
+                    >
+                        {existingProjects.map((project) => (
+                            <MenuItem key={project.project_pid} value={project.project_pid}>
+                                {project.project_name}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
+
+                {existingProjects.length === 0 && (
+                    <Alert severity="info" sx={{ mt: 2 }}>
+                        No existing projects found. Create a new project first.
+                    </Alert>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
+/** Step 4: Add to Project Summary Component */
+interface AddToProjectSummaryStepProps {
+    selectedProject: ExistingProject | null;
+    models: ModelInfo[];
+    testDatasets: TestDatasetInfo[];
+    isResourcesAdded: boolean;
+}
+
+function AddToProjectSummaryStep({ selectedProject, models, testDatasets, isResourcesAdded }: AddToProjectSummaryStepProps) {
+    return (
+        <Stack spacing={3}>
+            <Card>
+                <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                        Summary - Add to Project
+                    </Typography>
+                    
+                    <Stack spacing={2}>
+                        <Box>
+                            <Typography variant="subtitle2" fontWeight="bold">Target Project</Typography>
+                            <Typography>
+                                {selectedProject ? selectedProject.project_name : 'No project selected'}
+                            </Typography>
+                            {selectedProject && (
+                                <Typography variant="body2" color="text.secondary">
+                                    Project ID: {selectedProject.project_pid}
+                                </Typography>
+                            )}
+                        </Box>
+
+                        <Divider />
+
+                        <Box>
+                            <Typography variant="subtitle2" fontWeight="bold">Models to Add ({models.length})</Typography>
+                            {models.length === 0 ? (
+                                <Typography color="text.secondary">No models configured</Typography>
+                            ) : (
+                                models.map((model) => (
+                                    <Box key={model.id} sx={{ ml: 2 }}>
+                                        <Typography>• {model.name}</Typography>
+                                        <Typography variant="body2" color="text.secondary">
+                                            Training Dataset: {model.training_dataset_name}
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                                            <Chip 
+                                                label={model.model_file ? "Model File Selected" : "Model File Pending"} 
+                                                color={model.model_file ? "success" : "default"}
+                                                size="small"
+                                            />
+                                            <Chip 
+                                                label={model.training_file ? "Training File Selected" : "Training File Pending"} 
+                                                color={model.training_file ? "success" : "default"}
+                                                size="small"
+                                            />
+                                        </Box>
+                                    </Box>
+                                ))
+                            )}
+                        </Box>
+
+                        <Divider />
+
+                        <Box>
+                            <Typography variant="subtitle2" fontWeight="bold">Test Datasets to Add ({testDatasets.length})</Typography>
+                            {testDatasets.length === 0 ? (
+                                <Typography color="text.secondary">No test datasets configured</Typography>
+                            ) : (
+                                testDatasets.map((dataset) => (
+                                    <Box key={dataset.id} sx={{ ml: 2 }}>
+                                        <Typography>• {dataset.name}</Typography>
+                                        <Chip 
+                                            label={dataset.test_file ? "File Selected" : "File Pending"} 
+                                            color={dataset.test_file ? "success" : "default"}
+                                            size="small"
+                                            sx={{ mt: 1 }}
+                                        />
+                                    </Box>
+                                ))
+                            )}
+                        </Box>
+                    </Stack>
+                </CardContent>
+            </Card>
+
+            {isResourcesAdded && (
+                <Alert severity="success">
+                    <Typography variant="body1" fontWeight="bold">
+                        Resources Added Successfully!
+                    </Typography>
+                    <Typography variant="body2">
+                        All files were uploaded successfully, and the new models and datasets were added to the project. You can now navigate to "Start Evaluation" to begin analyzing your models.
+                    </Typography>
+                </Alert>
+            )}
+
+            {!isResourcesAdded && (
+                <Alert severity="info">
+                    <Typography variant="body1" fontWeight="bold">
+                        Ready to Add Resources
+                    </Typography>
+                    <Typography variant="body2">
+                        {models.length === 0 && testDatasets.length === 0 
+                            ? "No resources configured to add. Go back to configure models and datasets."
+                            : "All files have been selected and validated. Click 'Add to Project' to add the resources with all files in a single atomic operation."
+                        }
                     </Typography>
                 </Alert>
             )}
@@ -592,13 +1032,14 @@ function SummaryStep({ project, models, testDatasets, projectPid, isProjectCreat
 
 /** Component for adding models and datasets to existing projects */
 function AddToExistingProject() {
+    const [activeStep, setActiveStep] = useState(0);
     const [existingProjects, setExistingProjects] = useState<ExistingProject[]>([]);
     const [selectedProject, setSelectedProject] = useState<string>('');
     const [models, setModels] = useState<ModelInfo[]>([]);
     const [testDatasets, setTestDatasets] = useState<TestDatasetInfo[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string>('');
-    const [success, setSuccess] = useState<string>('');
+    const [isResourcesAdded, setIsResourcesAdded] = useState(false);
 
     const API_URL = import.meta.env.VITE_BACKEND_API_URL;
 
@@ -619,323 +1060,231 @@ function AddToExistingProject() {
         }
     };
 
-    const handleProjectChange = (event: SelectChangeEvent) => {
-        setSelectedProject(event.target.value);
+    const handleProjectChange = (projectId: string) => {
+        setSelectedProject(projectId);
         setError('');
-        setSuccess('');
     };
 
-    const modelsCollection = useCollection<ModelInfo>();
-    const datasetsCollection = useCollection<TestDatasetInfo>();
-
-    const addModel = () => {
-        const newModel: ModelInfo = {
-            id: `model_${Date.now()}`,
-            name: `Model ${models.length + 1}`,
-            training_dataset_name: `Training Dataset ${models.length + 1}`
-        };
-        modelsCollection.addItem(newModel);
-        setModels([...models, newModel]);
+    const getSelectedProjectData = (): ExistingProject | null => {
+        return existingProjects.find(p => p.project_pid === selectedProject) || null;
     };
 
-    const addTestDataset = () => {
-        const newDataset: TestDatasetInfo = {
-            id: `dataset_${Date.now()}`,
-            name: `Test Dataset ${testDatasets.length + 1}`
-        };
-        datasetsCollection.addItem(newDataset);
-        setTestDatasets([...testDatasets, newDataset]);
-    };
-
-    const addResourcesToProject = async () => {
+    const addResourcesToProjectStaged = async (): Promise<boolean> => {
         if (!selectedProject) {
             setError('Please select a project');
-            return;
+            return false;
+        }
+
+        // Validate that all models and test datasets have files
+        const modelsWithFiles = models.filter(m => m.model_file && m.training_file);
+        const testDatasetsWithFiles = testDatasets.filter(d => d.test_file);
+
+        if (modelsWithFiles.length !== models.length) {
+            setError('All models must have both model file and training dataset file selected');
+            return false;
+        }
+
+        if (testDatasetsWithFiles.length !== testDatasets.length) {
+            setError('All test datasets must have files selected');
+            return false;
         }
 
         setLoading(true);
         setError('');
-        setSuccess('');
 
         try {
-            // Add models to the project
-            const updatedModels = [...models];
-            for (let i = 0; i < updatedModels.length; i++) {
-                const model = updatedModels[i];
-
-                // Create standalone training dataset (not linked to project)
-                const trainingDatasetResponse = await fetch(`${API_URL}/datasets`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: model.training_dataset_name })
-                });
-
-                if (!trainingDatasetResponse.ok) {
-                    throw new Error(`Failed to create training dataset: ${model.training_dataset_name}`);
+            const formData = new FormData();
+            const modelNames: string[] = [];
+            const trainingNames: string[] = [];
+            
+            models.forEach((model) => {
+                if (model.model_file && model.training_file) {
+                    formData.append('model_files', model.model_file);
+                    formData.append('training_files', model.training_file);
+                    modelNames.push(model.name);
+                    trainingNames.push(model.training_dataset_name);
                 }
+            });
 
-                const trainingDatasetResult = await trainingDatasetResponse.json();
-                updatedModels[i].training_dataset_pid = trainingDatasetResult.dataset_pid;
-
-                // Create model linked to the standalone training dataset
-                const modelResponse = await fetch(`${API_URL}/projects/${selectedProject}/models`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        name: model.name,
-                        dataset_pid: trainingDatasetResult.dataset_pid
-                    })
-                });
-
-                if (!modelResponse.ok) {
-                    throw new Error(`Failed to create model: ${model.name}`);
+            const testNames: string[] = [];
+            testDatasets.forEach((dataset) => {
+                if (dataset.test_file) {
+                    formData.append('test_files', dataset.test_file);
+                    testNames.push(dataset.name);
                 }
+            });
 
-                const modelResult = await modelResponse.json();
-                updatedModels[i].model_pid = modelResult.model_pid;
-                updatedModels[i].model_uploaded = false;
-                updatedModels[i].training_uploaded = false;
+            modelNames.forEach(name => formData.append('model_names', name));
+            trainingNames.forEach(name => formData.append('training_names', name));
+            testNames.forEach(name => formData.append('test_names', name));
+
+            // Add resources to project with all files atomically
+            const response = await fetch(`${API_URL}/projects/${selectedProject}/resources/staged`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Failed to add resources to project');
             }
 
-            // Add test datasets to the project
-            const updatedTestDatasets = [...testDatasets];
-            for (let i = 0; i < updatedTestDatasets.length; i++) {
-                const dataset = updatedTestDatasets[i];
-
-                const datasetResponse = await fetch(`${API_URL}/projects/${selectedProject}/datasets`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: dataset.name })
-                });
-
-                if (!datasetResponse.ok) {
-                    throw new Error(`Failed to create test dataset: ${dataset.name}`);
-                }
-
-                const datasetResult = await datasetResponse.json();
-                updatedTestDatasets[i].dataset_pid = datasetResult.dataset_pid;
-                updatedTestDatasets[i].uploaded = false;
-            }
-
-            // Update state
-            setModels(updatedModels);
-            setTestDatasets(updatedTestDatasets);
-            setSuccess(`Successfully added ${models.length} models and ${testDatasets.length} test datasets to the project. You can now upload files below.`);
+            const result = await response.json();
+            setIsResourcesAdded(true);
+            console.log('Resources added successfully:', result);
+            return true;
 
         } catch (error) {
             console.error('Error adding resources to project:', error);
             setError(error instanceof Error ? error.message : 'Failed to add resources to project');
+            return false;
         } finally {
             setLoading(false);
         }
     };
 
-    const resetForm = () => {
+    const handleNext = async () => {
+        if (activeStep === 0) {
+            // Validate project selection
+            if (!selectedProject) {
+                setError('Please select a project');
+                return;
+            }
+        } else if (activeStep === 2 && !isResourcesAdded) {
+            // Add resources when clicking "Add to Project"
+            const success = await addResourcesToProjectStaged();
+            
+            if (!success) return;
+            
+            setActiveStep(3);
+            return;
+        }
+
+        // Regular step increment for other cases
+        setActiveStep(prev => prev + 1);
+        setError('');
+    };
+
+    const handleBack = () => {
+        setActiveStep(prev => prev - 1);
+        setError('');
+    };
+
+    const handleFinish = () => {
+        const projectName = getSelectedProjectData()?.project_name || selectedProject;
+        alert(`Resources successfully added to project "${projectName}"!\n\nYou can now navigate to "Start Evaluation" to begin analyzing your models.`);
+        
+        // Reset the form
         setSelectedProject('');
         setModels([]);
         setTestDatasets([]);
-        modelsCollection.setItems([]);
-        datasetsCollection.setItems([]);
-        setError('');
-        setSuccess('');
+        setIsResourcesAdded(false);
+        setActiveStep(0);
+    };
+
+    const canProceed = () => {
+        switch (activeStep) {
+            case 0:
+                return selectedProject !== '' && existingProjects.length > 0;
+            case 1:
+                return true; // Models and datasets are optional
+            case 2:
+                // Check if all required files are selected (or if there are no items)
+                const allModelFilesSelected = models.length === 0 || models.every(m => m.model_file && m.training_file);
+                const allTestDatasetFilesSelected = testDatasets.length === 0 || testDatasets.every(d => d.test_file);
+                return allModelFilesSelected && allTestDatasetFilesSelected;
+            case 3:
+                return isResourcesAdded;
+            default:
+                return false;
+        }
     };
 
     return (
-        <Stack spacing={3}>
-            <Card>
-                <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                        Add to Existing Project
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                        Select an existing project and add new models and test datasets to it.
-                    </Typography>
-                    
-                    <FormControl fullWidth sx={{ mb: 3 }}>
-                        <InputLabel>Select Project</InputLabel>
-                        <Select
-                            value={selectedProject}
-                            label="Select Project"
-                            onChange={handleProjectChange}
-                        >
-                            {existingProjects.map((project) => (
-                                <MenuItem key={project.project_pid} value={project.project_pid}>
-                                    {project.project_name}
-                                </MenuItem>
+        <>
+            <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
+                {ADD_TO_PROJECT_STEP_NAMES.map((label) => (
+                    <Step key={label}>
+                        <StepLabel>{label}</StepLabel>
+                    </Step>
                             ))}
-                        </Select>
-                    </FormControl>
+            </Stepper>
 
                     {error && (
-                        <Alert severity="error" sx={{ mb: 2 }}>
+                <Alert severity="error" sx={{ mb: 3 }}>
                             {error}
                         </Alert>
                     )}
 
-                    {success && (
-                        <Alert severity="success" sx={{ mb: 2 }}>
-                            {success}
-                        </Alert>
-                    )}
-                </CardContent>
-            </Card>
+            {/* Step Content */}
+            {activeStep === 0 && (
+                <ProjectSelectionStep 
+                    existingProjects={existingProjects}
+                    selectedProject={selectedProject}
+                    onProjectChange={handleProjectChange}
+                    loading={loading}
+                />
+            )}
+            
+            {activeStep === 1 && (
+                <ModelsDatasetStep 
+                    models={models}
+                    onModelsChange={setModels}
+                    testDatasets={testDatasets}
+                    onTestDatasetsChange={setTestDatasets}
+                />
+            )}
+            
+            {activeStep === 2 && (
+                <StagedFileUploadsStep 
+                    models={models}
+                    onModelsChange={setModels}
+                    testDatasets={testDatasets}
+                    onTestDatasetsChange={setTestDatasets}
+                />
+            )}
 
-            {selectedProject && (
-                <>
-                    {/* Models Section */}
-                    <Card>
-                        <CardContent>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                                <Typography variant="h6">
-                                    Models to Add
-                                </Typography>
-                                <Button
-                                    variant="contained"
-                                    startIcon={<AddIcon />}
-                                    onClick={addModel}
-                                >
-                                    Add Model
-                                </Button>
-                            </Box>
-
-                            {models.length === 0 ? (
-                                <Alert severity="info">
-                                    No models to add. Click "Add Model" to get started.
-                                </Alert>
-                            ) : (
-                                <Stack spacing={2}>
-                                    {models.map((model) => (
-                                        <Paper key={model.id} variant="outlined" sx={{ p: 2 }}>
-                                            <Stack spacing={2}>
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                                                                        <TextField
-                                        label="Model Name"
-                                        value={model.name}
-                                        onChange={(e) => {
-                                            const newValue = e.target.value;
-                                            modelsCollection.updateItem(model.id, { name: newValue });
-                                            setModels(models.map(m => m.id === model.id ? { ...m, name: newValue } : m));
-                                        }}
-                                        size="small"
-                                        sx={{ flex: 1 }}
-                                    />
-                                    <IconButton onClick={() => {
-                                        modelsCollection.removeItem(model.id);
-                                        setModels(models.filter(m => m.id !== model.id));
-                                    }} color="error">
-                                        <DeleteIcon />
-                                    </IconButton>
-                                </Box>
-                                <TextField
-                                    label="Training Dataset Name"
-                                    value={model.training_dataset_name}
-                                    onChange={(e) => {
-                                        const newValue = e.target.value;
-                                        modelsCollection.updateItem(model.id, { training_dataset_name: newValue });
-                                        setModels(models.map(m => m.id === model.id ? { ...m, training_dataset_name: newValue } : m));
-                                    }}
-                                    size="small"
-                                    helperText="Name for the training dataset associated with this model"
-                                />
-                                            </Stack>
-                                        </Paper>
-                                    ))}
-                                </Stack>
+            {activeStep === 3 && (
+                <AddToProjectSummaryStep 
+                    selectedProject={getSelectedProjectData()}
+                    models={models}
+                    testDatasets={testDatasets}
+                    isResourcesAdded={isResourcesAdded}
+                />
                             )}
-                        </CardContent>
-                    </Card>
 
-                    {/* Test Datasets Section */}
-                    <Card>
-                        <CardContent>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                                <Typography variant="h6">
-                                    Test Datasets to Add
-                                </Typography>
+            {/* Navigation Buttons */}
+            <Box sx={{ display: 'flex', flexDirection: 'row', pt: 4 }}>
                                 <Button
-                                    variant="contained"
-                                    startIcon={<AddIcon />}
-                                    onClick={addTestDataset}
+                    color="inherit"
+                    disabled={activeStep === 0}
+                    onClick={handleBack}
+                    sx={{ mr: 1 }}
                                 >
-                                    Add Test Dataset
+                    Back
                                 </Button>
-                            </Box>
-
-                            {testDatasets.length === 0 ? (
-                                <Alert severity="info">
-                                    No test datasets to add. Click "Add Test Dataset" to get started.
-                                </Alert>
-                            ) : (
-                                <Stack spacing={2}>
-                                    {testDatasets.map((dataset) => (
-                                        <Paper key={dataset.id} variant="outlined" sx={{ p: 2 }}>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                                                                        <TextField
-                                            label="Test Dataset Name"
-                                            value={dataset.name}
-                                            onChange={(e) => {
-                                                const newValue = e.target.value;
-                                                datasetsCollection.updateItem(dataset.id, { name: newValue });
-                                                setTestDatasets(testDatasets.map(d => d.id === dataset.id ? { ...d, name: newValue } : d));
-                                            }}
-                                            size="small"
-                                            sx={{ flex: 1 }}
-                                        />
-                                        <IconButton onClick={() => {
-                                            datasetsCollection.removeItem(dataset.id);
-                                            setTestDatasets(testDatasets.filter(d => d.id !== dataset.id));
-                                        }} color="error">
-                                            <DeleteIcon />
-                                        </IconButton>
-                                            </Box>
-                                        </Paper>
-                                    ))}
-                                </Stack>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    {/* Action Buttons */}
-                    <Box sx={{ display: 'flex', gap: 2 }}>
+                <Box sx={{ flex: '1 1 auto' }} />
+                
+                {activeStep === ADD_TO_PROJECT_STEP_NAMES.length - 1 ? (
                         <Button
                             variant="contained"
-                            onClick={addResourcesToProject}
-                            disabled={loading || (models.length === 0 && testDatasets.length === 0)}
+                        onClick={handleFinish}
+                        disabled={!canProceed()}
                         >
-                            {loading ? <CircularProgress size={24} /> : 'Add to Project'}
+                        Finish
                         </Button>
+                ) : (
                         <Button
-                            variant="outlined"
-                            onClick={resetForm}
-                            disabled={loading}
+                        variant="contained" 
+                        onClick={handleNext}
+                        disabled={loading || !canProceed()}
                         >
-                            Reset
+                        {loading ? <CircularProgress size={24} /> : 
+                         activeStep === 2 && !isResourcesAdded ? 'Add to Project' : 'Next'}
                         </Button>
-                    </Box>
-
-                    {/* File Upload Section */}
-                    {(models.some(m => m.model_pid) || testDatasets.some(d => d.dataset_pid)) && (
-                        <Card>
-                            <CardContent>
-                                <Typography variant="h6" gutterBottom>
-                                    Upload Files
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                                    Upload the required files for the models and datasets you just added.
-                                </Typography>
-                                
-                                <FileUploadsStep 
-                                    models={models}
-                                    onModelsChange={setModels}
-                                    testDatasets={testDatasets}
-                                    onTestDatasetsChange={setTestDatasets}
-                                />
-                            </CardContent>
-                        </Card>
-                    )}
-                </>
-            )}
-        </Stack>
+                )}
+            </Box>
+        </>
     );
 }
 
@@ -958,105 +1307,64 @@ function NewProjectContent() {
         setProject(prev => ({ ...prev, [field]: value }));
     };
 
-    const createProjectResources = async () => {
+    const createStagedProject = async (): Promise<boolean> => {
         setLoading(true);
         setError('');
 
         try {
-            // Step 1: Create Project
-            const projectResponse = await fetch(`${API_URL}/projects`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: project.name,
-                    frequency: project.frequency || undefined,
-                    window_size: project.window_size || undefined
-                })
+            // Prepare form data with all files
+            const formData = new FormData();
+            formData.append('project_name', project.name);
+            if (project.frequency) formData.append('frequency', project.frequency);
+            if (project.window_size) formData.append('window_size', project.window_size);
+
+            // Add model files and names
+            const modelNames: string[] = [];
+            const trainingNames: string[] = [];
+            
+            models.forEach((model) => {
+                if (model.model_file && model.training_file) {
+                    formData.append('model_files', model.model_file);
+                    formData.append('training_files', model.training_file);
+                    modelNames.push(model.name);
+                    trainingNames.push(model.training_dataset_name);
+                }
             });
 
-            if (!projectResponse.ok) {
-                const errorData = await projectResponse.json();
+            const testNames: string[] = [];
+            testDatasets.forEach((dataset) => {
+                if (dataset.test_file) {
+                    formData.append('test_files', dataset.test_file);
+                    testNames.push(dataset.name);
+                }
+            });
+
+            modelNames.forEach(name => formData.append('model_names', name));
+            trainingNames.forEach(name => formData.append('training_names', name));
+            testNames.forEach(name => formData.append('test_names', name));
+
+            // Create project with all files atomically
+            const response = await fetch(`${API_URL}/projects/staged`, {
+                    method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
                 throw new Error(errorData.detail || 'Failed to create project');
             }
 
-            const projectResult = await projectResponse.json();
-            const newProjectPid = projectResult.project_pid;
-            setProjectPid(newProjectPid);
-
-            // Step 2: Create Models and their Training Datasets with file uploads (following hydrate.py pattern)
-            const updatedModels = [...models];
-            for (let i = 0; i < updatedModels.length; i++) {
-                const model = updatedModels[i];
-
-                // Create standalone training dataset (not linked to project)
-                const trainingDatasetResponse = await fetch(`${API_URL}/datasets`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: model.training_dataset_name })
-                });
-
-                if (!trainingDatasetResponse.ok) {
-                    throw new Error(`Failed to create training dataset: ${model.training_dataset_name}`);
-                }
-
-                const trainingDatasetResult = await trainingDatasetResponse.json();
-                updatedModels[i].training_dataset_pid = trainingDatasetResult.dataset_pid;
-
-                // Create model linked to the standalone training dataset
-                const modelResponse = await fetch(`${API_URL}/projects/${newProjectPid}/models`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        name: model.name,
-                        dataset_pid: trainingDatasetResult.dataset_pid
-                    })
-                });
-
-                if (!modelResponse.ok) {
-                    throw new Error(`Failed to create model: ${model.name}`);
-                }
-
-                const modelResult = await modelResponse.json();
-                updatedModels[i].model_pid = modelResult.model_pid;
-
-                // Mark as created but files need to be uploaded
-                updatedModels[i].model_uploaded = false;
-                updatedModels[i].training_uploaded = false;
-            }
-
-            // Step 3: Create Test Datasets with file upload tracking
-            const updatedTestDatasets = [...testDatasets];
-            for (let i = 0; i < updatedTestDatasets.length; i++) {
-                const dataset = updatedTestDatasets[i];
-
-                const datasetResponse = await fetch(`${API_URL}/projects/${newProjectPid}/datasets`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: dataset.name })
-                });
-
-                if (!datasetResponse.ok) {
-                    throw new Error(`Failed to create test dataset: ${dataset.name}`);
-                }
-
-                const datasetResult = await datasetResponse.json();
-                updatedTestDatasets[i].dataset_pid = datasetResult.dataset_pid;
-                
-                // Mark as created but file needs to be uploaded
-                updatedTestDatasets[i].uploaded = false;
-            }
-
-            // Update state
-            setModels(updatedModels);
-            setTestDatasets(updatedTestDatasets);
+            const projectResult = await response.json();
+            setProjectPid(projectResult.project_pid);
             setIsProjectCreated(true);
             
-            // Move to next step on success
-            setActiveStep(2);
+            console.log('Project created successfully with PID:', projectResult.project_pid);
+            return true; 
 
         } catch (error) {
             console.error('Project creation error:', error);
             setError(error instanceof Error ? error.message : 'Failed to create project');
+            return false;
         } finally {
             setLoading(false);
         }
@@ -1073,14 +1381,17 @@ function NewProjectContent() {
                 setError('Please correct the validation errors');
                 return;
             }
-        } else if (activeStep === 1) {
-            // Create all project resources
-            setError(''); // Clear any previous errors
-            await createProjectResources();
-            // Don't proceed to next step here - let createProjectResources handle it
+        } else if (activeStep === 2 && !isProjectCreated) {
+            // Create project with all files when clicking "Create Project"
+            const success = await createStagedProject();
+            
+            if (!success) return;
+            
+            setActiveStep(3);
             return;
         }
 
+        // Regular step increment for other cases
         setActiveStep(prev => prev + 1);
         setError('');
     };
@@ -1111,10 +1422,10 @@ function NewProjectContent() {
             case 1:
                 return true; // Models and datasets are optional
             case 2:
-                // Check if all files are uploaded (or if there are no items to upload)
-                const allModelsUploaded = models.length === 0 || models.every(m => m.model_uploaded && m.training_uploaded);
-                const allTestDatasetsUploaded = testDatasets.length === 0 || testDatasets.every(d => d.uploaded);
-                return allModelsUploaded && allTestDatasetsUploaded;
+                // Check if all required files are selected (or if there are no items)
+                const allModelFilesSelected = models.length === 0 || models.every(m => m.model_file && m.training_file);
+                const allTestDatasetFilesSelected = testDatasets.length === 0 || testDatasets.every(d => d.test_file);
+                return allModelFilesSelected && allTestDatasetFilesSelected;
             case 3:
                 return isProjectCreated;
             default:
@@ -1156,7 +1467,7 @@ function NewProjectContent() {
             )}
             
             {activeStep === 2 && (
-                <FileUploadsStep 
+                <StagedFileUploadsStep 
                     models={models}
                     onModelsChange={setModels}
                     testDatasets={testDatasets}
@@ -1200,7 +1511,8 @@ function NewProjectContent() {
                         onClick={handleNext}
                         disabled={loading || !canProceed()}
                     >
-                        {loading ? <CircularProgress size={24} /> : 'Next'}
+                        {loading ? <CircularProgress size={24} /> : 
+                         activeStep === 2 && !isProjectCreated ? 'Create Project' : 'Next'}
                     </Button>
                 )}
             </Box>
