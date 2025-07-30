@@ -35,7 +35,7 @@ interface MetricApiData {
  * @returns Formatted dataset object for Chart.js
  */
 function parse_datas(metrics: MetricApiData[][]) {
-    const datasets = metrics.map((metric, index) => {
+    const datasets = metrics.map((metric, _index) => {
         // Remove duplicates based on time and feature
         const uniqueData = metric.filter((item, idx, self) => 
             idx === self.findIndex(t => 
@@ -496,7 +496,7 @@ export default function MetricTimeline({
                 let finalChartData = parsedData;
                 
                 if (group_by_feature) {
-                    finalChartData = extract_feature_name(parsedData.datasets as any);
+                    finalChartData = extract_feature_name(parsedData.datasets as any) as any;
                     console.log('After feature grouping:', finalChartData);
                     
                     // Apply colors to feature-grouped data
@@ -514,7 +514,7 @@ export default function MetricTimeline({
                 }
                 
                 if (sort_by_value) {
-                    finalChartData = sort_datasets(finalChartData.datasets as any);
+                    finalChartData = sort_datasets(finalChartData.datasets as any) as any;
                     console.log('After sorting:', finalChartData);
                 }
                 

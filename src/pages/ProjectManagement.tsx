@@ -25,7 +25,6 @@ import {
     Tab
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
-import UploadFileField from '../components/UploadFileField';
 
 /** Step names for the project creation process */
 const STEP_NAMES = [
@@ -286,56 +285,6 @@ const StagedUploadCard = React.memo(({ title, uploadItems, isComplete }: StagedU
                             onFileSelect={item.onFileSelect}
                             required={item.required}
                         />
-                    ))}
-                </Stack>
-            </CardContent>
-        </Card>
-    );
-});
-
-/** Generic upload card component (legacy, for adding to existing projects) */
-interface UploadCardProps {
-    title: string;
-    uploadItems: Array<{
-        label: string;
-        fileType: string;
-        uploadUrl?: string;
-        isUploaded?: boolean;
-        onSuccess: (fileName: string) => void;
-    }>;
-    isComplete?: boolean;
-}
-
-const UploadCard = React.memo(({ title, uploadItems, isComplete }: UploadCardProps) => {
-    return (
-        <Card>
-            <CardContent>
-                <Typography variant="h6" gutterBottom>
-                    {title}
-                    {isComplete && (
-                        <Chip label="Complete" color="success" size="small" sx={{ ml: 2 }} />
-                    )}
-                </Typography>
-                
-                <Stack spacing={3}>
-                    {uploadItems.map((item, index) => (
-                        <Box key={index}>
-                            <Typography variant="subtitle1" gutterBottom>
-                                {item.label} {item.isUploaded && "✓"}
-                            </Typography>
-                            {item.uploadUrl ? (
-                                <UploadFileField
-                                    label={item.label}
-                                    fileType={item.fileType}
-                                    uploadUrl={item.uploadUrl}
-                                    onSuccess={item.onSuccess}
-                                />
-                            ) : (
-                                <Alert severity="warning">
-                                    Complete project creation first to enable file upload.
-                                </Alert>
-                            )}
-                        </Box>
                     ))}
                 </Stack>
             </CardContent>
@@ -691,85 +640,7 @@ function StagedFileUploadsStep({ models, onModelsChange, testDatasets, onTestDat
     );
 }
 
-interface FileUploadsStepProps {
-    models: ModelInfo[];
-    onModelsChange: (models: ModelInfo[]) => void;
-    testDatasets: TestDatasetInfo[];
-    onTestDatasetsChange: (datasets: TestDatasetInfo[]) => void;
-}
 
-function FileUploadsStep({ models, onModelsChange, testDatasets, onTestDatasetsChange }: FileUploadsStepProps) {
-    const API_URL = import.meta.env.VITE_BACKEND_API_URL;
-
-    const totalUploads = models.length * 2 + testDatasets.length;
-    const completedUploads = models.filter(m => m.model_uploaded).length + 
-                           models.filter(m => m.training_uploaded).length + 
-                           testDatasets.filter(d => d.uploaded).length;
-
-    const handleModelUpload = (modelId: string, type: 'model' | 'training') => (fileName: string) => {
-        onModelsChange(models.map(m => 
-            m.id === modelId ? { ...m, [`${type}_uploaded`]: true } : m
-        ));
-    };
-
-    const handleDatasetUpload = (datasetId: string) => (fileName: string) => {
-        onTestDatasetsChange(testDatasets.map(d => 
-            d.id === datasetId ? { ...d, uploaded: true } : d
-        ));
-    };
-
-    return (
-        <Stack spacing={3}>
-            <Alert severity={completedUploads === totalUploads ? "success" : "warning"}>
-                {totalUploads === 0 
-                    ? "No files to upload. You can proceed to the summary."
-                    : `File uploads required: ${completedUploads}/${totalUploads} completed.`
-                }
-            </Alert>
-
-            {models.map((model) => (
-                <UploadCard
-                    key={model.id}
-                    title={model.name}
-                    isComplete={model.model_uploaded && model.training_uploaded}
-                    uploadItems={[
-                        {
-                            label: "Model File (ONNX)",
-                            fileType: ".onnx",
-                            uploadUrl: model.model_pid ? `${API_URL}/models/${model.model_pid}/data` : undefined,
-                            isUploaded: model.model_uploaded,
-                            onSuccess: handleModelUpload(model.id, 'model')
-                        },
-                        {
-                            label: "Training Dataset (CSV)",
-                            fileType: ".csv,.parquet",
-                            uploadUrl: model.training_dataset_pid ? `${API_URL}/datasets/${model.training_dataset_pid}/data` : undefined,
-                            isUploaded: model.training_uploaded,
-                            onSuccess: handleModelUpload(model.id, 'training')
-                        }
-                    ]}
-                />
-            ))}
-
-            {testDatasets.map((dataset) => (
-                <UploadCard
-                    key={dataset.id}
-                    title={dataset.name}
-                    isComplete={dataset.uploaded}
-                    uploadItems={[
-                        {
-                            label: "Test Dataset (CSV)",
-                            fileType: ".csv,.parquet",
-                            uploadUrl: dataset.dataset_pid ? `${API_URL}/datasets/${dataset.dataset_pid}/data` : undefined,
-                            isUploaded: dataset.uploaded,
-                            onSuccess: handleDatasetUpload(dataset.id)
-                        }
-                    ]}
-                />
-            ))}
-        </Stack>
-    );
-}
 
 /** Step 4: Summary Component */
 interface SummaryStepProps {
@@ -1524,7 +1395,7 @@ function NewProjectContent() {
 export default function ProjectManagement() {
     const [tabValue, setTabValue] = useState(0);
 
-    const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
         setTabValue(newValue);
     };
 
