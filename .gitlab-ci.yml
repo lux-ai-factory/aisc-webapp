@@ -5,7 +5,7 @@ workflow:
 stages:          # List of stages for jobs, and their order of execution
   - build
 
-docker-build-job:
+build:
   # Use the official docker image.
   image: docker:cli
   stage: build
