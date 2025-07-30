@@ -9,8 +9,6 @@ build:
   # Use the official docker image.
   image: docker:cli
   stage: build
-  services:
-    - docker:dind
   variables:
     DOCKER_IMAGE_NAME: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
   before_script:
