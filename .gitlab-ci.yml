@@ -2,17 +2,13 @@ default:
   tags:
     - a4s-runner
 
-workflow:
-  rules:
-    - if: $CI_COMMIT_BRANCH
-
-stages:          # List of stages for jobs, and their order of execution
+stages:
+  - test
   - build
 
-build:
-  # Use the official docker image.
-  image: docker:cli
+docker-build:
   stage: build
+  image: docker:cli
   variables:
     DOCKER_IMAGE_NAME: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
   before_script:
@@ -27,3 +23,11 @@ build:
         docker tag "$DOCKER_IMAGE_NAME" "$CI_REGISTRY_IMAGE:latest"
         docker push "$CI_REGISTRY_IMAGE:latest"
       fi
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: on_success
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: on_success
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: on_success
+    - when: never
