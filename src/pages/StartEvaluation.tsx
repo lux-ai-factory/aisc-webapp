@@ -133,15 +133,24 @@ const StartEvaluation: React.FC = () => {
                 test_dataset_pid: selectedDataset,
             });
             
+            console.log('Making POST request to:', `${API_URL}/evaluations?${params}`);
             const response = await fetch(`${API_URL}/evaluations?${params}`, { method: 'POST' });
+            
+            console.log('Response status:', response.status);
+            console.log('Response ok:', response.ok);
             
             if (!response.ok) {
                 const error = await response.json().catch(() => ({}));
                 return alert(`Error creating evaluation: ${error.detail || 'Unknown error'}`);
             }
 
+            console.log('About to parse response.json()');
             const evaluationData = await response.json();
+            console.log('evaluationData:', evaluationData);
+            
+            console.log('About to call triggerEvaluation()');
             const triggerResult = await triggerEvaluation();
+            console.log('triggerResult:', triggerResult);
             
             const message = triggerResult.success 
                 ? `Evaluation created and started successfully! ID: ${evaluationData.evaluation_pid}`
@@ -151,6 +160,7 @@ const StartEvaluation: React.FC = () => {
             resetForm();
             
         } catch (error) {
+            console.error('Error in handleStartEvaluation:', error);
             alert('Network error occurred while creating evaluation.');
         } finally {
             setLoading(false);
