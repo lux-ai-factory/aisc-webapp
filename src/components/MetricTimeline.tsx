@@ -16,6 +16,7 @@ ChartJS.register(...registerables, zoomPlugin);
 import { enGB } from 'date-fns/locale';
 import 'chartjs-adapter-date-fns';
 import { CenterFocusWeak, Home, OpenWith } from "@mui/icons-material";
+import { API_VERSION_PREFIX } from "../config";
 
 /**
  * Interface representing the raw metric data from the API
@@ -435,8 +436,7 @@ export default function MetricTimeline({
 
     const chartRef = useRef<ChartJS<'line', { x: string; y: number }[]>>(null);
 
-    const API_URL = import.meta.env.VITE_BACKEND_API_URL;
-
+    const API_URL = import.meta.env.VITE_APP_API_URL + API_VERSION_PREFIX;
 
     useEffect(() => {
         if (!projectPid) {

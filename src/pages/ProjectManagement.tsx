@@ -25,6 +25,7 @@ import {
     Tab
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { API_VERSION_PREFIX } from '../config';
 
 /** Step names for the project creation process */
 const STEP_NAMES = [
@@ -911,7 +912,7 @@ function AddToExistingProject() {
     const [error, setError] = useState<string>('');
     const [isResourcesAdded, setIsResourcesAdded] = useState(false);
 
-    const API_URL = import.meta.env.VITE_API_URL;
+    const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
     // Fetch existing projects on component mount
     useEffect(() => {
@@ -1171,7 +1172,7 @@ function NewProjectContent() {
     const [projectPid, setProjectPid] = useState<string>('');
     const [isProjectCreated, setIsProjectCreated] = useState(false);
 
-    const API_URL = import.meta.env.VITE_BACKEND_API_URL;
+    const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
     const handleProjectChange = (field: keyof ProjectInfo, value: string) => {
         setProject(prev => ({ ...prev, [field]: value }));
