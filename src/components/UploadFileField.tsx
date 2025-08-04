@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import axios, { AxiosResponse } from "axios";
 import { TextField, Box, Stack, IconButton } from '@mui/material';
 import { FileDownloadDone, Replay, UploadFile } from '@mui/icons-material';
 import CircularProgressWithLabel from "./CircularProgressWithLabel";
+import axios, { AxiosProgressEvent } from "axios";
 
 // Simplified enum - removed verbose comments
 enum FileUploadState {
@@ -45,7 +45,7 @@ function UploadFileField({ label, fileType, uploadUrl, onSuccess }: UploadFileFi
         try {
             const response = await axios.put(uploadUrl, formData, {
                 headers: { "Content-Type": "multipart/form-data" },
-                onUploadProgress: (progressEvent) => {
+                onUploadProgress: (progressEvent: AxiosProgressEvent) => {
                     if (progressEvent.total) {
                         const percentComplete = Math.round((progressEvent.loaded / progressEvent.total) * 100);
                         setProgress(percentComplete);

@@ -1,5 +1,6 @@
 import { Box, Typography, Button, Paper, Stack, FormControl, InputLabel, Select, MenuItem, SelectChangeEvent } from '@mui/material';
 import React, { useState, useEffect } from 'react';
+import { API_VERSION_PREFIX } from '../config';
 
 /**
  * Interface for project data from API
@@ -36,21 +37,21 @@ interface Dataset {
  * StartEvaluation page component
  * Main page for initiating model evaluation processes
  * Provides interface for configuring and starting model evaluation workflows
- * 
+ *
  * @returns {JSX.Element} The start evaluation page with configuration options
  */
 const StartEvaluation: React.FC = () => {
     const [selectedProject, setSelectedProject] = useState<string>('');
     const [selectedModel, setSelectedModel] = useState<string>('');
     const [selectedDataset, setSelectedDataset] = useState<string>('');
-    
+
     const [projects, setProjects] = useState<Project[]>([]);
     const [models, setModels] = useState<Model[]>([]);
     const [datasets, setDatasets] = useState<Dataset[]>([]);
-    
+
     const [loading, setLoading] = useState(false);
 
-    const API_URL = import.meta.env.VITE_BACKEND_API_URL;
+    const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
     const EVAL_API_URL = import.meta.env.VITE_EVAL_API_URL;
 
     // Fetch projects on component mount
@@ -123,18 +124,18 @@ const StartEvaluation: React.FC = () => {
         if (!selectedProject || !selectedModel || !selectedDataset) {
             return alert('Please select a project, model, and dataset before starting evaluation.');
         }
-        
+
         setLoading(true);
-        
+
         try {
             const params = new URLSearchParams({
                 project_pid: selectedProject,
                 model_pid: selectedModel,
                 test_dataset_pid: selectedDataset,
             });
-            
+
             const response = await fetch(`${API_URL}/evaluations?${params}`, { method: 'POST' });
-            
+
             if (!response.ok) {
                 const error = await response.json().catch(() => ({}));
                 return alert(`Error creating evaluation: ${error.detail || 'Unknown error'}`);
@@ -142,14 +143,14 @@ const StartEvaluation: React.FC = () => {
 
             const evaluationData = await response.json();
             const triggerResult = await triggerEvaluation();
-            
-            const message = triggerResult.success 
+
+            const message = triggerResult.success
                 ? `Evaluation created and started successfully! ID: ${evaluationData.evaluation_pid}`
                 : `Evaluation created (ID: ${evaluationData.evaluation_pid}) but failed to start: ${triggerResult.error}`;
-            
+
             alert(message);
             resetForm();
-            
+
         } catch (error) {
             alert('Network error occurred while creating evaluation.');
         } finally {
@@ -162,7 +163,7 @@ const StartEvaluation: React.FC = () => {
             <Typography component="h2" variant="h4" gutterBottom>
                 Start Model Evaluation
             </Typography>
-            
+
             <Typography variant="body1" sx={{ mb: 3 }}>
                 Configure and initiate your AI model evaluation process. This will analyze your model's data drift for now, but will be expanded to include other metrics in the future.
             </Typography>
@@ -171,7 +172,7 @@ const StartEvaluation: React.FC = () => {
                 <Typography variant="h6" gutterBottom>
                     Evaluation Configuration
                 </Typography>
-                
+
                 <Stack spacing={3}>
                     <FormControl fullWidth>
                         <InputLabel id="project-select-label">Project</InputLabel>
@@ -227,9 +228,9 @@ const StartEvaluation: React.FC = () => {
             </Paper>
 
             <Box sx={{ display: 'flex', justifyContent: 'flex-start', gap: 2 }}>
-                <Button 
-                    variant="contained" 
-                    color="primary" 
+                <Button
+                    variant="contained"
+                    color="primary"
                     size="large"
                     onClick={handleStartEvaluation}
                     disabled={loading || !selectedProject || !selectedModel || !selectedDataset}
@@ -241,4 +242,4 @@ const StartEvaluation: React.FC = () => {
     );
 };
 
-export default StartEvaluation; 
+export default StartEvaluation;
