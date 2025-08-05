@@ -3,371 +3,367 @@
  * using Chart.js. Supports zooming, panning, and feature-based grouping of metrics.
  */
 
-import { useState, useEffect, useRef } from "react";
-
-// TODO: kebab case for file name
-
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Box, Typography, Card, CardContent, CircularProgress, IconButton, Tooltip } from '@mui/material';
 import { Line } from 'react-chartjs-2';
 import { Chart as ChartJS, registerables, ChartOptions } from 'chart.js';
 import zoomPlugin from 'chartjs-plugin-zoom';
 import { mapMetricsName } from "../utils";
-ChartJS.register(...registerables, zoomPlugin);
 import { enGB } from 'date-fns/locale';
 import 'chartjs-adapter-date-fns';
 import { CenterFocusWeak, Home, OpenWith } from "@mui/icons-material";
 import { API_VERSION_PREFIX } from "../config";
 
-/**
- * Interface representing the raw metric data from the API
- */
+ChartJS.register(...registerables, zoomPlugin);
+
+// Constants
+const MODERN_COLORS = [
+    '#FF6B6B', // Coral
+    '#4ECDC4', // Teal
+    '#45B7D1', // Sky Blue
+    '#96CEB4', // Mint Green
+    '#FFEAA7', // Light Yellow
+    '#DDA0DD', // Plum
+    '#98D8C8', // Aquamarine
+    '#F7DC6F', // Banana Yellow
+    '#BB8FCE', // Light Purple
+    '#85C1E9', // Light Blue
+    '#F8C471', // Orange
+    '#82E0AA'  // Light Green
+] as const;
+
+const DEFAULT_CHART_OPTIONS = {
+    borderWidth: 3,
+    pointRadius: 4,
+    pointBorderWidth: 2,
+    pointBorderColor: '#ffffff',
+    tension: 0,
+} as const;
+
+// Types
 interface MetricApiData {
     name: string;
     time: string;
     score: number;
     feature: {
         name: string;
-    }
+    };
 }
 
-/**
- * Parses raw metric data into a format compatible with Chart.js
- * @param metrics Array of metric data arrays from the API
- * @returns Formatted dataset object for Chart.js
- */
-function parse_datas(metrics: MetricApiData[][]) {
-    const datasets = metrics.map((metric, _) => {
-        // Remove duplicates based on time and feature
-        const uniqueData = metric.filter((item, idx, self) =>
-            idx === self.findIndex(t =>
-                t.time === item.time &&
-                t.feature?.name === item.feature?.name &&
-                t.name === item.name
-            )
-        );
-
-        const parsed_data = uniqueData.map((d) => {
-            return {
-                'x': new Date(d.time).toISOString(),
-                'y': d.score,
-                'feature': d.feature?.name || 'Unknown'
-            }
-        });
-
-        // Sort data by time to ensure proper line connections
-        parsed_data.sort((a, b) => new Date(a.x).getTime() - new Date(b.x).getTime());
-
-        const metric_label = metric.length > 0 ? mapMetricsName(metric[0].name) || 'Unknown' : 'Unknown';
-
-        return {
-            label: metric_label,
-            data: parsed_data,
-            fill: false,
-            tension: 0,
-            borderWidth: 3,
-            pointRadius: 4,
-        };
-    });
-    console.log('Parsed datasets:', datasets);
-    return { datasets };
+interface ChartDataPoint {
+    x: string;
+    y: number;
 }
 
-/**
- * Interface for processed metric data ready for visualization
- */
-// interface MetricData {
-//     data: { x: string; y: number, feature: string }[];
-//     label: string;
-//     fill: boolean;
-//     tension: number;
-// }
-
-/**
- * Extracts and groups data by feature name for a single metric
- * @param metrics Single metric dataset to process
- * @returns Array of datasets grouped by feature
- */
-// function extract_feature_name_one(metrics: MetricData) {
-//     const unique_feature = Array.from(new Set(metrics.data.map((d) => d.feature)));
-
-//     return unique_feature.map((feature) => {
-//         return {
-//             label: feature,
-//             data: metrics.data.filter((d) => d.feature === feature).map((d) => {
-//                 return {
-//                     x: d.x,
-//                     y: d.y
-//                 }
-//             }),
-//             fill: metrics.fill,
-//             tension: metrics.tension
-
-//         }
-//     }
-//     );
-// }
-
-/**
- * Processes multiple metric datasets to group by feature names
- * @param metrics Array of metric datasets to process
- * @returns Combined datasets grouped by feature
- */
-// function extract_feature_name(metrics: MetricData[]) {
-//     const datasets = metrics.map((metric) => extract_feature_name_one(metric)).flat();
-//     return { datasets };
-// }
-
-/**
- * Loading indicator component
- */
-function Loading() {
-    return (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-            <CircularProgress />
-        </Box>
-    );
-
+interface ChartDataPointWithFeature extends ChartDataPoint {
+    feature: string;
 }
 
-/**
- * Error display component
- */
-function ErrorComponent() {
-    return (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-            <Typography component="h3" variant="subtitle2" gutterBottom>
-                Error loading data
-            </Typography>
-        </Box>
-    );
+interface ChartDataset {
+    label: string;
+    data: ChartDataPoint[];
+    fill: boolean;
+    tension: number;
+    borderWidth?: number;
+    pointRadius?: number;
+    borderColor?: string;
+    backgroundColor?: string;
+    pointBackgroundColor?: string;
+    pointBorderColor?: string;
+    pointBorderWidth?: number;
 }
 
-// TODO: keep only function and then export later, and not default
+interface ChartData {
+    datasets: ChartDataset[];
+}
 
-/**
- * Props interface for the MetricTimeline component
- */
+interface ProcessedMetricData {
+    label: string;
+    data: ChartDataPointWithFeature[];
+    fill: boolean;
+    tension: number;
+}
+
+type InteractionMode = 'Pan' | 'Zoom';
+
 interface MetricTimelineProps {
-    /** Title displayed at the top of the metric card */
     cardTitle: string;
-    /** Array of metric names to fetch and display */
     metricNames: string[];
-    /** Project PID to fetch metrics for */
     projectPid?: string;
-    /** Evaluation PID to fetch metrics for (optional, if not provided uses project-level metrics) */
     evaluationPid?: string;
-    /** Whether to group the data by feature */
     group_by_feature?: boolean;
-    /** Whether to sort datasets by maximum value */
     sort_by_value?: boolean;
 }
 
-/**
- * Fetches metric data from the API
- * @param url API endpoint URL
- * @returns Promise resolving to metric data
- */
-function fetchMetricData(url: string) {
-    return fetch(url)
-        .then(response => response.json())
-        .then(data => data);
-}
-
-/** Type for interaction mode state */
-type InteractionMode = 'Pan' | 'Zoom';
-
-/**
- * Interface for processed metric data without feature information
- */
-// interface MetricData2 {
-//     data: { x: string; y: number }[];
-//     label: string;
-//     fill: boolean;
-//     tension: number;
-// }
-
-/**
- * Sorts datasets by their maximum values
- * @param datasets_in Input datasets to sort
- * @returns Sorted datasets
- */
-// function sort_datasets(datasets_in: MetricData2[]) {
-//     const datasets = datasets_in.sort((a, b) => {
-//         const a_max = Math.max(...a.data.map((d) => d.y));
-//         const b_max = Math.max(...b.data.map((d) => d.y));
-//         return b_max - a_max;
-//     });
-//     return { datasets };
-// }
-
-/**
- * Props interface for the GraphControls component
- */
 interface GraphControlsProps {
-    /** Reference to the Chart.js instance */
-    chart?: ChartJS<'line', { x: string; y: number }[], unknown> | null;
+    chart?: ChartJS<'line', ChartDataPoint[], unknown> | null;
 }
 
-/**
- * Component providing zoom and pan controls for the graph
- */
-export function GraphControls(props: GraphControlsProps) {
+// Utility functions
+const removeDuplicates = (items: MetricApiData[]): MetricApiData[] => {
+    return items.filter((item, idx, self) =>
+        idx === self.findIndex(t =>
+            t.time === item.time &&
+            t.feature?.name === item.feature?.name &&
+            t.name === item.name
+        )
+    );
+};
 
-    const { chart } = props;
+const sortByTime = <T extends { x: string }>(data: T[]): T[] => {
+    return [...data].sort((a, b) => new Date(a.x).getTime() - new Date(b.x).getTime());
+};
+
+const formatNumber = (value: number): string => {
+    const absValue = Math.abs(value);
+
+    if (absValue >= 1000) return value.toFixed(0);
+    if (absValue >= 10) return value.toFixed(1);
+    if (absValue >= 1) return value.toFixed(2);
+    if (absValue >= 0.1) return value.toFixed(3);
+    if (absValue >= 0.01) return value.toFixed(4);
+    if (absValue >= 0.001) return value.toFixed(5);
+    if (value === 0) return '0';
+
+    return value < 0.0001 ? value.toExponential(2) : value.toFixed(6);
+};
+
+const createDataPoint = (apiData: MetricApiData): ChartDataPointWithFeature => ({
+    x: new Date(apiData.time).toISOString(),
+    y: apiData.score,
+    feature: apiData.feature?.name || 'Unknown'
+});
+
+const stripFeatureFromDataPoint = ({ x, y }: ChartDataPointWithFeature): ChartDataPoint => ({ x, y });
+
+// Data processing functions
+const parseMetricData = (metricsArrays: MetricApiData[][]): ChartData => {
+    const datasets: ChartDataset[] = metricsArrays.map(metric => {
+        const uniqueData = removeDuplicates(metric);
+        const parsedData = uniqueData.map(createDataPoint);
+        const sortedData = sortByTime(parsedData);
+        const metricLabel = metric.length > 0 ? mapMetricsName(metric[0].name) || 'Unknown' : 'Unknown';
+
+        return {
+            label: metricLabel,
+            data: sortedData.map(stripFeatureFromDataPoint),
+            fill: false,
+            tension: 0,
+            ...DEFAULT_CHART_OPTIONS,
+        };
+    });
+
+    return { datasets };
+};
+
+const processMetricDataWithFeatures = (metricsArrays: MetricApiData[][]): ProcessedMetricData[] => {
+    return metricsArrays.map(metric => {
+        const uniqueData = removeDuplicates(metric);
+        const parsedData = uniqueData.map(createDataPoint);
+        const sortedData = sortByTime(parsedData);
+        const metricLabel = metric.length > 0 ? mapMetricsName(metric[0].name) || 'Unknown' : 'Unknown';
+
+        return {
+            label: metricLabel,
+            data: sortedData,
+            fill: false,
+            tension: 0,
+        };
+    });
+};
+
+const groupDatasetsByFeature = (processedData: ProcessedMetricData[]): ChartData => {
+    const datasets: ChartDataset[] = processedData.flatMap(metric => {
+        const uniqueFeatures = Array.from(new Set(metric.data.map(d => d.feature)));
+
+        return uniqueFeatures.map(feature => ({
+            label: feature,
+            data: metric.data
+                .filter(d => d.feature === feature)
+                .map(stripFeatureFromDataPoint),
+            fill: metric.fill,
+            tension: metric.tension,
+        }));
+    });
+
+    return { datasets };
+};
+
+const sortDatasetsByMaxValue = (chartData: ChartData): ChartData => {
+    const sortedDatasets = [...chartData.datasets].sort((a, b) => {
+        const aMax = Math.max(...a.data.map(d => d.y));
+        const bMax = Math.max(...b.data.map(d => d.y));
+        return bMax - aMax;
+    });
+
+    return { datasets: sortedDatasets };
+};
+
+const applyModernColors = (chartData: ChartData): ChartData => {
+    const datasetsWithColors = chartData.datasets.map((dataset, index) => {
+        const colorIndex = index % MODERN_COLORS.length;
+        const color = MODERN_COLORS[colorIndex];
+
+        return {
+            ...dataset,
+            borderColor: color,
+            backgroundColor: color,
+            pointBackgroundColor: color,
+            pointBorderColor: DEFAULT_CHART_OPTIONS.pointBorderColor,
+            pointBorderWidth: DEFAULT_CHART_OPTIONS.pointBorderWidth,
+            borderWidth: DEFAULT_CHART_OPTIONS.borderWidth,
+            pointRadius: DEFAULT_CHART_OPTIONS.pointRadius,
+            tension: DEFAULT_CHART_OPTIONS.tension,
+        };
+    });
+
+    return { datasets: datasetsWithColors };
+};
+
+// API functions
+const fetchMetricData = async (url: string): Promise<MetricApiData[]> => {
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch data from ${url}: ${response.statusText}`);
+    }
+    return response.json();
+};
+
+// Components
+const Loading = () => (
+    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+        <CircularProgress />
+    </Box>
+);
+
+const ErrorComponent = () => (
+    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+        <Typography component="h3" variant="subtitle2" gutterBottom>
+            Error loading data
+        </Typography>
+    </Box>
+);
+
+export const GraphControls = ({ chart }: GraphControlsProps) => {
     const [interactionMode, setInteractionMode] = useState<InteractionMode>('Zoom');
 
-    const handleZoom = () => {
-        if (!chart) return;
-        if (chart.options.plugins?.zoom?.zoom?.drag?.enabled !== undefined)
-            chart.options.plugins.zoom.zoom.drag.enabled = true;
-        if (chart.options.plugins?.zoom?.pan?.enabled !== undefined)
-            chart.options.plugins.zoom.pan.enabled = false;
+    const handleZoom = useCallback(() => {
+        if (!chart?.options.plugins?.zoom) return;
+
+        const zoomOptions = chart.options.plugins.zoom;
+        if (zoomOptions.zoom?.drag?.enabled !== undefined) {
+            zoomOptions.zoom.drag.enabled = true;
+        }
+        if (zoomOptions.pan?.enabled !== undefined) {
+            zoomOptions.pan.enabled = false;
+        }
+
         setInteractionMode('Zoom');
         chart.update();
-    }
+    }, [chart]);
 
-    const handlePan = () => {
-        console.log("Chart object in Zoom:", chart);
-        if (!chart) return;
-        if (chart.options.plugins?.zoom?.zoom?.drag?.enabled !== undefined)
-            chart.options.plugins.zoom.zoom.drag.enabled = false;
-        if (chart.options.plugins?.zoom?.pan?.enabled !== undefined)
-            chart.options.plugins.zoom.pan.enabled = true;
+    const handlePan = useCallback(() => {
+        if (!chart?.options.plugins?.zoom) return;
+
+        const zoomOptions = chart.options.plugins.zoom;
+        if (zoomOptions.zoom?.drag?.enabled !== undefined) {
+            zoomOptions.zoom.drag.enabled = false;
+        }
+        if (zoomOptions.pan?.enabled !== undefined) {
+            zoomOptions.pan.enabled = true;
+        }
+
         setInteractionMode('Pan');
         chart.update();
-    }
+    }, [chart]);
 
-    const handleResetZoom = () => {
+    const handleResetZoom = useCallback(() => {
         if (!chart) return;
         chart.resetZoom();
-    }
+    }, [chart]);
+
+    const buttonStyle = useCallback((mode: InteractionMode) => ({
+        color: interactionMode === mode ? 'primary.main' : 'gray',
+        '&:hover': { color: 'primary.main' },
+    }), [interactionMode]);
 
     return (
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1 }}>
             <Tooltip title="Zoom">
-                <IconButton size="small"
-                    onClick={() => handleZoom()}
-                    sx={{
-                        color: interactionMode === "Zoom" ? 'primary.main' : 'gray',
-                        '&:hover': { color: 'primary.main' },
-                    }}
-                >
+                <IconButton size="small" onClick={handleZoom} sx={buttonStyle('Zoom')}>
                     <CenterFocusWeak />
                 </IconButton>
             </Tooltip>
             <Tooltip title="Pan">
-                <IconButton size="small"
-                    onClick={() => handlePan()}
-                    sx={{
-                        color: interactionMode === "Pan" ? 'primary.main' : 'gray',
-                        '&:hover': { color: 'primary.main' },
-                    }}
-                >
+                <IconButton size="small" onClick={handlePan} sx={buttonStyle('Pan')}>
                     <OpenWith />
                 </IconButton>
             </Tooltip>
             <Tooltip title="Reset Zoom">
-                <IconButton size="small"
-                    onClick={() => handleResetZoom()}
-                    sx={{
-                        color: 'gray',
-                        '&:hover': { color: 'primary.main' },
-                    }}
-                >
+                <IconButton size="small" onClick={handleResetZoom} sx={{ color: 'gray', '&:hover': { color: 'primary.main' } }}>
                     <Home />
                 </IconButton>
             </Tooltip>
         </Box>
-
     );
-}
+};
 
-/**
- * Main component for displaying time-series metric data with interactive controls
- * Supports zooming, panning, and various data grouping options
- */
-export default function MetricTimeline({
+// Main component
+const MetricTimeline = ({
     cardTitle,
     metricNames,
     projectPid,
     evaluationPid,
-    group_by_feature = false,  // Default value
-    sort_by_value = false      // Default value
-}: MetricTimelineProps) {
-    // const { metricNames, cardTitle, group_by_feature,  sort_by_value} = props;
-    const [chartData, setChartData] = useState<{ datasets: { label: string; data: { x: string; y: number }[]; fill: boolean; tension: number }[] }>({ datasets: [] });
+    group_by_feature = false,
+    sort_by_value = false
+}: MetricTimelineProps) => {
+    const [chartData, setChartData] = useState<ChartData>({ datasets: [] });
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
-    const options: ChartOptions<'line'> = {
+    const chartRef = useRef<ChartJS<'line', ChartDataPoint[]>>(null);
+    const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
+
+    // Memoized chart options
+    const chartOptions: ChartOptions<'line'> = useMemo(() => ({
         responsive: true,
         maintainAspectRatio: false,
         interaction: {
-            mode: 'index',
+            mode: 'index' as const,
             intersect: false,
         },
         scales: {
             x: {
-                type: 'time',
+                type: 'time' as const,
                 time: {
-                    unit: 'day',
+                    unit: 'day' as const,
                     displayFormats: {
-                        day: 'MMM dd, yyyy',   // Show date in day format
-                        week: 'MMM dd, yyyy',  // Show date in week format
-                        month: 'MMM yyyy',     // Show date in month format
-                        year: 'yyyy'           // Show date in year format
+                        day: 'MMM dd, yyyy',
+                        week: 'MMM dd, yyyy',
+                        month: 'MMM yyyy',
+                        year: 'yyyy'
                     },
-                    tooltipFormat: 'MMM dd, yyyy HH:mm', // Full date
+                    tooltipFormat: 'MMM dd, yyyy HH:mm',
                 },
                 adapters: {
-                    date: {
-                        locale: enGB
-                    }
+                    date: { locale: enGB }
                 },
-                grid: {
-                    color: 'rgba(0, 0, 0, 0.05)', // Subtle grid lines
-                },
-                ticks: {
-                    maxTicksLimit: 10, // Limit number of ticks for readability
-                }
+                grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                ticks: { maxTicksLimit: 10 },
             },
             y: {
-                grid: {
-                    color: 'rgba(0, 0, 0, 0.05)', // Subtle grid lines
-                },
+                grid: { color: 'rgba(0, 0, 0, 0.05)' },
                 ticks: {
-                    callback: function(value) {
-                        const numValue = Number(value);
-
-                        // Determine appropriate number of decimal places based on magnitude
-                        if (Math.abs(numValue) >= 1000) {
-                            return numValue.toFixed(0); // No decimals for large numbers
-                        } else if (Math.abs(numValue) >= 10) {
-                            return numValue.toFixed(1); // 1 decimal for numbers ≥ 10
-                        } else if (Math.abs(numValue) >= 1) {
-                            return numValue.toFixed(2); // 2 decimals for numbers ≥ 1
-                        } else if (Math.abs(numValue) >= 0.1) {
-                            return numValue.toFixed(3); // 3 decimals for numbers ≥ 0.1
-                        } else if (Math.abs(numValue) >= 0.01) {
-                            return numValue.toFixed(4); // 4 decimals for numbers ≥ 0.01
-                        } else if (Math.abs(numValue) >= 0.001) {
-                            return numValue.toFixed(5); // 5 decimals for numbers ≥ 0.001
-                        } else if (numValue === 0) {
-                            return '0'; // Just 0 for zero
-                        } else {
-                            // For very small numbers, use scientific notation or more decimals
-                            return numValue < 0.0001 ? numValue.toExponential(2) : numValue.toFixed(6);
-                        }
-                    }
+                    callback: (value) => formatNumber(Number(value))
                 }
             }
         },
         plugins: {
             legend: {
-                position: 'bottom',
+                position: 'bottom' as const,
                 labels: {
-                    usePointStyle: true, // Use circular points in legend
-                    pointStyle: 'circle',
+                    usePointStyle: true,
+                    pointStyle: 'circle' as const,
                     padding: 20,
                 }
             },
@@ -379,7 +375,7 @@ export default function MetricTimeline({
                 borderWidth: 1,
                 cornerRadius: 8,
                 callbacks: {
-                    title: function(context) {
+                    title: (context) => {
                         const date = new Date(context[0].parsed.x);
                         return date.toLocaleDateString('en-GB', {
                             year: 'numeric',
@@ -389,188 +385,105 @@ export default function MetricTimeline({
                             minute: '2-digit'
                         });
                     },
-                    label: function(context) {
-                        const numValue = Number(context.parsed.y);
-                        let formattedValue;
-
-                        // Use the same formatting logic as Y-axis ticks
-                        if (Math.abs(numValue) >= 1000) {
-                            formattedValue = numValue.toFixed(0);
-                        } else if (Math.abs(numValue) >= 10) {
-                            formattedValue = numValue.toFixed(1);
-                        } else if (Math.abs(numValue) >= 1) {
-                            formattedValue = numValue.toFixed(2);
-                        } else if (Math.abs(numValue) >= 0.1) {
-                            formattedValue = numValue.toFixed(3);
-                        } else if (Math.abs(numValue) >= 0.01) {
-                            formattedValue = numValue.toFixed(4);
-                        } else if (Math.abs(numValue) >= 0.001) {
-                            formattedValue = numValue.toFixed(5);
-                        } else if (numValue === 0) {
-                            formattedValue = '0';
-                        } else {
-                            formattedValue = numValue < 0.0001 ? numValue.toExponential(2) : numValue.toFixed(6);
-                        }
-
+                    label: (context) => {
+                        const formattedValue = formatNumber(Number(context.parsed.y));
                         return `${context.dataset.label}: ${formattedValue}`;
                     }
                 }
             },
             zoom: {
                 pan: {
-                    enabled: false, // Enable panning
-                    mode: 'xy', // Allow panning on both x and y axes
+                    enabled: false,
+                    mode: 'xy' as const,
                 },
                 zoom: {
                     drag: {
-                        enabled: true, // Enable drag-to-zoom box
-                        backgroundColor: 'rgba(54, 162, 235, 0.1)', // Modern blue highlight
-                        borderColor: '#36A2EB', // Modern blue border
+                        enabled: true,
+                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                        borderColor: '#36A2EB',
                         borderWidth: 2,
                     },
-                    mode: 'xy', // Zoom both axes simultaneously
+                    mode: 'xy' as const,
                 },
             },
         },
-    }
+    }), []);
 
-    const chartRef = useRef<ChartJS<'line', { x: string; y: number }[]>>(null);
+    // Memoized URLs
+    const urls = useMemo(() => {
+        if (!projectPid) return [];
 
-    const API_URL = import.meta.env.VITE_APP_API_URL + API_VERSION_PREFIX;
+        return metricNames.map(metricName => {
+            if (evaluationPid) {
+                return `${API_URL}/projects/${projectPid}/evaluations/${evaluationPid}/metrics?name=${metricName}`;
+            }
+            return `${API_URL}/metrics?project_pid=${projectPid}&name=${metricName}`;
+        });
+    }, [metricNames, projectPid, evaluationPid, API_URL]);
 
+    // Data processing logic
+    const processChartData = useCallback((metricsArrays: MetricApiData[][]) => {
+        let result: ChartData;
+
+        if (group_by_feature) {
+            const processedData = processMetricDataWithFeatures(metricsArrays);
+            result = groupDatasetsByFeature(processedData);
+        } else {
+            result = parseMetricData(metricsArrays);
+        }
+
+        if (sort_by_value) {
+            result = sortDatasetsByMaxValue(result);
+        }
+
+        return applyModernColors(result);
+    }, [group_by_feature, sort_by_value]);
+
+    // Main data fetching effect
     useEffect(() => {
-        if (!projectPid) {
-            console.warn('No project PID provided to MetricTimeline');
-            setError(true);
+        if (!projectPid || urls.length === 0) {
+            setError('No project PID provided or no metric names specified');
             setLoading(false);
             return;
         }
 
-        // Reset loading state
         setLoading(true);
-        setError(false);
+        setError(null);
 
-        // Create URLs for each metric
-        const urls = metricNames.map(metricName => {
-            if (evaluationPid) {
-                return `${API_URL}/projects/${projectPid}/evaluations/${evaluationPid}/metrics?name=${metricName}`;
-            } else {
-                return `${API_URL}/metrics?project_pid=${projectPid}&name=${metricName}`;
-            }
-        });
-
-        console.log('Fetching metrics from URLs:', urls);
-
-        Promise.all(urls.map((url: string) => fetchMetricData(url)))
+        Promise.all(urls.map(fetchMetricData))
             .then(metricsArrays => {
-                console.log('Raw metrics received:', metricsArrays);
-
-                const parsedData = parse_datas(metricsArrays);
-                console.log('After parsing:', parsedData);
-
-                // Apply modern color palette
-                // const modernColors = [
-                //     '#FF6B6B', // Coral
-                //     '#4ECDC4', // Teal
-                //     '#45B7D1', // Sky Blue
-                //     '#96CEB4', // Mint Green
-                //     '#FFEAA7', // Light Yellow
-                //     '#DDA0DD', // Plum
-                //     '#98D8C8', // Aquamarine
-                //     '#F7DC6F', // Banana Yellow
-                //     '#BB8FCE', // Light Purple
-                //     '#85C1E9', // Light Blue
-                //     '#F8C471', // Orange
-                //     '#82E0AA'  // Light Green
-                // ];
-
-                // parsedData.datasets.forEach((dataset: any, index) => {
-                //     const colorIndex = index % modernColors.length;
-                //     dataset.borderColor = modernColors[colorIndex];
-                //     dataset.backgroundColor = modernColors[colorIndex];
-                //     dataset.pointBackgroundColor = modernColors[colorIndex];
-                //     dataset.pointBorderColor = '#ffffff';
-                //     dataset.pointBorderWidth = 2;
-                // });
-
-                // const updatedDatasets = parsedData.datasets.map((dataset: any, index: number) => {
-                //     const colorIndex = index % modernColors.length;
-                //     return {
-                //         ...dataset,
-                //         borderColor: modernColors[colorIndex],
-                //         backgroundColor: modernColors[colorIndex],
-                //         pointBackgroundColor: modernColors[colorIndex],
-                //         pointBorderColor: '#ffffff',
-                //         pointBorderWidth: 2,
-                //     };
-                // });
-
-                let finalChartData = parsedData;
-
-                // TODO: Fix to pass npm run build
-                // if (group_by_feature) {
-                //     finalChartData = extract_feature_name(parsedData.datasets);
-                //     console.log('After feature grouping:', finalChartData);
-
-                //     // Apply colors to feature-grouped data
-                //     (finalChartData.datasets as any[]).forEach((dataset: any, index) => {
-                //         const colorIndex = index % modernColors.length;
-                //         dataset.borderColor = modernColors[colorIndex];
-                //         dataset.backgroundColor = modernColors[colorIndex];
-                //         dataset.pointBackgroundColor = modernColors[colorIndex];
-                //         dataset.pointBorderColor = '#ffffff';
-                //         dataset.pointBorderWidth = 2;
-                //         dataset.borderWidth = 3;
-                //         dataset.pointRadius = 4;
-                //         dataset.tension = 0; // No curve smoothing - straight lines between points
-                //     });
-                // }
-
-                // TODO: Fix to pass npm run build
-                // if (sort_by_value) {
-                //     finalChartData = sort_datasets(finalChartData.datasets as any);
-                //     console.log('After sorting:', finalChartData);
-                // }
-
-                setChartData(finalChartData as any);
-                setLoading(false);
+                const processedData = processChartData(metricsArrays);
+                setChartData(processedData);
             })
-            .catch((error) => {
-                console.error('Error loading data:', error);
-                setError(true);
+            .catch(err => {
+                console.error('Error loading metric data:', err);
+                setError(err.message || 'Failed to load metric data');
+            })
+            .finally(() => {
                 setLoading(false);
             });
-
-    }, [metricNames, group_by_feature, sort_by_value, API_URL, projectPid, evaluationPid]);
-
-    useEffect(() => {
-        const chart = chartRef.current;
-
-        console.log("Chart object in useEffect:", chart);
-      }, [chartRef]);
+    }, [urls, processChartData, projectPid]);
 
     if (loading) return <Loading />;
     if (error) return <ErrorComponent />;
 
-    // console.log(chartData);
-
     return (
         <Box sx={{ width: 1 }}>
-            <Card variant="outlined" sx={{ flexGrow: 1, mb: 2, }}>
+            <Card variant="outlined" sx={{ flexGrow: 1, mb: 2 }}>
                 <CardContent>
                     <Typography component="h3" variant="h5" gutterBottom>
                         {cardTitle}
                     </Typography>
-                    {/* <GraphControls currentMode={interactionMode} onModeChange={setInteractionMode} /> */}
                     <Box display="flex" justifyContent="flex-end">
                         <GraphControls chart={chartRef.current} />
                     </Box>
                     <Box sx={{ height: '500px', width: '100%' }}>
-                        <Line ref={chartRef} data={chartData} options={options} />
+                        <Line ref={chartRef} data={chartData} options={chartOptions} />
                     </Box>
-                    <div id="legend-container"></div>
                 </CardContent>
             </Card>
         </Box>
     );
-}
+};
+
+export default MetricTimeline;
