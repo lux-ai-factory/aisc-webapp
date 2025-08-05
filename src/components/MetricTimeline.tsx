@@ -4,14 +4,14 @@
  */
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { Box, Typography, Card, CardContent, CircularProgress, IconButton, Tooltip } from '@mui/material';
+import { Box, Typography, Card, CardContent, CircularProgress, IconButton, Tooltip, Modal } from '@mui/material';
 import { Line } from 'react-chartjs-2';
 import { Chart as ChartJS, registerables, ChartOptions } from 'chart.js';
 import zoomPlugin from 'chartjs-plugin-zoom';
 import { mapMetricsName } from "../utils";
 import { enGB } from 'date-fns/locale';
 import 'chartjs-adapter-date-fns';
-import { CenterFocusWeak, Home, OpenWith } from "@mui/icons-material";
+import { CenterFocusWeak, Home, OpenWith, Fullscreen, FullscreenExit } from "@mui/icons-material";
 import { API_VERSION_PREFIX } from "../config";
 
 ChartJS.register(...registerables, zoomPlugin);
@@ -97,6 +97,8 @@ interface MetricTimelineProps {
 
 interface GraphControlsProps {
     chart?: ChartJS<'line', ChartDataPoint[], unknown> | null;
+    isFullscreen: boolean;
+    onToggleFullscreen: () => void;
 }
 
 // Utility functions
@@ -244,7 +246,7 @@ const ErrorComponent = () => (
     </Box>
 );
 
-export const GraphControls = ({ chart }: GraphControlsProps) => {
+export const GraphControls = ({ chart, isFullscreen, onToggleFullscreen }: GraphControlsProps) => {
     const [interactionMode, setInteractionMode] = useState<InteractionMode>('Zoom');
 
     const handleZoom = useCallback(() => {
@@ -287,6 +289,11 @@ export const GraphControls = ({ chart }: GraphControlsProps) => {
         '&:hover': { color: 'primary.main' },
     }), [interactionMode]);
 
+    const toggleButtonStyle = {
+        color: 'gray',
+        '&:hover': { color: 'primary.main' },
+    };
+
     return (
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1 }}>
             <Tooltip title="Zoom">
@@ -300,13 +307,51 @@ export const GraphControls = ({ chart }: GraphControlsProps) => {
                 </IconButton>
             </Tooltip>
             <Tooltip title="Reset Zoom">
-                <IconButton size="small" onClick={handleResetZoom} sx={{ color: 'gray', '&:hover': { color: 'primary.main' } }}>
+                <IconButton size="small" onClick={handleResetZoom} sx={toggleButtonStyle}>
                     <Home />
+                </IconButton>
+            </Tooltip>
+            <Tooltip title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}>
+                <IconButton size="small" onClick={onToggleFullscreen} sx={toggleButtonStyle}>
+                    {isFullscreen ? <FullscreenExit /> : <Fullscreen />}
                 </IconButton>
             </Tooltip>
         </Box>
     );
 };
+
+// Chart content component for reusability
+const ChartContent = ({
+    cardTitle,
+    chartData,
+    chartOptions,
+    chartRef,
+    isFullscreen,
+    onToggleFullscreen
+}: {
+    cardTitle: string;
+    chartData: ChartData;
+    chartOptions: ChartOptions<'line'>;
+    chartRef: React.RefObject<ChartJS<'line', ChartDataPoint[]>>;
+    isFullscreen: boolean;
+    onToggleFullscreen: () => void;
+}) => (
+    <>
+        <Typography component="h3" variant="h5" gutterBottom>
+            {cardTitle}
+        </Typography>
+        <Box display="flex" justifyContent="flex-end">
+            <GraphControls
+                chart={chartRef.current}
+                isFullscreen={isFullscreen}
+                onToggleFullscreen={onToggleFullscreen}
+            />
+        </Box>
+        <Box sx={{ height: isFullscreen ? 'calc(100vh - 200px)' : '500px', width: '100%' }}>
+            <Line ref={chartRef} data={chartData} options={chartOptions} />
+        </Box>
+    </>
+);
 
 // Main component
 const MetricTimeline = ({
@@ -320,9 +365,28 @@ const MetricTimeline = ({
     const [chartData, setChartData] = useState<ChartData>({ datasets: [] });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isFullscreen, setIsFullscreen] = useState(false);
 
     const chartRef = useRef<ChartJS<'line', ChartDataPoint[]>>(null);
     const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
+
+    const toggleFullscreen = useCallback(() => {
+        setIsFullscreen(prev => !prev);
+    }, []);
+
+    // Handle escape key to exit fullscreen
+    useEffect(() => {
+        const handleEscapeKey = (event: KeyboardEvent) => {
+            if (event.key === 'Escape' && isFullscreen) {
+                setIsFullscreen(false);
+            }
+        };
+
+        if (isFullscreen) {
+            document.addEventListener('keydown', handleEscapeKey);
+            return () => document.removeEventListener('keydown', handleEscapeKey);
+        }
+    }, [isFullscreen]);
 
     // Memoized chart options
     const chartOptions: ChartOptions<'line'> = useMemo(() => ({
@@ -467,22 +531,54 @@ const MetricTimeline = ({
     if (loading) return <Loading />;
     if (error) return <ErrorComponent />;
 
+    const chartContent = (
+        <ChartContent
+            cardTitle={cardTitle}
+            chartData={chartData}
+            chartOptions={chartOptions}
+            chartRef={chartRef}
+            isFullscreen={isFullscreen}
+            onToggleFullscreen={toggleFullscreen}
+        />
+    );
+
     return (
-        <Box sx={{ width: 1 }}>
-            <Card variant="outlined" sx={{ flexGrow: 1, mb: 2 }}>
-                <CardContent>
-                    <Typography component="h3" variant="h5" gutterBottom>
-                        {cardTitle}
-                    </Typography>
-                    <Box display="flex" justifyContent="flex-end">
-                        <GraphControls chart={chartRef.current} />
-                    </Box>
-                    <Box sx={{ height: '500px', width: '100%' }}>
-                        <Line ref={chartRef} data={chartData} options={chartOptions} />
-                    </Box>
-                </CardContent>
-            </Card>
-        </Box>
+        <>
+            <Box sx={{ width: 1 }}>
+                <Card variant="outlined" sx={{ flexGrow: 1, mb: 2 }}>
+                    <CardContent>
+                        {!isFullscreen && chartContent}
+                    </CardContent>
+                </Card>
+            </Box>
+
+            {/* Fullscreen Modal */}
+            <Modal
+                open={isFullscreen}
+                onClose={toggleFullscreen}
+                aria-labelledby="fullscreen-chart-modal"
+                sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                }}
+            >
+                <Box
+                    sx={{
+                        width: '95vw',
+                        height: '95vh',
+                        bgcolor: 'background.paper',
+                        borderRadius: 2,
+                        boxShadow: 24,
+                        p: 3,
+                        outline: 'none',
+                        overflow: 'hidden',
+                    }}
+                >
+                    {chartContent}
+                </Box>
+            </Modal>
+        </>
     );
 };
 
