@@ -436,7 +436,7 @@ export default function MetricTimeline({
 
     const chartRef = useRef<ChartJS<'line', { x: string; y: number }[]>>(null);
 
-    const API_URL = import.meta.env.VITE_APP_API_URL + API_VERSION_PREFIX;
+    const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
     useEffect(() => {
         if (!projectPid) {
