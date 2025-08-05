@@ -16,6 +16,7 @@ ChartJS.register(...registerables, zoomPlugin);
 import { enGB } from 'date-fns/locale';
 import 'chartjs-adapter-date-fns';
 import { CenterFocusWeak, Home, OpenWith } from "@mui/icons-material";
+import { API_VERSION_PREFIX } from "../config";
 
 /**
  * Interface representing the raw metric data from the API
@@ -37,14 +38,14 @@ interface MetricApiData {
 function parse_datas(metrics: MetricApiData[][]) {
     const datasets = metrics.map((metric, _index) => {
         // Remove duplicates based on time and feature
-        const uniqueData = metric.filter((item, idx, self) => 
-            idx === self.findIndex(t => 
-                t.time === item.time && 
+        const uniqueData = metric.filter((item, idx, self) =>
+            idx === self.findIndex(t =>
+                t.time === item.time &&
                 t.feature?.name === item.feature?.name &&
                 t.name === item.name
             )
         );
-        
+
         const parsed_data = uniqueData.map((d) => {
             return {
                 'x': new Date(d.time).toISOString(),
@@ -52,10 +53,10 @@ function parse_datas(metrics: MetricApiData[][]) {
                 'feature': d.feature?.name || 'Unknown'
             }
         });
-        
+
         // Sort data by time to ensure proper line connections
         parsed_data.sort((a, b) => new Date(a.x).getTime() - new Date(b.x).getTime());
-        
+
         const metric_label = metric.length > 0 ? mapMetricsName(metric[0].name) || 'Unknown' : 'Unknown';
 
         return {
@@ -337,7 +338,7 @@ export default function MetricTimeline({
                 ticks: {
                     callback: function(value) {
                         const numValue = Number(value);
-                        
+
                         // Determine appropriate number of decimal places based on magnitude
                         if (Math.abs(numValue) >= 1000) {
                             return numValue.toFixed(0); // No decimals for large numbers
@@ -380,9 +381,9 @@ export default function MetricTimeline({
                 callbacks: {
                     title: function(context) {
                         const date = new Date(context[0].parsed.x);
-                        return date.toLocaleDateString('en-GB', { 
-                            year: 'numeric', 
-                            month: 'short', 
+                        return date.toLocaleDateString('en-GB', {
+                            year: 'numeric',
+                            month: 'short',
                             day: 'numeric',
                             hour: '2-digit',
                             minute: '2-digit'
@@ -391,7 +392,7 @@ export default function MetricTimeline({
                     label: function(context) {
                         const numValue = Number(context.parsed.y);
                         let formattedValue;
-                        
+
                         // Use the same formatting logic as Y-axis ticks
                         if (Math.abs(numValue) >= 1000) {
                             formattedValue = numValue.toFixed(0);
@@ -410,7 +411,7 @@ export default function MetricTimeline({
                         } else {
                             formattedValue = numValue < 0.0001 ? numValue.toExponential(2) : numValue.toFixed(6);
                         }
-                        
+
                         return `${context.dataset.label}: ${formattedValue}`;
                     }
                 }
@@ -435,8 +436,7 @@ export default function MetricTimeline({
 
     const chartRef = useRef<ChartJS<'line', { x: string; y: number }[]>>(null);
 
-    const API_URL = import.meta.env.VITE_BACKEND_API_URL;
-
+    const API_URL = import.meta.env.VITE_APP_API_URL + API_VERSION_PREFIX;
 
     useEffect(() => {
         if (!projectPid) {
@@ -458,20 +458,20 @@ export default function MetricTimeline({
                 return `${API_URL}/metrics?project_pid=${projectPid}&name=${metricName}`;
             }
         });
-        
+
         console.log('Fetching metrics from URLs:', urls);
-        
+
         Promise.all(urls.map((url: string) => fetchMetricData(url)))
             .then(metricsArrays => {
                 console.log('Raw metrics received:', metricsArrays);
-                
+
                 const parsedData = parse_datas(metricsArrays);
                 console.log('After parsing:', parsedData);
-                
+
                 // Apply modern color palette
                 const modernColors = [
                     '#FF6B6B', // Coral
-                    '#4ECDC4', // Teal 
+                    '#4ECDC4', // Teal
                     '#45B7D1', // Sky Blue
                     '#96CEB4', // Mint Green
                     '#FFEAA7', // Light Yellow
@@ -483,7 +483,7 @@ export default function MetricTimeline({
                     '#F8C471', // Orange
                     '#82E0AA'  // Light Green
                 ];
-                
+
                 parsedData.datasets.forEach((dataset: any, index) => {
                     const colorIndex = index % modernColors.length;
                     dataset.borderColor = modernColors[colorIndex];
@@ -492,7 +492,7 @@ export default function MetricTimeline({
                     dataset.pointBorderColor = '#ffffff';
                     dataset.pointBorderWidth = 2;
                 });
-                
+
                 let finalChartData = parsedData;
                 
                 if (group_by_feature) {

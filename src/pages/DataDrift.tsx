@@ -1,10 +1,10 @@
-import { 
-    Box, 
-    Typography, 
-    FormControl, 
-    InputLabel, 
-    Select, 
-    MenuItem, 
+import {
+    Box,
+    Typography,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
     Paper,
     Alert,
     CircularProgress,
@@ -15,6 +15,7 @@ import zoomPlugin from 'chartjs-plugin-zoom';
 import MetricTimeline from '../components/MetricTimeline';
 import Grid from '@mui/material/Grid2';
 import { useState, useEffect } from 'react';
+import { API_VERSION_PREFIX } from '../config';
 
 // Register Chart.js plugins
 ChartJS.register(...registerables, zoomPlugin);
@@ -44,9 +45,9 @@ interface Evaluation {
  * Shows two metric timelines:
  * 1. Wasserstein distance for numerical features
  * 2. Jensen-Shannon divergence for categorical features
- * 
+ *
  * Both visualizations are grouped by feature and sorted by value
- * 
+ *
  * @returns {JSX.Element} The data drift analysis page with metric timelines
  */
 export default function DataDrift() {
@@ -58,7 +59,7 @@ export default function DataDrift() {
     const [loadingEvaluations, setLoadingEvaluations] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const API_URL = import.meta.env.VITE_BACKEND_API_URL;
+    const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX ;
 
     // Fetch projects on component mount
     useEffect(() => {
@@ -69,7 +70,7 @@ export default function DataDrift() {
                 if (response.ok) {
                     const projectsData: Project[] = await response.json();
                     setProjects(projectsData);
-                    
+
                     // Select first project by default
                     if (projectsData.length > 0) {
                         setSelectedProjectPid(projectsData[0].project_pid);
@@ -106,7 +107,7 @@ export default function DataDrift() {
                             evaluation => evaluation.project_id === selectedProject.project_id
                         );
                         setEvaluations(projectEvaluations);
-                        
+
                         // Select the most recent evaluation by default (last in the list)
                         if (projectEvaluations.length > 0) {
                             setSelectedEvaluationPid(projectEvaluations[projectEvaluations.length - 1].evaluation_pid);
@@ -169,13 +170,13 @@ export default function DataDrift() {
             <Typography component="h2" variant="h4" gutterBottom>
                 Data Drift Analysis
             </Typography>
-            
+
             {/* Selectors Section */}
             <Paper elevation={2} sx={{ p: 3, mb: 3, backgroundColor: 'background.paper' }}>
                 <Typography variant="h6" gutterBottom color="primary">
                     Select Project and Evaluation
                 </Typography>
-                
+
                 <Grid container spacing={3} alignItems="center">
                     <Grid size={6}>
                         <FormControl fullWidth>
@@ -199,7 +200,7 @@ export default function DataDrift() {
                             </Select>
                         </FormControl>
                     </Grid>
-                    
+
                 <Grid size={6}>
                         <FormControl fullWidth disabled={loadingEvaluations || evaluations.length === 0}>
                             <InputLabel id="evaluation-select-label">Evaluation</InputLabel>
@@ -236,7 +237,7 @@ export default function DataDrift() {
                         )}
                     </Grid>
                 </Grid>
-                
+
                 {evaluations.length === 0 && selectedProjectPid && !loadingEvaluations && (
                     <Alert severity="warning" sx={{ mt: 2 }}>
                         No completed evaluations found for this project.
@@ -248,23 +249,23 @@ export default function DataDrift() {
             {selectedProjectPid && selectedEvaluationPid && (
                 <Grid container spacing={2}>
                     <Grid size={6}>
-                        <MetricTimeline 
-                            cardTitle='Numerical features - Wasserstein distance' 
-                            metricNames={['wasserstein_distance']} 
+                        <MetricTimeline
+                            cardTitle='Numerical features - Wasserstein distance'
+                            metricNames={['wasserstein_distance']}
                             projectPid={selectedProjectPid}
                             evaluationPid={selectedEvaluationPid}
-                            group_by_feature={true} 
-                            sort_by_value={true} 
+                            group_by_feature={true}
+                            sort_by_value={true}
                         />
                 </Grid>
                 <Grid size={6}>
-                        <MetricTimeline 
-                            cardTitle='Categorical features - Jensen-Shannon divergence' 
-                            metricNames={["jensenshannon"]} 
+                        <MetricTimeline
+                            cardTitle='Categorical features - Jensen-Shannon divergence'
+                            metricNames={["jensenshannon"]}
                             projectPid={selectedProjectPid}
                             evaluationPid={selectedEvaluationPid}
-                            group_by_feature={true} 
-                            sort_by_value={true} 
+                            group_by_feature={true}
+                            sort_by_value={true}
                         />
                     </Grid>
                 </Grid>
