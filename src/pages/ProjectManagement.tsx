@@ -25,7 +25,7 @@ import {
     Tab
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
-import UploadFileField from '../components/UploadFileField';
+import { API_VERSION_PREFIX } from '../config';
 
 /** Step names for the project creation process */
 const STEP_NAMES = [
@@ -114,7 +114,7 @@ function useCollection<T extends { id: string }>(initialItems: T[] = []) {
     const addItem = (item: T) => setItems(prev => [...prev, item]);
     const removeItem = (id: string) => setItems(prev => prev.filter(item => item.id !== id));
     const updateItem = (id: string, updates: Partial<T>) => {
-        setItems(prev => prev.map(item => 
+        setItems(prev => prev.map(item =>
             item.id === id ? { ...item, ...updates } : item
         ));
     };
@@ -156,15 +156,15 @@ const StagedUploadField = React.memo(({ label, fileType, file, onFileSelect, req
     const handleDrop = (event: React.DragEvent) => {
         event.preventDefault();
         setIsDragOver(false);
-        
+
         const droppedFiles = event.dataTransfer.files;
         if (droppedFiles.length > 0) {
             const droppedFile = droppedFiles[0];
-            
+
             // Validate file type
             const acceptedTypes = fileType.split(',').map(t => t.trim());
             const fileExtension = '.' + droppedFile.name.split('.').pop()?.toLowerCase();
-            
+
             if (acceptedTypes.includes(fileExtension)) {
                 onFileSelect(droppedFile);
             } else {
@@ -178,7 +178,7 @@ const StagedUploadField = React.memo(({ label, fileType, file, onFileSelect, req
             <Typography variant="subtitle2" gutterBottom>
                 {label} {required && <span style={{ color: 'red' }}>*</span>}
             </Typography>
-            
+
             {/* Drag & Drop Zone */}
             <Box
                 sx={{
@@ -275,7 +275,7 @@ const StagedUploadCard = React.memo(({ title, uploadItems, isComplete }: StagedU
                         <Chip label="Ready" color="success" size="small" sx={{ ml: 2 }} />
                     )}
                 </Typography>
-                
+
                 <Stack spacing={3}>
                     {uploadItems.map((item, index) => (
                         <StagedUploadField
@@ -293,56 +293,6 @@ const StagedUploadCard = React.memo(({ title, uploadItems, isComplete }: StagedU
     );
 });
 
-/** Generic upload card component (legacy, for adding to existing projects) */
-interface UploadCardProps {
-    title: string;
-    uploadItems: Array<{
-        label: string;
-        fileType: string;
-        uploadUrl?: string;
-        isUploaded?: boolean;
-        onSuccess: (fileName: string) => void;
-    }>;
-    isComplete?: boolean;
-}
-
-const UploadCard = React.memo(({ title, uploadItems, isComplete }: UploadCardProps) => {
-    return (
-        <Card>
-            <CardContent>
-                <Typography variant="h6" gutterBottom>
-                    {title}
-                    {isComplete && (
-                        <Chip label="Complete" color="success" size="small" sx={{ ml: 2 }} />
-                    )}
-                </Typography>
-                
-                <Stack spacing={3}>
-                    {uploadItems.map((item, index) => (
-                        <Box key={index}>
-                            <Typography variant="subtitle1" gutterBottom>
-                                {item.label} {item.isUploaded && "✓"}
-                            </Typography>
-                            {item.uploadUrl ? (
-                                <UploadFileField
-                                    label={item.label}
-                                    fileType={item.fileType}
-                                    uploadUrl={item.uploadUrl}
-                                    onSuccess={item.onSuccess}
-                                />
-                            ) : (
-                                <Alert severity="warning">
-                                    Complete project creation first to enable file upload.
-                                </Alert>
-                            )}
-                        </Box>
-                    ))}
-                </Stack>
-            </CardContent>
-        </Card>
-    );
-});
-
 /** Simplified validation functions */
 const validators = {
     projectName: (name: string) => {
@@ -351,7 +301,7 @@ const validators = {
         }
         return { isValid: true };
     },
-    
+
     frequency: (frequency: string) => {
         if (!frequency.trim()) return { isValid: true };
         const pattern = /^\d+\s*[DWMY]$/i;
@@ -360,7 +310,7 @@ const validators = {
         }
         return { isValid: true };
     },
-    
+
     windowSize: (windowSize: string) => {
         if (!windowSize.trim()) return { isValid: true };
         const pattern = /^\d+\s+(day|days|week|weeks|month|months|year|years)$/i;
@@ -382,7 +332,7 @@ function ProjectDetailsStep({ project, onChange }: ProjectDetailsStepProps) {
 
     const handleChange = (field: keyof ProjectInfo, value: string) => {
         onChange(field, value);
-        
+
         // Validate on change
         let error: string | undefined;
         if (field === 'name') {
@@ -395,7 +345,7 @@ function ProjectDetailsStep({ project, onChange }: ProjectDetailsStepProps) {
             const validation = validators.windowSize(value);
             error = validation.error;
         }
-        
+
         setErrors(prev => ({ ...prev, [field]: error }));
     };
 
@@ -408,7 +358,7 @@ function ProjectDetailsStep({ project, onChange }: ProjectDetailsStepProps) {
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                     Configure your project settings. Name is required, while frequency and window size are optional for time-series analysis.
                 </Typography>
-                
+
                 <Stack spacing={3}>
                     <TextField
                         label="Project Name"
@@ -419,7 +369,7 @@ function ProjectDetailsStep({ project, onChange }: ProjectDetailsStepProps) {
                         error={!!errors.name}
                         helperText={errors.name || "A descriptive name for your AI project"}
                     />
-                    
+
                     <TextField
                         label="Frequency (Optional)"
                         value={project.frequency || ''}
@@ -432,7 +382,7 @@ function ProjectDetailsStep({ project, onChange }: ProjectDetailsStepProps) {
                         }
                         placeholder="e.g., 30D, 1M, 1W"
                     />
-                    
+
                     <TextField
                         label="Window Size (Optional)"
                         value={project.window_size || ''}
@@ -514,7 +464,7 @@ function ModelsDatasetStep({ models, onModelsChange, testDatasets, onTestDataset
                             Add Model
                         </Button>
                     </Box>
-                    
+
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                         Add models to your project. Each model will have its own training dataset.
                     </Typography>
@@ -570,7 +520,7 @@ function ModelsDatasetStep({ models, onModelsChange, testDatasets, onTestDataset
                             Add Test Dataset
                         </Button>
                     </Box>
-                    
+
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                         Add test datasets to your project. These will be used for model evaluation.
                     </Typography>
@@ -615,25 +565,25 @@ interface StagedFileUploadsStepProps {
 
 function StagedFileUploadsStep({ models, onModelsChange, testDatasets, onTestDatasetsChange }: StagedFileUploadsStepProps) {
     const totalRequired = models.length * 2 + testDatasets.length;
-    const totalSelected = models.filter(m => m.model_file && m.training_file).length * 2 + 
+    const totalSelected = models.filter(m => m.model_file && m.training_file).length * 2 +
                          testDatasets.filter(d => d.test_file).length;
 
     const handleModelFileSelect = (modelId: string, type: 'model' | 'training') => (file: File | undefined) => {
-        onModelsChange(models.map(m => 
+        onModelsChange(models.map(m =>
             m.id === modelId ? { ...m, [`${type}_file`]: file } : m
         ));
     };
 
     const handleDatasetFileSelect = (datasetId: string) => (file: File | undefined) => {
-        onTestDatasetsChange(testDatasets.map(d => 
+        onTestDatasetsChange(testDatasets.map(d =>
             d.id === datasetId ? { ...d, test_file: file } : d
         ));
     };
 
     return (
-        <Stack spacing={3}>            
+        <Stack spacing={3}>
             <Alert severity={totalSelected === totalRequired ? "success" : "info"}>
-                {totalRequired === 0 
+                {totalRequired === 0
                     ? "No files required. You can proceed to create the project."
                     : `File selection: ${totalSelected}/${totalRequired} files selected. All files must be selected before creating the project.`
                 }
@@ -691,85 +641,55 @@ function StagedFileUploadsStep({ models, onModelsChange, testDatasets, onTestDat
     );
 }
 
-interface FileUploadsStepProps {
-    models: ModelInfo[];
-    onModelsChange: (models: ModelInfo[]) => void;
-    testDatasets: TestDatasetInfo[];
-    onTestDatasetsChange: (datasets: TestDatasetInfo[]) => void;
+/** Step 1: Project Selection Component */
+interface ProjectSelectionStepProps {
+    existingProjects: ExistingProject[];
+    selectedProject: string;
+    onProjectChange: (projectId: string) => void;
+    loading?: boolean;
 }
 
-function FileUploadsStep({ models, onModelsChange, testDatasets, onTestDatasetsChange }: FileUploadsStepProps) {
-    const API_URL = import.meta.env.VITE_BACKEND_API_URL;
-
-    const totalUploads = models.length * 2 + testDatasets.length;
-    const completedUploads = models.filter(m => m.model_uploaded).length + 
-                           models.filter(m => m.training_uploaded).length + 
-                           testDatasets.filter(d => d.uploaded).length;
-
-    const handleModelUpload = (modelId: string, type: 'model' | 'training') => (fileName: string) => {
-        onModelsChange(models.map(m => 
-            m.id === modelId ? { ...m, [`${type}_uploaded`]: true } : m
-        ));
-    };
-
-    const handleDatasetUpload = (datasetId: string) => (fileName: string) => {
-        onTestDatasetsChange(testDatasets.map(d => 
-            d.id === datasetId ? { ...d, uploaded: true } : d
-        ));
+function ProjectSelectionStep({ existingProjects, selectedProject, onProjectChange, loading }: ProjectSelectionStepProps) {
+    const handleProjectChange = (event: SelectChangeEvent) => {
+        onProjectChange(event.target.value);
     };
 
     return (
-        <Stack spacing={3}>
-            <Alert severity={completedUploads === totalUploads ? "success" : "warning"}>
-                {totalUploads === 0 
-                    ? "No files to upload. You can proceed to the summary."
-                    : `File uploads required: ${completedUploads}/${totalUploads} completed.`
-                }
-            </Alert>
+        <Card>
+            <CardContent>
+                <Typography variant="h6" gutterBottom>
+                    Select Project
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                    Choose an existing project to add new models and test datasets to.
+                </Typography>
 
-            {models.map((model) => (
-                <UploadCard
-                    key={model.id}
-                    title={model.name}
-                    isComplete={model.model_uploaded && model.training_uploaded}
-                    uploadItems={[
-                        {
-                            label: "Model File (ONNX)",
-                            fileType: ".onnx",
-                            uploadUrl: model.model_pid ? `${API_URL}/models/${model.model_pid}/data` : undefined,
-                            isUploaded: model.model_uploaded,
-                            onSuccess: handleModelUpload(model.id, 'model')
-                        },
-                        {
-                            label: "Training Dataset (CSV)",
-                            fileType: ".csv,.parquet",
-                            uploadUrl: model.training_dataset_pid ? `${API_URL}/datasets/${model.training_dataset_pid}/data` : undefined,
-                            isUploaded: model.training_uploaded,
-                            onSuccess: handleModelUpload(model.id, 'training')
-                        }
-                    ]}
-                />
-            ))}
+                <FormControl fullWidth>
+                    <InputLabel>Select Project</InputLabel>
+                    <Select
+                        value={selectedProject}
+                        label="Select Project"
+                        onChange={handleProjectChange}
+                        disabled={loading}
+                    >
+                        {existingProjects.map((project) => (
+                            <MenuItem key={project.project_pid} value={project.project_pid}>
+                                {project.project_name}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
 
-            {testDatasets.map((dataset) => (
-                <UploadCard
-                    key={dataset.id}
-                    title={dataset.name}
-                    isComplete={dataset.uploaded}
-                    uploadItems={[
-                        {
-                            label: "Test Dataset (CSV)",
-                            fileType: ".csv,.parquet",
-                            uploadUrl: dataset.dataset_pid ? `${API_URL}/datasets/${dataset.dataset_pid}/data` : undefined,
-                            isUploaded: dataset.uploaded,
-                            onSuccess: handleDatasetUpload(dataset.id)
-                        }
-                    ]}
-                />
-            ))}
-        </Stack>
+                {existingProjects.length === 0 && (
+                    <Alert severity="info" sx={{ mt: 2 }}>
+                        No existing projects found. Create a new project first.
+                    </Alert>
+                )}
+            </CardContent>
+        </Card>
     );
 }
+
 
 /** Step 4: Summary Component */
 interface SummaryStepProps {
@@ -788,7 +708,7 @@ function SummaryStep({ project, models, testDatasets, projectPid, isProjectCreat
                     <Typography variant="h6" gutterBottom>
                         Project Summary
                     </Typography>
-                    
+
                     <Stack spacing={2}>
                         <Box>
                             <Typography variant="subtitle2" fontWeight="bold">Project Details</Typography>
@@ -809,13 +729,13 @@ function SummaryStep({ project, models, testDatasets, projectPid, isProjectCreat
                                         Training Dataset: {model.training_dataset_name}
                                     </Typography>
                                     <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-                                        <Chip 
-                                            label={model.model_uploaded ? "Model Uploaded" : "Model Pending"} 
+                                        <Chip
+                                            label={model.model_uploaded ? "Model Uploaded" : "Model Pending"}
                                             color={model.model_uploaded ? "success" : "default"}
                                             size="small"
                                         />
-                                        <Chip 
-                                            label={model.training_uploaded ? "Training Data Uploaded" : "Training Data Pending"} 
+                                        <Chip
+                                            label={model.training_uploaded ? "Training Data Uploaded" : "Training Data Pending"}
                                             color={model.training_uploaded ? "success" : "default"}
                                             size="small"
                                         />
@@ -831,8 +751,8 @@ function SummaryStep({ project, models, testDatasets, projectPid, isProjectCreat
                             {testDatasets.map((dataset) => (
                                 <Box key={dataset.id} sx={{ ml: 2 }}>
                                     <Typography>• {dataset.name}</Typography>
-                                    <Chip 
-                                        label={dataset.uploaded ? "Uploaded" : "Pending"} 
+                                    <Chip
+                                        label={dataset.uploaded ? "Uploaded" : "Pending"}
                                         color={dataset.uploaded ? "success" : "default"}
                                         size="small"
                                         sx={{ mt: 1 }}
@@ -869,55 +789,6 @@ function SummaryStep({ project, models, testDatasets, projectPid, isProjectCreat
     );
 }
 
-/** Step 1: Project Selection Component */
-interface ProjectSelectionStepProps {
-    existingProjects: ExistingProject[];
-    selectedProject: string;
-    onProjectChange: (projectId: string) => void;
-    loading?: boolean;
-}
-
-function ProjectSelectionStep({ existingProjects, selectedProject, onProjectChange, loading }: ProjectSelectionStepProps) {
-    const handleProjectChange = (event: SelectChangeEvent) => {
-        onProjectChange(event.target.value);
-    };
-
-    return (
-        <Card>
-            <CardContent>
-                <Typography variant="h6" gutterBottom>
-                    Select Project
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                    Choose an existing project to add new models and test datasets to.
-                </Typography>
-                
-                <FormControl fullWidth>
-                    <InputLabel>Select Project</InputLabel>
-                    <Select
-                        value={selectedProject}
-                        label="Select Project"
-                        onChange={handleProjectChange}
-                        disabled={loading}
-                    >
-                        {existingProjects.map((project) => (
-                            <MenuItem key={project.project_pid} value={project.project_pid}>
-                                {project.project_name}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
-
-                {existingProjects.length === 0 && (
-                    <Alert severity="info" sx={{ mt: 2 }}>
-                        No existing projects found. Create a new project first.
-                    </Alert>
-                )}
-            </CardContent>
-        </Card>
-    );
-}
-
 /** Step 4: Add to Project Summary Component */
 interface AddToProjectSummaryStepProps {
     selectedProject: ExistingProject | null;
@@ -934,7 +805,7 @@ function AddToProjectSummaryStep({ selectedProject, models, testDatasets, isReso
                     <Typography variant="h6" gutterBottom>
                         Summary - Add to Project
                     </Typography>
-                    
+
                     <Stack spacing={2}>
                         <Box>
                             <Typography variant="subtitle2" fontWeight="bold">Target Project</Typography>
@@ -962,13 +833,13 @@ function AddToProjectSummaryStep({ selectedProject, models, testDatasets, isReso
                                             Training Dataset: {model.training_dataset_name}
                                         </Typography>
                                         <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-                                            <Chip 
-                                                label={model.model_file ? "Model File Selected" : "Model File Pending"} 
+                                            <Chip
+                                                label={model.model_file ? "Model File Selected" : "Model File Pending"}
                                                 color={model.model_file ? "success" : "default"}
                                                 size="small"
                                             />
-                                            <Chip 
-                                                label={model.training_file ? "Training File Selected" : "Training File Pending"} 
+                                            <Chip
+                                                label={model.training_file ? "Training File Selected" : "Training File Pending"}
                                                 color={model.training_file ? "success" : "default"}
                                                 size="small"
                                             />
@@ -988,8 +859,8 @@ function AddToProjectSummaryStep({ selectedProject, models, testDatasets, isReso
                                 testDatasets.map((dataset) => (
                                     <Box key={dataset.id} sx={{ ml: 2 }}>
                                         <Typography>• {dataset.name}</Typography>
-                                        <Chip 
-                                            label={dataset.test_file ? "File Selected" : "File Pending"} 
+                                        <Chip
+                                            label={dataset.test_file ? "File Selected" : "File Pending"}
                                             color={dataset.test_file ? "success" : "default"}
                                             size="small"
                                             sx={{ mt: 1 }}
@@ -1019,7 +890,7 @@ function AddToProjectSummaryStep({ selectedProject, models, testDatasets, isReso
                         Ready to Add Resources
                     </Typography>
                     <Typography variant="body2">
-                        {models.length === 0 && testDatasets.length === 0 
+                        {models.length === 0 && testDatasets.length === 0
                             ? "No resources configured to add. Go back to configure models and datasets."
                             : "All files have been selected and validated. Click 'Add to Project' to add the resources with all files in a single atomic operation."
                         }
@@ -1041,7 +912,7 @@ function AddToExistingProject() {
     const [error, setError] = useState<string>('');
     const [isResourcesAdded, setIsResourcesAdded] = useState(false);
 
-    const API_URL = import.meta.env.VITE_BACKEND_API_URL;
+    const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
     // Fetch existing projects on component mount
     useEffect(() => {
@@ -1096,7 +967,7 @@ function AddToExistingProject() {
             const formData = new FormData();
             const modelNames: string[] = [];
             const trainingNames: string[] = [];
-            
+
             models.forEach((model) => {
                 if (model.model_file && model.training_file) {
                     formData.append('model_files', model.model_file);
@@ -1153,9 +1024,9 @@ function AddToExistingProject() {
         } else if (activeStep === 2 && !isResourcesAdded) {
             // Add resources when clicking "Add to Project"
             const success = await addResourcesToProjectStaged();
-            
+
             if (!success) return;
-            
+
             setActiveStep(3);
             return;
         }
@@ -1173,7 +1044,7 @@ function AddToExistingProject() {
     const handleFinish = () => {
         const projectName = getSelectedProjectData()?.project_name || selectedProject;
         alert(`Resources successfully added to project "${projectName}"!\n\nYou can now navigate to "Start Evaluation" to begin analyzing your models.`);
-        
+
         // Reset the form
         setSelectedProject('');
         setModels([]);
@@ -1218,25 +1089,25 @@ function AddToExistingProject() {
 
             {/* Step Content */}
             {activeStep === 0 && (
-                <ProjectSelectionStep 
+                <ProjectSelectionStep
                     existingProjects={existingProjects}
                     selectedProject={selectedProject}
                     onProjectChange={handleProjectChange}
                     loading={loading}
                 />
             )}
-            
+
             {activeStep === 1 && (
-                <ModelsDatasetStep 
+                <ModelsDatasetStep
                     models={models}
                     onModelsChange={setModels}
                     testDatasets={testDatasets}
                     onTestDatasetsChange={setTestDatasets}
                 />
             )}
-            
+
             {activeStep === 2 && (
-                <StagedFileUploadsStep 
+                <StagedFileUploadsStep
                     models={models}
                     onModelsChange={setModels}
                     testDatasets={testDatasets}
@@ -1245,7 +1116,7 @@ function AddToExistingProject() {
             )}
 
             {activeStep === 3 && (
-                <AddToProjectSummaryStep 
+                <AddToProjectSummaryStep
                     selectedProject={getSelectedProjectData()}
                     models={models}
                     testDatasets={testDatasets}
@@ -1264,7 +1135,7 @@ function AddToExistingProject() {
                     Back
                                 </Button>
                 <Box sx={{ flex: '1 1 auto' }} />
-                
+
                 {activeStep === ADD_TO_PROJECT_STEP_NAMES.length - 1 ? (
                         <Button
                             variant="contained"
@@ -1275,11 +1146,11 @@ function AddToExistingProject() {
                         </Button>
                 ) : (
                         <Button
-                        variant="contained" 
+                        variant="contained"
                         onClick={handleNext}
                         disabled={loading || !canProceed()}
                         >
-                        {loading ? <CircularProgress size={24} /> : 
+                        {loading ? <CircularProgress size={24} /> :
                          activeStep === 2 && !isResourcesAdded ? 'Add to Project' : 'Next'}
                         </Button>
                 )}
@@ -1293,7 +1164,7 @@ function NewProjectContent() {
     const [activeStep, setActiveStep] = useState(0);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string>('');
-    
+
     // Separate state for each part
     const [project, setProject] = useState<ProjectInfo>({ name: '', frequency: '', window_size: '' });
     const [models, setModels] = useState<ModelInfo[]>([]);
@@ -1301,7 +1172,7 @@ function NewProjectContent() {
     const [projectPid, setProjectPid] = useState<string>('');
     const [isProjectCreated, setIsProjectCreated] = useState(false);
 
-    const API_URL = import.meta.env.VITE_BACKEND_API_URL;
+    const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
     const handleProjectChange = (field: keyof ProjectInfo, value: string) => {
         setProject(prev => ({ ...prev, [field]: value }));
@@ -1321,7 +1192,7 @@ function NewProjectContent() {
             // Add model files and names
             const modelNames: string[] = [];
             const trainingNames: string[] = [];
-            
+
             models.forEach((model) => {
                 if (model.model_file && model.training_file) {
                     formData.append('model_files', model.model_file);
@@ -1357,9 +1228,9 @@ function NewProjectContent() {
             const projectResult = await response.json();
             setProjectPid(projectResult.project_pid);
             setIsProjectCreated(true);
-            
+
             console.log('Project created successfully with PID:', projectResult.project_pid);
-            return true; 
+            return true;
 
         } catch (error) {
             console.error('Project creation error:', error);
@@ -1376,7 +1247,7 @@ function NewProjectContent() {
             const nameValidation = validators.projectName(project.name);
             const frequencyValidation = validators.frequency(project.frequency || '');
             const windowSizeValidation = validators.windowSize(project.window_size || '');
-            
+
             if (!nameValidation.isValid || !frequencyValidation.isValid || !windowSizeValidation.isValid) {
                 setError('Please correct the validation errors');
                 return;
@@ -1384,9 +1255,9 @@ function NewProjectContent() {
         } else if (activeStep === 2 && !isProjectCreated) {
             // Create project with all files when clicking "Create Project"
             const success = await createStagedProject();
-            
+
             if (!success) return;
-            
+
             setActiveStep(3);
             return;
         }
@@ -1403,7 +1274,7 @@ function NewProjectContent() {
 
     const handleFinish = () => {
         alert(`Project "${project.name}" has been created successfully!\n\nProject ID: ${projectPid}\n\nYou can now navigate to "Start Evaluation" to begin using your project.`);
-        
+
         // Reset the form
         setProject({ name: '', frequency: '', window_size: '' });
         setModels([]);
@@ -1451,23 +1322,23 @@ function NewProjectContent() {
 
             {/* Step Content */}
             {activeStep === 0 && (
-                <ProjectDetailsStep 
-                    project={project} 
+                <ProjectDetailsStep
+                    project={project}
                     onChange={handleProjectChange}
                 />
             )}
-            
+
             {activeStep === 1 && (
-                <ModelsDatasetStep 
+                <ModelsDatasetStep
                     models={models}
                     onModelsChange={setModels}
                     testDatasets={testDatasets}
                     onTestDatasetsChange={setTestDatasets}
                 />
             )}
-            
+
             {activeStep === 2 && (
-                <StagedFileUploadsStep 
+                <StagedFileUploadsStep
                     models={models}
                     onModelsChange={setModels}
                     testDatasets={testDatasets}
@@ -1476,7 +1347,7 @@ function NewProjectContent() {
             )}
 
             {activeStep === 3 && (
-                <SummaryStep 
+                <SummaryStep
                     project={project}
                     models={models}
                     testDatasets={testDatasets}
@@ -1496,22 +1367,22 @@ function NewProjectContent() {
                     Back
                 </Button>
                 <Box sx={{ flex: '1 1 auto' }} />
-                
+
                 {activeStep === STEP_NAMES.length - 1 ? (
-                    <Button 
-                        variant="contained" 
+                    <Button
+                        variant="contained"
                         onClick={handleFinish}
                         disabled={!canProceed()}
                     >
                         Finish
                     </Button>
                 ) : (
-                    <Button 
-                        variant="contained" 
+                    <Button
+                        variant="contained"
                         onClick={handleNext}
                         disabled={loading || !canProceed()}
                     >
-                        {loading ? <CircularProgress size={24} /> : 
+                        {loading ? <CircularProgress size={24} /> :
                          activeStep === 2 && !isProjectCreated ? 'Create Project' : 'Next'}
                     </Button>
                 )}
@@ -1524,7 +1395,7 @@ function NewProjectContent() {
 export default function ProjectManagement() {
     const [tabValue, setTabValue] = useState(0);
 
-    const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
         setTabValue(newValue);
     };
 
@@ -1553,4 +1424,4 @@ export default function ProjectManagement() {
             </Paper>
         </Box>
     );
-} 
+}

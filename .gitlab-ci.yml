@@ -1,16 +1,14 @@
-workflow:
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "web"
+default:
+  tags:
+    - a4s-runner
 
-stages:          # List of stages for jobs, and their order of execution
+stages:
+  - test
   - build
 
-docker-build-job:
-  # Use the official docker image.
-  image: docker:cli
+docker-build:
   stage: build
-  services:
-    - docker:dind
+  image: docker:cli
   variables:
     DOCKER_IMAGE_NAME: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
   before_script:
@@ -25,8 +23,3 @@ docker-build-job:
         docker tag "$DOCKER_IMAGE_NAME" "$CI_REGISTRY_IMAGE:latest"
         docker push "$CI_REGISTRY_IMAGE:latest"
       fi
-  # Run this job in a branch where a Dockerfile exists
-  rules:
-    - if: $CI_COMMIT_BRANCH
-      exists:
-        - Dockerfile

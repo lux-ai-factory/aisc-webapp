@@ -16,6 +16,7 @@ ChartJS.register(...registerables, zoomPlugin);
 import { enGB } from 'date-fns/locale';
 import 'chartjs-adapter-date-fns';
 import { CenterFocusWeak, Home, OpenWith } from "@mui/icons-material";
+import { API_VERSION_PREFIX } from "../config";
 
 /**
  * Interface representing the raw metric data from the API
@@ -35,16 +36,16 @@ interface MetricApiData {
  * @returns Formatted dataset object for Chart.js
  */
 function parse_datas(metrics: MetricApiData[][]) {
-    const datasets = metrics.map((metric, index) => {
+    const datasets = metrics.map((metric, _) => {
         // Remove duplicates based on time and feature
-        const uniqueData = metric.filter((item, idx, self) => 
-            idx === self.findIndex(t => 
-                t.time === item.time && 
+        const uniqueData = metric.filter((item, idx, self) =>
+            idx === self.findIndex(t =>
+                t.time === item.time &&
                 t.feature?.name === item.feature?.name &&
                 t.name === item.name
             )
         );
-        
+
         const parsed_data = uniqueData.map((d) => {
             return {
                 'x': new Date(d.time).toISOString(),
@@ -52,10 +53,10 @@ function parse_datas(metrics: MetricApiData[][]) {
                 'feature': d.feature?.name || 'Unknown'
             }
         });
-        
+
         // Sort data by time to ensure proper line connections
         parsed_data.sort((a, b) => new Date(a.x).getTime() - new Date(b.x).getTime());
-        
+
         const metric_label = metric.length > 0 ? mapMetricsName(metric[0].name) || 'Unknown' : 'Unknown';
 
         return {
@@ -74,47 +75,47 @@ function parse_datas(metrics: MetricApiData[][]) {
 /**
  * Interface for processed metric data ready for visualization
  */
-interface MetricData {
-    data: { x: string; y: number, feature: string }[];
-    label: string;
-    fill: boolean;
-    tension: number;
-}
+// interface MetricData {
+//     data: { x: string; y: number, feature: string }[];
+//     label: string;
+//     fill: boolean;
+//     tension: number;
+// }
 
 /**
  * Extracts and groups data by feature name for a single metric
  * @param metrics Single metric dataset to process
  * @returns Array of datasets grouped by feature
  */
-function extract_feature_name_one(metrics: MetricData) {
-    const unique_feature = Array.from(new Set(metrics.data.map((d) => d.feature)));
+// function extract_feature_name_one(metrics: MetricData) {
+//     const unique_feature = Array.from(new Set(metrics.data.map((d) => d.feature)));
 
-    return unique_feature.map((feature) => {
-        return {
-            label: feature,
-            data: metrics.data.filter((d) => d.feature === feature).map((d) => {
-                return {
-                    x: d.x,
-                    y: d.y
-                }
-            }),
-            fill: metrics.fill,
-            tension: metrics.tension
+//     return unique_feature.map((feature) => {
+//         return {
+//             label: feature,
+//             data: metrics.data.filter((d) => d.feature === feature).map((d) => {
+//                 return {
+//                     x: d.x,
+//                     y: d.y
+//                 }
+//             }),
+//             fill: metrics.fill,
+//             tension: metrics.tension
 
-        }
-    }
-    );
-}
+//         }
+//     }
+//     );
+// }
 
 /**
  * Processes multiple metric datasets to group by feature names
  * @param metrics Array of metric datasets to process
  * @returns Combined datasets grouped by feature
  */
-function extract_feature_name(metrics: MetricData[]) {
-    const datasets = metrics.map((metric) => extract_feature_name_one(metric)).flat();
-    return { datasets };
-}
+// function extract_feature_name(metrics: MetricData[]) {
+//     const datasets = metrics.map((metric) => extract_feature_name_one(metric)).flat();
+//     return { datasets };
+// }
 
 /**
  * Loading indicator component
@@ -178,26 +179,26 @@ type InteractionMode = 'Pan' | 'Zoom';
 /**
  * Interface for processed metric data without feature information
  */
-interface MetricData2 {
-    data: { x: string; y: number }[];
-    label: string;
-    fill: boolean;
-    tension: number;
-}
+// interface MetricData2 {
+//     data: { x: string; y: number }[];
+//     label: string;
+//     fill: boolean;
+//     tension: number;
+// }
 
 /**
  * Sorts datasets by their maximum values
  * @param datasets_in Input datasets to sort
  * @returns Sorted datasets
  */
-function sort_datasets(datasets_in: MetricData2[]) {
-    const datasets = datasets_in.sort((a, b) => {
-        const a_max = Math.max(...a.data.map((d) => d.y));
-        const b_max = Math.max(...b.data.map((d) => d.y));
-        return b_max - a_max;
-    });
-    return { datasets };
-}
+// function sort_datasets(datasets_in: MetricData2[]) {
+//     const datasets = datasets_in.sort((a, b) => {
+//         const a_max = Math.max(...a.data.map((d) => d.y));
+//         const b_max = Math.max(...b.data.map((d) => d.y));
+//         return b_max - a_max;
+//     });
+//     return { datasets };
+// }
 
 /**
  * Props interface for the GraphControls component
@@ -337,7 +338,7 @@ export default function MetricTimeline({
                 ticks: {
                     callback: function(value) {
                         const numValue = Number(value);
-                        
+
                         // Determine appropriate number of decimal places based on magnitude
                         if (Math.abs(numValue) >= 1000) {
                             return numValue.toFixed(0); // No decimals for large numbers
@@ -380,9 +381,9 @@ export default function MetricTimeline({
                 callbacks: {
                     title: function(context) {
                         const date = new Date(context[0].parsed.x);
-                        return date.toLocaleDateString('en-GB', { 
-                            year: 'numeric', 
-                            month: 'short', 
+                        return date.toLocaleDateString('en-GB', {
+                            year: 'numeric',
+                            month: 'short',
                             day: 'numeric',
                             hour: '2-digit',
                             minute: '2-digit'
@@ -391,7 +392,7 @@ export default function MetricTimeline({
                     label: function(context) {
                         const numValue = Number(context.parsed.y);
                         let formattedValue;
-                        
+
                         // Use the same formatting logic as Y-axis ticks
                         if (Math.abs(numValue) >= 1000) {
                             formattedValue = numValue.toFixed(0);
@@ -410,7 +411,7 @@ export default function MetricTimeline({
                         } else {
                             formattedValue = numValue < 0.0001 ? numValue.toExponential(2) : numValue.toFixed(6);
                         }
-                        
+
                         return `${context.dataset.label}: ${formattedValue}`;
                     }
                 }
@@ -435,8 +436,7 @@ export default function MetricTimeline({
 
     const chartRef = useRef<ChartJS<'line', { x: string; y: number }[]>>(null);
 
-    const API_URL = import.meta.env.VITE_BACKEND_API_URL;
-
+    const API_URL = import.meta.env.VITE_APP_API_URL + API_VERSION_PREFIX;
 
     useEffect(() => {
         if (!projectPid) {
@@ -458,66 +458,80 @@ export default function MetricTimeline({
                 return `${API_URL}/metrics?project_pid=${projectPid}&name=${metricName}`;
             }
         });
-        
+
         console.log('Fetching metrics from URLs:', urls);
-        
+
         Promise.all(urls.map((url: string) => fetchMetricData(url)))
             .then(metricsArrays => {
                 console.log('Raw metrics received:', metricsArrays);
-                
+
                 const parsedData = parse_datas(metricsArrays);
                 console.log('After parsing:', parsedData);
-                
+
                 // Apply modern color palette
-                const modernColors = [
-                    '#FF6B6B', // Coral
-                    '#4ECDC4', // Teal 
-                    '#45B7D1', // Sky Blue
-                    '#96CEB4', // Mint Green
-                    '#FFEAA7', // Light Yellow
-                    '#DDA0DD', // Plum
-                    '#98D8C8', // Aquamarine
-                    '#F7DC6F', // Banana Yellow
-                    '#BB8FCE', // Light Purple
-                    '#85C1E9', // Light Blue
-                    '#F8C471', // Orange
-                    '#82E0AA'  // Light Green
-                ];
-                
-                parsedData.datasets.forEach((dataset: any, index) => {
-                    const colorIndex = index % modernColors.length;
-                    dataset.borderColor = modernColors[colorIndex];
-                    dataset.backgroundColor = modernColors[colorIndex];
-                    dataset.pointBackgroundColor = modernColors[colorIndex];
-                    dataset.pointBorderColor = '#ffffff';
-                    dataset.pointBorderWidth = 2;
-                });
-                
+                // const modernColors = [
+                //     '#FF6B6B', // Coral
+                //     '#4ECDC4', // Teal
+                //     '#45B7D1', // Sky Blue
+                //     '#96CEB4', // Mint Green
+                //     '#FFEAA7', // Light Yellow
+                //     '#DDA0DD', // Plum
+                //     '#98D8C8', // Aquamarine
+                //     '#F7DC6F', // Banana Yellow
+                //     '#BB8FCE', // Light Purple
+                //     '#85C1E9', // Light Blue
+                //     '#F8C471', // Orange
+                //     '#82E0AA'  // Light Green
+                // ];
+
+                // parsedData.datasets.forEach((dataset: any, index) => {
+                //     const colorIndex = index % modernColors.length;
+                //     dataset.borderColor = modernColors[colorIndex];
+                //     dataset.backgroundColor = modernColors[colorIndex];
+                //     dataset.pointBackgroundColor = modernColors[colorIndex];
+                //     dataset.pointBorderColor = '#ffffff';
+                //     dataset.pointBorderWidth = 2;
+                // });
+
+                // const updatedDatasets = parsedData.datasets.map((dataset: any, index: number) => {
+                //     const colorIndex = index % modernColors.length;
+                //     return {
+                //         ...dataset,
+                //         borderColor: modernColors[colorIndex],
+                //         backgroundColor: modernColors[colorIndex],
+                //         pointBackgroundColor: modernColors[colorIndex],
+                //         pointBorderColor: '#ffffff',
+                //         pointBorderWidth: 2,
+                //     };
+                // });
+
                 let finalChartData = parsedData;
-                
-                if (group_by_feature) {
-                    finalChartData = extract_feature_name(parsedData.datasets as any);
-                    console.log('After feature grouping:', finalChartData);
-                    
-                    // Apply colors to feature-grouped data
-                    (finalChartData.datasets as any[]).forEach((dataset: any, index) => {
-                        const colorIndex = index % modernColors.length;
-                        dataset.borderColor = modernColors[colorIndex];
-                        dataset.backgroundColor = modernColors[colorIndex];
-                        dataset.pointBackgroundColor = modernColors[colorIndex];
-                        dataset.pointBorderColor = '#ffffff';
-                        dataset.pointBorderWidth = 2;
-                        dataset.borderWidth = 3;
-                        dataset.pointRadius = 4;
-                        dataset.tension = 0; // No curve smoothing - straight lines between points
-                    });
-                }
-                
-                if (sort_by_value) {
-                    finalChartData = sort_datasets(finalChartData.datasets as any);
-                    console.log('After sorting:', finalChartData);
-                }
-                
+
+                // TODO: Fix to pass npm run build
+                // if (group_by_feature) {
+                //     finalChartData = extract_feature_name(parsedData.datasets);
+                //     console.log('After feature grouping:', finalChartData);
+
+                //     // Apply colors to feature-grouped data
+                //     (finalChartData.datasets as any[]).forEach((dataset: any, index) => {
+                //         const colorIndex = index % modernColors.length;
+                //         dataset.borderColor = modernColors[colorIndex];
+                //         dataset.backgroundColor = modernColors[colorIndex];
+                //         dataset.pointBackgroundColor = modernColors[colorIndex];
+                //         dataset.pointBorderColor = '#ffffff';
+                //         dataset.pointBorderWidth = 2;
+                //         dataset.borderWidth = 3;
+                //         dataset.pointRadius = 4;
+                //         dataset.tension = 0; // No curve smoothing - straight lines between points
+                //     });
+                // }
+
+                // TODO: Fix to pass npm run build
+                // if (sort_by_value) {
+                //     finalChartData = sort_datasets(finalChartData.datasets as any);
+                //     console.log('After sorting:', finalChartData);
+                // }
+
                 setChartData(finalChartData as any);
                 setLoading(false);
             })
