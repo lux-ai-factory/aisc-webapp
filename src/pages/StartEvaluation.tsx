@@ -52,7 +52,6 @@ const StartEvaluation: React.FC = () => {
     const [loading, setLoading] = useState(false);
 
     const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
-    const EVAL_API_URL = import.meta.env.VITE_EVAL_API_URL;
 
     // Fetch projects on component mount
     useEffect(() => {
@@ -103,7 +102,7 @@ const StartEvaluation: React.FC = () => {
     const handleDatasetChange = (event: SelectChangeEvent) => setSelectedDataset(event.target.value);
 
     const triggerEvaluation = async () => {
-        const response = await fetch(`${EVAL_API_URL}/evaluate`);
+        const response = await fetch(`${API_URL}/evaluate`);
         if (response?.ok) {
             console.log('Evaluation triggered successfully');
             return { success: true };
