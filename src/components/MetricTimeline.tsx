@@ -150,7 +150,6 @@ const parseMetricData = (metricsArrays: MetricApiData[][]): ChartData => {
             label: metricLabel,
             data: sortedData.map(stripFeatureFromDataPoint),
             fill: false,
-            tension: 0,
             ...DEFAULT_CHART_OPTIONS,
         };
     });
