@@ -52,7 +52,6 @@ const StartEvaluation: React.FC = () => {
     const [loading, setLoading] = useState(false);
 
     const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
-    const EVAL_API_URL = import.meta.env.VITE_EVAL_API_URL;
 
     // Fetch projects on component mount
     useEffect(() => {
@@ -103,7 +102,7 @@ const StartEvaluation: React.FC = () => {
     const handleDatasetChange = (event: SelectChangeEvent) => setSelectedDataset(event.target.value);
 
     const triggerEvaluation = async () => {
-        const response = await fetch(`${EVAL_API_URL}/evaluate`);
+        const response = await fetch(`${API_URL}/evaluate`);
         if (response?.ok) {
             console.log('Evaluation triggered successfully');
             return { success: true };
@@ -133,18 +132,27 @@ const StartEvaluation: React.FC = () => {
                 model_pid: selectedModel,
                 test_dataset_pid: selectedDataset,
             });
-
+            
+            console.log('Making POST request to:', `${API_URL}/evaluations?${params}`);
             const response = await fetch(`${API_URL}/evaluations?${params}`, { method: 'POST' });
-
+            
+            console.log('Response status:', response.status);
+            console.log('Response ok:', response.ok);
+            
             if (!response.ok) {
                 const error = await response.json().catch(() => ({}));
                 return alert(`Error creating evaluation: ${error.detail || 'Unknown error'}`);
             }
 
+            console.log('About to parse response.json()');
             const evaluationData = await response.json();
+            console.log('evaluationData:', evaluationData);
+            
+            console.log('About to call triggerEvaluation()');
             const triggerResult = await triggerEvaluation();
-
-            const message = triggerResult.success
+            console.log('triggerResult:', triggerResult);
+            
+            const message = triggerResult.success 
                 ? `Evaluation created and started successfully! ID: ${evaluationData.evaluation_pid}`
                 : `Evaluation created (ID: ${evaluationData.evaluation_pid}) but failed to start: ${triggerResult.error}`;
 
@@ -152,6 +160,7 @@ const StartEvaluation: React.FC = () => {
             resetForm();
 
         } catch (error) {
+            console.error('Error in handleStartEvaluation:', error);
             alert('Network error occurred while creating evaluation.');
         } finally {
             setLoading(false);

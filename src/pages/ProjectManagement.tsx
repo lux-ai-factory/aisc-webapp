@@ -641,54 +641,6 @@ function StagedFileUploadsStep({ models, onModelsChange, testDatasets, onTestDat
     );
 }
 
-/** Step 1: Project Selection Component */
-interface ProjectSelectionStepProps {
-    existingProjects: ExistingProject[];
-    selectedProject: string;
-    onProjectChange: (projectId: string) => void;
-    loading?: boolean;
-}
-
-function ProjectSelectionStep({ existingProjects, selectedProject, onProjectChange, loading }: ProjectSelectionStepProps) {
-    const handleProjectChange = (event: SelectChangeEvent) => {
-        onProjectChange(event.target.value);
-    };
-
-    return (
-        <Card>
-            <CardContent>
-                <Typography variant="h6" gutterBottom>
-                    Select Project
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                    Choose an existing project to add new models and test datasets to.
-                </Typography>
-
-                <FormControl fullWidth>
-                    <InputLabel>Select Project</InputLabel>
-                    <Select
-                        value={selectedProject}
-                        label="Select Project"
-                        onChange={handleProjectChange}
-                        disabled={loading}
-                    >
-                        {existingProjects.map((project) => (
-                            <MenuItem key={project.project_pid} value={project.project_pid}>
-                                {project.project_name}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
-
-                {existingProjects.length === 0 && (
-                    <Alert severity="info" sx={{ mt: 2 }}>
-                        No existing projects found. Create a new project first.
-                    </Alert>
-                )}
-            </CardContent>
-        </Card>
-    );
-}
 
 
 /** Step 4: Summary Component */
@@ -786,6 +738,55 @@ function SummaryStep({ project, models, testDatasets, projectPid, isProjectCreat
                 </Alert>
             )}
         </Stack>
+    );
+}
+
+/** Step 1: Project Selection Component */
+interface ProjectSelectionStepProps {
+    existingProjects: ExistingProject[];
+    selectedProject: string;
+    onProjectChange: (projectId: string) => void;
+    loading?: boolean;
+}
+
+function ProjectSelectionStep({ existingProjects, selectedProject, onProjectChange, loading }: ProjectSelectionStepProps) {
+    const handleProjectChange = (event: SelectChangeEvent) => {
+        onProjectChange(event.target.value);
+    };
+
+    return (
+        <Card>
+            <CardContent>
+                <Typography variant="h6" gutterBottom>
+                    Select Project
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                    Choose an existing project to add new models and test datasets to.
+                </Typography>
+                
+                <FormControl fullWidth>
+                    <InputLabel>Select Project</InputLabel>
+                    <Select
+                        value={selectedProject}
+                        label="Select Project"
+                        onChange={handleProjectChange}
+                        disabled={loading}
+                    >
+                        {existingProjects.map((project) => (
+                            <MenuItem key={project.project_pid} value={project.project_pid}>
+                                {project.project_name}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
+
+                {existingProjects.length === 0 && (
+                    <Alert severity="info" sx={{ mt: 2 }}>
+                        No existing projects found. Create a new project first.
+                    </Alert>
+                )}
+            </CardContent>
+        </Card>
     );
 }
 
@@ -1395,7 +1396,7 @@ function NewProjectContent() {
 export default function ProjectManagement() {
     const [tabValue, setTabValue] = useState(0);
 
-    const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
+    const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
         setTabValue(newValue);
     };
 
