@@ -132,31 +132,20 @@ const StartEvaluation: React.FC = () => {
                 model_pid: selectedModel,
                 test_dataset_pid: selectedDataset,
             });
-            
+
             console.log('Making POST request to:', `${API_URL}/evaluations?${params}`);
             const response = await fetch(`${API_URL}/evaluations?${params}`, { method: 'POST' });
-            
+
             console.log('Response status:', response.status);
             console.log('Response ok:', response.ok);
-            
+
             if (!response.ok) {
                 const error = await response.json().catch(() => ({}));
                 return alert(`Error creating evaluation: ${error.detail || 'Unknown error'}`);
             }
 
-            console.log('About to parse response.json()');
-            const evaluationData = await response.json();
-            console.log('evaluationData:', evaluationData);
-            
-            console.log('About to call triggerEvaluation()');
-            const triggerResult = await triggerEvaluation();
-            console.log('triggerResult:', triggerResult);
-            
-            const message = triggerResult.success 
-                ? `Evaluation created and started successfully! ID: ${evaluationData.evaluation_pid}`
-                : `Evaluation created (ID: ${evaluationData.evaluation_pid}) but failed to start: ${triggerResult.error}`;
+            alert("Evaluation started. This may take a while to appear on the front end.")
 
-            alert(message);
             resetForm();
 
         } catch (error) {
