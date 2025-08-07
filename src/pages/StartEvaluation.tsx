@@ -101,16 +101,6 @@ const StartEvaluation: React.FC = () => {
     const handleModelChange = (event: SelectChangeEvent) => setSelectedModel(event.target.value);
     const handleDatasetChange = (event: SelectChangeEvent) => setSelectedDataset(event.target.value);
 
-    const triggerEvaluation = async () => {
-        const response = await fetch(`${API_URL}/evaluate`);
-        if (response?.ok) {
-            console.log('Evaluation triggered successfully');
-            return { success: true };
-        }
-        const error = response ? await response.json().catch(() => ({})) : {};
-        return { success: false, error: error.detail || 'Failed to trigger evaluation' };
-    };
-
     const resetForm = () => {
         setSelectedProject('');
         setSelectedModel('');
