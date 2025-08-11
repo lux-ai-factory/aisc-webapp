@@ -73,11 +73,8 @@ const TopBar: React.FC = () => {
                     <Select
                         labelId="project-select-label"
                         id="project-select"
-                        value={projectUUID}
+                        value={ projectUUID ?? ''}
                         onChange={handleProjectChange}
-                        inputProps={{
-                            disableUnderline: true,
-                        }}
                     >
                         {projects.map((project) => (
                             <MenuItem key={project.project_pid} value={project.project_pid}>
