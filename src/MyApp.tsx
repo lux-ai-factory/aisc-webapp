@@ -12,6 +12,8 @@ import Construction from './pages/Construction';
 import TopBar from './components/TopBar';
 import DataDrift from './pages/DataDrift';
 import StartEvaluation from './pages/StartEvaluation';
+import { elements } from 'chart.js';
+import SettingsPage from './pages/Settings';
 
 /** Width of the left drawer in pixels */
 const drawerWidth = 320;
@@ -20,12 +22,12 @@ const drawerWidth = 320;
  * Main application layout component
  * Implements a permanent left drawer layout with Material-UI
  * Contains the main navigation structure and routing setup
- * 
+ *
  * @returns {JSX.Element} The main application layout with navigation and content area
  */
 export default function PermanentDrawerLeft() {
 
-    /** 
+    /**
      * Navigation configuration array
      * Defines all available routes and their corresponding components
      * If a route doesn't have an element, it will show the Construction component
@@ -41,7 +43,7 @@ export default function PermanentDrawerLeft() {
         { id: 8, name: 'Model Robustness', path: '/model-robustness' },
         { id: 9, name: 'Model Fairness', path: '/model-fairness' },
         { id: 10, name: 'Report', path: '/report' },
-        { id: 11, name: 'Settings', path: '/settings' }
+        { id: 11, name: 'Settings', path: '/settings', element: <SettingsPage/> }
     ];
     return (
         <Box sx={{ display: 'flex', flexDirection: 'row' }}>

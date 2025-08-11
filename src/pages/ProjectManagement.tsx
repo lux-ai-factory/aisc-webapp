@@ -327,79 +327,79 @@ interface ProjectDetailsStepProps {
     onChange: (field: keyof ProjectInfo, value: string) => void;
 }
 
-function ProjectDetailsStep({ project, onChange }: ProjectDetailsStepProps) {
-    const [errors, setErrors] = useState<{ name?: string; frequency?: string; window_size?: string }>({});
+    function ProjectDetailsStep({ project, onChange }: ProjectDetailsStepProps) {
+        const [errors, setErrors] = useState<{ name?: string; frequency?: string; window_size?: string }>({});
 
-    const handleChange = (field: keyof ProjectInfo, value: string) => {
-        onChange(field, value);
+        const handleChange = (field: keyof ProjectInfo, value: string) => {
+            onChange(field, value);
 
-        // Validate on change
-        let error: string | undefined;
-        if (field === 'name') {
-            const validation = validators.projectName(value);
-            error = validation.error;
-        } else if (field === 'frequency') {
-            const validation = validators.frequency(value);
-            error = validation.error;
-        } else if (field === 'window_size') {
-            const validation = validators.windowSize(value);
-            error = validation.error;
-        }
+            // Validate on change
+            let error: string | undefined;
+            if (field === 'name') {
+                const validation = validators.projectName(value);
+                error = validation.error;
+            } else if (field === 'frequency') {
+                const validation = validators.frequency(value);
+                error = validation.error;
+            } else if (field === 'window_size') {
+                const validation = validators.windowSize(value);
+                error = validation.error;
+            }
 
-        setErrors(prev => ({ ...prev, [field]: error }));
-    };
+            setErrors(prev => ({ ...prev, [field]: error }));
+        };
 
-    return (
-        <Card>
-            <CardContent>
-                <Typography variant="h6" gutterBottom>
-                    Project Configuration
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                    Configure your project settings. Name is required, while frequency and window size are optional for time-series analysis.
-                </Typography>
+        return (
+            <Card>
+                <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                        Project Configuration
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                        Configure your project settings. Name is required, while frequency and window size are optional for time-series analysis.
+                    </Typography>
 
-                <Stack spacing={3}>
-                    <TextField
-                        label="Project Name"
-                        value={project.name}
-                        onChange={(e) => handleChange('name', e.target.value)}
-                        fullWidth
-                        required
-                        error={!!errors.name}
-                        helperText={errors.name || "A descriptive name for your AI project"}
-                    />
+                    <Stack spacing={3}>
+                        <TextField
+                            label="Project Name"
+                            value={project.name}
+                            onChange={(e) => handleChange('name', e.target.value)}
+                            fullWidth
+                            required
+                            error={!!errors.name}
+                            helperText={errors.name || "A descriptive name for your AI project"}
+                        />
 
-                    <TextField
-                        label="Frequency (Optional)"
-                        value={project.frequency || ''}
-                        onChange={(e) => handleChange('frequency', e.target.value)}
-                        fullWidth
-                        error={!!errors.frequency}
-                        helperText={
-                            errors.frequency ||
-                            "Data frequency for time-series analysis (e.g., '30D', '1M'). This setting determines how often metrics are calculated (e.g., '7D' will compute metrics every 7 days)."
-                        }
-                        placeholder="e.g., 30D, 1M, 1W"
-                    />
+                        <TextField
+                            label="Frequency (Optional)"
+                            value={project.frequency || ''}
+                            onChange={(e) => handleChange('frequency', e.target.value)}
+                            fullWidth
+                            error={!!errors.frequency}
+                            helperText={
+                                errors.frequency ||
+                                "Data frequency for time-series analysis (e.g., '30D', '1M'). This setting determines how often metrics are calculated (e.g., '7D' will compute metrics every 7 days)."
+                            }
+                            placeholder="e.g., 30D, 1M, 1W"
+                        />
 
-                    <TextField
-                        label="Window Size (Optional)"
-                        value={project.window_size || ''}
-                        onChange={(e) => handleChange('window_size', e.target.value)}
-                        fullWidth
-                        error={!!errors.window_size}
-                        helperText={
-                            errors.window_size ||
-                            "Analysis window size (e.g., '90 days', '3 months'). This setting determines the time period over which metrics are calculated (e.g., '90 days' will compute metrics for the last 90 days)."
-                        }
-                        placeholder="e.g., 90 days, 3 months"
-                    />
-                </Stack>
-            </CardContent>
-        </Card>
-    );
-}
+                        <TextField
+                            label="Window Size (Optional)"
+                            value={project.window_size || ''}
+                            onChange={(e) => handleChange('window_size', e.target.value)}
+                            fullWidth
+                            error={!!errors.window_size}
+                            helperText={
+                                errors.window_size ||
+                                "Analysis window size (e.g., '90 days', '3 months'). This setting determines the time period over which metrics are calculated (e.g., '90 days' will compute metrics for the last 90 days)."
+                            }
+                            placeholder="e.g., 90 days, 3 months"
+                        />
+                    </Stack>
+                </CardContent>
+            </Card>
+        );
+    }
 
 /** Step 2: Models & Datasets Configuration Component */
 interface ModelsDatasetStepProps {
@@ -763,7 +763,7 @@ function ProjectSelectionStep({ existingProjects, selectedProject, onProjectChan
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                     Choose an existing project to add new models and test datasets to.
                 </Typography>
-                
+
                 <FormControl fullWidth>
                     <InputLabel>Select Project</InputLabel>
                     <Select
