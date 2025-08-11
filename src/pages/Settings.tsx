@@ -9,6 +9,8 @@ import {
 import { useEffect, useState } from "react";
 import { API_VERSION_PREFIX } from "../config";
 import { useProject } from "../context/ProjectContext";
+// import AddModelDataset from "../components/DatasetModelSettings";
+import DatasetModelSettings from "../components/DatasetModelSettings";
 
 const validators = {
     projectName: (name: string) => {
@@ -277,6 +279,8 @@ export default function SettingsPage() {
             <Typography variant="body1" sx={{ mb: 2 }}>
                 Set up the datasets and models.
             </Typography>
+
+            <DatasetModelSettings/>
 
             <Typography component="h3" variant="h5" gutterBottom sx={{ mt: 4 }}>
                 Advanced Options

@@ -12,7 +12,6 @@ import Construction from './pages/Construction';
 import TopBar from './components/TopBar';
 import DataDrift from './pages/DataDrift';
 import StartEvaluation from './pages/StartEvaluation';
-import { elements } from 'chart.js';
 import SettingsPage from './pages/Settings';
 
 /** Width of the left drawer in pixels */
@@ -59,7 +58,10 @@ export default function PermanentDrawerLeft() {
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'flex-start',
-                    alignItems: 'flex-start' // Ensures left-alignment as well
+                    alignItems: 'center',
+                    maxWidth: 'lg',
+                    margin: '0 auto',
+                    width: '100%'
                 }}
             >
                 <Toolbar />
