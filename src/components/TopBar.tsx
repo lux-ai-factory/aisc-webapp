@@ -1,4 +1,4 @@
-import { AppBar, createTheme, FormControl, InputLabel, MenuItem, Select, SelectChangeEvent, Toolbar, Typography } from '@mui/material';
+import { AppBar, CircularProgress, createTheme, FormControl, InputLabel, MenuItem, Select, SelectChangeEvent, Toolbar, Typography } from '@mui/material';
 import React, { useEffect, useState } from 'react';
 import { useProject } from '../context/ProjectContext';
 import { API_VERSION_PREFIX } from '../config';
@@ -35,6 +35,34 @@ const darkTheme = createTheme({
         mode: 'dark',
     },
 });
+
+function ProjectSelector(projectUUID: string | null, handleProjectChange: (event: SelectChangeEvent<string | null>) => void, projects: Project[]) {
+
+
+    const loading = !projects.length;
+    if (loading) {
+        return <CircularProgress />;
+    }
+
+    return <ThemeProvider theme={darkTheme}>
+        <FormControl variant="standard" sx={{ minWidth: '14rem' }}>
+            <InputLabel id="project-select-label">Select a project </InputLabel>
+            <Select
+                labelId="project-select-label"
+                id="project-select"
+                value={projectUUID}
+                onChange={handleProjectChange}
+            >
+                {projects.map((project) => (
+                    <MenuItem key={project.project_pid} value={project.project_pid}>
+                        {project.project_name}
+                    </MenuItem>
+                ))}
+            </Select>
+        </FormControl>
+    </ThemeProvider>;
+}
+
 const TopBar: React.FC = () => {
 
     const { projectUUID, setProjectUUID, projectName, setProjectName } = useProject();
@@ -67,23 +95,7 @@ const TopBar: React.FC = () => {
                     A4S - AI Testing Sandbox - {projectName ? projectName : "Please select a project"}
                 </Typography>
                 <div style={{ flexGrow: 1 }} />
-                <ThemeProvider theme={darkTheme}>
-                <FormControl variant="standard" sx={{ minWidth: '14rem' }}>
-                    <InputLabel id="project-select-label">Select a project </InputLabel>
-                    <Select
-                        labelId="project-select-label"
-                        id="project-select"
-                        value={ projectUUID ?? ''}
-                        onChange={handleProjectChange}
-                    >
-                        {projects.map((project) => (
-                            <MenuItem key={project.project_pid} value={project.project_pid}>
-                                {project.project_name}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
-                </ThemeProvider>
+                {ProjectSelector(projectUUID, handleProjectChange, projects)}
             </Toolbar>
 
         </AppBar>
