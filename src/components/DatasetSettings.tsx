@@ -10,22 +10,25 @@ import AddIcon from '@mui/icons-material/Add';
 import CloudUpload from '@mui/icons-material/CloudUpload';
 
 interface ProjectResponse {
-    project_pid: string;
+    pid: string;
     name: string;
     status: string;
     frequency: string;
     window_size: string;
-    dataset: Array<{
+    datasets: Array<{
         pid: string;
         name: string;
         data: string;
     }>;
-    model: Array<{
-        model_pid: string;
+    models: Array<{
+        pid: string;
         name: string;
         data: string;
-        project_id: number;
-        dataset_id: number;
+        dataset: Array<{
+            pid: string;
+            name: string;
+            data: string;
+        }>
     }>;
 }
 
@@ -114,7 +117,7 @@ const UploadDataset = ({ dataset, onUploadSuccess }: UploadDatasetProps) => {
 };
 
 
-const DatasetModelSettings = () => {
+const DatasetSettings = () => {
 
     const { projectUUID } = useProject();
     const [datasetList, setDatasetList] = useState<Dataset[]>([]);
@@ -180,7 +183,7 @@ const DatasetModelSettings = () => {
                 );
                 const data: ProjectResponse = await response.json();
 
-                const datasets = data.dataset.map(ds => ({
+                const datasets = data.datasets.map(ds => ({
                     pid: ds.pid,
                     name: ds.name,
                     data: ds.data
@@ -208,7 +211,7 @@ const DatasetModelSettings = () => {
 
         <Box>
             <Typography component="h4" variant="h6" gutterBottom sx={{ mt: 4 }}>
-                Evaluation datasets
+                Datasets
             </Typography>
             <List sx={{ border: 1, borderColor: 'divider', borderRadius: 1, mb: 1, p: 2 }}>
                 {datasetList.map((dataset) => (
@@ -267,4 +270,4 @@ const DatasetModelSettings = () => {
     );
 };
 
-export default DatasetModelSettings;
+export default DatasetSettings;

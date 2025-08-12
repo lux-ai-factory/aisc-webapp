@@ -9,8 +9,8 @@ import {
 import { useEffect, useState } from "react";
 import { API_VERSION_PREFIX } from "../config";
 import { useProject } from "../context/ProjectContext";
-// import AddModelDataset from "../components/DatasetModelSettings";
-import DatasetModelSettings from "../components/DatasetModelSettings";
+import DatasetSettings from "../components/DatasetSettings";
+import ModelSettings from "../components/ModelSettngs";
 
 const validators = {
     projectName: (name: string) => {
@@ -207,6 +207,9 @@ function ProjectDetails() {
 
     return (
         <Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Project id: {project?.pid}
+            </Typography>
             <Stack spacing={3}>
                 <TextField
                     label="Project Name"
@@ -280,14 +283,15 @@ export default function SettingsPage() {
                 Set up the datasets and models.
             </Typography>
 
-            <DatasetModelSettings/>
+            <DatasetSettings/>
+            <ModelSettings />
 
-            <Typography component="h3" variant="h5" gutterBottom sx={{ mt: 4 }}>
+            {/* <Typography component="h3" variant="h5" gutterBottom sx={{ mt: 4 }}>
                 Advanced Options
             </Typography>
             <Typography variant="body1" sx={{ mb: 2 }}>
                 Configure additional project settings and preferences.
-            </Typography>
+            </Typography> */}
         </Box>
     );
 }
