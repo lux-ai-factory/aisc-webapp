@@ -33,7 +33,6 @@ export default function PermanentDrawerLeft() {
      */
     const navs = [
         { id: 1, name: 'Home', path: '/', element: <Home /> },
-        { id: 2, name: 'Project Management', path: '/project-management', element:<ProjectManagement /> },
         { id: 3, name:'Start evaluation', path: '/start-eval', element: <StartEvaluation />},
         { id: 4, name: 'Training Data', path: '/training-data' },
         { id: 5, name: 'Data Anomalies', path: '/data-anomalies' },
