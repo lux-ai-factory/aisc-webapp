@@ -60,7 +60,7 @@ interface MinimalProject {
 
 
 interface ProjectResponse {
-    project_pid: string;
+    pid: string;
     name: string;
     status: string;
     frequency: string;
@@ -108,7 +108,7 @@ function ProjectDetails() {
 
 
                 const minimal: MinimalProject = {
-                    pid: data.project_pid,
+                    pid: data.pid,
                     name: data.name ?? '',
                     frequency: data.frequency ?? '',
                     window_size: data.window_size ?? ''
@@ -189,7 +189,7 @@ function ProjectDetails() {
 
             const updatedProject: ProjectResponse = await response.json();
             const minimal: MinimalProject = {
-                pid: updatedProject.project_pid,
+                pid: updatedProject.pid,
                 name: updatedProject.name ?? '',
                 frequency: updatedProject.frequency ?? '',
                 window_size: updatedProject.window_size ?? ''

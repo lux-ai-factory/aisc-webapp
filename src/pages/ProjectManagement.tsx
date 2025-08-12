@@ -75,9 +75,8 @@ interface TestDatasetInfo {
 
 /** Interface for existing project selection */
 interface ExistingProject {
-    project_id: number;
-    project_pid: string;
-    project_name: string;
+    pid: string;
+    name: string;
 }
 
 /** Interface for tab panels */
@@ -773,8 +772,8 @@ function ProjectSelectionStep({ existingProjects, selectedProject, onProjectChan
                         disabled={loading}
                     >
                         {existingProjects.map((project) => (
-                            <MenuItem key={project.project_pid} value={project.project_pid}>
-                                {project.project_name}
+                            <MenuItem key={project.pid} value={project.pid}>
+                                {project.name}
                             </MenuItem>
                         ))}
                     </Select>
@@ -811,11 +810,11 @@ function AddToProjectSummaryStep({ selectedProject, models, testDatasets, isReso
                         <Box>
                             <Typography variant="subtitle2" fontWeight="bold">Target Project</Typography>
                             <Typography>
-                                {selectedProject ? selectedProject.project_name : 'No project selected'}
+                                {selectedProject ? selectedProject.name : 'No project selected'}
                             </Typography>
                             {selectedProject && (
                                 <Typography variant="body2" color="text.secondary">
-                                    Project ID: {selectedProject.project_pid}
+                                    Project ID: {selectedProject.pid}
                                 </Typography>
                             )}
                         </Box>
@@ -938,7 +937,7 @@ function AddToExistingProject() {
     };
 
     const getSelectedProjectData = (): ExistingProject | null => {
-        return existingProjects.find(p => p.project_pid === selectedProject) || null;
+        return existingProjects.find(p => p.pid === selectedProject) || null;
     };
 
     const addResourcesToProjectStaged = async (): Promise<boolean> => {
@@ -1043,7 +1042,7 @@ function AddToExistingProject() {
     };
 
     const handleFinish = () => {
-        const projectName = getSelectedProjectData()?.project_name || selectedProject;
+        const projectName = getSelectedProjectData()?.name || selectedProject;
         alert(`Resources successfully added to project "${projectName}"!\n\nYou can now navigate to "Start Evaluation" to begin analyzing your models.`);
 
         // Reset the form
@@ -1186,7 +1185,7 @@ function NewProjectContent() {
         try {
             // Prepare form data with all files
             const formData = new FormData();
-            formData.append('project_name', project.name);
+            formData.append('name', project.name);
             if (project.frequency) formData.append('frequency', project.frequency);
             if (project.window_size) formData.append('window_size', project.window_size);
 
@@ -1227,10 +1226,10 @@ function NewProjectContent() {
             }
 
             const projectResult = await response.json();
-            setProjectPid(projectResult.project_pid);
+            setProjectPid(projectResult.pid);
             setIsProjectCreated(true);
 
-            console.log('Project created successfully with PID:', projectResult.project_pid);
+            console.log('Project created successfully with PID:', projectResult.pid);
             return true;
 
         } catch (error) {

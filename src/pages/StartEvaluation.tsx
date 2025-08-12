@@ -6,9 +6,8 @@ import { API_VERSION_PREFIX } from '../config';
  * Interface for project data from API
  */
 interface Project {
-    project_id: number;
-    project_pid: string;
-    project_name: string;
+    pid: string;
+    name: string;
 }
 
 /**
