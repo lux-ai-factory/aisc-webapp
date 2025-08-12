@@ -4,7 +4,6 @@ import Toolbar from '@mui/material/Toolbar';
 
 import LeftBar from './components/LeftBar';
 import ModelPerformance from './pages/ModelPerfromance';
-import ProjectManagement from './pages/ProjectManagement';
 import { Route, Routes } from 'react-router-dom';
 import Home from './pages/Home';
 import NotFound from './pages/NotFound';
@@ -12,6 +11,7 @@ import Construction from './pages/Construction';
 import TopBar from './components/TopBar';
 import DataDrift from './pages/DataDrift';
 import StartEvaluation from './pages/StartEvaluation';
+import SettingsPage from './pages/Settings';
 
 /** Width of the left drawer in pixels */
 const drawerWidth = 320;
@@ -20,19 +20,18 @@ const drawerWidth = 320;
  * Main application layout component
  * Implements a permanent left drawer layout with Material-UI
  * Contains the main navigation structure and routing setup
- * 
+ *
  * @returns {JSX.Element} The main application layout with navigation and content area
  */
 export default function PermanentDrawerLeft() {
 
-    /** 
+    /**
      * Navigation configuration array
      * Defines all available routes and their corresponding components
      * If a route doesn't have an element, it will show the Construction component
      */
     const navs = [
         { id: 1, name: 'Home', path: '/', element: <Home /> },
-        { id: 2, name: 'Project Management', path: '/project-management', element:<ProjectManagement /> },
         { id: 3, name:'Start evaluation', path: '/start-eval', element: <StartEvaluation />},
         { id: 4, name: 'Training Data', path: '/training-data' },
         { id: 5, name: 'Data Anomalies', path: '/data-anomalies' },
@@ -41,7 +40,7 @@ export default function PermanentDrawerLeft() {
         { id: 8, name: 'Model Robustness', path: '/model-robustness' },
         { id: 9, name: 'Model Fairness', path: '/model-fairness' },
         { id: 10, name: 'Report', path: '/report' },
-        { id: 11, name: 'Settings', path: '/settings' }
+        { id: 11, name: 'Settings', path: '/settings', element: <SettingsPage/> }
     ];
     return (
         <Box sx={{ display: 'flex', flexDirection: 'row' }}>
@@ -57,7 +56,10 @@ export default function PermanentDrawerLeft() {
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'flex-start',
-                    alignItems: 'flex-start' // Ensures left-alignment as well
+                    alignItems: 'center',
+                    maxWidth: 'lg',
+                    margin: '0 auto',
+                    width: '100%'
                 }}
             >
                 <Toolbar />
