@@ -4,7 +4,6 @@ import Toolbar from '@mui/material/Toolbar';
 
 import LeftBar from './components/LeftBar';
 import ModelPerformance from './pages/ModelPerfromance';
-import ProjectManagement from './pages/ProjectManagement';
 import { Route, Routes } from 'react-router-dom';
 import Home from './pages/Home';
 import NotFound from './pages/NotFound';
