@@ -10,15 +10,17 @@ import './index.css'
 import MyApp from './MyApp.tsx'
 import { StyledEngineProvider } from '@mui/material'
 import { BrowserRouter } from 'react-router-dom'
+import { ProjectProvider } from './context/ProjectContext.tsx'
 
 // Create and render the root application component
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <StyledEngineProvider injectFirst>
-    <BrowserRouter>
-
-      <MyApp />
-    </BrowserRouter>
+      <BrowserRouter>
+        <ProjectProvider>
+          <MyApp />
+        </ProjectProvider>
+      </BrowserRouter>
     </StyledEngineProvider>
 
   </StrictMode>,

@@ -17,7 +17,6 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import GradingIcon from '@mui/icons-material/Grading';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
-import AddIcon from '@mui/icons-material/Add';
 import { Box } from '@mui/material';
 import { Link, useLocation } from 'react-router-dom';
 
@@ -27,9 +26,9 @@ import { Link, useLocation } from 'react-router-dom';
  * @property {string} title - The title of the menu section
  * @property {Array<{text: string, icon: React.ReactNode, target: string}>} items - Array of menu items
  */
-interface MenuListProps { 
-    title: string, 
-    items: { text: string, icon: React.ReactNode, target: string }[] 
+interface MenuListProps {
+    title: string,
+    items: { text: string, icon: React.ReactNode, target: string }[]
 }
 
 /**
@@ -37,7 +36,7 @@ interface MenuListProps {
  * Renders a section of the navigation menu with a title and list of items
  * Each item has an icon and links to a specific route
  * Highlights the currently active route
- * 
+ *
  * @param {MenuListProps} props - Component props
  * @returns {JSX.Element} A list of navigation items with icons and links
  */
@@ -82,9 +81,9 @@ interface LeftBarProps {
  * - Data Analysis
  * - Model Evaluation
  * - Risk Management
- * 
+ *
  * Uses Material-UI's permanent drawer with custom width
- * 
+ *
  * @param {LeftBarProps} props - Component props
  * @returns {JSX.Element} A permanent drawer with navigation menu
  */
@@ -104,7 +103,6 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
 
                 <MenuList title="" items={[
                     { text: 'Overview', icon: <DashboardIcon />, target: '/' },
-                    { text: 'Project Management', icon: <AddIcon />, target: '/project-management' },
                     { text: 'Start Evaluation', icon: <GradingIcon />, target: '/start-eval' },
                 ]} />
 

@@ -20,23 +20,14 @@ import { API_VERSION_PREFIX } from '../config';
 // Register Chart.js plugins
 ChartJS.register(...registerables, zoomPlugin);
 
-/**
- * Interface for project data from API
- */
-interface Project {
-    project_id: number;
-    project_pid: string;
-    project_name: string;
-}
+
+import { useProject } from '../context/ProjectContext';
 
 /**
  * Interface for evaluation data from API
  */
 interface Evaluation {
-    evaluation_pid: string;
-    project_id: number;
-    model_id: number;
-    test_dataset_id: number;
+    pid: string;
 }
 
 /**
@@ -51,69 +42,35 @@ interface Evaluation {
  * @returns {JSX.Element} The data drift analysis page with metric timelines
  */
 export default function DataDrift() {
-    const [projects, setProjects] = useState<Project[]>([]);
     const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
-    const [selectedProjectPid, setSelectedProjectPid] = useState<string>('');
+    // const [selectedProjectPid, setSelectedProjectPid] = useState<string>('');
     const [selectedEvaluationPid, setSelectedEvaluationPid] = useState<string>('');
     const [loading, setLoading] = useState(true);
-    const [loadingEvaluations, setLoadingEvaluations] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX ;
 
-    // Fetch projects on component mount
-    useEffect(() => {
-        const fetchProjects = async () => {
-            try {
-                setLoading(true);
-                const response = await fetch(`${API_URL}/projects`);
-                if (response.ok) {
-                    const projectsData: Project[] = await response.json();
-                    setProjects(projectsData);
-
-                    // Select first project by default
-                    if (projectsData.length > 0) {
-                        setSelectedProjectPid(projectsData[0].project_pid);
-                    }
-                } else {
-                    setError('Failed to fetch projects');
-                }
-            } catch (error) {
-                console.error('Error fetching projects:', error);
-                setError('Error fetching projects');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchProjects();
-    }, [API_URL]);
+    const { projectUUID } = useProject();
 
     // Fetch evaluations when project changes
     useEffect(() => {
         const fetchEvaluations = async () => {
-            if (!selectedProjectPid) return;
-
+            if (!projectUUID) return;
             try {
-                setLoadingEvaluations(true);
+                setLoading(true);
                 // Get all completed evaluations and filter by project
-                const response = await fetch(`${API_URL}/evaluations?status=done`);
+                const response = await fetch(`${API_URL}/projects/${projectUUID}/evaluations?status=done`);
+
                 if (response.ok) {
-                    const allEvaluations: Evaluation[] = await response.json();
+                    const evaluations: Evaluation[] = await response.json();
                     // Filter evaluations for the selected project
-                    const selectedProject = projects.find(p => p.project_pid === selectedProjectPid);
-                    if (selectedProject) {
-                        const projectEvaluations = allEvaluations.filter(
-                            evaluation => evaluation.project_id === selectedProject.project_id
-                        );
-                        setEvaluations(projectEvaluations);
 
                         // Select the most recent evaluation by default (last in the list)
-                        if (projectEvaluations.length > 0) {
-                            setSelectedEvaluationPid(projectEvaluations[projectEvaluations.length - 1].evaluation_pid);
-                        } else {
-                            setSelectedEvaluationPid('');
-                        }
+                    setEvaluations(evaluations)
+                    if (evaluations.length > 0) {
+                        setSelectedEvaluationPid(evaluations[evaluations.length - 1].pid);
+                    } else {
+                        setSelectedEvaluationPid('');
                     }
                 } else {
                     setError('Failed to fetch evaluations');
@@ -122,17 +79,13 @@ export default function DataDrift() {
                 console.error('Error fetching evaluations:', error);
                 setError('Error fetching evaluations');
             } finally {
-                setLoadingEvaluations(false);
+                setLoading(false);
             }
         };
 
         fetchEvaluations();
-    }, [selectedProjectPid, projects, API_URL]);
+    }, [projectUUID]);
 
-    const handleProjectChange = (projectPid: string) => {
-        setSelectedProjectPid(projectPid);
-        setSelectedEvaluationPid(''); // Reset evaluation selection
-    };
 
     if (loading) {
         return (
@@ -154,16 +107,6 @@ export default function DataDrift() {
         );
     }
 
-    if (projects.length === 0) {
-        return (
-            <Box sx={{ width: 1 }}>
-                <Typography component="h2" variant="h4" gutterBottom>
-                    Data Drift
-                </Typography>
-                <Alert severity="info">No projects found. Please create a project first.</Alert>
-            </Box>
-        );
-    }
 
     return (
         <Box sx={{ width: 1 }}>
@@ -178,31 +121,10 @@ export default function DataDrift() {
                 </Typography>
 
                 <Grid container spacing={3} alignItems="center">
-                    <Grid size={6}>
-                        <FormControl fullWidth>
-                            <InputLabel id="project-select-label">Project</InputLabel>
-                            <Select
-                                labelId="project-select-label"
-                                value={selectedProjectPid}
-                                label="Project"
-                                onChange={(e) => handleProjectChange(e.target.value)}
-                            >
-                                {projects.map((project) => (
-                                    <MenuItem key={project.project_pid} value={project.project_pid}>
-                                        <Box>
-                                            <Typography variant="body1">{project.project_name}</Typography>
-                                            <Typography variant="caption" color="text.secondary">
-                                                ID: {project.project_pid}
-                                            </Typography>
-                                        </Box>
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-                    </Grid>
+
 
                 <Grid size={6}>
-                        <FormControl fullWidth disabled={loadingEvaluations || evaluations.length === 0}>
+                        <FormControl fullWidth disabled={loading || evaluations.length === 0}>
                             <InputLabel id="evaluation-select-label">Evaluation</InputLabel>
                             <Select
                                 labelId="evaluation-select-label"
@@ -211,7 +133,7 @@ export default function DataDrift() {
                                 onChange={(e) => setSelectedEvaluationPid(e.target.value)}
                             >
                                 {evaluations.map((evaluation, index) => (
-                                    <MenuItem key={evaluation.evaluation_pid} value={evaluation.evaluation_pid}>
+                                    <MenuItem key={evaluation.pid} value={evaluation.pid}>
                                         <Box>
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                                 <Typography variant="body1">
@@ -222,14 +144,14 @@ export default function DataDrift() {
                                                 )}
                                             </Box>
                                             <Typography variant="caption" color="text.secondary">
-                                                ID: {evaluation.evaluation_pid}
+                                                ID: {evaluation.pid}
                                             </Typography>
                                         </Box>
                                     </MenuItem>
                                 ))}
                             </Select>
                         </FormControl>
-                        {loadingEvaluations && (
+                        {loading && (
                             <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
                                 <CircularProgress size={16} sx={{ mr: 1 }} />
                                 <Typography variant="caption">Loading evaluations...</Typography>
@@ -238,7 +160,7 @@ export default function DataDrift() {
                     </Grid>
                 </Grid>
 
-                {evaluations.length === 0 && selectedProjectPid && !loadingEvaluations && (
+                {evaluations.length === 0 && projectUUID && !loading && (
                     <Alert severity="warning" sx={{ mt: 2 }}>
                         No completed evaluations found for this project.
                     </Alert>
@@ -246,13 +168,13 @@ export default function DataDrift() {
             </Paper>
 
             {/* Metrics Visualization */}
-            {selectedProjectPid && selectedEvaluationPid && (
+            {projectUUID && selectedEvaluationPid && (
                 <Grid container spacing={2}>
                     <Grid size={6}>
                         <MetricTimeline
                             cardTitle='Numerical features - Wasserstein distance'
                             metricNames={['wasserstein_distance']}
-                            projectPid={selectedProjectPid}
+                            projectPid={projectUUID}
                             evaluationPid={selectedEvaluationPid}
                             group_by_feature={true}
                             sort_by_value={true}
@@ -262,7 +184,7 @@ export default function DataDrift() {
                         <MetricTimeline
                             cardTitle='Categorical features - Jensen-Shannon divergence'
                             metricNames={["jensenshannon"]}
-                            projectPid={selectedProjectPid}
+                            projectPid={projectUUID}
                             evaluationPid={selectedEvaluationPid}
                             group_by_feature={true}
                             sort_by_value={true}
