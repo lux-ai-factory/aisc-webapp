@@ -11,6 +11,7 @@ import { API_VERSION_PREFIX } from "../config";
 import { useProject } from "../context/ProjectContext";
 import DatasetSettings from "../components/DatasetSettings";
 import ModelSettings from "../components/ModelSettngs";
+import DatashapeSettings from "../components/DatashapeSettings";
 
 const validators = {
     projectName: (name: string) => {
@@ -292,6 +293,15 @@ export default function SettingsPage() {
             <Typography variant="body1" sx={{ mb: 2 }}>
                 Configure additional project settings and preferences.
             </Typography> */}
+
+            <Typography component="h3" variant="h5" gutterBottom sx={{ mt: 4 }}>
+                Datashape
+            </Typography>
+            <Typography variant="body1" sx={{ mb: 2 }}>
+                Set up the expected datashape of the project.
+            </Typography>
+
+            <DatashapeSettings />
         </Box>
     );
 }
