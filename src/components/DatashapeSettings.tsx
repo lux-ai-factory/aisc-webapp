@@ -30,7 +30,6 @@ import SaveIcon from '@mui/icons-material/Save'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'; import { API_VERSION_PREFIX } from '../config';
 import { useProject } from '../context/ProjectContext';
 import { isDeeplyEqual } from '../utils';
-import { is } from 'date-fns/locale';
 
 enum FeatureType {
   FLOAT = "float",
@@ -167,6 +166,19 @@ const DatashapeSettings = () => {
   const [isChanged, setIsChanged] = useState(false);
 
   const { projectUUID } = useProject()
+
+
+  const orederFeatures = (features: Feature[]) => {
+    const sortedFeatures = [...features].sort((a, b) => {
+      if (a.isTarget && !b.isTarget) return -1;
+      if (!a.isTarget && b.isTarget) return 1;
+      if (a.isDate && !b.isDate) return -1;
+      if (!a.isDate && b.isDate) return 1;
+      return a.name.localeCompare(b.name);
+    });
+    return sortedFeatures;
+  };
+
   useEffect(() => {
     const fetchFeatures = async () => {
       try {
@@ -175,15 +187,16 @@ const DatashapeSettings = () => {
           throw new Error('Failed to fetch features');
         }
         const data = await response.json();
-        setFeatures(data.features.map((f: any) => ({
+        const features = [...data.features, data.date, data.target]
+        setFeatures(orederFeatures(features.map((f: any) => ({
           ...f,
-          isDate: f.isDate || false,
-          isTarget: f.isTarget || false
-        })));
+          isDate: data.date.pid === f.pid,
+          isTarget: data.target.pid === f.pid
+        }))));
       } catch (err) {
         setFeatures([]);
       } finally {
-        setExistingFeatures(features);
+        setExistingFeatures(orederFeatures(features));
         setIsChanged(false);
         setLoading(false);
       }
@@ -259,6 +272,53 @@ const DatashapeSettings = () => {
       console.error('Error importing features:', err);
     }
   };
+
+
+  const handleSave = async () => {
+    try {
+      const dateFeature = features.find(f => f.isDate);
+      const targetFeature = features.find(f => f.isTarget);
+      const sendFeatures = features.filter(f => !f.isDate && !f.isTarget);
+
+      if (!dateFeature || !targetFeature) {
+        setError('Please select both a date and target feature');
+        return;
+      }
+
+      const featureToDto = (feature: Feature | undefined) => {
+        if (!feature) return undefined;
+        return {
+          name: feature.name,
+          min_value: feature.min_value,
+          max_value: feature.max_value,
+          feature_type: feature.feature_type
+        };
+      };
+
+      const response = await fetch(`${API_URL}/projects/${projectUUID}/datashape`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          features: sendFeatures.map(featureToDto),
+          date: featureToDto(dateFeature),
+          target: featureToDto(targetFeature)
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save features');
+      }
+
+      setExistingFeatures(orederFeatures([...features]));
+      setFeatures(orederFeatures([...features]));
+      setIsChanged(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save features');
+    }
+  }
+
 
   const featureTypes = Object.entries(FeatureType) as [keyof typeof FeatureType, FeatureType][];
 
@@ -379,6 +439,7 @@ const DatashapeSettings = () => {
           variant="contained"
           startIcon={<SaveIcon />}
           disabled={isChanged}
+          onClick={handleSave}
         >
           Save changes
         </Button>
