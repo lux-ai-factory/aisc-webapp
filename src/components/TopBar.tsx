@@ -1,4 +1,4 @@
-import { AppBar, Button, CircularProgress, createTheme, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, InputLabel, MenuItem, Select, SelectChangeEvent, TextField, Toolbar, Typography } from '@mui/material';
+import { AppBar, Button, createTheme, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, InputLabel, MenuItem, Select, SelectChangeEvent, TextField, Toolbar, Typography } from '@mui/material';
 import React, { useEffect, useState } from 'react';
 import { useProject } from '../context/ProjectContext';
 import { API_VERSION_PREFIX } from '../config';
