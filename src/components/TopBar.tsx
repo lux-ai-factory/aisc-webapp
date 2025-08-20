@@ -92,27 +92,26 @@ const ProjectSelector: React.FC<{
     const [dialogOpen, setDialogOpen] = useState(false);
 
     const loading = !projects.length;
-    if (loading) {
-        return <CircularProgress />;
-    }
 
     return (
         <ThemeProvider theme={darkTheme}>
-            <FormControl variant="standard" sx={{ minWidth: '14rem', mr: 2 }}>
-                <InputLabel id="project-select-label">Select a project</InputLabel>
-                <Select
-                    labelId="project-select-label"
-                    id="project-select"
-                    value={projectUUID}
-                    onChange={handleProjectChange}
-                >
-                    {projects.map((project) => (
-                        <MenuItem key={project.pid} value={project.pid}>
-                            {project.name}
-                        </MenuItem>
-                    ))}
-                </Select>
-            </FormControl>
+            {!loading && (
+                <FormControl variant="standard" sx={{ minWidth: '14rem', mr: 2 }}>
+                    <InputLabel id="project-select-label">Select a project</InputLabel>
+                    <Select
+                        labelId="project-select-label"
+                        id="project-select"
+                        value={projectUUID}
+                        onChange={handleProjectChange}
+                    >
+                        {projects.map((project) => (
+                            <MenuItem key={project.pid} value={project.pid}>
+                                {project.name}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
+            )}
             <Button
                 variant="contained"
                 color="primary"
