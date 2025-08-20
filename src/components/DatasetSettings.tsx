@@ -73,7 +73,7 @@ const UploadDataset = ({ dataset, onUploadSuccess }: UploadDatasetProps) => {
 
         try {
             // 🔹 Replace with your API URL
-            const response = await fetch(`/api/v1/datasets/${dataset.pid}/data`, {
+            const response = await fetch(`${API_URL}/datasets/${dataset.pid}/data`, {
                 method: 'PUT',
                 body: formData,
             });
