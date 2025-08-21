@@ -9,13 +9,13 @@ stages:
 docker-build:
   stage: build
   image: docker:cli
-  variables:
-    DOCKER_IMAGE_NAME: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
   before_script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   # All branches are tagged with $DOCKER_IMAGE_NAME (defaults to commit ref slug)
   # Default branch is also tagged with `latest`
   script:
+    - TAG="${CI_COMMIT_TAG:-$CI_COMMIT_REF_SLUG}"
+    - DOCKER_IMAGE_NAME="$CI_REGISTRY_IMAGE:$TAG"
     - docker build --pull -t "$DOCKER_IMAGE_NAME" .
     - docker push "$DOCKER_IMAGE_NAME"
     - |
