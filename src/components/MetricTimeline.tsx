@@ -89,7 +89,7 @@ type InteractionMode = 'Pan' | 'Zoom';
 interface MetricTimelineProps {
     cardTitle: string;
     metricNames: string[];
-    projectPid?: string;
+    projectPid: string;
     evaluationPid?: string;
     group_by_feature?: boolean;
     sort_by_value?: boolean;
