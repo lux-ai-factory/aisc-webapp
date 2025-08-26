@@ -43,7 +43,6 @@ interface Evaluation {
  */
 export default function DataDrift() {
     const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
-    // const [selectedProjectPid, setSelectedProjectPid] = useState<string>('');
     const [selectedEvaluationPid, setSelectedEvaluationPid] = useState<string>('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
