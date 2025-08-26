@@ -477,10 +477,9 @@ const MetricTimeline = ({
         if (!projectPid) return [];
 
         return metricNames.map(metricName => {
-            if (evaluationPid) {
-                return `${API_URL}/projects/${projectPid}/evaluations/${evaluationPid}/metrics?name=${metricName}`;
-            }
-            return `${API_URL}/metrics?project_pid=${projectPid}&name=${metricName}`;
+
+            return `${API_URL}/evaluations/${evaluationPid}/metrics?name=${metricName}`;
+
         });
     }, [metricNames, projectPid, evaluationPid, API_URL]);
 
