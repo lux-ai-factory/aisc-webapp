@@ -5,13 +5,14 @@ import Toolbar from '@mui/material/Toolbar';
 import LeftBar from './components/LeftBar';
 import ModelPerformance from './pages/ModelPerfromance';
 import { Route, Routes } from 'react-router-dom';
-import Home from './pages/Home';
 import NotFound from './pages/NotFound';
 import Construction from './pages/Construction';
 import TopBar from './components/TopBar';
 import DataDrift from './pages/DataDrift';
 import StartEvaluation from './pages/StartEvaluation';
 import SettingsPage from './pages/Settings';
+import GlobalHome from './pages/GlobalHome';
+import ProjectHome from './pages/ProjectHome';
 
 /** Width of the left drawer in pixels */
 const drawerWidth = 320;
@@ -31,8 +32,9 @@ export default function PermanentDrawerLeft() {
      * If a route doesn't have an element, it will show the Construction component
      */
     const navs = [
-        { id: 1, name: 'Home', path: '/', element: <Home /> },
-        { id: 3, name:'Start evaluation', path: '/start-eval', element: <StartEvaluation />},
+        { id: 1, name: 'Home', path: '/', element: <GlobalHome /> },
+        { id: 2, name: 'Project', path: '/projects/:project_pid', element: <ProjectHome /> },
+        { id: 3, name: 'Start evaluation', path: '/start-eval', element: <StartEvaluation />},
         { id: 4, name: 'Training Data', path: '/training-data' },
         { id: 5, name: 'Data Anomalies', path: '/data-anomalies' },
         { id: 6, name: 'Data Drift', path: '/data-drift', element: <DataDrift /> },
@@ -56,7 +58,7 @@ export default function PermanentDrawerLeft() {
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'flex-start',
-                    alignItems: 'center',
+                    alignItems: 'left',
                     maxWidth: 'lg',
                     margin: '0 auto',
                     width: '100%'
