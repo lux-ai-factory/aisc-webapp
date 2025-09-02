@@ -29,7 +29,7 @@ interface MetricCardProps {
  * MetricCard component
  * Displays a single metric card with title, value, change, observations, and recommendations
  * Used as a child component in the SummaryTable
- * 
+ *
  * @param {MetricCardProps} props - Component props
  * @returns {JSX.Element} A paper component containing metric information
  */
@@ -90,10 +90,10 @@ const MetricCard: React.FC<MetricCardProps> = ({
  * - Model Robustness
  * - Explainability
  * - Fairness
- * 
+ *
  * Each metric is displayed with its current value, change, observations,
  * and recommended actions using color coding for status indication
- * 
+ *
  * @returns {JSX.Element} A grid of metric cards showing model and data health
  */
 const SummaryTable: React.FC = () => {

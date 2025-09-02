@@ -1,9 +1,7 @@
 // src/components/Home.jsx
 
-import { Link, List, ListItem, ListItemButton, ListItemText, Typography } from "@mui/material";
-import SummaryTable from "../components/SummaryTable";
+import { Link, List, ListItem, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { API_VERSION_PREFIX } from "../config";
 
 
@@ -48,7 +46,7 @@ const ProjectsList = () => {
             <List>
                 {projects.map((project) => (
                     <ListItem key={project.pid} disablePadding>
-                        <Link href={`/projects/${project.pid}`} underline="hover">
+                        <Link href={`/projects/${project.name}`} underline="hover">
                             {project.name}
                         </Link>
                     </ListItem>

@@ -32,18 +32,18 @@ function setCookie(name: string, value: string | null, days = 7) {
 }
 
 export function ProjectProvider({ children }: ProjectProviderProps) {
-    const [projectUUID, setProjectUUIDState] = useState<string | null>(() => getCookie("projectUUID"));
-    const [projectName, setProjectNameState] = useState<string | null>(() => getCookie("projectName"));
+    const [projectUUID, setProjectUUIDState] = useState<string | null>(null);
+    const [projectName, setProjectNameState] = useState<string | null>(null);
 
     // Wrap setters to sync with cookies
     const setProjectUUID = (uuid: string | null) => {
         setProjectUUIDState(uuid);
-        setCookie("projectUUID", uuid);
+        // setCookie("projectUUID", uuid);
     };
 
     const setProjectName = (name: string | null) => {
         setProjectNameState(name);
-        setCookie("projectName", name);
+        // setCookie("projectName", name);
     };
 
     return (

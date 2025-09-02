@@ -1,4 +1,4 @@
-import { AppBar, Button, createTheme, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, InputLabel, MenuItem, Select, SelectChangeEvent, TextField, Toolbar, Typography } from '@mui/material';
+import { AppBar, Box, Button, createTheme, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, InputLabel, MenuItem, Select, SelectChangeEvent, TextField, Toolbar, Typography } from '@mui/material';
 import React, { useEffect, useState } from 'react';
 import { useProject } from '../context/ProjectContext';
 import { API_VERSION_PREFIX } from '../config';
@@ -162,9 +162,15 @@ const TopBar: React.FC = () => {
     return (
         <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }} className='gradient'>
             <Toolbar>
-                <Typography variant="h6" noWrap component="div">
-                    A4S - AI Testing Sandbox - {projectName ? projectName : "Please select a project"}
-                </Typography>
+                <Box style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <Typography variant="h6" noWrap component="div">
+                        A4S - AI Testing Sandbox
+                    </Typography>
+                    <Typography variant="h6" component="div">
+                        {projectName ? `/ ${projectName}` : ""}
+                    </Typography>
+                </Box>
+
                 <div style={{ flexGrow: 1 }} />
                 <ProjectSelector
                     projectUUID={projectUUID}

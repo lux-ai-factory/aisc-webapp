@@ -14,7 +14,7 @@ const ProjectHome = () => {
     return (
         <>
             <Typography component="h2" variant="h4" gutterBottom>
-                A4S Dashboard
+                Overview
             </Typography>
 
             <SummaryTable />

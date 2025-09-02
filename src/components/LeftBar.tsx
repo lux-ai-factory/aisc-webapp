@@ -19,6 +19,7 @@ import GradingIcon from '@mui/icons-material/Grading';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 import { Box } from '@mui/material';
 import { Link, useLocation } from 'react-router-dom';
+import { useProject } from '../context/ProjectContext';
 
 /**
  * Props interface for the MenuList component
@@ -88,6 +89,9 @@ interface LeftBarProps {
  * @returns {JSX.Element} A permanent drawer with navigation menu
  */
 export default function LeftBar({ drawerWidth }: LeftBarProps) {
+
+    const { projectName } = useProject()
+
     return (
         <Drawer
             variant="permanent"
@@ -99,33 +103,39 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
         >
             <Toolbar />
             <Box sx={{ overflow: 'auto' }}>
-
-
-                <MenuList title="" items={[
-                    { text: 'Overview', icon: <DashboardIcon />, target: '/' },
-                    { text: 'Start Evaluation', icon: <GradingIcon />, target: '/start-eval' },
-                ]} />
-
+                <MenuList
+                    title=""
+                    items={[
+                        { text: 'Overview', icon: <DashboardIcon />, target: `/projects/${projectName}` },
+                        { text: 'Start Evaluation', icon: <GradingIcon />, target: `/projects/${projectName}/start-eval` },
+                    ]}
+                />
                 <Divider />
-
-                <MenuList title="Data" items={[
-                    { text: 'Training Data Analysis', icon: <DatasetIcon />, target: '/training-data' },
-                    { text: 'Data Anomalies', icon: <FlagIcon />, target: '/data-anomalies' },
-                    { text: 'Data Drift', icon: <RocketLaunchIcon />, target: '/data-drift' },
-                ]} />
+                <MenuList
+                    title="Data"
+                    items={[
+                        { text: 'Training Data Analysis', icon: <DatasetIcon />, target: `/projects/${projectName}/training-data` },
+                        { text: 'Data Anomalies', icon: <FlagIcon />, target: `/projects/${projectName}/data-anomalies` },
+                        { text: 'Data Drift', icon: <RocketLaunchIcon />, target: `/projects/${projectName}/data-drift` },
+                    ]}
+                />
                 <Divider />
-
-                <MenuList title='Model Evaluation' items={[
-                    { text: 'Accuracy and Correctness', icon: <TimelineIcon />, target: '/model-accuracy' },
-                    { text: 'Robustness', icon: <SecurityIcon />, target: '/model-robustness' },
-                    { text: 'Fairness', icon: <BalanceIcon />, target: '/model-fairness' },
-                ]} />
+                <MenuList
+                    title="Model Evaluation"
+                    items={[
+                        { text: 'Accuracy and Correctness', icon: <TimelineIcon />, target: `/projects/${projectName}/model-accuracy` },
+                        { text: 'Robustness', icon: <SecurityIcon />, target: `/projects/${projectName}/model-robustness` },
+                        { text: 'Fairness', icon: <BalanceIcon />, target: `/projects/${projectName}/model-fairness` },
+                    ]}
+                />
                 <Divider />
-                <MenuList title='Risk Management' items={[
-                    { text: 'Report Generation', icon: <AssignmentIcon />, target: '/report' },
-                    { text: 'Settings & Alerts', icon: <SettingsIcon />, target: '/settings' },
-                ]} />
-
+                <MenuList
+                    title="Risk Management"
+                    items={[
+                        { text: 'Report Generation', icon: <AssignmentIcon />, target: `/projects/${projectName}/report` },
+                        { text: 'Settings & Alerts', icon: <SettingsIcon />, target: `/projects/${projectName}/settings` },
+                    ]}
+                />
             </Box>
         </Drawer >)
 };
