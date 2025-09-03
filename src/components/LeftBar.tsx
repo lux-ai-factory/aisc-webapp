@@ -102,40 +102,43 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
             }}
         >
             <Toolbar />
-            <Box sx={{ overflow: 'auto' }}>
-                <MenuList
-                    title=""
-                    items={[
-                        { text: 'Overview', icon: <DashboardIcon />, target: `/projects/${projectName}` },
-                        { text: 'Start Evaluation', icon: <GradingIcon />, target: `/projects/${projectName}/start-eval` },
-                    ]}
-                />
-                <Divider />
-                <MenuList
-                    title="Data"
-                    items={[
-                        { text: 'Training Data Analysis', icon: <DatasetIcon />, target: `/projects/${projectName}/training-data` },
-                        { text: 'Data Anomalies', icon: <FlagIcon />, target: `/projects/${projectName}/data-anomalies` },
-                        { text: 'Data Drift', icon: <RocketLaunchIcon />, target: `/projects/${projectName}/data-drift` },
-                    ]}
-                />
-                <Divider />
-                <MenuList
-                    title="Model Evaluation"
-                    items={[
-                        { text: 'Accuracy and Correctness', icon: <TimelineIcon />, target: `/projects/${projectName}/model-accuracy` },
-                        { text: 'Robustness', icon: <SecurityIcon />, target: `/projects/${projectName}/model-robustness` },
-                        { text: 'Fairness', icon: <BalanceIcon />, target: `/projects/${projectName}/model-fairness` },
-                    ]}
-                />
-                <Divider />
-                <MenuList
-                    title="Risk Management"
-                    items={[
-                        { text: 'Report Generation', icon: <AssignmentIcon />, target: `/projects/${projectName}/report` },
-                        { text: 'Settings & Alerts', icon: <SettingsIcon />, target: `/projects/${projectName}/settings` },
-                    ]}
-                />
-            </Box>
+            {projectName &&
+                <Box sx={{ overflow: 'auto' }}>
+                    <MenuList
+                        title=""
+                        items={[
+                            { text: 'Overview', icon: <DashboardIcon />, target: `/projects/${projectName}` },
+                            { text: 'Start Evaluation', icon: <GradingIcon />, target: `/projects/${projectName}/start-eval` },
+                        ]}
+                    />
+                    <Divider />
+                    <MenuList
+                        title="Data"
+                        items={[
+                            { text: 'Training Data Analysis', icon: <DatasetIcon />, target: `/projects/${projectName}/training-data` },
+                            { text: 'Data Anomalies', icon: <FlagIcon />, target: `/projects/${projectName}/data-anomalies` },
+                            { text: 'Data Drift', icon: <RocketLaunchIcon />, target: `/projects/${projectName}/data-drift` },
+                        ]}
+                    />
+                    <Divider />
+                    <MenuList
+                        title="Model Evaluation"
+                        items={[
+                            { text: 'Accuracy and Correctness', icon: <TimelineIcon />, target: `/projects/${projectName}/model-accuracy` },
+                            { text: 'Robustness', icon: <SecurityIcon />, target: `/projects/${projectName}/model-robustness` },
+                            { text: 'Fairness', icon: <BalanceIcon />, target: `/projects/${projectName}/model-fairness` },
+                        ]}
+                    />
+                    <Divider />
+                    <MenuList
+                        title="Risk Management"
+                        items={[
+                            { text: 'Report Generation', icon: <AssignmentIcon />, target: `/projects/${projectName}/report` },
+                            { text: 'Settings & Alerts', icon: <SettingsIcon />, target: `/projects/${projectName}/settings` },
+                        ]}
+                    />
+
+                </Box>
+            }
         </Drawer >)
 };
