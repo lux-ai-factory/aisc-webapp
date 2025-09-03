@@ -4,6 +4,7 @@ import { useProject } from '../context/ProjectContext';
 import { API_VERSION_PREFIX } from '../config';
 import { ThemeProvider } from '@emotion/react';
 import { useNavigate } from 'react-router-dom';
+import A4SLogo from './Logo';
 
 interface Project {
     pid: string;
@@ -139,18 +140,22 @@ const TopBar: React.FC = () => {
         <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }} className='gradient'>
             <Toolbar>
                 <Box style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+
                     <Link
                         href="/"
                         underline="none"
                         color="inherit"
                     >
-                        <Typography
-                            variant="h6"
-                            noWrap
-                            component="div"
-                        >
-                            A4S - AI Testing Sandbox
-                        </Typography>
+                        <Box display="flex" alignItems="center" gap={1}>
+                            <A4SLogo sx={{ color: 'white' }} />
+                            <Typography
+                                variant="h6"
+                                noWrap
+                                component="div"
+                            >
+                                A4S - AI Testing Sandbox
+                            </Typography>
+                        </Box>
                     </Link>
                     <Typography variant="h6" component="div">
                         {projectName ? `/ ${projectName}` : ""}
