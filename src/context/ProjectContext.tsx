@@ -14,36 +14,20 @@ type ProjectProviderProps = {
     children: ReactNode;
 };
 
-// Helper functions for cookies
-function getCookie(name: string): string | null {
-    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-    return match ? decodeURIComponent(match[2]) : null;
-}
-
-function setCookie(name: string, value: string | null, days = 7) {
-    if (value === null) {
-        // Delete cookie
-        document.cookie = `${name}=; Max-Age=0; path=/`;
-        return;
-    }
-    const expires = new Date();
-    expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
-    document.cookie = `${name}=${encodeURIComponent(value)};expires=${expires.toUTCString()};path=/`;
-}
 
 export function ProjectProvider({ children }: ProjectProviderProps) {
-    const [projectUUID, setProjectUUIDState] = useState<string | null>(() => getCookie("projectUUID"));
-    const [projectName, setProjectNameState] = useState<string | null>(() => getCookie("projectName"));
+    const [projectUUID, setProjectUUIDState] = useState<string | null>(null);
+    const [projectName, setProjectNameState] = useState<string | null>(null);
 
     // Wrap setters to sync with cookies
     const setProjectUUID = (uuid: string | null) => {
         setProjectUUIDState(uuid);
-        setCookie("projectUUID", uuid);
+        // setCookie("projectUUID", uuid);
     };
 
     const setProjectName = (name: string | null) => {
         setProjectNameState(name);
-        setCookie("projectName", name);
+        // setCookie("projectName", name);
     };
 
     return (

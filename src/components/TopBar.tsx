@@ -1,8 +1,10 @@
-import { AppBar, Button, createTheme, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, InputLabel, MenuItem, Select, SelectChangeEvent, TextField, Toolbar, Typography } from '@mui/material';
+import { AppBar, Box, Button, createTheme, Dialog, DialogActions, DialogContent, DialogTitle, Link, TextField, Toolbar, Typography } from '@mui/material';
 import React, { useEffect, useState } from 'react';
 import { useProject } from '../context/ProjectContext';
 import { API_VERSION_PREFIX } from '../config';
 import { ThemeProvider } from '@emotion/react';
+import { useNavigate } from 'react-router-dom';
+import A4SLogo from './Logo';
 
 interface Project {
     pid: string;
@@ -84,34 +86,13 @@ const AddProjectDialog: React.FC<{
 };
 
 const ProjectSelector: React.FC<{
-    projectUUID: string | null;
-    handleProjectChange: (event: SelectChangeEvent<string | null>) => void;
-    projects: Project[];
     onAddProject: (name: string) => void;
-}> = ({ projectUUID, handleProjectChange, projects, onAddProject }) => {
+}> = ({ onAddProject }) => {
     const [dialogOpen, setDialogOpen] = useState(false);
 
-    const loading = !projects.length;
 
     return (
         <ThemeProvider theme={darkTheme}>
-            {!loading && (
-                <FormControl variant="standard" sx={{ minWidth: '14rem', mr: 2 }}>
-                    <InputLabel id="project-select-label">Select a project</InputLabel>
-                    <Select
-                        labelId="project-select-label"
-                        id="project-select"
-                        value={projectUUID}
-                        onChange={handleProjectChange}
-                    >
-                        {projects.map((project) => (
-                            <MenuItem key={project.pid} value={project.pid}>
-                                {project.name}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
-            )}
             <Button
                 variant="contained"
                 color="primary"
@@ -129,8 +110,10 @@ const ProjectSelector: React.FC<{
 };
 
 const TopBar: React.FC = () => {
-    const { projectUUID, setProjectUUID, projectName, setProjectName } = useProject();
+    const { setProjectUUID, projectName, setProjectName } = useProject();
     const [projects, setProjects] = useState<Project[]>([]);
+
+    const navigate = useNavigate();
 
     const fetchProjects = async () => {
         const data = await apiCall('/projects');
@@ -143,6 +126,9 @@ const TopBar: React.FC = () => {
             setProjects([...projects, newProject]);
             setProjectUUID(newProject.pid);
             setProjectName(newProject.name);
+
+            const redirectUrl = `/projects/${newProject.name}/settings`;
+            navigate(redirectUrl)
         }
     };
 
@@ -150,26 +136,34 @@ const TopBar: React.FC = () => {
         fetchProjects();
     }, []);
 
-    const handleProjectChange = (event: SelectChangeEvent<string | null>) => {
-        const selectedProjectUUID = event.target.value as string;
-        setProjectUUID(selectedProjectUUID);
-        const selectedProject = projects.find(p => p.pid === selectedProjectUUID);
-        if (selectedProject) {
-            setProjectName(selectedProject.name);
-        }
-    };
-
     return (
         <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }} className='gradient'>
             <Toolbar>
-                <Typography variant="h6" noWrap component="div">
-                    A4S - AI Testing Sandbox - {projectName ? projectName : "Please select a project"}
-                </Typography>
+                <Box style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+
+                    <Link
+                        href="/"
+                        underline="none"
+                        color="inherit"
+                    >
+                        <Box display="flex" alignItems="center" gap={1}>
+                            <A4SLogo sx={{ color: 'white' }} />
+                            <Typography
+                                variant="h6"
+                                noWrap
+                                component="div"
+                            >
+                                A4S - AI Testing Sandbox
+                            </Typography>
+                        </Box>
+                    </Link>
+                    <Typography variant="h6" component="div">
+                        {projectName ? `/ ${projectName}` : ""}
+                    </Typography>
+                </Box>
+
                 <div style={{ flexGrow: 1 }} />
                 <ProjectSelector
-                    projectUUID={projectUUID}
-                    handleProjectChange={handleProjectChange}
-                    projects={projects}
                     onAddProject={addProject}
                 />
             </Toolbar>
