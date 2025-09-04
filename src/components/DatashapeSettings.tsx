@@ -180,6 +180,11 @@ const DatashapeSettings = () => {
   };
 
   useEffect(() => {
+    if (!projectUUID) {
+      // don't fetch until we have a valid projectUUID
+      return;
+    }
+
     const fetchFeatures = async () => {
       try {
         const response = await fetch(`${API_URL}/projects/${projectUUID}/datashape`);
@@ -187,16 +192,23 @@ const DatashapeSettings = () => {
           throw new Error('Failed to fetch features');
         }
         const data = await response.json();
-        const features = [...data.features, data.date, data.target]
-        setFeatures(orederFeatures(features.map((f: any) => ({
-          ...f,
-          isDate: data.date.pid === f.pid,
-          isTarget: data.target.pid === f.pid
-        }))));
+
+        const fetchedFeatures = [...data.features, data.date, data.target];
+
+        const processedFeatures = orederFeatures(
+          fetchedFeatures.map((f: any) => ({
+            ...f,
+            isDate: data.date.pid === f.pid,
+            isTarget: data.target.pid === f.pid,
+          }))
+        );
+
+        setFeatures(processedFeatures);
+        setExistingFeatures(processedFeatures);
       } catch (err) {
         setFeatures([]);
+        setExistingFeatures([]);
       } finally {
-        setExistingFeatures(orederFeatures(features));
         setIsChanged(false);
         setLoading(false);
       }
