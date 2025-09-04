@@ -66,6 +66,8 @@ const VisuallyHiddenInput = styled('input')({
 
 const UploadModel = ({ model, onUploadSuccess }: UploadModelProps) => {
     const uploaded = Boolean(model.data);
+    const [progress, setProgress] = useState<number>(0);
+    const [uploading, setUploading] = useState<boolean>(false);
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -79,23 +81,42 @@ const UploadModel = ({ model, onUploadSuccess }: UploadModelProps) => {
         const formData = new FormData();
         formData.append('file', file);
 
-        try {
-            const response = await fetch(`${API_URL}/models/${model.pid}/data`, {
-                method: 'PUT',
-                body: formData,
-            });
+        const xhr = new XMLHttpRequest();
+        xhr.open("PUT", `${API_URL}/models/${model.pid}/data`, true);
 
-            if (!response.ok) {
-                throw new Error('Upload failed');
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 100);
+                setProgress(percent);
             }
+        };
 
-            const responseData = await response.json();
-            const fileName = responseData.file_name as string;
+        xhr.onloadstart = () => {
+            setUploading(true);
+            setProgress(0);
+        };
 
-            onUploadSuccess(model.pid, fileName);
-        } catch (error) {
-            console.error('Upload error:', error);
-        }
+        xhr.onloadend = () => {
+            setUploading(false);
+        };
+
+        xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                const responseData = JSON.parse(xhr.responseText);
+                const fileName = responseData.file_name as string;
+                onUploadSuccess(model.pid, fileName);
+                setProgress(100);
+            } else {
+                console.error("Upload failed:", xhr.statusText);
+            }
+        };
+
+        xhr.onerror = () => {
+            console.error("Upload error");
+            setUploading(false);
+        };
+
+        xhr.send(formData);
     };
 
     if (uploaded) {
@@ -103,20 +124,37 @@ const UploadModel = ({ model, onUploadSuccess }: UploadModelProps) => {
     }
 
     return (
-        <Button
-            component="label"
-            role={undefined}
-            variant="contained"
-            tabIndex={-1}
-            startIcon={<CloudUpload />}
-            sx={{ mr: 2 }}
-        >
-            Upload ONNX
-            <VisuallyHiddenInput
-                type="file"
-                onChange={handleFileChange}
-            />
-        </Button>
+        <Box sx={{ position: "relative", display: "inline-flex", mr: 2 }}>
+            <Button
+                component="label"
+                role={undefined}
+                variant="contained"
+                disabled={uploading}
+                startIcon={<CloudUpload />}
+            >
+                {uploading ? "Uploading..." : "Upload ONNX"}
+                <VisuallyHiddenInput
+                    type="file"
+                    onChange={handleFileChange}
+                />
+            </Button>
+
+            {uploading && (
+                <CircularProgress
+                    variant="determinate"
+                    value={progress}
+                    size={36}
+                    sx={{
+                        color: "primary.main",
+                        position: "absolute",
+                        top: "50%",
+                        left: "50%",
+                        marginTop: "-18px",
+                        marginLeft: "-18px",
+                    }}
+                />
+            )}
+        </Box>
     );
 };
 

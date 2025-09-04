@@ -60,8 +60,9 @@ const VisuallyHiddenInput = styled('input')({
 
 
 const UploadDataset = ({ dataset, onUploadSuccess }: UploadDatasetProps) => {
-
     const uploaded = Boolean(dataset.data);
+    const [progress, setProgress] = useState<number>(0);
+    const [uploading, setUploading] = useState<boolean>(false);
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -69,50 +70,81 @@ const UploadDataset = ({ dataset, onUploadSuccess }: UploadDatasetProps) => {
 
         const formData = new FormData();
         formData.append('file', file);
-        // formData.append('pid', dataset.pid);
 
-        try {
-            // 🔹 Replace with your API URL
-            const response = await fetch(`${API_URL}/datasets/${dataset.pid}/data`, {
-                method: 'PUT',
-                body: formData,
-            });
+        const xhr = new XMLHttpRequest();
+        xhr.open("PUT", `${API_URL}/datasets/${dataset.pid}/data`, true);
 
-            if (!response.ok) {
-                throw new Error('Upload failed');
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 100);
+                setProgress(percent);
             }
+        };
 
-            const responseData = await response.json();
-            const fileName = responseData.file_name as string;
+        xhr.onloadstart = () => {
+            setUploading(true);
+            setProgress(0);
+        };
 
-            onUploadSuccess(dataset.pid, fileName);
+        xhr.onloadend = () => {
+            setUploading(false);
+        };
 
-        } catch (error) {
-            console.error('Upload error:', error);
-        }
+        xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                const responseData = JSON.parse(xhr.responseText);
+                const fileName = responseData.file_name as string;
+                onUploadSuccess(dataset.pid, fileName);
+                setProgress(100);
+            } else {
+                console.error("Upload failed:", xhr.statusText);
+            }
+        };
+
+        xhr.onerror = () => {
+            console.error("Upload error");
+            setUploading(false);
+        };
+
+        xhr.send(formData);
     };
 
     if (uploaded) {
-        return (<CloudDoneIcon color="success" sx={{ mr: 2 }} />)
+        return <CloudDoneIcon color="success" sx={{ mr: 2 }} />;
     }
 
     return (
+        <Box sx={{ position: "relative", display: "inline-flex", mr: 2 }}>
+            <Button
+                component="label"
+                role={undefined}
+                variant="contained"
+                disabled={uploading}
+                startIcon={<CloudUpload />}
+            >
+                {uploading ? "Uploading..." : "Upload files"}
+                <VisuallyHiddenInput
+                    type="file"
+                    onChange={handleFileChange}
+                />
+            </Button>
 
-        <Button
-            component="label"
-            role={undefined}
-            variant="contained"
-            tabIndex={-1}
-            startIcon={<CloudUpload />}
-            sx={{ mr: 2 }}
-        >
-            Upload files
-            <VisuallyHiddenInput
-                type="file"
-                onChange={handleFileChange}
-            />
-        </Button>
-
+            {uploading && (
+                <CircularProgress
+                    variant="determinate"
+                    value={progress}
+                    size={36}
+                    sx={{
+                        color: "primary.main",
+                        position: "absolute",
+                        top: "50%",
+                        left: "50%",
+                        marginTop: "-18px",
+                        marginLeft: "-18px",
+                    }}
+                />
+            )}
+        </Box>
     );
 };
 
