@@ -58,7 +58,7 @@ export default function DataDrift() {
             try {
                 setLoading(true);
                 // Get all completed evaluations and filter by project
-                const response = await fetch(`${API_URL}/projects/${projectUUID}/evaluations?status=done`);
+                const response = await fetch(`${API_URL}/projects/${projectUUID}/evaluations?status=Done`);
 
                 if (response.ok) {
                     const evaluations: Evaluation[] = await response.json();
