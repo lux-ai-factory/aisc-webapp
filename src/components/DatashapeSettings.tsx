@@ -368,7 +368,7 @@ const DatashapeSettings = () => {
                 <TableCell>
                   <FormControl fullWidth>
                     <Select
-                      value={feature.feature_type}
+                      value={feature.feature_type.toLowerCase()}
                       onChange={(e) => handleChange(index, 'feature_type', e.target.value)}
                     >
 
