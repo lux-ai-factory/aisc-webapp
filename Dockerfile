@@ -18,6 +18,7 @@ COPY nginx-default.conf /etc/nginx/conf.d/default.conf
 
 # Copy built assets from build stage
 COPY --from=build /app/dist /usr/share/nginx/html
+COPY --from=build /app /app
 
 # Setup environment variable injection script
 COPY env.sh /docker-entrypoint.d/env.sh
