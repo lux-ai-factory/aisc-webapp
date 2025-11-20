@@ -125,6 +125,7 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
                         title="Model Evaluation"
                         items={[
                             { text: 'Accuracy and Correctness', icon: <TimelineIcon />, target: `/projects/${projectName}/model-accuracy` },
+                            { text: 'Regression performance', icon: <TimelineIcon />, target: `/projects/${projectName}/regression-accuracy` },
                             { text: 'Robustness', icon: <SecurityIcon />, target: `/projects/${projectName}/model-robustness` },
                             { text: 'Fairness', icon: <BalanceIcon />, target: `/projects/${projectName}/model-fairness` },
                         ]}

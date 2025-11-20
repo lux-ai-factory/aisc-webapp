@@ -4,6 +4,7 @@ import Toolbar from '@mui/material/Toolbar';
 
 import LeftBar from './components/LeftBar';
 import ModelPerformance from './pages/ModelPerfromance';
+import RegressionPerformance from './pages/RegressionPerformance';
 import { Route, Routes } from 'react-router-dom';
 import NotFound from './pages/NotFound';
 import Construction from './pages/Construction';
@@ -73,6 +74,9 @@ export default function PermanentDrawerLeft() {
         { id: 6, name: 'Data Drift', path: '/projects/:project_name/data-drift', element: <ProjectContextWrapper><DataDrift /></ProjectContextWrapper> },
         {
             id: 7, name: 'Model Accuracy', path: '/projects/:project_name/model-accuracy', element: (<ProjectContextWrapper><ModelPerformance /></ProjectContextWrapper>)
+        },
+        {
+            id: 12, name: 'Regression Accuracy', path: '/projects/:project_name/regression-accuracy', element: (<ProjectContextWrapper><RegressionPerformance /></ProjectContextWrapper>)
         },
         { id: 8, name: 'Model Robustness', path: '/projects/:project_name/model-robustness', element: <ProjectContextWrapper><Construction title="Model Robustness" /></ProjectContextWrapper> },
         { id: 9, name: 'Model Fairness', path: '/projects/:project_name/model-fairness', element: <ProjectContextWrapper><Construction title="Model Fairness" /></ProjectContextWrapper> },
