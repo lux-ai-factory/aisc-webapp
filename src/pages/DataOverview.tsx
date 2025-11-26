@@ -22,6 +22,8 @@ import {
   TableSortLabel,
   IconButton,
 } from "@mui/material";
+import { FormControl, MenuItem, InputLabel, Select, Chip} from '@mui/material';
+import Grid from '@mui/material/Grid2';
 import {
   RefreshCw,
   AlertCircle,
@@ -30,7 +32,7 @@ import {
   ArrowDown,
 } from "lucide-react";
 import { API_VERSION_PREFIX } from '../config';
-
+import { useProject } from '../context/ProjectContext';
 
 /* ------------------------------------------------------------------
    Types
@@ -42,6 +44,11 @@ interface SortConfig {
   direction: "asc" | "desc" | null;
 }
 
+interface Dataset {
+    name: string;
+    pid: string;
+}
+
 /* ------------------------------------------------------------------
    Component
 ------------------------------------------------------------------- */
@@ -49,9 +56,12 @@ export default function DataOverview() {
   /* --------------------------- CONFIG --------------------------- */
   const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
   const DATASET_ID =  "9906d5d2-b72f-429c-a170-adcfe9292c65";
+  const { projectUUID } = useProject();
 
   /* --------------------------- STATE --------------------------- */
   const [rawData, setRawData] = React.useState<Row[]>([]);
+  const [datasets, setDatasets] = React.useState<Dataset[]>([]);
+  const [selectedDatasetPid, setSelectedDatasetPid] = React.useState<string>('');
   const [sortedData, setSortedData] = React.useState<Row[]>([]);
   const [loading, setLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -59,6 +69,44 @@ export default function DataOverview() {
     key: null,
     direction: null,
   });
+
+
+  // Fetch evaluations when project changes
+  React.useEffect(() => {
+      const fetchDatasets = async () => {
+          if (!projectUUID) return;
+          try {
+              setLoading(true);
+              // Get all completed evaluations and filter by project
+              const response = await fetch(`${API_URL}/projects/${projectUUID}`);
+
+              if (response.ok) {
+                  const responseData = await response.json();
+                  const datasets: Dataset[] = responseData.datasets;
+
+                  // Filter evaluations for the selected project
+
+                  // Select the most recent evaluation by default (last in the list)
+                  setDatasets(datasets)
+                  if (datasets.length > 0) {
+                      setSelectedDatasetPid(datasets[datasets.length - 1].pid);
+                  } else {
+                      setSelectedDatasetPid('');
+                  }
+              } else {
+                  setError('Failed to fetch datasets');
+              }
+          } catch (error) {
+              console.error('Error fetching evaluations:', error);
+              setError('Error fetching evaluations');
+          } finally {
+              setLoading(false);
+          }
+      };
+
+      fetchDatasets();
+  }, [projectUUID]);
+
 
   /* --------------------------- FETCH --------------------------- */
   const fetchData = React.useCallback(async () => {
@@ -195,6 +243,59 @@ export default function DataOverview() {
           <Divider />
         </Stack>
 
+
+            {/* Selectors Section */}
+            <Paper elevation={2} sx={{ p: 3, mb: 3, backgroundColor: 'background.paper' }}>
+                <Typography variant="h6" gutterBottom color="primary">
+                    Select Project and Dataset
+                </Typography>
+
+                <Grid container spacing={3} alignItems="center">
+
+
+                    <Grid size={6}>
+                        <FormControl fullWidth disabled={loading || datasets.length === 0}>
+                            <InputLabel id="dataset-select-label">Dataset</InputLabel>
+                            <Select
+                                labelId="dataset-select-label"
+                                value={selectedDatasetPid}
+                                label="Dataset"
+                                onChange={(e) => setSelectedDatasetPid(e.target.value)}
+                            >
+                                {datasets.map((dataset, index) => (
+                                    <MenuItem key={dataset.name} value={dataset.pid}>
+                                        <Box>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <Typography variant="body1">
+                                                    Dataset: {dataset.name}
+                                                </Typography>
+                                                {index === datasets.length - 1 && (
+                                                    <Chip label="Latest" size="small" color="primary" />
+                                                )}
+                                            </Box>
+                                            <Typography variant="caption" color="text.secondary">
+                                                ID: {dataset.pid}
+                                            </Typography>
+                                        </Box>
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        {loading && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+                                <CircularProgress size={16} sx={{ mr: 1 }} />
+                                <Typography variant="caption">Loading datasets...</Typography>
+                            </Box>
+                        )}
+                    </Grid>
+                </Grid>
+
+                {datasets.length === 0 && projectUUID && !loading && (
+                    <Alert severity="warning" sx={{ mt: 2 }}>
+                        No completed datasets found for this project.
+                    </Alert>
+                )}
+            </Paper>
         {/* ---------- Loading ---------- */}
         {loading && (
           <Paper
