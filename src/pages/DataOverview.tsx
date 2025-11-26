@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { API_VERSION_PREFIX } from '../config';
 import { useProject } from '../context/ProjectContext';
+import { data } from "react-router-dom";
 
 /* ------------------------------------------------------------------
    Types
@@ -47,6 +48,7 @@ interface SortConfig {
 interface Dataset {
     name: string;
     pid: string;
+    data: string;
 }
 
 /* ------------------------------------------------------------------
@@ -55,7 +57,6 @@ interface Dataset {
 export default function DataOverview() {
   /* --------------------------- CONFIG --------------------------- */
   const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
-  const DATASET_ID =  "9906d5d2-b72f-429c-a170-adcfe9292c65";
   const { projectUUID } = useProject();
 
   /* --------------------------- STATE --------------------------- */
@@ -82,7 +83,8 @@ export default function DataOverview() {
 
               if (response.ok) {
                   const responseData = await response.json();
-                  const datasets: Dataset[] = responseData.datasets;
+                  const datasets_full: Dataset[] = responseData.datasets;
+                  const datasets = datasets_full.filter((dataset) => dataset.data.length > 0 && !(dataset.name.startsWith('artifact')));
 
                   // Filter evaluations for the selected project
 
@@ -110,11 +112,12 @@ export default function DataOverview() {
 
   /* --------------------------- FETCH --------------------------- */
   const fetchData = React.useCallback(async () => {
+    if (!selectedDatasetPid) return;
     setLoading(true);
     setError(null);
     try {
       const resp = await fetch(
-        `${API_URL}/datasets/${DATASET_ID}/data`
+        `${API_URL}/datasets/${selectedDatasetPid}/data`
       );
 
       if (!resp.ok) {
@@ -158,12 +161,12 @@ export default function DataOverview() {
     } finally {
       setLoading(false);
     }
-  }, [API_URL, DATASET_ID]);
+  }, [API_URL, selectedDatasetPid]);
 
   // Load once on mount
   React.useEffect(() => {
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, selectedDatasetPid]);
 
   /* --------------------------- SORTING --------------------------- */
   const columns = React.useMemo(
@@ -233,7 +236,7 @@ export default function DataOverview() {
           >
             <Stack spacing={0.5}>
               <Typography variant="h4" fontWeight="bold">
-                📊 DataFrame
+                Data Overview
               </Typography>
               <Typography variant="subtitle1" color="text.secondary">
                 Click on column headers to sort
@@ -247,7 +250,7 @@ export default function DataOverview() {
             {/* Selectors Section */}
             <Paper elevation={2} sx={{ p: 3, mb: 3, backgroundColor: 'background.paper' }}>
                 <Typography variant="h6" gutterBottom color="primary">
-                    Select Project and Dataset
+                    Select Dataset
                 </Typography>
 
                 <Grid container spacing={3} alignItems="center">
@@ -267,7 +270,7 @@ export default function DataOverview() {
                                         <Box>
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                                 <Typography variant="body1">
-                                                    Dataset: {dataset.name}
+                                                    {dataset.name}
                                                 </Typography>
                                                 {index === datasets.length - 1 && (
                                                     <Chip label="Latest" size="small" color="primary" />
