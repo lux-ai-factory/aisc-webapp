@@ -3,20 +3,20 @@
 // ---------------------------------------------------------------
 import * as React from "react";
 import {
-  Box,
-  Container,
-  Paper,
-  Stack,
-  Typography,
-  CircularProgress,
-  Alert,
-  AlertTitle,
-  Divider,
+    Box,
+    Container,
+    Paper,
+    Stack,
+    Typography,
+    CircularProgress,
+    Alert,
+    AlertTitle,
+    Divider,
 } from "@mui/material";
 import { FormControl, MenuItem, InputLabel, Select, Chip} from '@mui/material';
 import Grid from '@mui/material/Grid2';
 import {
-  AlertCircle,
+    AlertCircle,
 } from "lucide-react";
 import { API_VERSION_PREFIX } from '../config';
 import { useProject } from '../context/ProjectContext';
@@ -94,110 +94,93 @@ export default function DataOverview() {
 
   /* --------------------------- RENDER --------------------------- */
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "background.default", py: 4 }}>
-      <Container maxWidth="lg">
-        {/* ---------- Header ---------- */}
-        <Stack spacing={2} mb={3}>
-          <Stack
-            direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-          >
-            <Stack spacing={0.5}>
-              <Typography variant="h4" fontWeight="bold">
-                Data Overview
-              </Typography>
-              <Typography variant="subtitle1" color="text.secondary">
-                Overview of 50 rows from the selected dataset
-              </Typography>
-            </Stack>
-          </Stack>
-          <Divider />
-        </Stack>
+    <Box sx={{ width: 1 }}>
+        <Typography component="h2" variant="h4" gutterBottom>
+            Data Overview
+        </Typography>
 
 
-            {/* Selectors Section */}
-            <Paper elevation={2} sx={{ p: 3, mb: 3, backgroundColor: 'background.paper' }}>
-                <Typography variant="h6" gutterBottom color="primary">
-                    Select Dataset
-                </Typography>
+        {/* Selectors Section */}
+        <Paper elevation={2} sx={{ p: 3, mb: 3, backgroundColor: 'background.paper' }}>
+            <Typography variant="h6" gutterBottom color="primary">
+                Select Dataset
+            </Typography>
 
-                <Grid container spacing={3} alignItems="center">
+            <Grid container spacing={3} alignItems="center">
 
 
-                    <Grid size={6}>
-                        <FormControl fullWidth disabled={loading || datasets.length === 0}>
-                            <InputLabel id="dataset-select-label">Dataset</InputLabel>
-                            <Select
-                                labelId="dataset-select-label"
-                                value={selectedDatasetPid}
-                                label="Dataset"
-                                onChange={(e) => setSelectedDatasetPid(e.target.value)}
-                            >
-                                {datasets.map((dataset, index) => (
-                                    <MenuItem key={dataset.name} value={dataset.pid}>
-                                        <Box>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                <Typography variant="body1">
-                                                    {dataset.name}
-                                                </Typography>
-                                                {index === datasets.length - 1 && (
-                                                    <Chip label="Latest" size="small" color="primary" />
-                                                )}
-                                            </Box>
-                                            <Typography variant="caption" color="text.secondary">
-                                                ID: {dataset.pid}
+                <Grid size={6}>
+                    <FormControl fullWidth disabled={loading || datasets.length === 0}>
+                        <InputLabel id="dataset-select-label">Dataset</InputLabel>
+                        <Select
+                            labelId="dataset-select-label"
+                            value={selectedDatasetPid}
+                            label="Dataset"
+                            onChange={(e) => setSelectedDatasetPid(e.target.value)}
+                        >
+                            {datasets.map((dataset, index) => (
+                                <MenuItem key={dataset.name} value={dataset.pid}>
+                                    <Box>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <Typography variant="body1">
+                                                {dataset.name}
                                             </Typography>
+                                            {index === datasets.length - 1 && (
+                                                <Chip label="Latest" size="small" color="primary" />
+                                            )}
                                         </Box>
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-                        {loading && (
-                            <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-                                <CircularProgress size={16} sx={{ mr: 1 }} />
-                                <Typography variant="caption">Loading datasets...</Typography>
-                            </Box>
-                        )}
-                    </Grid>
+                                        <Typography variant="caption" color="text.secondary">
+                                            ID: {dataset.pid}
+                                        </Typography>
+                                    </Box>
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                    {loading && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+                            <CircularProgress size={16} sx={{ mr: 1 }} />
+                            <Typography variant="caption">Loading datasets...</Typography>
+                        </Box>
+                    )}
                 </Grid>
+            </Grid>
 
-                {datasets.length === 0 && projectUUID && !loading && (
-                    <Alert severity="warning" sx={{ mt: 2 }}>
-                        No completed datasets found for this project.
-                    </Alert>
-                )}
-            </Paper>
+            {datasets.length === 0 && projectUUID && !loading && (
+                <Alert severity="warning" sx={{ mt: 2 }}>
+                    No completed datasets found for this project.
+                </Alert>
+            )}
+        </Paper>
         {/* ---------- Loading ---------- */}
         {loading && (
-          <Paper
+        <Paper
             elevation={3}
             sx={{
-              py: 6,
-              textAlign: "center",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
+            py: 6,
+            textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
             }}
-          >
+        >
             <CircularProgress size={48} sx={{ mb: 2 }} />
-            <Typography>Loading your data…</Typography>
-          </Paper>
+            <Typography>Loading data…</Typography>
+        </Paper>
         )}
 
         {/* ---------- Error ---------- */}
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
             <AlertTitle>
-              <AlertCircle size={16} style={{ verticalAlign: "middle" }} />{" "}
-              Error loading data
+            <AlertCircle size={16} style={{ verticalAlign: "middle" }} />{" "}
+                Error loading data
             </AlertTitle>
             {error}
-          </Alert>
+        </Alert>
         )}
 
         <DataFrameTable dataset_pid={selectedDatasetPid} maxRows={50} />
-      </Container>
     </Box>
   );
 }
