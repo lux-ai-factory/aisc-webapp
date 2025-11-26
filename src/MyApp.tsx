@@ -19,6 +19,7 @@ import { useParams } from 'react-router-dom';
 import { useProject } from './context/ProjectContext'; // adjust import as needed
 import { API_VERSION_PREFIX } from './config';
 import DataOverview from './pages/DataOverview';
+import ExplainabilityPage from './pages/ExplainabilityPage';
 
 /** Width of the left drawer in pixels */
 const drawerWidth = 320;
@@ -89,6 +90,9 @@ export default function PermanentDrawerLeft() {
                     <SettingsPage />
                 </ProjectContextWrapper>
             )
+        },
+        {
+            id: 14, name: 'Explainability', path: '/projects/:project_name/explainability', element: (<ProjectContextWrapper><ExplainabilityPage /></ProjectContextWrapper>)
         }
     ];
     return (

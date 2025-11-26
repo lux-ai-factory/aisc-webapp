@@ -10,6 +10,8 @@ import ListItemText from '@mui/material/ListItemText';
 import DatasetIcon from '@mui/icons-material/Dataset';
 import FlagIcon from '@mui/icons-material/Flag';
 import TimelineIcon from '@mui/icons-material/Timeline';
+import TableViewIcon from '@mui/icons-material/TableView';
+import TipsAndUpdatesIcon from '@mui/icons-material/TipsAndUpdates';
 import SecurityIcon from '@mui/icons-material/Security';
 import BalanceIcon from '@mui/icons-material/Balance';
 import AssignmentIcon from '@mui/icons-material/Assignment';
@@ -116,7 +118,7 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
                         title="Data"
                         items={[
                             { text: 'Training Data Analysis', icon: <DatasetIcon />, target: `/projects/${projectName}/training-data` },
-                            { text: 'Data Overview', icon: <RocketLaunchIcon />, target: `/projects/${projectName}/data-overview` },
+                            { text: 'Data Overview', icon: <TableViewIcon />, target: `/projects/${projectName}/data-overview` },
                             { text: 'Data Anomalies', icon: <FlagIcon />, target: `/projects/${projectName}/data-anomalies` },
                             { text: 'Data Drift', icon: <RocketLaunchIcon />, target: `/projects/${projectName}/data-drift` },
                         ]}
@@ -129,6 +131,7 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
                             { text: 'Regression performance', icon: <TimelineIcon />, target: `/projects/${projectName}/regression-accuracy` },
                             { text: 'Robustness', icon: <SecurityIcon />, target: `/projects/${projectName}/model-robustness` },
                             { text: 'Fairness', icon: <BalanceIcon />, target: `/projects/${projectName}/model-fairness` },
+                            { text: 'Explainability', icon: <TipsAndUpdatesIcon />, target: `/projects/${projectName}/explainability` },
                         ]}
                     />
                     <Divider />
