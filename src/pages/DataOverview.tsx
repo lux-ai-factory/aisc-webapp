@@ -4,14 +4,11 @@
 import * as React from "react";
 import {
     Box,
-    Container,
     Paper,
-    Stack,
     Typography,
     CircularProgress,
     Alert,
     AlertTitle,
-    Divider,
 } from "@mui/material";
 import { FormControl, MenuItem, InputLabel, Select, Chip} from '@mui/material';
 import Grid from '@mui/material/Grid2';
@@ -26,13 +23,6 @@ import DataFrameTable from '../components/DataFrameTable';
 /* ------------------------------------------------------------------
    Types
 ------------------------------------------------------------------- */
-type Row = Record<string, unknown>;
-
-interface SortConfig {
-  key: string | null;
-  direction: "asc" | "desc" | null;
-}
-
 interface Dataset {
     name: string;
     pid: string;

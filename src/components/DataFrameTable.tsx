@@ -6,7 +6,6 @@ import {
   Box,
   Container,
   Paper,
-  Stack,
   Typography,
   Table,
   TableBody,
@@ -14,25 +13,18 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  CircularProgress,
   Alert,
   AlertTitle,
-  Divider,
   Tooltip,
   TableSortLabel,
-  IconButton,
 } from "@mui/material";
-import { FormControl, MenuItem, InputLabel, Select, Chip} from '@mui/material';
-import Grid from '@mui/material/Grid2';
 import {
-  RefreshCw,
   AlertCircle,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
 } from "lucide-react";
 import { API_VERSION_PREFIX } from '../config';
-import { useProject } from '../context/ProjectContext';
 
 
 /* ------------------------------------------------------------------
