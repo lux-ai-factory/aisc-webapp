@@ -18,6 +18,7 @@ import React, { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useProject } from './context/ProjectContext'; // adjust import as needed
 import { API_VERSION_PREFIX } from './config';
+import DataOverview from './pages/DataOverview';
 
 /** Width of the left drawer in pixels */
 const drawerWidth = 320;
@@ -70,6 +71,7 @@ export default function PermanentDrawerLeft() {
         { id: 2, name: 'Project', path: '/projects/:project_name', element: <ProjectContextWrapper><ProjectHome /></ProjectContextWrapper> },
         { id: 3, name: 'Start evaluation', path: '/projects/:project_name/start-eval', element: <ProjectContextWrapper><StartEvaluation /></ProjectContextWrapper> },
         { id: 4, name: 'Training Data', path: '/projects/:project_name/training-data', element: <ProjectContextWrapper><Construction title="Training Data" /></ProjectContextWrapper> },
+        { id: 13, name: 'Data Overview', path: '/projects/:project_name/data-overview', element: <ProjectContextWrapper><DataOverview /></ProjectContextWrapper> },
         { id: 5, name: 'Data Anomalies', path: '/projects/:project_name/data-anomalies', element: <ProjectContextWrapper><Construction title="Data Anomalies" /></ProjectContextWrapper> },
         { id: 6, name: 'Data Drift', path: '/projects/:project_name/data-drift', element: <ProjectContextWrapper><DataDrift /></ProjectContextWrapper> },
         {

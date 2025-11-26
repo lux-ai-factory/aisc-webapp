@@ -116,6 +116,7 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
                         title="Data"
                         items={[
                             { text: 'Training Data Analysis', icon: <DatasetIcon />, target: `/projects/${projectName}/training-data` },
+                            { text: 'Data Overview', icon: <RocketLaunchIcon />, target: `/projects/${projectName}/data-overview` },
                             { text: 'Data Anomalies', icon: <FlagIcon />, target: `/projects/${projectName}/data-anomalies` },
                             { text: 'Data Drift', icon: <RocketLaunchIcon />, target: `/projects/${projectName}/data-drift` },
                         ]}
