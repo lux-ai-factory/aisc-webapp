@@ -2,6 +2,10 @@
 //  DataFrameViewer.tsx  (copy‑paste into your src folder)
 // ---------------------------------------------------------------
 import * as React from "react";
+import * as parquet from "parquet-wasm";
+import * as arrow from "apache-arrow";
+import initParquet from "parquet-wasm/esm/parquet_wasm.js";
+import parquetWasmUrl from "parquet-wasm/esm/parquet_wasm_bg.wasm?url";
 import {
   Box,
   Container,
@@ -76,22 +80,12 @@ const DataFrameTable = ({
             }
         
             const arrayBuffer = await resp.arrayBuffer();
-        
-            // ----- Load parquet‑wasm -------------------------------------------------
-            const parquetMod = await import(
-                "https://cdn.jsdelivr.net/npm/parquet-wasm@0.6.0/esm/parquet_wasm.js"
-            );
-            await parquetMod.default(); // initialise WASM runtime
-        
-            // ----- Load Arrow -------------------------------------------------------
-            const { tableFromIPC } = await import(
-                "https://cdn.jsdelivr.net/npm/apache-arrow@14.0.1/+esm"
-            );
-        
+                    
+            await initParquet(parquetWasmUrl);
             // ----- Convert Parquet → Arrow → plain JS -------------------------------
-            const wasmTable = parquetMod.readParquet(new Uint8Array(arrayBuffer));
+            const wasmTable = parquet.readParquet(new Uint8Array(arrayBuffer));
             const ipcBytes = wasmTable.intoIPCStream();
-            const arrowTable = tableFromIPC(ipcBytes);
+            const arrowTable = arrow.tableFromIPC(ipcBytes);
         
             const rows: Row[] = [];
             for (let i = 0; i < Math.min(maxRows, arrowTable.numRows); i++) {
@@ -241,7 +235,7 @@ const DataFrameTable = ({
                         <TableCell
                             key={col}
                             sortDirection={
-                            sortConfig.key === col ? sortConfig.direction : false
+                            sortConfig.key === col && sortConfig.direction ? sortConfig.direction : false
                             }
                         >
                             <TableSortLabel
