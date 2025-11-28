@@ -1,18 +1,18 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { API_VERSION_PREFIX } from "../config";
 
-export default function ConfusionMatrixHeatmap({ evaluationPid }) {
+export default function ConfusionMatrixHeatmap({ evaluationPid }: { evaluationPid: string }) {
   const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
   const [matrix, setMatrix] = useState<number[][] | null>(null);
 
   // ----------------------------
   // Parse backend confusion matrix
   // ----------------------------
-  function parseBackendConfusionMatrix(apiResponse) {
+  function parseBackendConfusionMatrix(apiResponse: any) {
     let maxRow = 0;
     let maxCol = 0;
 
-    const parsedCells = apiResponse.map((item) => {
+    const parsedCells: { row: number; col: number; value: number }[] = apiResponse.map((item: any) => {
       const match = item.description.match(/^\((\d+),(\d+)\)\/\((\d+),(\d+)\)$/);
 
       if (!match) {
