@@ -150,26 +150,6 @@ export default function AnomalyVisualization({ evaluationPid }: { evaluationPid:
             ? rows
             : rows.filter((r) => r.severity === selectedSeverity);
 
-    const renderLabel = ({ name, value, cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-        const RADIAN = Math.PI / 180;
-        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-        const x = cx + radius * Math.cos(-midAngle * RADIAN);
-        const y = cy + radius * Math.sin(-midAngle * RADIAN);
-
-        return (
-            <text
-                x={x}
-                y={y}
-                fill="#000"
-                textAnchor={x > cx ? "start" : "end"}
-                dominantBaseline="central"
-                fontSize="12"
-            >
-                {`${name}: ${(percent * 100).toFixed(1)}%`}
-            </text>
-        );
-    };
-
     return (
         <div>
             <h3>The following charts shows the data anomalies in the data divided into different categories according to their severity levels.</h3>
