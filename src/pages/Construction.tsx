@@ -1,4 +1,4 @@
-import { Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import React from 'react';
 
 /**
@@ -21,9 +21,14 @@ interface ConstructionProps {
  */
 const Construction: React.FC<ConstructionProps> = ({ title }) => {
     return (
-        <Typography component="h2" variant="h4" gutterBottom>
-            {title}
-        </Typography>
+        <Box>
+            <Typography component="h2" variant="h4" gutterBottom>
+                {title}
+            </Typography>
+            <Typography variant="h5" color="text.secondary">
+            🚧 This feature is currently a Work in Progress.
+            </Typography>
+        </Box>
     );
 };
 

@@ -10,6 +10,7 @@ import NotFound from './pages/NotFound';
 import Construction from './pages/Construction';
 import TopBar from './components/TopBar';
 import DataDrift from './pages/DataDrift';
+import DataAnomaly from './pages/DataAnomaly';
 import StartEvaluation from './pages/StartEvaluation';
 import SettingsPage from './pages/Settings';
 import GlobalHome from './pages/GlobalHome';
@@ -73,7 +74,7 @@ export default function PermanentDrawerLeft() {
         { id: 3, name: 'Start evaluation', path: '/projects/:project_name/start-eval', element: <ProjectContextWrapper><StartEvaluation /></ProjectContextWrapper> },
         { id: 4, name: 'Training Data', path: '/projects/:project_name/training-data', element: <ProjectContextWrapper><Construction title="Training Data" /></ProjectContextWrapper> },
         { id: 13, name: 'Data Overview', path: '/projects/:project_name/data-overview', element: <ProjectContextWrapper><DataOverview /></ProjectContextWrapper> },
-        { id: 5, name: 'Data Anomalies', path: '/projects/:project_name/data-anomalies', element: <ProjectContextWrapper><Construction title="Data Anomalies" /></ProjectContextWrapper> },
+        { id: 5, name: 'Data Anomalies', path: '/projects/:project_name/data-anomalies', element: <ProjectContextWrapper><DataAnomaly /></ProjectContextWrapper> },
         { id: 6, name: 'Data Drift', path: '/projects/:project_name/data-drift', element: <ProjectContextWrapper><DataDrift /></ProjectContextWrapper> },
         {
             id: 7, name: 'Model Accuracy', path: '/projects/:project_name/model-accuracy', element: (<ProjectContextWrapper><ModelPerformance /></ProjectContextWrapper>)
