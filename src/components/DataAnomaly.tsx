@@ -8,6 +8,7 @@ export default function AnomalyVisualization({ evaluationPid }: { evaluationPid:
     const [rows, setRows] = useState<
         { severity: string; type: string; feature: string; number: number }[]
     >([]);
+    const [selectedSeverity, setSelectedSeverity] = useState<"severe" | "low" | "pass" | "all">("severe");
 
     function pushRow(arr: any[], { severity, type, feature, number }: any) {
         arr.push({ severity, type, feature, number });
@@ -144,6 +145,31 @@ export default function AnomalyVisualization({ evaluationPid }: { evaluationPid:
 
     const totalTests = severityCounts.severe + severityCounts.low + severityCounts.pass;
 
+    const filteredRows =
+        selectedSeverity === "all"
+            ? rows
+            : rows.filter((r) => r.severity === selectedSeverity);
+
+    const renderLabel = ({ name, value, cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+        const RADIAN = Math.PI / 180;
+        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+        return (
+            <text
+                x={x}
+                y={y}
+                fill="#000"
+                textAnchor={x > cx ? "start" : "end"}
+                dominantBaseline="central"
+                fontSize="12"
+            >
+                {`${name}: ${(percent * 100).toFixed(1)}%`}
+            </text>
+        );
+    };
+
     return (
         <div>
             <h3>The following charts shows the data anomalies in the data divided into different categories according to their severity levels.</h3>
@@ -160,25 +186,32 @@ export default function AnomalyVisualization({ evaluationPid }: { evaluationPid:
                             innerRadius={70}
                             outerRadius={100}
                             paddingAngle={2}
+                            isAnimationActive={false} 
                             label={({ name, value }) =>
                                 `${name}: ${((value / totalTests) * 100).toFixed(1)}%`
                             }
                             labelLine={false}
+                            onClick={(data) => {
+                                const clicked = data.name.toLowerCase(); // "severe" | "low" | "pass"
+                                setSelectedSeverity(clicked);
+                            }}
+                            cursor="pointer"
                         >
                             {chartData.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={entry.color} />
                             ))}
                         </Pie>
 
-                        {/* Center total number */}
+                        {/* Click center to show ALL */}
                         <text
                             x="50%"
                             y="50%"
                             textAnchor="middle"
                             dominantBaseline="middle"
-                            style={{ fontSize: "22px", fontWeight: "bold" }}
+                            style={{ fontSize: "22px", fontWeight: "bold", cursor: "pointer" }}
+                            onClick={() => setSelectedSeverity("all")}
                         >
-                            {totalTests} Tests run
+                            {totalTests}
                         </text>
                     </PieChart>
                 </ResponsiveContainer>
@@ -194,7 +227,7 @@ export default function AnomalyVisualization({ evaluationPid }: { evaluationPid:
                     </tr>
                 </thead>
                 <tbody>
-                    {rows.map((row, idx) => (
+                    {filteredRows.map((row, idx) => (
                         <tr key={idx}>
                             <td style={{ border: "1px solid #ccc", padding: "6px" }}>{row.severity}</td>
                             <td style={{ border: "1px solid #ccc", padding: "6px" }}>{row.type}</td>
