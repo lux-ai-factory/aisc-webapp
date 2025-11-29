@@ -98,7 +98,7 @@ export default function CounterFactualPage() {
                 const response = await fetch(`${API_URL}/projects/${projectUUID}`);
 
                 if (response.ok) {
-                    const prefix = `artifact/${selectedEvaluationPid}/`;
+                    const prefix = `artifact/${selectedEvaluationPid}/counter_factual`;
                     const responseData = await response.json();
                     const datasets_full: Dataset[] = responseData.datasets;
                     const datasets = datasets_full
@@ -177,36 +177,6 @@ export default function CounterFactualPage() {
                     </FormControl>
                 </Grid>
 
-                <Grid size={{ xs: 12, md: 6 }}>
-                    {/* Dataset Selector */}
-                    <FormControl fullWidth disabled={loading || datasets.length === 0}>
-                        <InputLabel id="dataset-select-label">Dataset</InputLabel>
-                        <Select
-                            labelId="dataset-select-label"
-                            value={selectedDatasetPid}
-                            label="Dataset"
-                            onChange={(e) => setSelectedDatasetPid(e.target.value)}
-                        >
-                            {datasets.map((dataset, index) => (
-                                <MenuItem key={dataset.pid} value={dataset.pid}>
-                                    <Box>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            <Typography variant="body1">
-                                                {dataset.name}
-                                            </Typography>
-                                            {index === datasets.length - 1 && (
-                                                <Chip label="Latest" size="small" color="primary" />
-                                            )}
-                                        </Box>
-                                        <Typography variant="caption" color="text.secondary">
-                                            ID: {dataset.pid}
-                                        </Typography>
-                                    </Box>
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                </Grid>
             </Grid>
 
             {evaluations.length === 0 && projectUUID && !loading && (
@@ -257,6 +227,8 @@ export default function CounterFactualPage() {
         <CounterFactualDistances evaluationPid={selectedEvaluationPid} metric="euclidean" numBins={20}/>
         {/* Hard code space... */}
         <div style={{ height: "40px" }} />
+
+        <h3> Counter Factual examples </h3>
         <DataFrameTable dataset_pid={selectedDatasetPid} maxRows={50} />    
     </Box>
   );
