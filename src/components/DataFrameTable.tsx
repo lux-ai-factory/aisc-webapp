@@ -176,7 +176,7 @@ const DataFrameTable = ({
         <Box sx={{ minHeight: "100vh", bgcolor: "background.default", py: 4 }}>
         <Container maxWidth="lg">
             {/* ---------- Loading ---------- */}
-            {loading && (
+            {!error && loading && (
             <Alert severity="info" sx={{ mb: 2 }}>
                 <AlertTitle>Loading data...</AlertTitle>
                 Please wait while fetching the dataset.

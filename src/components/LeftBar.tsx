@@ -8,10 +8,10 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import DatasetIcon from '@mui/icons-material/Dataset';
+import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
 import FlagIcon from '@mui/icons-material/Flag';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import TableViewIcon from '@mui/icons-material/TableView';
-import TipsAndUpdatesIcon from '@mui/icons-material/TipsAndUpdates';
 import SecurityIcon from '@mui/icons-material/Security';
 import BalanceIcon from '@mui/icons-material/Balance';
 import AssignmentIcon from '@mui/icons-material/Assignment';
@@ -131,7 +131,7 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
                             { text: 'Regression performance', icon: <TimelineIcon />, target: `/projects/${projectName}/regression-accuracy` },
                             { text: 'Robustness', icon: <SecurityIcon />, target: `/projects/${projectName}/model-robustness` },
                             { text: 'Fairness', icon: <BalanceIcon />, target: `/projects/${projectName}/model-fairness` },
-                            { text: 'Explainability', icon: <TipsAndUpdatesIcon />, target: `/projects/${projectName}/explainability` },
+                            { text: 'Counter Factual', icon: <CompareArrowsIcon />, target: `/projects/${projectName}/counterfactual` },
                         ]}
                     />
                     <Divider />

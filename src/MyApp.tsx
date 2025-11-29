@@ -20,7 +20,7 @@ import { useParams } from 'react-router-dom';
 import { useProject } from './context/ProjectContext'; // adjust import as needed
 import { API_VERSION_PREFIX } from './config';
 import DataOverview from './pages/DataOverview';
-import ExplainabilityPage from './pages/ExplainabilityPage';
+import CounterFactualPage from './pages/CounterFactual';
 
 /** Width of the left drawer in pixels */
 const drawerWidth = 320;
@@ -93,7 +93,7 @@ export default function PermanentDrawerLeft() {
             )
         },
         {
-            id: 14, name: 'Explainability', path: '/projects/:project_name/explainability', element: (<ProjectContextWrapper><ExplainabilityPage /></ProjectContextWrapper>)
+            id: 14, name: 'Counter Factual', path: '/projects/:project_name/counterfactual', element: (<ProjectContextWrapper><CounterFactualPage /></ProjectContextWrapper>)
         }
     ];
     return (
