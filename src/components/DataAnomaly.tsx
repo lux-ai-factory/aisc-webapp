@@ -176,15 +176,15 @@ export default function AnomalyVisualization({ evaluationPid }: { evaluationPid:
 
             {rows.length === 0 && <div>Loading...</div>}
 
-            <div style={{ width: "350px", height: "300px", margin: "0 auto" }}>
+            <div style={{ width: "550px", height: "350px", margin: "0 auto" }}>
                 <ResponsiveContainer>
                     <PieChart>
                         <Pie
                             data={chartData}
                             dataKey="value"
                             nameKey="name"
-                            innerRadius={70}
-                            outerRadius={100}
+                            innerRadius={90}
+                            outerRadius={140}
                             paddingAngle={2}
                             isAnimationActive={false} 
                             label={({ name, value }) =>
@@ -211,7 +211,7 @@ export default function AnomalyVisualization({ evaluationPid }: { evaluationPid:
                             style={{ fontSize: "22px", fontWeight: "bold", cursor: "pointer" }}
                             onClick={() => setSelectedSeverity("all")}
                         >
-                            {totalTests}
+                            {totalTests} Tests run
                         </text>
                     </PieChart>
                 </ResponsiveContainer>
