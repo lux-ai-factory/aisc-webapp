@@ -21,6 +21,7 @@ import { useProject } from './context/ProjectContext'; // adjust import as neede
 import { API_VERSION_PREFIX } from './config';
 import DataOverview from './pages/DataOverview';
 import CounterFactualPage from './pages/CounterFactual';
+import ModelFairness from './pages/ModelFairness';
 
 /** Width of the left drawer in pixels */
 const drawerWidth = 320;
@@ -83,7 +84,7 @@ export default function PermanentDrawerLeft() {
             id: 12, name: 'Regression Accuracy', path: '/projects/:project_name/regression-accuracy', element: (<ProjectContextWrapper><RegressionPerformance /></ProjectContextWrapper>)
         },
         { id: 8, name: 'Model Robustness', path: '/projects/:project_name/model-robustness', element: <ProjectContextWrapper><Construction title="Model Robustness" /></ProjectContextWrapper> },
-        { id: 9, name: 'Model Fairness', path: '/projects/:project_name/model-fairness', element: <ProjectContextWrapper><Construction title="Model Fairness" /></ProjectContextWrapper> },
+        { id: 9, name: 'Model Fairness', path: '/projects/:project_name/model-fairness', element: <ProjectContextWrapper><ModelFairness /></ProjectContextWrapper> },
         { id: 10, name: 'Report', path: '/projects/:project_name/report', element: <ProjectContextWrapper><Construction title="Report" /></ProjectContextWrapper> },
         {
             id: 11, name: 'Settings', path: '/projects/:project_name/settings', element: (
