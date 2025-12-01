@@ -58,6 +58,7 @@ const StartEvaluation: React.FC = () => {
         const projectDetail = await apiCall(`${API_URL}/projects/${projectPid}`);
         console.log(projectDetail)
         if (projectDetail) {
+            projectDetail.datasets = projectDetail.datasets.filter((dataset: { name: string; }) => !(dataset.name.startsWith('artifact')));
             setModels(projectDetail.models || []);
             setDatasets(projectDetail.datasets || []);
         }
