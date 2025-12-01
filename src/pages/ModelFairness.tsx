@@ -154,7 +154,7 @@ export default function ModelFairness() {
                 <Grid container spacing={2}>
                     <Grid size={12}>
                         <FairnessTimeline
-                            cardTitle="Fairness Over Time"
+                            cardTitle="Fairness (Accuracy) Over Time"
                             metricNames={["Fairness_Accuracy"]}
                             evaluationPid={selectedEvaluationPid}
                         />
