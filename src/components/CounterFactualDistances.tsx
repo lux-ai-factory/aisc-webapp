@@ -58,7 +58,7 @@ export default function AnomalyVisualization({ evaluationPid, metric, numBins }:
 
     return (
         <div style={{ width: "100%", height: 500 }}>
-            <h3>{metric} histogram</h3>
+            <h3>Manhattan Histogram</h3>
             <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={histData}>
                     <CartesianGrid strokeDasharray="3 3" />
