@@ -17,6 +17,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import GradingIcon from '@mui/icons-material/Grading';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
+import ExtensionIcon from '@mui/icons-material/Extension';
 import { Box } from '@mui/material';
 import { Link, useLocation } from 'react-router-dom';
 import { useProject } from '../context/ProjectContext';
@@ -135,6 +136,12 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
                         items={[
                             { text: 'Report Generation', icon: <AssignmentIcon />, target: `/projects/${projectName}/report` },
                             { text: 'Settings & Alerts', icon: <SettingsIcon />, target: `/projects/${projectName}/settings` },
+                        ]}
+                    />
+                    <MenuList
+                        title="Plugin Management"
+                        items={[
+                            { text: 'Plugins', icon: <ExtensionIcon />, target: `/projects/${projectName}/plugins` },
                         ]}
                     />
 

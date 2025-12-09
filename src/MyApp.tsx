@@ -17,6 +17,8 @@ import React, { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useProject } from './context/ProjectContext'; // adjust import as needed
 import { API_VERSION_PREFIX } from './config';
+import Plugins from "./pages/Plugins.tsx";
+import PluginConfig from "./pages/PluginsConfig.tsx";
 
 /** Width of the left drawer in pixels */
 const drawerWidth = 320;
@@ -83,7 +85,9 @@ export default function PermanentDrawerLeft() {
                     <SettingsPage />
                 </ProjectContextWrapper>
             )
-        }
+        },
+        { id: 12, name: 'Plugins', path: '/projects/:project_name/plugins', element: <ProjectContextWrapper><Plugins /></ProjectContextWrapper> },
+        { id: 13, name: 'PluginConfig', path: '/projects/:project_name/plugins/:plugin_name/config', element: <ProjectContextWrapper><PluginConfig /></ProjectContextWrapper> }
     ];
     return (
         <Box sx={{ display: 'flex', flexDirection: 'row' }}>
