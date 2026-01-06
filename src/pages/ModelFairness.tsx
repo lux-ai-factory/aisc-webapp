@@ -1,8 +1,7 @@
 import { Alert, Box, Chip, CircularProgress, FormControl, InputLabel, MenuItem, Paper, Select, Stack, Typography } from '@mui/material';
 import { Chart as ChartJS, registerables } from 'chart.js';
 import zoomPlugin from 'chartjs-plugin-zoom';
-import MetricTimeline from '../components/MetricTimeline';
-import ConfusionMatrix from "../components/ConfusionMatrix";
+import FairnessTimeline from '../components/FairnessTimeline';
 import Grid from '@mui/material/Grid2';
 import { useProject } from '../context/ProjectContext';
 import { useEffect, useState } from 'react';
@@ -16,21 +15,14 @@ interface Evaluation {
 }
 
 /**
- * ModelPerformance page component
- * Displays model performance metrics over time
- * Shows a timeline of various classification metrics:
- * - ROC AUC
- * - Matthews Correlation Coefficient (MCC)
- * - F1 Score
- * - Accuracy
- * - Precision
- * - Recall
+ * ModelFairness page component
+ * Displays model fairness metrics over time
  *
  * All metrics are plotted on the same timeline for easy comparison
  *
- * @returns {JSX.Element} The model performance analysis page with metric timeline
+ * @returns {JSX.Element} The model fairness analysis page with metric timeline
  */
-export default function ModelPerformance() {
+export default function ModelFairness() {
 
     const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
     const [selectedEvaluationPid, setSelectedEvaluationPid] = useState<string>('');
@@ -161,20 +153,14 @@ export default function ModelPerformance() {
             {projectUUID && selectedEvaluationPid && (
                 <Grid container spacing={2}>
                     <Grid size={12}>
-                        <MetricTimeline
-                            cardTitle='Model performance over time'
-                            metricNames={["ROCAUC", "MCC", "F1", "Accuracy", "Balanced Accuracy", "Precision", "Recall"]}
-                            projectPid={projectUUID}
+                        <FairnessTimeline
+                            cardTitle="Fairness (Accuracy) Over Time"
+                            metricNames={["Fairness_Accuracy"]}
                             evaluationPid={selectedEvaluationPid}
-                            group_by_feature={false}
-                            sort_by_value={true}
                         />
                     </Grid>
                 </Grid>
             )}
-        </Box>
-        <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
-            <ConfusionMatrix evaluationPid={selectedEvaluationPid} />
         </Box>
         </Stack>
     );

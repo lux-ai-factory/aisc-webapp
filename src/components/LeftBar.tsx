@@ -8,8 +8,10 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import DatasetIcon from '@mui/icons-material/Dataset';
+import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
 import FlagIcon from '@mui/icons-material/Flag';
 import TimelineIcon from '@mui/icons-material/Timeline';
+import TableViewIcon from '@mui/icons-material/TableView';
 import SecurityIcon from '@mui/icons-material/Security';
 import BalanceIcon from '@mui/icons-material/Balance';
 import AssignmentIcon from '@mui/icons-material/Assignment';
@@ -116,6 +118,7 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
                         title="Data"
                         items={[
                             { text: 'Training Data Analysis', icon: <DatasetIcon />, target: `/projects/${projectName}/training-data` },
+                            { text: 'Data Overview', icon: <TableViewIcon />, target: `/projects/${projectName}/data-overview` },
                             { text: 'Data Anomalies', icon: <FlagIcon />, target: `/projects/${projectName}/data-anomalies` },
                             { text: 'Data Drift', icon: <RocketLaunchIcon />, target: `/projects/${projectName}/data-drift` },
                         ]}
@@ -125,8 +128,10 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
                         title="Model Evaluation"
                         items={[
                             { text: 'Accuracy and Correctness', icon: <TimelineIcon />, target: `/projects/${projectName}/model-accuracy` },
+                            { text: 'Regression performance', icon: <TimelineIcon />, target: `/projects/${projectName}/regression-accuracy` },
                             { text: 'Robustness', icon: <SecurityIcon />, target: `/projects/${projectName}/model-robustness` },
                             { text: 'Fairness', icon: <BalanceIcon />, target: `/projects/${projectName}/model-fairness` },
+                            { text: 'Counter Factual', icon: <CompareArrowsIcon />, target: `/projects/${projectName}/counterfactual` },
                         ]}
                     />
                     <Divider />

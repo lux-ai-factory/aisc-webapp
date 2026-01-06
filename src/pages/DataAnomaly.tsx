@@ -1,43 +1,45 @@
-import { Alert, Box, Chip, CircularProgress, FormControl, InputLabel, MenuItem, Paper, Select, Stack, Typography } from '@mui/material';
+import {
+    Box,
+    Typography,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    Paper,
+    Alert,
+    CircularProgress,
+    Chip
+} from '@mui/material';
 import { Chart as ChartJS, registerables } from 'chart.js';
 import zoomPlugin from 'chartjs-plugin-zoom';
-import MetricTimeline from '../components/MetricTimeline';
-import ConfusionMatrix from "../components/ConfusionMatrix";
 import Grid from '@mui/material/Grid2';
-import { useProject } from '../context/ProjectContext';
-import { useEffect, useState } from 'react';
+import AnomalyVisualization from '../components/DataAnomaly';
+import { useState, useEffect } from 'react';
 import { API_VERSION_PREFIX } from '../config';
 
 // Register Chart.js plugins
 ChartJS.register(...registerables, zoomPlugin);
 
+
+import { useProject } from '../context/ProjectContext';
+
+/**
+ * Interface for evaluation data from API
+ */
 interface Evaluation {
     pid: string;
 }
 
 /**
- * ModelPerformance page component
- * Displays model performance metrics over time
- * Shows a timeline of various classification metrics:
- * - ROC AUC
- * - Matthews Correlation Coefficient (MCC)
- * - F1 Score
- * - Accuracy
- * - Precision
- * - Recall
- *
- * All metrics are plotted on the same timeline for easy comparison
- *
- * @returns {JSX.Element} The model performance analysis page with metric timeline
+ * TODO
  */
-export default function ModelPerformance() {
-
+export default function DataAnomaly() {
     const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
     const [selectedEvaluationPid, setSelectedEvaluationPid] = useState<string>('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
+    const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX ;
 
     const { projectUUID } = useProject();
 
@@ -54,7 +56,7 @@ export default function ModelPerformance() {
                     const evaluations: Evaluation[] = await response.json();
                     // Filter evaluations for the selected project
 
-                    // Select the most recent evaluation by default (last in the list)
+                        // Select the most recent evaluation by default (last in the list)
                     setEvaluations(evaluations)
                     if (evaluations.length > 0) {
                         setSelectedEvaluationPid(evaluations[evaluations.length - 1].pid);
@@ -98,10 +100,9 @@ export default function ModelPerformance() {
 
 
     return (
-        <Stack spacing={4} sx={{ p: 3 }}>
         <Box sx={{ width: 1 }}>
             <Typography component="h2" variant="h4" gutterBottom>
-                Accuracy and correctness
+                Data Anomalies
             </Typography>
 
             {/* Selectors Section */}
@@ -113,7 +114,7 @@ export default function ModelPerformance() {
                 <Grid container spacing={3} alignItems="center">
 
 
-                    <Grid size={6}>
+                <Grid size={6}>
                         <FormControl fullWidth disabled={loading || evaluations.length === 0}>
                             <InputLabel id="evaluation-select-label">Evaluation</InputLabel>
                             <Select
@@ -157,25 +158,18 @@ export default function ModelPerformance() {
                 )}
             </Paper>
 
-            {/* Metrics Visualization */}
-            {projectUUID && selectedEvaluationPid && (
-                <Grid container spacing={2}>
-                    <Grid size={12}>
-                        <MetricTimeline
-                            cardTitle='Model performance over time'
-                            metricNames={["ROCAUC", "MCC", "F1", "Accuracy", "Balanced Accuracy", "Precision", "Recall"]}
-                            projectPid={projectUUID}
-                            evaluationPid={selectedEvaluationPid}
-                            group_by_feature={false}
-                            sort_by_value={true}
-                        />
-                    </Grid>
+
+            {/* Visualization Section */}
+            <Grid container spacing={2} sx={{ mb: 4 }}>
+                <Grid size={12}>
+                    {selectedEvaluationPid ? (
+                        <AnomalyVisualization evaluationPid={selectedEvaluationPid} />
+                    ) : (
+                        <Alert severity="info">Please select an evaluation to view data anomalies.</Alert>
+                    )}
                 </Grid>
-            )}
+            </Grid>
+           
         </Box>
-        <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
-            <ConfusionMatrix evaluationPid={selectedEvaluationPid} />
-        </Box>
-        </Stack>
     );
 }

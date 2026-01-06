@@ -87,6 +87,8 @@ const ImportButton = ({ onImportFeatures }: ImportButtonProps) => {
           throw new Error('Failed to fetch datasets');
         }
         const data = await response.json();
+        data.datasets = data.datasets.filter((dataset: { name: string; }) => !(dataset.name.startsWith('artifact')));
+
         setDatasets(data.datasets);
       } catch (err) {
         setDatasets([]);

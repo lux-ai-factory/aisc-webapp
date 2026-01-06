@@ -1,8 +1,7 @@
-import { Alert, Box, Chip, CircularProgress, FormControl, InputLabel, MenuItem, Paper, Select, Stack, Typography } from '@mui/material';
+import { Alert, Box, Chip, CircularProgress, FormControl, InputLabel, MenuItem, Paper, Select, Typography } from '@mui/material';
 import { Chart as ChartJS, registerables } from 'chart.js';
 import zoomPlugin from 'chartjs-plugin-zoom';
 import MetricTimeline from '../components/MetricTimeline';
-import ConfusionMatrix from "../components/ConfusionMatrix";
 import Grid from '@mui/material/Grid2';
 import { useProject } from '../context/ProjectContext';
 import { useEffect, useState } from 'react';
@@ -15,8 +14,9 @@ interface Evaluation {
     pid: string;
 }
 
+
 /**
- * ModelPerformance page component
+ * RegressionPerformance page component
  * Displays model performance metrics over time
  * Shows a timeline of various classification metrics:
  * - ROC AUC
@@ -30,7 +30,7 @@ interface Evaluation {
  *
  * @returns {JSX.Element} The model performance analysis page with metric timeline
  */
-export default function ModelPerformance() {
+export default function RegressionPerformance() {
 
     const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
     const [selectedEvaluationPid, setSelectedEvaluationPid] = useState<string>('');
@@ -98,10 +98,9 @@ export default function ModelPerformance() {
 
 
     return (
-        <Stack spacing={4} sx={{ p: 3 }}>
         <Box sx={{ width: 1 }}>
             <Typography component="h2" variant="h4" gutterBottom>
-                Accuracy and correctness
+                Regression performance
             </Typography>
 
             {/* Selectors Section */}
@@ -163,7 +162,7 @@ export default function ModelPerformance() {
                     <Grid size={12}>
                         <MetricTimeline
                             cardTitle='Model performance over time'
-                            metricNames={["ROCAUC", "MCC", "F1", "Accuracy", "Balanced Accuracy", "Precision", "Recall"]}
+                            metricNames={["MSE", "MAE"]}
                             projectPid={projectUUID}
                             evaluationPid={selectedEvaluationPid}
                             group_by_feature={false}
@@ -173,9 +172,5 @@ export default function ModelPerformance() {
                 </Grid>
             )}
         </Box>
-        <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
-            <ConfusionMatrix evaluationPid={selectedEvaluationPid} />
-        </Box>
-        </Stack>
     );
 }
