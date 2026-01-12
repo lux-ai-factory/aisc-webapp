@@ -87,6 +87,7 @@ function PluginStartEvaluation() {
     const handleChange = (e: any) => {
         const {value, checked} = e.target;
         if (checked) {
+            // @ts-ignore
             setCheckedItems([...checkedItems, value]);
         } else {
             setCheckedItems(checkedItems.filter((item) => item !== value));
@@ -126,8 +127,8 @@ function PluginStartEvaluation() {
             {project?.plugins.map((projectPlugin: Plugin) => (
                 <>
                     <label style={{display: "block"}}>
-                        <input type="checkbox" value={projectPlugin.name} onChange={handleChange}
-                               checked={checkedItems.includes(projectPlugin.name)}/>
+                        {/* @ts-ignore */}
+                        <input type="checkbox" value={projectPlugin.name} onChange={handleChange} checked={checkedItems.includes(projectPlugin.name)}/>
                         {projectPlugin.name}
                     </label>
                     <select name="Dataset" onChange={(e) => {

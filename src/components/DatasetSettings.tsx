@@ -80,9 +80,10 @@ const UploadDataset = ({dataset, onUploadSuccess}: UploadDatasetProps) => {
         const file = event.target.files?.[0];
         if (!file) return;
 
+
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('csvToParquet', isCsvToParquet)
+        formData.append('csvToParquet', `${isCsvToParquet}`)
 
         const xhr = new XMLHttpRequest();
         xhr.open("PUT", `${API_URL}/datasets/${dataset.pid}/data`, true);

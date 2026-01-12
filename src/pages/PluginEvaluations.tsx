@@ -32,6 +32,7 @@ function PluginEvaluations() {
                 <li>
                     <Link to={`${evaluation["pid"]}`}>{evaluation["pid"]}</Link>
                     [{evaluation["status"]}]
+                    {/* @ts-ignore */}
                     ({evaluation["evaluation_plugins"].map(plugin => plugin.name).join(',')})
                 </li>
             ))}

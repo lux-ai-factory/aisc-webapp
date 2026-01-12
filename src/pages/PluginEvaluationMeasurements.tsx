@@ -42,6 +42,7 @@ function PluginEvaluationMeasurements() {
     if (error) return <span>Oops!</span>
 
     let measurements: any[];
+    // @ts-ignore
     measurements = measurementQueries.map((q) => q.data)[0];
 
     return (

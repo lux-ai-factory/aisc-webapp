@@ -439,6 +439,7 @@ const MetricTimeline = ({
                 cornerRadius: 8,
                 callbacks: {
                     title: (context) => {
+                        // @ts-ignore
                         const date = new Date(context[0].parsed.x);
                         return date.toLocaleDateString('en-GB', {
                             year: 'numeric',

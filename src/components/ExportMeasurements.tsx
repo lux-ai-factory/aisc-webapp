@@ -1,13 +1,18 @@
-const ExportMeasurements = ({ data: data, filename: filename}) => {
+interface ExportMeasurementsProps {
+    data: any[];
+    filename: string;
+}
+
+const ExportMeasurements = (props: ExportMeasurementsProps) => {
 
     const handleExport = () => {
-        if (!data || data.length === 0) return;
+        if (!props.data || props.data.length === 0) return;
 
-        const headers = Object.keys(data[0]);
+        const headers = Object.keys(props.data[0]);
 
         const csvContent = [
             headers.join(','),
-            ...data.map((row: any) =>
+            ...props.data.map((row: any) =>
                 headers.map(header => row[header]).join(',')
             )
         ].join('\n');
@@ -17,7 +22,7 @@ const ExportMeasurements = ({ data: data, filename: filename}) => {
 
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `${filename}.csv`);
+        link.setAttribute("download", `${props.filename}.csv`);
 
         document.body.appendChild(link);
         link.click();
