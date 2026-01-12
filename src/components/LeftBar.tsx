@@ -21,6 +21,10 @@ import ExtensionIcon from '@mui/icons-material/Extension';
 import { Box } from '@mui/material';
 import { Link, useLocation } from 'react-router-dom';
 import { useProject } from '../context/ProjectContext';
+import {useQuery} from "@tanstack/react-query";
+import {API_VERSION_PREFIX} from "../config.tsx";
+
+const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
 /**
  * Props interface for the MenuList component
@@ -75,6 +79,24 @@ interface LeftBarProps {
     drawerWidth: number;
 }
 
+interface Project {
+    pid: string;
+    name: string;
+    plugins: Plugin[];
+}
+
+interface Plugin {
+    pid: string;
+    name: string;
+    config: object
+}
+
+const getProject = async (project_uuid: string) => {
+    if (!project_uuid) throw new Error('Invalid uuid');
+    const res = await fetch(`${API_URL}/projects/${project_uuid}`);
+    return await res.json() as Project;
+};
+
 /**
  * LeftBar component
  * Main navigation drawer component for the application
@@ -92,6 +114,26 @@ interface LeftBarProps {
 export default function LeftBar({ drawerWidth }: LeftBarProps) {
 
     const { projectName } = useProject()
+
+    const {projectUUID} = useProject();
+
+    const {data: project} = useQuery({
+        queryKey: ['project', projectUUID],
+        queryFn: () => getProject(projectUUID ?? "")
+    })
+
+    let pluginMenuHeader = { text: 'Plugins', icon: <ExtensionIcon />, target: `/projects/${projectName}/plugins` }
+
+    let pluginsMenuItems = project?.plugins.map((plugin: Plugin) => {
+        return {text: plugin.name, icon: <ExtensionIcon />, target: `/projects/${projectName}/plugins/${plugin.name}`}
+    }) ?? []
+
+    let pluginMenuFooter = [
+        { text: 'Start Evaluations', icon: <ExtensionIcon />, target: `/projects/${projectName}/plugins/evaluation` },
+        { text: 'Evaluations', icon: <ExtensionIcon />, target: `/projects/${projectName}/plugins/evaluations` }
+    ]
+
+    let pluginsMenu = [pluginMenuHeader].concat(pluginsMenuItems).concat(pluginMenuFooter)
 
     return (
         <Drawer
@@ -140,9 +182,7 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
                     />
                     <MenuList
                         title="Plugin Management"
-                        items={[
-                            { text: 'Plugins', icon: <ExtensionIcon />, target: `/projects/${projectName}/plugins` },
-                        ]}
+                        items={pluginsMenu}
                     />
 
                 </Box>

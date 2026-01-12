@@ -1,8 +1,7 @@
-import {useQuery} from '@tanstack/react-query'
+import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {useProject} from '../context/ProjectContext';
-import {Link} from 'react-router-dom';
-import {useState} from "react";
+import {Button} from "@mui/material";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -13,105 +12,100 @@ interface Project {
 }
 
 interface Plugin {
+    pid: string;
     name: string;
     config: object
 }
 
-const getRunPlugins = async (uuid: string) => {
-    if (!uuid) throw new Error('Invalid uuid');
-
-    const response = await fetch(`${API_URL}/app/plugins/${uuid}/run`);
-    console.log(response);
-    if (!response.ok) {
-        throw new Error('Failed to submit form');
-    }
-    return await response.json();
-};
-
-const getTaskStatus = async (uuid: string) => {
-    const response = await fetch(`${API_URL}/app/plugins/${uuid}/status`);
-    console.log(response);
-    const data = await response.json();
-    console.log(data);
-    return data;
-}
-
 const getPlugins = async () => {
-    const res = await fetch(`${API_URL}/app/plugins`);
-    if (!res.ok) throw new Error('Network response was not ok');
+    const res = await fetch(`${API_URL}/plugins`);
     return await res.json();
 };
 
-const getProject = async (uuid: string) => {
-    if (!uuid) throw new Error('Invalid uuid');
-    const res = await fetch(`${API_URL}/projects/${uuid}`);
-    if (!res.ok) throw new Error('Network response was not ok');
+const getProject = async (project_uuid: string) => {
+    if (!project_uuid) throw new Error('Invalid uuid');
+    const res = await fetch(`${API_URL}/projects/${project_uuid}`);
     return await res.json() as Project;
+};
+
+const createProjectPlugin = async (uuid: string, plugin_name: string) => {
+    if (!uuid) throw new Error('Invalid uuid');
+    if (!plugin_name) throw new Error('Invalid plugin name')
+
+    const data = {
+        name: plugin_name,
+        project_uuid: uuid,
+        config: null
+    }
+    const res = await fetch(`${API_URL}/plugins`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+    });
+    return await res.json() as Plugin;
+};
+
+const deleteProjectPlugin = async (plugin_uuid: string) => {
+    if (!plugin_uuid) throw new Error('Invalid uuid');
+    await fetch(`${API_URL}/plugins/${plugin_uuid}`, {
+        method: 'DELETE'
+    });
 };
 
 
 function Plugins() {
-    const [taskId, setTaskId] = useState<string>("");
-    const [status, setStatus] = useState<string>("");
+    const queryClient = useQueryClient();
+    const {projectUUID} = useProject();
 
     const {data: plugins, isPending, error} = useQuery({
         queryKey: ['plugins'],
         queryFn: getPlugins,
     })
 
-    const {projectUUID} = useProject();
-
     const {data: project} = useQuery({
-        queryKey: ['project', projectUUID],
+        queryKey: ['project'],
         queryFn: () => getProject(projectUUID ?? "")
     })
 
     if (isPending) return <span>Loading...</span>
     if (error) return <span>Oops!</span>
 
+    let projectPlugins = plugins.map((plugin: string) => {
+        let projectPlugin: Plugin | undefined =
+            project?.plugins.find((projectPlugin: any) => projectPlugin.name === plugin)
+        return {
+            'pluginName': plugin,
+            'projectPluginPid': projectPlugin?.pid
+        }
+    })
+
+    const handleDisable = async (pid: string) => {
+        await deleteProjectPlugin(pid)
+        await queryClient.invalidateQueries({queryKey: ['project']});
+    }
+
+    const handleEnabled = async (pid: string, plugin_name: string) => {
+        await createProjectPlugin(pid, plugin_name)
+        await queryClient.invalidateQueries({queryKey: ['project']});
+    }
+
     return (
         <div>
-            <h2>Enabled plugins for project: {project?.name}</h2>
-            <ul>
-                {project?.plugins.map((plugin: Plugin) => (
-                    <li>
-                        {plugin.name}:
-                        <Link to={`${plugin.name}/config`}>
-                            edit
-                        </Link>
-                    </li>
-                ))}
-            </ul>
             <h2>Available plugins</h2>
             <ul>
-                {plugins.map((plugin: string) => (
+                {projectPlugins.map((projectPlugin: any) => (
                     <li>
-                        {plugin}:
-                        <Link to={`${plugin}/config`}>
-                            add
-                        </Link>
+                        {projectPlugin.pluginName}:
+                        {projectPlugin.projectPluginPid ? (
+                            <Button onClick={() => handleDisable(projectPlugin.projectPluginPid)} >Disable</Button>
+                        ) : (
+                            <Button onClick={() => handleEnabled(projectUUID ?? "", projectPlugin.pluginName)} >Enable</Button>
+                        )}
                     </li>
                 ))}
             </ul>
-            <button onClick={() => {
-                getRunPlugins(projectUUID ?? "")
-                    .then((data) => setTaskId(data))
-            }}>
-                Run Plugins
-            </button>
-            {taskId && (
-                <div>
-                    <p>task id: {taskId}</p>
-                    <button onClick={() => {
-                        getTaskStatus(taskId)
-                        .then((data) => setStatus(data))
-                    }}>
-                        Get status</button>
-                    {status && (
-                        <p>status: {JSON.stringify(status)}</p>
-                    )}
-                </div>
-            )}
         </div>
     )
 }

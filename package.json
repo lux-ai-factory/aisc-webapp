@@ -15,6 +15,7 @@
     "@mui/icons-material": "^6.4.12",
     "@mui/material": "^6.4.12",
     "@rjsf/core": "^6.1.2",
+    "@rjsf/react-bootstrap": "^6.1.2",
     "@rjsf/utils": "^6.1.2",
     "@rjsf/validator-ajv8": "^6.1.2",
     "@tanstack/react-query": "^5.90.12",

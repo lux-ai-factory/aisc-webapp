@@ -19,6 +19,9 @@ import { useProject } from './context/ProjectContext'; // adjust import as neede
 import { API_VERSION_PREFIX } from './config';
 import Plugins from "./pages/Plugins.tsx";
 import PluginConfig from "./pages/PluginsConfig.tsx";
+import PluginStartEvaluation from "./pages/PluginStartEvaluation.tsx";
+import PluginEvaluations from "./pages/PluginEvaluations.tsx";
+import PluginEvaluationMeasurements from "./pages/PluginEvaluationMeasurements.tsx";
 
 /** Width of the left drawer in pixels */
 const drawerWidth = 320;
@@ -87,7 +90,10 @@ export default function PermanentDrawerLeft() {
             )
         },
         { id: 12, name: 'Plugins', path: '/projects/:project_name/plugins', element: <ProjectContextWrapper><Plugins /></ProjectContextWrapper> },
-        { id: 13, name: 'PluginConfig', path: '/projects/:project_name/plugins/:plugin_name/config', element: <ProjectContextWrapper><PluginConfig /></ProjectContextWrapper> }
+        { id: 13, name: 'Plugin Config', path: '/projects/:project_name/plugins/:plugin_name', element: <ProjectContextWrapper><PluginConfig /></ProjectContextWrapper> },
+        { id: 14, name: 'Plugin Start Evaluation', path: '/projects/:project_name/plugins/evaluation', element: <ProjectContextWrapper><PluginStartEvaluation /></ProjectContextWrapper> },
+        { id: 15, name: 'Plugin Evaluations', path: '/projects/:project_name/plugins/evaluations', element: <ProjectContextWrapper><PluginEvaluations /></ProjectContextWrapper> },
+        { id: 16, name: 'Plugin Evaluation Measurements', path: '/projects/:project_name/plugins/evaluations/:evaluation_uuid', element: <ProjectContextWrapper><PluginEvaluationMeasurements /></ProjectContextWrapper> }
     ];
     return (
         <Box sx={{ display: 'flex', flexDirection: 'row' }}>
