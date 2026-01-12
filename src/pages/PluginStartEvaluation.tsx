@@ -27,8 +27,8 @@ interface Data {
 }
 
 type PluginSetting = {
-    dataset_pid: string;
-    model_pid: string;
+    dataset_pid: string | null | undefined;
+    model_pid: string | null | undefined;
 }
 
 type PluginSettingMap = {
@@ -49,8 +49,8 @@ const createEvaluation = async (project_uuid: string, plugins: PluginSettingMap)
     Object.entries(plugins).forEach(([pluginName, pluginSettings]) => {
         pluginsData.push({
             name: pluginName,
-            dataset_pid: pluginSettings.dataset_pid,
-            model_pid: pluginSettings.model_pid
+            dataset_pid: pluginSettings.dataset_pid || null,
+            model_pid: pluginSettings.model_pid || null
         })
     })
 
