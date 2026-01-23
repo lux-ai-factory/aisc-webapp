@@ -2,24 +2,13 @@ import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {useProject} from '../context/ProjectContext';
 import {Button} from "@mui/material";
+import {Project, Plugin} from "../models/models.tsx";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
-interface Project {
-    pid: string;
-    name: string;
-    plugins: Plugin[];
-}
-
-interface Plugin {
-    pid: string;
-    name: string;
-    config: object
-}
-
 const getPlugins = async () => {
     const res = await fetch(`${API_URL}/plugins`);
-    return await res.json();
+    return await res.json() as string[];
 };
 
 const getProject = async (project_uuid: string) => {

@@ -3,28 +3,9 @@ import {API_VERSION_PREFIX} from "../config.tsx";
 import {useProject} from "../context/ProjectContext.tsx";
 import {Button} from "@mui/material";
 import {useState} from "react";
+import {Project, Plugin, DataObject} from "../models/models.tsx";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
-
-interface Project {
-    pid: string;
-    name: string;
-    plugins: Plugin[];
-    datasets: Data[];
-    models: Data[];
-}
-
-interface Plugin {
-    pid: string;
-    name: string;
-    config: object
-}
-
-interface Data {
-    pid: string;
-    name: string;
-    data: string;
-}
 
 type PluginSetting = {
     dataset_pid: string | null | undefined;
@@ -135,7 +116,7 @@ function PluginStartEvaluation() {
                         handleDatasetDropdownChange(e, projectPlugin.name)
                     }}>
                         <option>Select Dataset</option>
-                        {project?.datasets.map((dataset: Data) => (
+                        {project?.datasets.map((dataset: DataObject) => (
                             <option value={dataset.pid}>{dataset.name}</option>
                         ))}
                     </select>
@@ -143,7 +124,7 @@ function PluginStartEvaluation() {
                         handleModelDropdownChange(e, projectPlugin.name)
                     }}>
                         <option>Select Model</option>
-                        {project?.models.map((model: Data) => (
+                        {project?.models.map((model: DataObject) => (
                             <option value={model.pid}>{model.name}</option>
                         ))}
                     </select>
