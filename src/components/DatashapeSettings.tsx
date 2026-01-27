@@ -340,7 +340,7 @@ const DatashapeSettings = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {features.map((feature, index) => (
+            {features.filter(feature => feature.name).map((feature, index) => (
               <TableRow key={index}>
                 <TableCell>
                   <TextField
