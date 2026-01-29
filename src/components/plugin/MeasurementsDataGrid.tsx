@@ -13,7 +13,7 @@ const columns: GridColDef[] = [
     {
         field: 'score',
         headerName: 'Score',
-        valueGetter: (value, row) => formatFloatTo3Decimals(row.score),
+        valueGetter: (_value, row) => formatFloatTo3Decimals(row.score),
         flex: 1,
         minWidth: 120,
     },
@@ -26,7 +26,7 @@ const columns: GridColDef[] = [
     {
         field: 'time',
         headerName: 'Time',
-        valueGetter: (value, row) => formatDate(row.time),
+        valueGetter: (_value, row) => formatDate(row.time),
         flex: 1,
         minWidth: 160,
     },
@@ -50,7 +50,7 @@ interface MeasurementsDataGridProps {
     data: Measurement[];
 }
 
-export const MeasurementsDataGrid = ({ title, data }: MeasurementsDataGridProps) => {
+export const MeasurementsDataGrid = ({ title: _title, data }: MeasurementsDataGridProps) => {
     const rows = data.map((row, index) => ({ ...row, id: index }));
 
     return (

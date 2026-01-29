@@ -11,7 +11,6 @@ import { API_VERSION_PREFIX } from "../config";
 import { useProject } from "../context/ProjectContext";
 import DatasetSettings from "../components/DatasetSettings";
 import ModelSettings from "../components/ModelSettngs";
-import DatashapeSettings from "../components/DatashapeSettings";
 
 const validators = {
     projectName: (name: string) => {

@@ -8,7 +8,7 @@ interface MeasurementsLineChartProps {
     data: Measurement[];
 }
 
-export const MeasurementsLineChart = ({title, data}: MeasurementsLineChartProps) => {
+export const MeasurementsLineChart = ({title: _title, data}: MeasurementsLineChartProps) => {
     const distinctNames = [...new Set(data.map(m => m.name))];
     const distinctTimes = [...new Set(data.map(m => m.time))];
 
@@ -17,7 +17,7 @@ export const MeasurementsLineChart = ({title, data}: MeasurementsLineChartProps)
         label: name,
         showMark: true,
         color: getColorFromIndex(index),
-        curve: "linear"
+        curve: "linear" as const
     }));
 
     return (
