@@ -2,9 +2,10 @@ import {useQuery} from '@tanstack/react-query'
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {useProject} from '../context/ProjectContext';
 import {useParams} from "react-router-dom";
-import PluginConfigForm from "../components/PluginConfigForm";
+import PluginConfigForm from "../components/plugin/PluginConfigForm.tsx";
 import {useEffect, useState} from "react";
 import {DataObject, PluginFeatureFlags, Project, ProjectPluginConfigState} from "../models/models.tsx";
+import toast from 'react-hot-toast';
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -33,8 +34,10 @@ const postPluginConfig = async (plugin_name: string, uuid: string, formData: obj
     });
 
     if (!response.ok) {
-        throw new Error('Failed to submit form');
+        toast.error('Failed to save plugin config', {position: "bottom-right"});
+        throw new Error('Failed to save plugin config');
     }
+    toast.success('Plugin config saved', {position: "bottom-right"});
     return await response.json();
 };
 

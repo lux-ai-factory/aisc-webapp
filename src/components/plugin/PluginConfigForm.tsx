@@ -3,7 +3,7 @@ import Form from '@rjsf/react-bootstrap';
 import validator from '@rjsf/validator-ajv8';
 import {useCallback} from 'react';
 import { debounce } from 'lodash';
-import { API_VERSION_PREFIX } from "../config.tsx";
+import { API_VERSION_PREFIX } from "../../config.tsx";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 

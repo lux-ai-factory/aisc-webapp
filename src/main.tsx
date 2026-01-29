@@ -12,6 +12,7 @@ import MyApp from './MyApp.tsx'
 import { StyledEngineProvider } from '@mui/material'
 import { BrowserRouter } from 'react-router-dom'
 import { ProjectProvider } from './context/ProjectContext.tsx'
+import {Toaster} from "react-hot-toast";
 
 const queryClient = new QueryClient()
 
@@ -23,6 +24,7 @@ createRoot(document.getElementById('root')!).render(
           <QueryClientProvider client={queryClient}>
             <ProjectProvider>
                 <MyApp />
+                <Toaster />
             </ProjectProvider>
           </QueryClientProvider>
       </BrowserRouter>

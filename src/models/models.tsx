@@ -1,6 +1,4 @@
-
-
-interface Project {
+export interface Project {
     pid: string;
     name: string;
     plugins: Plugin[];
@@ -8,27 +6,35 @@ interface Project {
     models: DataObject[];
 }
 
-interface Plugin {
+export interface Plugin {
     pid: string;
     name: string;
     config: object
 }
 
-interface DataObject {
+export interface DataObject {
     pid: string;
     name: string;
     data: string;
 }
 
-interface ProjectPluginConfigState {
+export interface ProjectPluginConfigState {
     config: object;
     schema: object;
     uiSchema: object
 }
 
-interface PluginFeatureFlags {
+export interface PluginFeatureFlags {
     can_parse_config_from_dataset: boolean
     extra: object
 }
 
-export type {Project, Plugin, DataObject, ProjectPluginConfigState, PluginFeatureFlags}
+export interface Measurement {
+    name: string;
+    description?: string | null;
+    unit?: string | null;
+    score: number;
+    time: string;
+    error?: string | null;
+    feature_pid?: string | null;
+}

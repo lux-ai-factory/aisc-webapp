@@ -4,6 +4,7 @@ import {useProject} from "../context/ProjectContext.tsx";
 import {Button} from "@mui/material";
 import {useState} from "react";
 import {Project, Plugin, DataObject} from "../models/models.tsx";
+import toast from "react-hot-toast";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -48,6 +49,11 @@ const createEvaluation = async (project_uuid: string, plugins: PluginSettingMap)
         body: JSON.stringify(data),
     });
 
+    if (!response.ok) {
+        toast.error('Failed to create evaluation', {position: "bottom-right"});
+        throw new Error('Failed to create evaluation');
+    }
+    toast.success('Evaluation created', {position: "bottom-right"});
     return await response.json();
 };
 

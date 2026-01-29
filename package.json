@@ -14,6 +14,8 @@
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^6.4.12",
     "@mui/material": "^6.4.12",
+    "@mui/x-charts": "^8.26.0",
+    "@mui/x-data-grid": "^8.26.0",
     "@rjsf/core": "^6.1.2",
     "@rjsf/react-bootstrap": "^6.1.2",
     "@rjsf/utils": "^6.1.2",
@@ -28,6 +30,7 @@
     "react": "^18.3.1",
     "react-chartjs-2": "^5.2.0",
     "react-dom": "^18.3.1",
+    "react-hot-toast": "^2.6.0",
     "react-router-dom": "^7.6.3"
   },
   "devDependencies": {
