@@ -110,19 +110,12 @@ export default function PermanentDrawerLeft() {
                 <Routes>
                     {
                         navs.map((nav) => {
-                            if (!nav.element) {
-                                return (
-                                    <Route key={nav.id} path={nav.path} element={<Construction title={nav.name} />} />
-                                );
-                            }
                             return (
                                 <Route key={nav.id} path={nav.path} element={nav.element} />
                             );
                         })
                     }
-
                     <Route path='*' element={<NotFound />} />
-
                 </Routes>
 
             </Box>
