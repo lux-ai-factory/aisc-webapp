@@ -1,10 +1,12 @@
 import {useQuery} from '@tanstack/react-query'
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {useProject} from "../context/ProjectContext.tsx";
-import {Button} from "@mui/material";
+import {Button, Checkbox, FormControlLabel, FormGroup, InputLabel, MenuItem, Select, Typography} from "@mui/material";
 import {useState} from "react";
-import {Project, Plugin, DataObject} from "../models/models.tsx";
+import {Plugin, DataObject} from "../models/models.tsx";
 import toast from "react-hot-toast";
+import {getProject} from "../api/api.tsx";
+import Box from "@mui/material/Box";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -16,12 +18,6 @@ type PluginSetting = {
 type PluginSettingMap = {
     [pluginName: string]: PluginSetting;
 }
-
-const getProject = async (project_uuid: string) => {
-    if (!project_uuid) throw new Error('Invalid uuid');
-    const res = await fetch(`${API_URL}/projects/${project_uuid}`);
-    return await res.json() as Project;
-};
 
 const createEvaluation = async (project_uuid: string, plugins: PluginSettingMap) => {
     if (!project_uuid) throw new Error('Invalid uuid');
@@ -60,7 +56,7 @@ const createEvaluation = async (project_uuid: string, plugins: PluginSettingMap)
 
 function PluginStartEvaluation() {
     const {projectUUID} = useProject();
-    const [checkedItems, setCheckedItems] = useState([]);
+    const [checkedItems, setCheckedItems] = useState<string[]>([]);
     const [pluginSettings, setPluginSettings] = useState<PluginSettingMap>({});
 
     const {data: project, isPending, error} = useQuery({
@@ -74,7 +70,6 @@ function PluginStartEvaluation() {
     const handleChange = (e: any) => {
         const {value, checked} = e.target;
         if (checked) {
-            // @ts-ignore
             setCheckedItems([...checkedItems, value]);
         } else {
             setCheckedItems(checkedItems.filter((item) => item !== value));
@@ -110,36 +105,52 @@ function PluginStartEvaluation() {
     }
 
     return (
-        <div>
-            {project?.plugins.map((projectPlugin: Plugin) => (
-                <>
-                    <label style={{display: "block"}}>
-                        {/* @ts-ignore */}
-                        <input type="checkbox" value={projectPlugin.name} onChange={handleChange} checked={checkedItems.includes(projectPlugin.name)}/>
-                        {projectPlugin.name}
-                    </label>
-                    <select name="Dataset" onChange={(e) => {
-                        handleDatasetDropdownChange(e, projectPlugin.name)
-                    }}>
-                        <option>Select Dataset</option>
-                        {project?.datasets.map((dataset: DataObject) => (
-                            <option value={dataset.pid}>{dataset.name}</option>
-                        ))}
-                    </select>
-                    <select name="Model" onChange={(e) => {
-                        handleModelDropdownChange(e, projectPlugin.name)
-                    }}>
-                        <option>Select Model</option>
-                        {project?.models.map((model: DataObject) => (
-                            <option value={model.pid}>{model.name}</option>
-                        ))}
-                    </select>
+        <>
+            <Typography component="h2" variant="h4" gutterBottom>
+                Start an Evaluation
+            </Typography>
+            <FormGroup>
+                {project?.plugins.map((projectPlugin: Plugin) => (
+                    <>
+                        <FormControlLabel control={
+                            <Checkbox
+                                checked={checkedItems.includes(projectPlugin.name)}
+                                onChange={handleChange}
+                                value={projectPlugin.name}
+                            />
+                        } label={projectPlugin.name}/>
 
-                </>
-            ))}
-            <hr/>
+                        <Box display={checkedItems.includes(projectPlugin.name) ? 'block' : 'none'}>
+                            <InputLabel id="dataset-select-label">Dataset</InputLabel>
+                            <Select
+                                labelId="dataset-select-label"
+                                fullWidth
+                                onChange={(e) => handleDatasetDropdownChange(e, projectPlugin.name)}
+                            >
+                                {project?.datasets.map((dataset: DataObject) => (
+                                    <MenuItem value={dataset.pid}>{dataset.name}</MenuItem>
+                                ))}
+                            </Select>
+                        </Box>
+
+                        <Box display={checkedItems.includes(projectPlugin.name) ? 'block' : 'none'}>
+                            <InputLabel id="model-select-label">Model</InputLabel>
+                            <Select
+                                labelId="model-select-label"
+                                fullWidth
+                                onChange={(e) => handleModelDropdownChange(e, projectPlugin.name)}
+                            >
+                                {project?.models.map((model: DataObject) => (
+                                    <MenuItem value={model.pid}>{model.name}</MenuItem>
+                                ))}
+                            </Select>
+                        </Box>
+
+                    </>
+                ))}
+            </FormGroup>
             <Button onClick={() => handleOnClick(projectUUID ?? "")}>Create Evaluation</Button>
-        </div>
+        </>
     )
 }
 

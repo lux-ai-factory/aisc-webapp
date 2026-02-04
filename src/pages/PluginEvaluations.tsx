@@ -2,11 +2,13 @@ import {useQuery} from '@tanstack/react-query'
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {Link} from "react-router-dom";
 import {useProject} from "../context/ProjectContext.tsx";
+import {List, ListItem, Typography} from "@mui/material";
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import {Plugin} from "../models/models.tsx";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
-
-const getEvaluations = async (uuid: string) => {
+const getDoneEvaluations = async (uuid: string) => {
     if (!uuid) throw new Error('Invalid uuid');
     const res = await fetch(`${API_URL}/projects/${uuid}/evaluations?status=Done`);
     if (!res.ok) throw new Error('Network response was not ok');
@@ -18,7 +20,7 @@ function PluginEvaluations() {
 
     const {data: evaluations, isPending, error} = useQuery({
         queryKey: ['evaluations'],
-        queryFn: () => getEvaluations(projectUUID ?? "")
+        queryFn: () => getDoneEvaluations(projectUUID ?? "")
     })
 
     if (isPending) return <span>Loading...</span>
@@ -26,17 +28,20 @@ function PluginEvaluations() {
 
 
     return (
-        <div>
-            <h2>Evaluations:</h2>
+        <>
+            <Typography component="h2" variant="h4" gutterBottom>
+                Completed Evaluations:
+            </Typography>
+            <List>
             {evaluations && evaluations.map((evaluation: any) => (
-                <li>
+                <ListItem>
                     <Link to={`${evaluation["pid"]}`}>{evaluation["pid"]}</Link>
-                    [{evaluation["status"]}]
-                    {/* @ts-ignore */}
-                    ({evaluation["evaluation_plugins"].map(plugin => plugin.name).join(',')})
-                </li>
+                    <CheckCircleIcon color="success"/>
+                    ({evaluation["evaluation_plugins"].map((plugin: Plugin) => plugin.name).join(',')})
+                </ListItem>
             ))}
-        </div>
+            </List>
+        </>
     )
 }
 

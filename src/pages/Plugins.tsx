@@ -1,21 +1,13 @@
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {useProject} from '../context/ProjectContext';
-import {Button} from "@mui/material";
-import {Project, Plugin} from "../models/models.tsx";
+import {FormControlLabel, FormGroup, Switch, Typography} from "@mui/material";
+import {Plugin} from "../models/models.tsx";
+import React from "react";
+import {getPlugins, getProject} from "../api/api.tsx";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
-const getPlugins = async () => {
-    const res = await fetch(`${API_URL}/plugins`);
-    return await res.json() as string[];
-};
-
-const getProject = async (project_uuid: string) => {
-    if (!project_uuid) throw new Error('Invalid uuid');
-    const res = await fetch(`${API_URL}/projects/${project_uuid}`);
-    return await res.json() as Project;
-};
 
 const createProjectPlugin = async (uuid: string, plugin_name: string) => {
     if (!uuid) throw new Error('Invalid uuid');
@@ -70,32 +62,39 @@ function Plugins() {
         }
     })
 
-    const handleDisable = async (pid: string) => {
-        await deleteProjectPlugin(pid)
+    const handleChange = async (
+        event: React.ChangeEvent<HTMLInputElement>,
+        pid: string,
+        plugin_name: string,
+        project_plugin_pid: string | undefined
+    ) => {
+        if (event.target.checked) {
+            await createProjectPlugin(pid, plugin_name)
+        } else {
+            if (!project_plugin_pid) return;
+            await deleteProjectPlugin(project_plugin_pid)
+        }
         await queryClient.invalidateQueries({queryKey: ['project']});
-    }
+    };
 
-    const handleEnabled = async (pid: string, plugin_name: string) => {
-        await createProjectPlugin(pid, plugin_name)
-        await queryClient.invalidateQueries({queryKey: ['project']});
-    }
 
     return (
-        <div>
-            <h2>Available plugins</h2>
-            <ul>
+        <>
+            <Typography component="h2" variant="h4" gutterBottom>
+                Available Plugins
+            </Typography>
+            <FormGroup>
                 {projectPlugins.map((projectPlugin: any) => (
-                    <li>
-                        {projectPlugin.pluginName}:
-                        {projectPlugin.projectPluginPid ? (
-                            <Button onClick={() => handleDisable(projectPlugin.projectPluginPid)} >Disable</Button>
-                        ) : (
-                            <Button onClick={() => handleEnabled(projectUUID ?? "", projectPlugin.pluginName)} >Enable</Button>
-                        )}
-                    </li>
+                    <FormControlLabel
+                        key={projectPlugin.pluginName}
+                        control={<Switch
+                            checked={Boolean(projectPlugin.projectPluginPid)}
+                            onChange={(e) => handleChange(e, projectUUID ?? "", projectPlugin.pluginName, projectPlugin.projectPluginPid)}/>
+                        }
+                        label={projectPlugin.pluginName}/>
                 ))}
-            </ul>
-        </div>
+            </FormGroup>
+        </>
     )
 }
 
