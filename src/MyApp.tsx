@@ -3,10 +3,8 @@ import CssBaseline from '@mui/material/CssBaseline';
 import Toolbar from '@mui/material/Toolbar';
 
 import LeftBar from './components/LeftBar';
-import ModelPerformance from './pages/ModelPerfromance';
 import { Route, Routes } from 'react-router-dom';
 import NotFound from './pages/NotFound';
-import Construction from './pages/Construction';
 import TopBar from './components/TopBar';
 import DataDrift from './pages/DataDrift';
 import StartEvaluation from './pages/StartEvaluation';
@@ -15,7 +13,7 @@ import GlobalHome from './pages/GlobalHome';
 import ProjectHome from './pages/ProjectHome';
 import React, { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { useProject } from './context/ProjectContext'; // adjust import as needed
+import { useProject } from './context/ProjectContext';
 import { API_VERSION_PREFIX } from './config';
 import Plugins from "./pages/Plugins.tsx";
 import PluginConfig from "./pages/PluginsConfig.tsx";
@@ -73,27 +71,19 @@ export default function PermanentDrawerLeft() {
         { id: 1, name: 'Home', path: '/', element: <GlobalHome /> },
         { id: 2, name: 'Project', path: '/projects/:project_name', element: <ProjectContextWrapper><ProjectHome /></ProjectContextWrapper> },
         { id: 3, name: 'Start evaluation', path: '/projects/:project_name/start-eval', element: <ProjectContextWrapper><StartEvaluation /></ProjectContextWrapper> },
-        { id: 4, name: 'Training Data', path: '/projects/:project_name/training-data', element: <ProjectContextWrapper><Construction title="Training Data" /></ProjectContextWrapper> },
-        { id: 5, name: 'Data Anomalies', path: '/projects/:project_name/data-anomalies', element: <ProjectContextWrapper><Construction title="Data Anomalies" /></ProjectContextWrapper> },
-        { id: 6, name: 'Data Drift', path: '/projects/:project_name/data-drift', element: <ProjectContextWrapper><DataDrift /></ProjectContextWrapper> },
+        { id: 4, name: 'Data Drift', path: '/projects/:project_name/data-drift', element: <ProjectContextWrapper><DataDrift /></ProjectContextWrapper> },
         {
-            id: 7, name: 'Model Accuracy', path: '/projects/:project_name/model-accuracy', element: (<ProjectContextWrapper><ModelPerformance /></ProjectContextWrapper>)
-        },
-        { id: 8, name: 'Model Robustness', path: '/projects/:project_name/model-robustness', element: <ProjectContextWrapper><Construction title="Model Robustness" /></ProjectContextWrapper> },
-        { id: 9, name: 'Model Fairness', path: '/projects/:project_name/model-fairness', element: <ProjectContextWrapper><Construction title="Model Fairness" /></ProjectContextWrapper> },
-        { id: 10, name: 'Report', path: '/projects/:project_name/report', element: <ProjectContextWrapper><Construction title="Report" /></ProjectContextWrapper> },
-        {
-            id: 11, name: 'Settings', path: '/projects/:project_name/settings', element: (
+            id: 5, name: 'Settings', path: '/projects/:project_name/settings', element: (
                 <ProjectContextWrapper>
                     <SettingsPage />
                 </ProjectContextWrapper>
             )
         },
-        { id: 12, name: 'Plugins', path: '/projects/:project_name/plugins', element: <ProjectContextWrapper><Plugins /></ProjectContextWrapper> },
-        { id: 13, name: 'Plugin Config', path: '/projects/:project_name/plugins/:plugin_name', element: <ProjectContextWrapper><PluginConfig /></ProjectContextWrapper> },
-        { id: 14, name: 'Plugin Start Evaluation', path: '/projects/:project_name/plugins/evaluation', element: <ProjectContextWrapper><PluginStartEvaluation /></ProjectContextWrapper> },
-        { id: 15, name: 'Plugin Evaluations', path: '/projects/:project_name/plugins/evaluations', element: <ProjectContextWrapper><PluginEvaluations /></ProjectContextWrapper> },
-        { id: 16, name: 'Plugin Evaluation Measurements', path: '/projects/:project_name/plugins/evaluations/:evaluation_uuid', element: <ProjectContextWrapper><PluginEvaluationMeasurements /></ProjectContextWrapper> }
+        { id: 6, name: 'Plugins', path: '/projects/:project_name/plugins', element: <ProjectContextWrapper><Plugins /></ProjectContextWrapper> },
+        { id: 7, name: 'Plugin Config', path: '/projects/:project_name/plugins/:plugin_name', element: <ProjectContextWrapper><PluginConfig /></ProjectContextWrapper> },
+        { id: 8, name: 'Plugin Start Evaluation', path: '/projects/:project_name/plugins/evaluation', element: <ProjectContextWrapper><PluginStartEvaluation /></ProjectContextWrapper> },
+        { id: 9, name: 'Plugin Evaluations', path: '/projects/:project_name/plugins/evaluations', element: <ProjectContextWrapper><PluginEvaluations /></ProjectContextWrapper> },
+        { id: 10, name: 'Plugin Evaluation Measurements', path: '/projects/:project_name/plugins/evaluations/:evaluation_uuid', element: <ProjectContextWrapper><PluginEvaluationMeasurements /></ProjectContextWrapper> }
     ];
     return (
         <Box sx={{ display: 'flex', flexDirection: 'row' }}>
@@ -120,19 +110,12 @@ export default function PermanentDrawerLeft() {
                 <Routes>
                     {
                         navs.map((nav) => {
-                            if (!nav.element) {
-                                return (
-                                    <Route key={nav.id} path={nav.path} element={<Construction title={nav.name} />} />
-                                );
-                            }
                             return (
                                 <Route key={nav.id} path={nav.path} element={nav.element} />
                             );
                         })
                     }
-
                     <Route path='*' element={<NotFound />} />
-
                 </Routes>
 
             </Box>

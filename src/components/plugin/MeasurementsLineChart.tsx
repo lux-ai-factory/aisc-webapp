@@ -38,7 +38,11 @@ export const MeasurementsLineChart = ({title: _title, data}: MeasurementsLineCha
               },
             }}
             grid={{vertical: true, horizontal: true}}
-            showToolbar={true}
+            slotProps={{
+                legend: {
+                    toggleVisibilityOnClick: true,
+                },
+            }}
         />
         
     );
