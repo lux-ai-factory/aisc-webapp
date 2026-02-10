@@ -21,12 +21,6 @@ export default defineConfig(({ mode }) => {
       host: true,  // Allow external access
       port: 5173,  // Default development port
       proxy: {
-        // Proxy evaluation requests to evaluation service
-        '/api/v1/evaluate': {
-          target: env.EVAL_API_URL,
-          changeOrigin: true,
-          secure: false,
-        },
         // Proxy all other API requests to main backend
         '/api/v1': {
           target: env.VITE_API_URL,
