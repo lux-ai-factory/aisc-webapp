@@ -6,7 +6,6 @@ import LeftBar from './components/LeftBar';
 import { Route, Routes } from 'react-router-dom';
 import NotFound from './pages/NotFound';
 import TopBar from './components/TopBar';
-import DataDrift from './pages/DataDrift';
 import StartEvaluation from './pages/StartEvaluation';
 import SettingsPage from './pages/Settings';
 import GlobalHome from './pages/GlobalHome';
@@ -71,19 +70,18 @@ export default function PermanentDrawerLeft() {
         { id: 1, name: 'Home', path: '/', element: <GlobalHome /> },
         { id: 2, name: 'Project', path: '/projects/:project_name', element: <ProjectContextWrapper><ProjectHome /></ProjectContextWrapper> },
         { id: 3, name: 'Start evaluation', path: '/projects/:project_name/start-eval', element: <ProjectContextWrapper><StartEvaluation /></ProjectContextWrapper> },
-        { id: 4, name: 'Data Drift', path: '/projects/:project_name/data-drift', element: <ProjectContextWrapper><DataDrift /></ProjectContextWrapper> },
         {
-            id: 5, name: 'Settings', path: '/projects/:project_name/settings', element: (
+            id: 4, name: 'Settings', path: '/projects/:project_name/settings', element: (
                 <ProjectContextWrapper>
                     <SettingsPage />
                 </ProjectContextWrapper>
             )
         },
-        { id: 6, name: 'Plugins', path: '/projects/:project_name/plugins', element: <ProjectContextWrapper><Plugins /></ProjectContextWrapper> },
-        { id: 7, name: 'Plugin Config', path: '/projects/:project_name/plugins/:plugin_name', element: <ProjectContextWrapper><PluginConfig /></ProjectContextWrapper> },
-        { id: 8, name: 'Plugin Start Evaluation', path: '/projects/:project_name/plugins/evaluation', element: <ProjectContextWrapper><PluginStartEvaluation /></ProjectContextWrapper> },
-        { id: 9, name: 'Plugin Evaluations', path: '/projects/:project_name/plugins/evaluations', element: <ProjectContextWrapper><PluginEvaluations /></ProjectContextWrapper> },
-        { id: 10, name: 'Plugin Evaluation Measurements', path: '/projects/:project_name/plugins/evaluations/:evaluation_uuid', element: <ProjectContextWrapper><PluginEvaluationMeasurements /></ProjectContextWrapper> }
+        { id: 5, name: 'Plugins', path: '/projects/:project_name/plugins', element: <ProjectContextWrapper><Plugins /></ProjectContextWrapper> },
+        { id: 6, name: 'Plugin Config', path: '/projects/:project_name/plugins/:plugin_name', element: <ProjectContextWrapper><PluginConfig /></ProjectContextWrapper> },
+        { id: 7, name: 'Plugin Start Evaluation', path: '/projects/:project_name/plugins/evaluation', element: <ProjectContextWrapper><PluginStartEvaluation /></ProjectContextWrapper> },
+        { id: 8, name: 'Plugin Evaluations', path: '/projects/:project_name/plugins/evaluations', element: <ProjectContextWrapper><PluginEvaluations /></ProjectContextWrapper> },
+        { id: 9, name: 'Plugin Evaluation Measurements', path: '/projects/:project_name/plugins/evaluations/:evaluation_uuid', element: <ProjectContextWrapper><PluginEvaluationMeasurements /></ProjectContextWrapper> }
     ];
     return (
         <Box sx={{ display: 'flex', flexDirection: 'row' }}>

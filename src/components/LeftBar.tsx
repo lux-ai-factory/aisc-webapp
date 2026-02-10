@@ -9,7 +9,6 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import SettingsIcon from '@mui/icons-material/Settings';
 import DashboardIcon from '@mui/icons-material/Dashboard';
-import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 import ExtensionIcon from '@mui/icons-material/Extension';
 import {Box, Icon} from '@mui/material';
 import { Link, useLocation } from 'react-router-dom';
@@ -140,13 +139,6 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
                         items={[
                             { text: 'Overview', icon: <DashboardIcon />, target: `/projects/${projectName}` },
                             { text: 'Settings', icon: <SettingsIcon />, target: `/projects/${projectName}/settings` },
-                        ]}
-                    />
-                    <Divider />
-                    <MenuList
-                        title="Data"
-                        items={[
-                            { text: 'Data Drift', icon: <RocketLaunchIcon />, target: `/projects/${projectName}/data-drift` },
                         ]}
                     />
                     <Divider />
