@@ -16,6 +16,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useProject } from '../context/ProjectContext';
 import {useQuery} from "@tanstack/react-query";
 import {API_VERSION_PREFIX} from "../config.tsx";
+import {Project, Plugin} from "../models/models.tsx";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -70,19 +71,6 @@ function MenuList(props: MenuListProps) {
  */
 interface LeftBarProps {
     drawerWidth: number;
-}
-
-interface Project {
-    pid: string;
-    name: string;
-    plugins: Plugin[];
-}
-
-interface Plugin {
-    pid: string;
-    name: string;
-    config: object
-    display_icon: string;
 }
 
 const getProject = async (project_uuid: string) => {

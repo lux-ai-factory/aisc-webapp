@@ -10,6 +10,7 @@ export interface Plugin {
     pid: string;
     name: string;
     config: object
+    display_icon: string;
 }
 
 export interface DataObject {
