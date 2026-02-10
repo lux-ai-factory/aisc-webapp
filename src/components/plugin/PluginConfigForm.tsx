@@ -9,10 +9,10 @@ const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
 interface PluginConfigFormProps {
     pluginName: string;
-    schema: object;
+    formSchema: object;
     uiSchema: any;
     config: object;
-    onFormUpdate: (updatedState: { config: object; schema: object; uiSchema: object }) => void;
+    onFormUpdate: (updatedState: { config: object; formSchema: object; uiSchema: object }) => void;
     onSubmit: (config: object) => void;
 }
 
@@ -30,7 +30,7 @@ const updateConfigDynamics = async ({ pluginName, config }: { pluginName: string
 
 function PluginConfigForm({
                               pluginName,
-                              schema,
+                              formSchema,
                               uiSchema,
                               config,
                               onFormUpdate,
@@ -56,14 +56,14 @@ function PluginConfigForm({
     const handleChange = (e: any) => {
         const newData = e.formData;
         // Update parent immediately so the UI is responsive
-        onFormUpdate({ config: newData, schema, uiSchema });
+        onFormUpdate({ config: newData, formSchema, uiSchema });
         // Trigger server-side validation/schema updates
         debouncedUpdate(newData);
     };
 
     return (
         <Form
-            schema={schema}
+            schema={formSchema}
             uiSchema={uiSchema}
             validator={validator}
             formData={config}

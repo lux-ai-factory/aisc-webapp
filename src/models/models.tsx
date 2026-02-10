@@ -20,7 +20,7 @@ export interface DataObject {
 
 export interface ProjectPluginConfigState {
     config: object;
-    schema: object;
+    formSchema: object;
     uiSchema: object
 }
 

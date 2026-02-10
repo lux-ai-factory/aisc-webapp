@@ -130,7 +130,7 @@ function PluginConfig() {
                 <PluginConfigForm
                     key={plugin_name ?? "" + projectUUID ?? ""}
                     pluginName={plugin_name ?? ""}
-                    schema={configState.schema}
+                    formSchema={configState.formSchema}
                     uiSchema={configState.uiSchema}
                     config={configState.config}
                     onFormUpdate={(state) => setConfigState(state)}

@@ -4,7 +4,10 @@ import {useParams} from "react-router-dom";
 import MeasurementsLineChart from "../components/plugin/MeasurementsLineChart.tsx";
 import {Measurement} from "../models/models.tsx";
 import MeasurementsDataGrid from "../components/plugin/MeasurementsDataGrid.tsx";
+import MeasurementsScatterChart from "../components/plugin/MeasurementsScatterChart.tsx";
 import MeasurementsRadarChart from "../components/plugin/MeasurementsRadarChart.tsx";
+import MeasurementsKDEChart from "../components/plugin/MeasurementsKDEChart.tsx";
+import MeasurementsBarsChart from "../components/plugin/MeasurementsBarsChart.tsx";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -78,6 +81,24 @@ function PluginEvaluationMeasurements() {
                                 {visualization.chart_type === 'line' && (
                                     <MeasurementsLineChart
                                         title={`${pluginMeasurement.name} - Line Chart`}
+                                        data={filteredMeasurements}
+                                    />
+                                )}
+                                {visualization.chart_type === 'scatter' && (
+                                    <MeasurementsScatterChart
+                                        title={`${pluginMeasurement.name} - Scatter Chart`}
+                                        data={filteredMeasurements}
+                                    />
+                                )}
+                                {visualization.chart_type === 'kde' && (
+                                    <MeasurementsKDEChart
+                                        title={`${pluginMeasurement.name} - KDE Histogram Chart`}
+                                        data={filteredMeasurements}
+                                    />
+                                )}
+                                {visualization.chart_type === 'bars' && (
+                                    <MeasurementsBarsChart
+                                        title={`${pluginMeasurement.name} - Bars Chart`}
                                         data={filteredMeasurements}
                                     />
                                 )}
