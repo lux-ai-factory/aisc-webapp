@@ -1,10 +1,22 @@
-import { AppBar, Box, Button, createTheme, Dialog, DialogActions, DialogContent, DialogTitle, Link, TextField, Toolbar, Typography } from '@mui/material';
-import React, { useEffect, useState } from 'react';
-import { useProject } from '../context/ProjectContext';
-import { API_VERSION_PREFIX } from '../config';
-import { ThemeProvider } from '@emotion/react';
-import { useNavigate } from 'react-router-dom';
-import A4SLogo from './Logo';
+import {
+    AppBar,
+    Box,
+    Button,
+    createTheme,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    Link,
+    TextField,
+    Toolbar,
+    Typography
+} from '@mui/material';
+import React, {useEffect, useState} from 'react';
+import {useProject} from '../context/ProjectContext';
+import {API_VERSION_PREFIX} from '../config';
+import {ThemeProvider} from '@emotion/react';
+import {useNavigate} from 'react-router-dom';
 
 interface Project {
     pid: string;
@@ -41,7 +53,7 @@ const AddProjectDialog: React.FC<{
     open: boolean;
     onClose: () => void;
     onAdd: (name: string) => void;
-}> = ({ open, onClose, onAdd }) => {
+}> = ({open, onClose, onAdd}) => {
     const [projectName, setProjectName] = useState('');
     const [nameError, setNameError] = useState(false);
 
@@ -87,7 +99,7 @@ const AddProjectDialog: React.FC<{
 
 const ProjectSelector: React.FC<{
     onAddProject: (name: string) => void;
-}> = ({ onAddProject }) => {
+}> = ({onAddProject}) => {
     const [dialogOpen, setDialogOpen] = useState(false);
 
 
@@ -110,7 +122,7 @@ const ProjectSelector: React.FC<{
 };
 
 const TopBar: React.FC = () => {
-    const { setProjectUUID, projectName, setProjectName } = useProject();
+    const {setProjectUUID, projectName, setProjectName} = useProject();
     const [projects, setProjects] = useState<Project[]>([]);
 
     const navigate = useNavigate();
@@ -121,7 +133,7 @@ const TopBar: React.FC = () => {
     };
 
     const addProject = async (name: string) => {
-        const newProject = await apiCall('/projects', 'POST', { name });
+        const newProject = await apiCall('/projects', 'POST', {name});
         if (newProject) {
             setProjects([...projects, newProject]);
             setProjectUUID(newProject.pid);
@@ -137,9 +149,9 @@ const TopBar: React.FC = () => {
     }, []);
 
     return (
-        <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }} className='gradient'>
+        <AppBar position="fixed" sx={{zIndex: (theme) => theme.zIndex.drawer + 1}} style={{backgroundColor: '#001075'}}>
             <Toolbar>
-                <Box style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <Box style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
 
                     <Link
                         href="/"
@@ -147,13 +159,17 @@ const TopBar: React.FC = () => {
                         color="inherit"
                     >
                         <Box display="flex" alignItems="center" gap={1}>
-                            <A4SLogo sx={{ color: 'white' }} />
+                            <img
+                                src="/laif_logo.png"
+                                alt="Luxembourg AI Factory Logo"
+                                height={50}
+                            />
                             <Typography
                                 variant="h6"
                                 noWrap
                                 component="div"
                             >
-                                A4S - AI Testing Sandbox
+                                AI Testing Sandbox
                             </Typography>
                         </Box>
                     </Link>
@@ -162,7 +178,7 @@ const TopBar: React.FC = () => {
                     </Typography>
                 </Box>
 
-                <div style={{ flexGrow: 1 }} />
+                <div style={{flexGrow: 1}}/>
                 <ProjectSelector
                     onAddProject={addProject}
                 />

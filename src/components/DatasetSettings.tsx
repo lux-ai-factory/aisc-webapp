@@ -1,7 +1,19 @@
-import React, { ChangeEvent, useEffect, useState } from 'react';
-import { API_VERSION_PREFIX } from '../config';
-import { useProject } from '../context/ProjectContext';
-import { Box, Button, CircularProgress, Divider, IconButton, List, ListItem, styled, TextField, Typography } from '@mui/material';
+import React, {ChangeEvent, useEffect, useState} from 'react';
+import {API_VERSION_PREFIX} from '../config';
+import {useProject} from '../context/ProjectContext';
+import {
+    Box,
+    Button,
+    Checkbox,
+    CircularProgress,
+    Divider, FormControlLabel,
+    IconButton,
+    List,
+    ListItem,
+    styled,
+    TextField,
+    Typography
+} from '@mui/material';
 import CloudDoneIcon from '@mui/icons-material/CloudDone';
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
@@ -40,7 +52,6 @@ interface Dataset {
 }
 
 
-
 interface UploadDatasetProps {
     dataset: Dataset; // ✅ prop named "dataset"
     onUploadSuccess: (pid: string, data: string) => void;
@@ -59,17 +70,20 @@ const VisuallyHiddenInput = styled('input')({
 });
 
 
-const UploadDataset = ({ dataset, onUploadSuccess }: UploadDatasetProps) => {
+const UploadDataset = ({dataset, onUploadSuccess}: UploadDatasetProps) => {
     const uploaded = Boolean(dataset.data);
     const [progress, setProgress] = useState<number>(0);
     const [uploading, setUploading] = useState<boolean>(false);
+    const [isCsvToParquet, setIsCsvToParquet] = useState<boolean>(false);
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
 
+
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('csvToParquet', `${isCsvToParquet}`)
 
         const xhr = new XMLHttpRequest();
         xhr.open("PUT", `${API_URL}/datasets/${dataset.pid}/data`, true);
@@ -110,17 +124,23 @@ const UploadDataset = ({ dataset, onUploadSuccess }: UploadDatasetProps) => {
     };
 
     if (uploaded) {
-        return <CloudDoneIcon color="success" sx={{ mr: 2 }} />;
+        return <CloudDoneIcon color="success" sx={{mr: 2}}/>;
     }
 
     return (
-        <Box sx={{ position: "relative", display: "inline-flex", mr: 2 }}>
+        <Box sx={{position: "relative", display: "inline-flex", mr: 2}}>
+            {!uploading && (
+                <FormControlLabel control={<Checkbox checked={isCsvToParquet}
+                                                     onChange={(e) => setIsCsvToParquet(e.target.checked)}/>}
+                                  label="CSV to Parquet"/>
+                )
+            }
             <Button
                 component="label"
                 role={undefined}
                 variant="contained"
                 disabled={uploading}
-                startIcon={<CloudUpload />}
+                startIcon={<CloudUpload/>}
             >
                 {uploading ? "Uploading..." : "Upload files"}
                 <VisuallyHiddenInput
@@ -151,7 +171,7 @@ const UploadDataset = ({ dataset, onUploadSuccess }: UploadDatasetProps) => {
 
 const DatasetSettings = () => {
 
-    const { projectUUID } = useProject();
+    const {projectUUID} = useProject();
     const [datasetList, setDatasetList] = useState<Dataset[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [newDatasetName, setNewDatasetName] = useState<string>('');
@@ -172,7 +192,7 @@ const DatasetSettings = () => {
     const handleUploadSuccess = (pid: string, data: string) => {
         setDatasetList((prevList) =>
             prevList.map((ds) =>
-                ds.pid === pid ? { ...ds, data: data } : ds
+                ds.pid === pid ? {...ds, data: data} : ds
             )
         );
     };
@@ -187,8 +207,8 @@ const DatasetSettings = () => {
 
             const response = await fetch(`${API_URL}/projects/${projectUUID}/datasets`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: newDatasetName }),
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name: newDatasetName}),
             });
 
             if (!response.ok) {
@@ -235,29 +255,28 @@ const DatasetSettings = () => {
     }, [projectUUID]);
 
 
-
     if (loading) {
-        return <CircularProgress />;
+        return <CircularProgress/>;
     }
     return (
 
         <Box>
-            <Typography component="h4" variant="h6" gutterBottom sx={{ mt: 4 }}>
+            <Typography component="h4" variant="h6" gutterBottom sx={{mt: 4}}>
                 Datasets
             </Typography>
-            <List sx={{ border: 1, borderColor: 'divider', borderRadius: 1, mb: 1, p: 2 }}>
+            <List sx={{border: 1, borderColor: 'divider', borderRadius: 1, mb: 1, p: 2}}>
                 {datasetList.map((dataset) => (
-                    <ListItem key={dataset.pid} >
-                        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                            <Box sx={{ flexGrow: 1 }}>
-                                <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>{dataset.name}</Typography>
+                    <ListItem key={dataset.pid}>
+                        <Box sx={{display: 'flex', alignItems: 'center', width: '100%'}}>
+                            <Box sx={{flexGrow: 1}}>
+                                <Typography variant="subtitle1" sx={{fontWeight: 'medium'}}>{dataset.name}</Typography>
                                 <Typography variant="body2" color="text.secondary">{dataset.pid}</Typography>
                             </Box>
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Box sx={{display: 'flex', alignItems: 'center'}}>
                                 {/* <CloudDoneIcon color="success" sx={{ mr: 2 }} /> */}
-                                <UploadDataset dataset={dataset} onUploadSuccess={handleUploadSuccess} />
+                                <UploadDataset dataset={dataset} onUploadSuccess={handleUploadSuccess}/>
                                 <IconButton edge="end" aria-label="delete" color="error">
-                                    <DeleteIcon />
+                                    <DeleteIcon/>
                                 </IconButton>
                             </Box>
                         </Box>
@@ -265,11 +284,11 @@ const DatasetSettings = () => {
                     </ListItem>
                 ))}
 
-                <Divider sx={{ my: 2 }} />
+                <Divider sx={{my: 2}}/>
 
-                <ListItem key={0} >
-                    <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                        <Box sx={{ flexGrow: 1 }}>
+                <ListItem key={0}>
+                    <Box sx={{display: 'flex', alignItems: 'center', width: '100%'}}>
+                        <Box sx={{flexGrow: 1}}>
 
 
                             <TextField
@@ -283,14 +302,14 @@ const DatasetSettings = () => {
                             />
 
                         </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Box sx={{display: 'flex', alignItems: 'center'}}>
                             <IconButton
                                 edge="end"
                                 aria-label="add"
                                 color="primary"
                                 onClick={handleAdd}
                             >
-                                <AddIcon />
+                                <AddIcon/>
                             </IconButton>
                         </Box>
                     </Box>

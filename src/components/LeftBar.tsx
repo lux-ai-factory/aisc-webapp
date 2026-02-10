@@ -7,21 +7,17 @@ import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
-import DatasetIcon from '@mui/icons-material/Dataset';
-import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
-import FlagIcon from '@mui/icons-material/Flag';
-import TimelineIcon from '@mui/icons-material/Timeline';
-import TableViewIcon from '@mui/icons-material/TableView';
-import SecurityIcon from '@mui/icons-material/Security';
-import BalanceIcon from '@mui/icons-material/Balance';
-import AssignmentIcon from '@mui/icons-material/Assignment';
 import SettingsIcon from '@mui/icons-material/Settings';
 import DashboardIcon from '@mui/icons-material/Dashboard';
-import GradingIcon from '@mui/icons-material/Grading';
-import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
-import { Box } from '@mui/material';
+import ExtensionIcon from '@mui/icons-material/Extension';
+import {Box, Icon} from '@mui/material';
 import { Link, useLocation } from 'react-router-dom';
 import { useProject } from '../context/ProjectContext';
+import {useQuery} from "@tanstack/react-query";
+import {API_VERSION_PREFIX} from "../config.tsx";
+import {Project, Plugin} from "../models/models.tsx";
+
+const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
 /**
  * Props interface for the MenuList component
@@ -76,6 +72,22 @@ interface LeftBarProps {
     drawerWidth: number;
 }
 
+const getProject = async (project_uuid: string) => {
+    if (!project_uuid) throw new Error('Invalid uuid');
+    const res = await fetch(`${API_URL}/projects/${project_uuid}`);
+    const project = await res.json() as Project;
+    for (const plugin of project.plugins) {
+        plugin.display_icon = await getDisplayIcon(plugin.name)
+    }
+    return project;
+};
+
+const getDisplayIcon = async (plugin_name: string) => {
+    if (!plugin_name) throw new Error('Invalid plugin name');
+    const res = await fetch(`${API_URL}/plugins/${plugin_name}/display_icon`);
+    return await res.json() as string;
+};
+
 /**
  * LeftBar component
  * Main navigation drawer component for the application
@@ -94,6 +106,22 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
 
     const { projectName } = useProject()
 
+    const {projectUUID} = useProject();
+
+    const {data: project} = useQuery({
+        queryKey: ['project', projectUUID],
+        queryFn: () => getProject(projectUUID ?? "")
+    })
+
+    let pluginMenuHeader = { text: 'Plugins', icon: <ExtensionIcon />, target: `/projects/${projectName}/plugins` }
+
+    let pluginsMenuItems = project?.plugins.map((plugin: Plugin) => {
+        return {text: plugin.name, icon: <Icon>{plugin.display_icon}</Icon>, target: `/projects/${projectName}/plugins/${plugin.name}`}
+    }) ?? []
+
+
+    let pluginsMenu = [pluginMenuHeader].concat(pluginsMenuItems)
+
     return (
         <Drawer
             variant="permanent"
@@ -107,39 +135,23 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
             {projectName &&
                 <Box sx={{ overflow: 'auto' }}>
                     <MenuList
-                        title=""
+                        title="Project"
                         items={[
                             { text: 'Overview', icon: <DashboardIcon />, target: `/projects/${projectName}` },
-                            { text: 'Start Evaluation', icon: <GradingIcon />, target: `/projects/${projectName}/start-eval` },
+                            { text: 'Settings', icon: <SettingsIcon />, target: `/projects/${projectName}/settings` },
                         ]}
                     />
                     <Divider />
                     <MenuList
-                        title="Data"
-                        items={[
-                            { text: 'Training Data Analysis', icon: <DatasetIcon />, target: `/projects/${projectName}/training-data` },
-                            { text: 'Data Overview', icon: <TableViewIcon />, target: `/projects/${projectName}/data-overview` },
-                            { text: 'Data Anomalies', icon: <FlagIcon />, target: `/projects/${projectName}/data-anomalies` },
-                            { text: 'Data Drift', icon: <RocketLaunchIcon />, target: `/projects/${projectName}/data-drift` },
-                        ]}
+                        title="Plugin Management"
+                        items={pluginsMenu}
                     />
                     <Divider />
                     <MenuList
-                        title="Model Evaluation"
+                        title="Evaluations"
                         items={[
-                            { text: 'Accuracy and Correctness', icon: <TimelineIcon />, target: `/projects/${projectName}/model-accuracy` },
-                            { text: 'Regression performance', icon: <TimelineIcon />, target: `/projects/${projectName}/regression-accuracy` },
-                            { text: 'Robustness', icon: <SecurityIcon />, target: `/projects/${projectName}/model-robustness` },
-                            { text: 'Fairness', icon: <BalanceIcon />, target: `/projects/${projectName}/model-fairness` },
-                            { text: 'Counter Factual', icon: <CompareArrowsIcon />, target: `/projects/${projectName}/counterfactual` },
-                        ]}
-                    />
-                    <Divider />
-                    <MenuList
-                        title="Risk Management"
-                        items={[
-                            { text: 'Report Generation', icon: <AssignmentIcon />, target: `/projects/${projectName}/report` },
-                            { text: 'Settings & Alerts', icon: <SettingsIcon />, target: `/projects/${projectName}/settings` },
+                            { text: 'Start Evaluations', icon: <Icon>play_circle</Icon>, target: `/projects/${projectName}/plugins/evaluation` },
+                            { text: 'Evaluations', icon: <Icon>sports_score</Icon>, target: `/projects/${projectName}/plugins/evaluations` }
                         ]}
                     />
 
