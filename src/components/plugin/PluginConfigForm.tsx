@@ -1,9 +1,10 @@
 import { useMutation } from '@tanstack/react-query';
 import Form from '@rjsf/react-bootstrap';
 import validator from '@rjsf/validator-ajv8';
-import {useCallback} from 'react';
+import React, {useCallback, useRef} from 'react';
 import { debounce } from 'lodash';
 import { API_VERSION_PREFIX } from "../../config.tsx";
+import toast from "react-hot-toast";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -61,8 +62,78 @@ function PluginConfigForm({
         debouncedUpdate(newData);
     };
 
+    const handleExportJson = () => {
+        const payload = config ?? {};
+        const json = JSON.stringify(payload, null, 2);
+
+        const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+
+        const safeName = (pluginName || 'plugin').replace(/[^a-z0-9_-]+/gi, '_');
+        const filename = `${safeName}-config.json`;
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+
+        URL.revokeObjectURL(url);
+    };
+
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+    const handleImportClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) {
+            toast.error('No file selected', {position: "bottom-right"});
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            try {
+                const text = String(reader.result ?? '');
+                const parsed = JSON.parse(text);
+
+                if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+                    throw new Error('JSON must be an object at the top level.');
+                }
+
+                const validate = validator.ajv.compile(formSchema);
+                const isValid = validate(parsed);
+                if (!isValid) {
+                    const errorMessage = `${validate.errors?.[0].instancePath} ${validate.errors?.[0].message}`
+                    throw new Error(`JSON does not match expected form schema.\n ${errorMessage}`);
+                }
+
+                onFormUpdate({ config: parsed as object, formSchema, uiSchema });
+                debouncedUpdate(parsed);
+                toast.success('Config JSON file imported', {position: "bottom-right"});
+            } catch (err) {
+                const message = err instanceof Error ? err.message : 'Unknown error';
+                toast.error(message, {position: "bottom-right"});
+            } finally {
+                e.target.value = '';
+            }
+        };
+
+        reader.onerror = () => {
+            toast.error('Could not read file', {position: "bottom-right"});
+            e.target.value = '';
+        };
+
+        reader.readAsText(file);
+    };
+
     return (
         <Form
+            key={pluginName}
             schema={formSchema}
             uiSchema={uiSchema}
             validator={validator}
@@ -71,6 +142,23 @@ function PluginConfigForm({
             onSubmit={({ formData }) => onSubmit(formData)}
         >
             <div className="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="application/json,.json"
+                    onChange={handleFileSelected}
+                    style={{ display: 'none' }}
+                />
+                <abbr title="Export form data as a JSON file">
+                    <button className="btn btn-outline-secondary" type="button" onClick={handleExportJson}>
+                        Export
+                    </button>
+                </abbr>
+                <abbr title="Import form data from a JSON file">
+                    <button className="btn btn-outline-secondary" type="button" onClick={handleImportClick}>
+                        Import
+                    </button>
+                </abbr>
                 <button className="btn btn-primary" type="submit">
                     Save Configuration
                 </button>
