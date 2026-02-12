@@ -70,6 +70,11 @@ function PluginEvaluationMeasurements() {
                             (m: Measurement) => visualization.metrics.includes(m.name)
                         );
 
+                        // Skip this visualization if no data
+                        if (filteredMeasurements.length === 0) {
+                            return null;
+                        }
+
                         return (
                             <div key={index}>
                                 {visualization.chart_type === 'table' && (
