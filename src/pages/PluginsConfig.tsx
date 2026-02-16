@@ -70,19 +70,19 @@ function PluginConfig() {
     const [configState, setConfigState] = useState<ProjectPluginConfigState | null>(null);
 
     const {data: project, isPending: isProjectPending} = useQuery({
-        queryKey: ['project'],
+        queryKey: ['project', projectUUID],
         queryFn: () => getProject(projectUUID!!),
         enabled: !!projectUUID
     })
 
     const {data: projectPluginConfigState, isPending: isProjectPluginConfigStatePending, error} = useQuery({
-        queryKey: ['projectPluginConfig'],
+        queryKey: ['projectPluginConfig', projectUUID, plugin_name],
         queryFn: () => getProjectPluginConfigState(projectUUID!!, plugin_name!!),
         enabled: !!projectUUID && !!plugin_name
     })
 
     const {data: featureFlags} = useQuery({
-        queryKey: ['featureFlags'],
+        queryKey: ['featureFlags', plugin_name],
         queryFn: () => getPluginFeatureFlags(plugin_name!!),
         enabled: !!plugin_name
     })
