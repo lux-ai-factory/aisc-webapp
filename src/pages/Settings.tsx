@@ -11,7 +11,6 @@ import { API_VERSION_PREFIX } from "../config";
 import { useProject } from "../context/ProjectContext";
 import DatasetSettings from "../components/DatasetSettings";
 import ModelSettings from "../components/ModelSettngs";
-import DatashapeSettings from "../components/DatashapeSettings";
 
 const validators = {
     projectName: (name: string) => {
@@ -22,40 +21,12 @@ const validators = {
             };
         }
         return { isValid: true };
-    },
-
-    frequency: (frequency: string) => {
-        if (!frequency.trim()) return { isValid: true };
-        const pattern = /^\d+\s*[DWMY]$/i;
-        if (!pattern.test(frequency)) {
-            return {
-                isValid: false,
-                error: 'Format should be like "30D", "2W", "1M", or "1Y"'
-            };
-        }
-        return { isValid: true };
-    },
-
-    windowSize: (windowSize: string) => {
-        if (!windowSize.trim()) return { isValid: true };
-        const pattern =
-            /^\d+\s+(day|days|week|weeks|month|months|year|years)$/i;
-        if (!pattern.test(windowSize)) {
-            return {
-                isValid: false,
-                error:
-                    'Format should be like "90 days", "1 week", "3 months", or "2 years"'
-            };
-        }
-        return { isValid: true };
     }
 };
 
 interface MinimalProject {
     pid: string;
     name: string;
-    frequency: string;
-    window_size: string;
 }
 
 
@@ -110,9 +81,7 @@ function ProjectDetails() {
 
                 const minimal: MinimalProject = {
                     pid: data.pid,
-                    name: data.name ?? '',
-                    frequency: data.frequency ?? '',
-                    window_size: data.window_size ?? ''
+                    name: data.name ?? ''
                 };
                 setProject(minimal);
                 setFetchedProject(minimal);
@@ -133,9 +102,7 @@ function ProjectDetails() {
         // compare if fetchedProject and project are the same
         if (fetchedProject && project) {
             const isSame =
-                fetchedProject.name.trim() === project.name.trim() &&
-                fetchedProject.frequency.trim() === project.frequency.trim() &&
-                fetchedProject.window_size.trim() === project.window_size.trim();
+                fetchedProject.name.trim() === project.name.trim()
             setEdited(!isSame);
         }
     }, [fetchedProject, project]);
@@ -152,10 +119,6 @@ function ProjectDetails() {
         let validation: { isValid: boolean; error?: string } | undefined;
         if (field === "name") {
             validation = validators.projectName(value);
-        } else if (field === "frequency") {
-            validation = validators.frequency(value);
-        } else if (field === "window_size") {
-            validation = validators.windowSize(value);
         }
 
         setErrors((prev) => ({
@@ -178,9 +141,7 @@ function ProjectDetails() {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    name: project.name,
-                    frequency: project.frequency,
-                    window_size: project.window_size,
+                    name: project.name
                 }),
             });
 
@@ -191,9 +152,7 @@ function ProjectDetails() {
             const updatedProject: ProjectResponse = await response.json();
             const minimal: MinimalProject = {
                 pid: updatedProject.pid,
-                name: updatedProject.name ?? '',
-                frequency: updatedProject.frequency ?? '',
-                window_size: updatedProject.window_size ?? ''
+                name: updatedProject.name ?? ''
             };
 
             setProject(minimal);
@@ -220,32 +179,6 @@ function ProjectDetails() {
                     required
                     error={!!errors.name}
                     helperText={errors.name || "A descriptive name for your AI project"}
-                />
-
-                <TextField
-                    label="Frequency (Optional)"
-                    value={project?.frequency ?? ''}
-                    onChange={(e) => handleChange('frequency', e.target.value)}
-                    fullWidth
-                    error={!!errors.frequency}
-                    helperText={
-                        errors.frequency ||
-                        "Data frequency for time-series analysis (e.g., '30D', '1M')."
-                    }
-                    placeholder="e.g., 30D, 1M, 1W"
-                />
-
-                <TextField
-                    label="Window Size (Optional)"
-                    value={project?.window_size ?? ''}
-                    onChange={(e) => handleChange('window_size', e.target.value)}
-                    fullWidth
-                    error={!!errors.window_size}
-                    helperText={
-                        errors.window_size ||
-                        "Analysis window size (e.g., '90 days', '3 months')."
-                    }
-                    placeholder="e.g., 90 days, 3 months"
                 />
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
                         <Button
@@ -286,22 +219,6 @@ export default function SettingsPage() {
 
             <DatasetSettings/>
             <ModelSettings />
-
-            {/* <Typography component="h3" variant="h5" gutterBottom sx={{ mt: 4 }}>
-                Advanced Options
-            </Typography>
-            <Typography variant="body1" sx={{ mb: 2 }}>
-                Configure additional project settings and preferences.
-            </Typography> */}
-
-            <Typography component="h3" variant="h5" gutterBottom sx={{ mt: 4 }}>
-                Datashape
-            </Typography>
-            <Typography variant="body1" sx={{ mb: 2 }}>
-                Set up the expected datashape of the project.
-            </Typography>
-
-            <DatashapeSettings />
         </Box>
     );
 }
