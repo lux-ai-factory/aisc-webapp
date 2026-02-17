@@ -1,6 +1,17 @@
-import { BarChart } from '@mui/x-charts/BarChart';
+import { useMemo, useState } from "react";
+import { BarChart } from "@mui/x-charts/BarChart";
 import { Measurement } from "../../models/models.tsx";
 import { formatDate, getColorFromIndex } from "../../util/util.ts";
+import {
+    AlignedLineSeries,
+    buildDistinctTimes,
+    buildDistinctCompositeKeys,
+    buildLookupByKeyAndTime,
+    buildAlignedSeries,
+    applyHiddenToSeries,
+    computeYDomainFromVisible,
+    toggleHidden,
+} from "./ChartUtils";
 
 interface MeasurementsBarChartProps {
     title?: string;
@@ -9,61 +20,79 @@ interface MeasurementsBarChartProps {
     stacked?: boolean;
 }
 
-export const MeasurementsBarChart = ({ title: _title, data, stacked = false }: MeasurementsBarChartProps) => {
-    // Distinct categories for the x-axis and series grouping
-    const distinctTimes = [...new Set(data.map(m => m.time))];
+export const MeasurementsBarChart = ({title: _title, data, stacked = false}: MeasurementsBarChartProps) => {
+    // Fixed x-domain
+    const times = useMemo(() => buildDistinctTimes(data), [data]);
+    // Distinct (name, description) keys
+    const keys = useMemo(() => buildDistinctCompositeKeys(data), [data]);
+    // Sparse lookup key -> time -> score
+    const byKeyAndTime = useMemo(() => buildLookupByKeyAndTime(data), [data]);
+    // Base aligned series
+    const baseSeries = useMemo(
+        () =>
+            buildAlignedSeries(keys, times, byKeyAndTime, getColorFromIndex, {
+                showMark: false,
+                curve: "linear",
+            }),
+        [keys, times, byKeyAndTime],
+    );
 
-    const distinctKeys = [...new Set(
-        data.map(m => {
-            const desc = m.description ?? "";
-            return `${m.name}:::${desc}`;
-        })
-    )];
+    // Visibility state
+    const [hidden, setHidden] = useState<string[]>([]);
 
-    const byKeyAndTime = new Map<string, Map<string, number>>();
+    // Map to BarChart series
+    const series = useMemo(
+        () =>
+            baseSeries.map((s: AlignedLineSeries) => ({
+                id: s.id,
+                label: s.label,
+                color: s.color,
+                data: s.data, // (number | null)[], aligned to `times`
+                ...(stacked ? { stack: "total" as const } : {}),
+                valueFormatter: (v: number | null) => (v == null ? "" : `${v}`),
+            })),
+        [baseSeries, stacked],
+    );
 
-    for (const m of data) {
-        const desc = m.description ?? "";
-        const composite = `${m.name}:::${desc}`;
+    // Replace hidden series with null data so they remain in the legend
+    const seriesForChart = useMemo(
+        () => applyHiddenToSeries(series, hidden),
+        [series, hidden],
+    );
 
-        if (!byKeyAndTime.has(composite)) {
-            byKeyAndTime.set(composite, new Map());
-        }
-        byKeyAndTime.get(composite)!.set(m.time, m.score);
-    }
-
-    const series = distinctKeys.map((key, index) => {
-        const [name, description] = key.split(":::");
-
-        return {
-            label: description ? `${name} — ${description}` : name,
-            color: getColorFromIndex(index),
-            data: distinctTimes.map(
-                t => byKeyAndTime.get(key)?.get(t) ?? null // sparse alignment
-            ),
-            showMark: true,
-            curve: "linear" as const,
-            ...(stacked ? { stack: "total" as const } : {}),
-            valueFormatter: (v: number | null) => (v == null ? "" : `${v}`),
-        };
-    });
+    // Only Y-axis rescales (x-axis stays fixed)
+    const { yMin, yMax } = useMemo(
+        () => computeYDomainFromVisible(series, hidden),
+        [series, hidden],
+    );
 
     return (
         <BarChart
-            xAxis={[{
-               data: distinctTimes,
-               scaleType: 'band',
-               valueFormatter: (dateStr) => formatDate(dateStr),
-            }]}
-            yAxis={[{
-                width: 50,
-            }]}
-            series={series}
             height={400}
-            slotProps={{
-               legend: { toggleVisibilityOnClick: true },
-            }}
+            series={seriesForChart}
+            xAxis={[
+                {
+                    data: times,
+                    scaleType: "band",
+                    valueFormatter: (dateStr: string) => formatDate(dateStr),
+                },
+            ]}
+            yAxis={[
+                {
+                    width: 50,
+                    min: yMin,
+                    max: yMax,
+                },
+            ]}
             grid={{ vertical: true, horizontal: true }}
+            slotProps={{
+                legend: {
+                    toggleVisibilityOnClick: true,
+                    onItemClick: (_evt: any, item: { seriesId: string | number }) => {
+                        setHidden((prev) => toggleHidden(prev, String(item.seriesId)));
+                    },
+                },
+            }}
             showToolbar
         />
     );
