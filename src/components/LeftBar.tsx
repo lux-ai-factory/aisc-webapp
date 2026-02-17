@@ -109,8 +109,8 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
     const {projectUUID} = useProject();
 
     const {data: project} = useQuery({
-        queryKey: ['project', projectUUID],
-        queryFn: () => getProject(projectUUID ?? "")
+        queryKey: ['project', projectUUID, 'withIcons'],
+        queryFn: () => getProject(projectUUID ?? ""),
     })
 
     let pluginMenuHeader = { text: 'Plugins', icon: <ExtensionIcon />, target: `/projects/${projectName}/plugins` }
