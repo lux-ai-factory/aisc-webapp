@@ -68,40 +68,55 @@ function PluginStartEvaluation() {
     if (error) return <span>Oops!</span>
 
     const handleChange = (e: any) => {
-        const {value, checked} = e.target;
+        const {value: pluginName, checked} = e.target;
         if (checked) {
-            setCheckedItems([...checkedItems, value]);
+            setCheckedItems([...checkedItems, pluginName]);
+            setPluginSettings(prev => ({
+                ...prev,
+                [pluginName]: prev[pluginName] ?? {dataset_pid: null, model_pid: null},
+            }));
         } else {
-            setCheckedItems(checkedItems.filter((item) => item !== value));
+            setCheckedItems(checkedItems.filter((item) => item !== pluginName));
+            setPluginSettings(prev => {
+                const {[pluginName]: _removed, ...rest} = prev;
+                return rest;
+            });
         }
     };
 
     const handleDatasetDropdownChange = (e: any, pluginName: string) => {
-        const selectedDatasetPid = e.target.value;
+        const selectedDatasetPid = e.target.value ?? null;
         setPluginSettings(prev => ({
             ...prev,
             [pluginName]: {
                 ...prev[pluginName],
                 dataset_pid: selectedDatasetPid,
-                model_pid: prev[pluginName]?.model_pid || ''
+                model_pid: prev[pluginName]?.model_pid ?? null
             }
         }));
     };
 
     const handleModelDropdownChange = (e: any, pluginName: string) => {
-        const selectedModelPid = e.target.value;
+        const selectedModelPid = e.target.value ?? null;
         setPluginSettings(prev => ({
             ...prev,
             [pluginName]: {
                 ...prev[pluginName],
-                dataset_pid: prev[pluginName]?.dataset_pid || '',
+                dataset_pid: prev[pluginName]?.dataset_pid ?? null,
                 model_pid: selectedModelPid
             }
         }));
     };
 
     const handleOnClick = async (projectUUID: string) => {
-        await createEvaluation(projectUUID, pluginSettings)
+        const selectedPluginSettings: PluginSettingMap = Object.fromEntries(
+            checkedItems.map((name) => [
+                name,
+                pluginSettings[name] ?? {dataset_pid: null, model_pid: null},
+            ])
+        );
+
+        await createEvaluation(projectUUID, selectedPluginSettings)
     }
 
     return (

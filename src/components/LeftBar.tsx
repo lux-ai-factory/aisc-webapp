@@ -109,8 +109,8 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
     const {projectUUID} = useProject();
 
     const {data: project} = useQuery({
-        queryKey: ['project', projectUUID],
-        queryFn: () => getProject(projectUUID ?? "")
+        queryKey: ['project', projectUUID, 'withIcons'],
+        queryFn: () => getProject(projectUUID ?? ""),
     })
 
     let pluginMenuHeader = { text: 'Plugins', icon: <ExtensionIcon />, target: `/projects/${projectName}/plugins` }
@@ -152,6 +152,13 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
                         items={[
                             { text: 'Start Evaluations', icon: <Icon>play_circle</Icon>, target: `/projects/${projectName}/plugins/evaluation` },
                             { text: 'Evaluations', icon: <Icon>sports_score</Icon>, target: `/projects/${projectName}/plugins/evaluations` }
+                        ]}
+                    />
+                    <Divider />
+                    <MenuList
+                        title="Tasks"
+                        items={[
+                            { text: 'Tasks', icon: <Icon>directions_run</Icon>, target: `/projects/${projectName}/plugins/evaluations/tasks` },
                         ]}
                     />
 

@@ -6,11 +6,26 @@ export interface Project {
     models: DataObject[];
 }
 
+export interface Evaluation {
+    pid: string;
+    project: Project
+    status: string;
+    dataset: DataObject;
+    model: DataObject;
+    evaluation_plugins: Plugin[];
+    task: string;
+}
+
 export interface Plugin {
     pid: string;
     name: string;
     config: object
     display_icon: string;
+}
+
+export interface TaskProgress {
+    progress: number;
+    extra: object
 }
 
 export interface DataObject {
