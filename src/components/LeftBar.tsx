@@ -154,6 +154,13 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
                             { text: 'Evaluations', icon: <Icon>sports_score</Icon>, target: `/projects/${projectName}/plugins/evaluations` }
                         ]}
                     />
+                    <Divider />
+                    <MenuList
+                        title="Tasks"
+                        items={[
+                            { text: 'Tasks', icon: <Icon>directions_run</Icon>, target: `/projects/${projectName}/plugins/evaluations/tasks` },
+                        ]}
+                    />
 
                 </Box>
             }
