@@ -7,11 +7,12 @@ interface MeasurementsRadarChartProps {
     data: Measurement[];
 }
 
-export const MeasurementsRadarChart = ({title, data}: MeasurementsRadarChartProps) => {
+export const MeasurementsRadarChart = ({title: _title, data}: MeasurementsRadarChartProps) => {
     return (
         <RadarChart
             height={400}
-            series={[{label: title, data: data.map(m => m.score)}]}
+            // series={[{label: title, data: data.map(m => m.score)}]}
+            series={[{data: data.map(m => m.score)}]}
             radar={{
                 max: 1,
                 metrics: data.map(m => m.name),
