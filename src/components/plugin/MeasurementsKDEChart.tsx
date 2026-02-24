@@ -45,7 +45,7 @@ function makeXFormatter(range: number) {
         });
 }
 
-export const MeasurementsKDEChart = ({title: _title, data, bins = 24}: MeasurementsKDEChartProps) => {
+export const MeasurementsKDEChart = ({title: _title, data, bins = 20}: MeasurementsKDEChartProps) => {
     if (!data?.length) return null;
 
     // --- Grouping
@@ -72,41 +72,47 @@ export const MeasurementsKDEChart = ({title: _title, data, bins = 24}: Measureme
     const binCenters = Array.from({ length: bins }, (_, i) => globalMin + (i + 0.5) * binSize);
 
     // --- Simple stats + KDE ---
-    const mean = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length;
-    const std = (arr: number[]) => {const mu = mean(arr);
-        return Math.sqrt(arr.reduce((s, v) => s + (v - mu) ** 2, 0) / arr.length);
+    const mean = (arr: number[]): number => arr.length === 0 ? 0 : arr.reduce((a, b) => a + b, 0) / arr.length;
+    const std = (arr: number[]): number => {const mu = mean(arr);
+        return arr.length === 0 ? 0 : Math.sqrt(arr.reduce((s, v) => s + (v - mu) ** 2, 0) / arr.length);
     };
     const gaussianKernel = (x: number) => (1 / Math.sqrt(2 * Math.PI)) * Math.exp(-0.5 * x * x);
 
     // Histogram counts
-    const histogramCounts = (values: number[]) => {
+    const histogramCounts = (
+        values: number[],
+        bins: number,
+        globalMin: number,
+        globalRange: number
+    ): number[] => {
         const counts = Array.from({ length: bins }, () => 0);
 
-    for (const v of values) {
-        // Normalize to [0, 1]
-        const t = (v - globalMin) / globalRange;
+        for (const v of values) {
+            // Normalize to [0, 1]
+            const t = globalRange === 0 ? 0 : (v - globalMin) / globalRange;
 
-        // Clamp to avoid FP overflow
-        const clamped = Math.min(Math.max(t, 0), 1);
+            // Clamp to avoid FP overflow
+            const clamped = Math.min(Math.max(t, 0), 1);
 
-        // Map to bin index
-        let idx = Math.floor(clamped * bins);
+            // Map to bin index
+            let idx = Math.floor(clamped * bins);
 
-        // Include max value in last bin
-        if (idx === bins) idx = bins - 1;
+            // Include max value in last bin
+            if (idx === bins) idx = bins - 1;
 
-        counts[idx]++;
+            counts[idx]++;
         }
 
         return counts;
     };
 
     // KDE evaluated at the bin centers (so bars & line share the same X positions)
-    const kdeAtPoints = (values: number[], xs: number[]) => {
+    const kdeAtPoints = (values: number[], xs: number[], globalRange: number) => {
         const n = values.length;
         if (n === 0) return xs.map(() => 0);
         const s = std(values);
-        const h = 1.06 * (s || globalRange / 4) * Math.pow(n, -1 / 5); // Silverman’s rule
+        // Silverman's rule with fallback for zero stdev
+        const h = 1.06 * (s || globalRange / 4) * Math.pow(n, -1 / 5);
         return xs.map((x) =>
             values.reduce((acc, v) => acc + gaussianKernel((x - v) / h), 0) / (n * h)
         );
@@ -118,13 +124,15 @@ export const MeasurementsKDEChart = ({title: _title, data, bins = 24}: Measureme
 
     distinctNames.forEach((name) => {
         const values = scoresByName.get(name)!;
-        const counts = histogramCounts(values);
-        const dens = kdeAtPoints(values, binCenters);
+        const counts = histogramCounts(values, bins, globalMin, globalRange);
+        const dens = kdeAtPoints(values, binCenters, globalRange);
         for (let i = 0; i < bins; i++) {
             dataset[i][`count__${name}`] = counts[i];
             dataset[i][`kde__${name}`] = dens[i];
         }
     });
+
+    const scientificFormatter = (v: number | null): string => v == null ? '' : v.toExponential(2);
 
     // One bar series (count) + one line series (density) per name
     const series =
@@ -146,12 +154,12 @@ export const MeasurementsKDEChart = ({title: _title, data, bins = 24}: Measureme
                 yAxisId: 'density',
                 showMark: false,
                 curve: 'natural' as const,
+                valueFormatter: (v: number | null) => scientificFormatter(v),
             };
         return [bar, line];
     });
 
     const xFormatter = makeXFormatter(globalRange);
-
 
     return (
         <div style={{ width: '100%' }}>
@@ -161,8 +169,8 @@ export const MeasurementsKDEChart = ({title: _title, data, bins = 24}: Measureme
                 height={400}
                 xAxis={[{ scaleType: 'band', dataKey: 'x', label: 'Score', valueFormatter: (v) => xFormatter(v as number) }]}
                 yAxis={[
-                  { id: 'count', label: 'Count', width: 56, position: 'right' },
-                  { id: 'density', label: 'Density', width: 56, position: 'left' },
+                    { id: 'count', label: 'Count', width: 65, position: 'right' },
+                    { id: 'density', label: 'Density', width: 80, position: 'left', valueFormatter: (v: number | null) => scientificFormatter(v) },
                 ]}
             >
                 <ChartsWrapper
