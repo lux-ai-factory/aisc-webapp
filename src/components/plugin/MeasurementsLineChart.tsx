@@ -53,6 +53,7 @@ export const MeasurementsLineChart = ({ title: _title, data }: MeasurementsLineC
         <LineChart
             height={400}
             series={seriesForChart}
+            margin={{right: 40}}
             xAxis={[
                 {
                     data: times,
