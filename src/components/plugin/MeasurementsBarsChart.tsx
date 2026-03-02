@@ -49,7 +49,6 @@ export const MeasurementsBarChart = ({title: _title, data, stacked = false}: Mea
                 color: s.color,
                 data: s.data, // (number | null)[], aligned to `times`
                 ...(stacked ? { stack: "total" as const } : {}),
-                valueFormatter: (v: number | null) => (v == null ? "" : `${v}`),
             })),
         [baseSeries, stacked],
     );
