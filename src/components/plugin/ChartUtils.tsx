@@ -152,5 +152,9 @@ export function computeYDomainFromVisible(
     const min = Math.min(...values);
     const max = Math.max(...values);
     const pad = (max - min) * 0.1 || 1;
-    return { yMin: min - pad, yMax: max + pad };
+
+    return {
+        yMin: min >= 0 ? 0 : min - pad,
+        yMax: min >= 0 ? Math.min(1, min + max) : max + pad,
+    };
 }
