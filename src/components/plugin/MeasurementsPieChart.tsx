@@ -33,7 +33,7 @@ export const MeasurementsPieChart = ({ title: _title, data }: MeasurementsPieCha
         () =>
             baseSeries.map(s => ({
                 id: s.id,
-                value: typeof s.data[0] === "number" ? s.data[0]! : 0,
+                rawValue: typeof s.data[0] === "number" ? s.data[0]! : 0,
                 label: s.label,
                 color: s.color,
             })),
@@ -46,10 +46,33 @@ export const MeasurementsPieChart = ({ title: _title, data }: MeasurementsPieCha
         () =>
             pieData.map(segment => ({
                 ...segment,
-                value: hidden.includes(segment.id) ? 0 : segment.value,
+                rawValue: hidden.includes(segment.id) ? 0 : segment.rawValue,
             })),
         [pieData, hidden]
     );
+
+    const activeTotal = useMemo(
+        () => seriesData
+            .filter(segment => segment.rawValue > 0)
+            .reduce((sum, item) => sum + item.rawValue, 0),
+        [seriesData]
+    );
+
+    const normalizedSeriesData = useMemo(
+        () =>
+            seriesData
+                .filter(segment => segment.rawValue > 0)
+                .map(segment => ({
+                    ...segment,
+                    value: activeTotal > 0 ? Number(((segment.rawValue / activeTotal) * 100).toFixed(1)) : 0,
+                    label: segment.label,
+                    color: segment.color,
+                })),
+        [seriesData, activeTotal]
+    );
+
+    const valueFormatter = (item: { value: number }) => `${item.value}%`;
+
 
     // PieChart with legend interactivity
     return (
@@ -58,7 +81,8 @@ export const MeasurementsPieChart = ({ title: _title, data }: MeasurementsPieCha
                 height={400}
                 series={[
                     {
-                        data: seriesData,
+                        data: normalizedSeriesData,
+                        valueFormatter,
                     },
                 ]}
                 slotProps={{
