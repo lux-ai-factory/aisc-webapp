@@ -35,9 +35,10 @@ function PluginEvaluations() {
             <List>
             {evaluations && evaluations.map((evaluation: any) => (
                 <ListItem>
-                    <Link to={`${evaluation["pid"]}`}>{evaluation["pid"]}</Link>
-                    <CheckCircleIcon color="success"/>
-                    ({evaluation["evaluation_plugins"].map((plugin: Plugin) => plugin.name).join(',')})
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <CheckCircleIcon color="success"/>
+                        <Link to={`${evaluation["pid"]}`}>{evaluation["evaluation_plugins"].map((plugin: Plugin) => plugin.name).join(' - ')}</Link>
+                    </div>
                 </ListItem>
             ))}
             </List>
