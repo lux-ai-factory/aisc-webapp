@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { LineChart } from "@mui/x-charts/LineChart";
+import { LineChartPro } from "@mui/x-charts-pro/LineChartPro";
 import { Measurement } from "../../models/models";
 import { formatDate, getColorFromIndex } from "../../util/util";
 import {
@@ -50,7 +50,7 @@ export const MeasurementsLineChart = ({ title: _title, data }: MeasurementsLineC
     );
 
     return (
-        <LineChart
+        <LineChartPro
             height={400}
             series={seriesForChart}
             margin={{right: 40}}
@@ -63,6 +63,9 @@ export const MeasurementsLineChart = ({ title: _title, data }: MeasurementsLineC
             ]}
             yAxis={[
                 {
+                    zoom: {
+                        slider: {enabled: true}
+                    },
                     width: 50,
                     min: yMin,
                     max: yMax,
