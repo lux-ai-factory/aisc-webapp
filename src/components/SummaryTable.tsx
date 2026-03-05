@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Typography, Paper, Chip, Grid, Divider, Container } from "@mui/material";
+import { Box, Typography, Grid, Container, Card, CardHeader, CardContent, Stack, Button } from "@mui/material";
 import { green, orange, red } from "@mui/material/colors";
 import NorthIcon from '@mui/icons-material/North';
 import SouthIcon from '@mui/icons-material/South';
@@ -50,102 +50,47 @@ const getArrowIcon = (change: number, changeColor: string, fontSize: "inherit" |
     return null;
 };
 
-/**
- * MetricCard component
- * Displays a single metric card with title, value, change, observations, and recommendations
- * Used as a child component in the SummaryTable
- *
- * @param {MetricCardProps} props - Component props
- * @returns {JSX.Element} A paper component containing metric information
- */
-const MetricCard: React.FC<MetricCardProps> = ({
-    title, metric, change, changeColor, observations, takeaway, recommendation, recommendationColor
-}) => (
-    <Paper
-        elevation={3}
-        sx={{
-            height: "100%",
-            padding: 2,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            flexGrow: 1,
-        }}
-    >
-        <Typography sx={{ fontWeight: "bold", mb: 0.6, width: "100%", textAlign: "left" }} variant="subtitle1">{title}</Typography>
-
-        <Box flexGrow={1} />
-
-        <Box display="flex" alignItems="center" mb={1} sx={{ minHeight: 42, justifyContent: "center" }}>
-            <Box sx={{ width: "100%", display: "flex", flexDirection: "column" }}>
-                <Typography variant="h3" fontWeight="bold" component="span" >
-                    {metric}
-                </Typography>
-
-                {change !== 0 && (<Typography variant="h5" component="span" sx={{ color: changeColor }} >
-                    {getArrowIcon(change, changeColor, "inherit")} {change > 0 ? `+${change}` : change}
-                </Typography>)}
-            </Box>
-        </Box>
-
-        <Box flexGrow={1} />
-        <Divider sx={{ width: "100%", mb: 1 }} />
-
-        <Typography variant="body1" color="textSecondary" mt={1}>
-            {observations}
-        </Typography>
-
-        <Box flexGrow={1} />
-
-        <Typography variant="body1" mt={2} sx={{ width: "100%", textAlign: "left" }}>
-            <b>Takeaway: </b>{takeaway}
-        </Typography>
-
-        <Box flexGrow={1} />
-
-        <Box mt={2} mb={1} width="100%" display="flex" justifyContent="center">
-            <Chip
-                label={recommendation}
-                sx={{
-                    backgroundColor: recommendationColor,
-                    color: "#fff",
-                    fontWeight: "bold",
-                }}
-            />
-        </Box>
-    </Paper>
-);
-
 const metricsData = [
     {
-        title: "Training & Test Data",
-        metric: 0.82,
-        change: -0.04,
+        title: "Model Performance",
+        metric: 44.3,
+        change: 0.1,
         changeColor: green[500],
-        observations: "Bias strongest in gender feature",
-        takeaway: "Bias has decreased",
-        recommendation: "No Action required",
-        recommendationColor: green[500],
+        observations: "F1-score is increasing, but the still not ideal.",
+        takeaway: "A better model can be used.",
+        recommendation: "Warning: Act later",
+        recommendationColor: orange[500],
     },
     {
-        title: "Production Data & Data Anomalies",
-        metric: 25.2,
-        change: 2.1,
+        title: "Data Anomalies",
+        metric: 18.66,
+        change: 8,
         changeColor: red[500],
         observations: "Levels of low severity data anomalies stable",
-        takeaway: "High levels of severe Data Anomalies",
+        takeaway: "High levels of severe Data Anomalies.",
         recommendation: "Urgent: Act now!",
         recommendationColor: red[500],
     },
+    // {
+    //     title: "Data Drift",
+    //     metric: 3.6,
+    //     change: 0.3,
+    //     changeColor: red[500],
+    //     observations: "High levels of data drift, with 2 highly drifted features.",
+    //     takeaway: "Warning threshold reached.",
+    //     recommendation: "Urgent: Act now!",
+    //     recommendationColor: red[500],
+    // },
+    // TODO:
     {
-        title: "Model Output & Performance",
-        metric: 0.79,
-        change: -0.18,
-        changeColor: red[500],
-        observations: "Significant drop in model accuracy, while other metrics remain stable",
-        takeaway: "Warning threshold reached",
-        recommendation: "Warning: Act later",
-        recommendationColor: orange[500],
+        title: "Fairness",
+        metric: 5.3,
+        change: -0.1,
+        changeColor: green[500],
+        observations: "The unfairest feature 'purpose' has become more fair",
+        takeaway: "Unfairest feature 'purpose' is still within acceptable bounds",
+        recommendation: "No Action required",
+        recommendationColor: green[500],
     },
     {
         title: "Model Robustness",
@@ -159,25 +104,101 @@ const metricsData = [
     },
     {
         title: "Explainability",
-        metric: 0.98,
+        metric: 0.78,
         change: 0.09,
         changeColor: red[500],
-        observations: "Slight decrease in explainability of the model, especially in examples with 'total_acc' > 5",
+        observations: "Slight decrease in explainability of the model.",
         takeaway: "SHAP values are within the threshold",
         recommendation: "No Action required",
         recommendationColor: green[500],
     },
-    {
-        title: "Fairness",
-        metric: 5.3,
-        change: -0.1,
-        changeColor: green[500],
-        observations: "The unfairest feature 'purpose' has become more fair",
-        takeaway: "Unfairest feature 'purpose' is still within acceptable bounds",
-        recommendation: "No Action required",
-        recommendationColor: green[500],
-    },
 ];
+
+
+/**
+ * MetricCard component
+ * Displays a single metric card with title, value, change, observations, and recommendations
+ * Used as a child component in the SummaryTable
+ *
+ * @param {MetricCardProps} props - Component props
+ * @returns {JSX.Element} A paper component containing metric information
+ */
+const MetricCard: React.FC<MetricCardProps> = ({
+    title,
+    metric,
+    change,
+    changeColor,
+    observations,
+    takeaway,
+    recommendation,
+    recommendationColor,
+}) => (
+        <Card
+            sx={{
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                minWidth: 250,
+                maxWidth: 350,
+                mx: "auto",
+                boxSizing: "border-box",
+            }}
+        >
+            <CardHeader
+                title={
+                    <Typography
+                        variant="h5"
+                        fontWeight="bold"
+                        noWrap={false}
+                    >
+                        {title}
+                    </Typography>
+                }
+                sx={{ pb: 0 }}
+            />
+            <CardContent sx={{ flexGrow: 1, display: "flex", flexDirection: "column", py: 1 }}>
+                {/* Metric & Change aligned horizontally */}
+                <Stack direction="row" alignItems="baseline" spacing={2} sx={{ mb: 1 }}>
+                    <Typography variant="h3" fontWeight="bold">{metric}</Typography>
+                    {change !== 0 && (
+                        <Typography variant="h5" sx={{ color: changeColor, display: "flex", alignItems: "center" }}>
+                            {getArrowIcon(change, changeColor)}
+                            &nbsp;
+                            {change > 0 ? `+${change}` : change}
+                        </Typography>
+                    )}
+                </Stack>
+
+                {/* Observations */}
+                <Typography variant="body1" color="textSecondary" sx={{ mb: 2 }}>
+                    {observations}
+                </Typography>
+
+                {/* Takeaway */}
+                <Typography variant="body1" sx={{ mb: 3 }}>
+                    <b>Takeaway:</b> {takeaway}
+                </Typography>
+
+                <Box flexGrow={1} />
+
+                {/* Recommendation Button */}
+                <Button
+                    variant="contained"
+                    fullWidth
+                    sx={{
+                        backgroundColor: recommendationColor,
+                        color: "#fff",
+                        fontWeight: "bold",
+                        mt: "auto",
+                        ":hover": { backgroundColor: recommendationColor, opacity: 0.9 },
+                    }}
+                    disableElevation
+                >
+                    {recommendation}
+                </Button>
+            </CardContent>
+        </Card>
+    );
 
 
 /**
@@ -202,13 +223,9 @@ const SummaryTable: React.FC = () => (
             <Typography component="h2" variant="h4" gutterBottom>
                 Summary
             </Typography>
-            <Grid container spacing={2} >
+            <Grid container spacing={3} sx={{ p: 0, m: 0 }}>
                 {metricsData.map((metric, idx) => (
-                    <Grid item key={idx} xs={12} sm={12} md={4} lg={2}
-                        sx={{
-                            minWidth: 50,
-                            width: "100%",
-                        }}>
+                    <Grid item key={idx} xs={12} sm={12} md={6} lg={4} xl={3} sx={{ p: 0, m: 0 }}>
                         <MetricCard {...metric} />
                     </Grid>
                 ))}
