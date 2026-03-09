@@ -21,13 +21,20 @@ interface MeasurementsBarChartProps {
 }
 
 export const MeasurementsBarChart = ({title: _title, data, stacked = false}: MeasurementsBarChartProps) => {
-    // Fixed x-domain
+    // Distinct times and keys (keys are measure names)
     const times = useMemo(() => buildDistinctTimes(data), [data]);
-    // Distinct (name, description) keys
     const keys = useMemo(() => buildDistinctCompositeKeys(data), [data]);
-    // Sparse lookup key -> time -> score
     const byKeyAndTime = useMemo(() => buildLookupByKeyAndTime(data), [data]);
-    // Base aligned series
+
+    // Find all descriptions for the (possibly single) measure
+    const descriptions = Array.from(new Set(data.map(m => m.description ?? '')));
+
+    // Determine cardinality
+    const singleTime = times.length === 1;
+    const singleMeasure = new Set(data.map(m => m.name)).size === 1;
+    const singleTimeAndSingleMeasure = singleTime && singleMeasure;
+
+    // Base: group by (key = measure name), each series is a measure
     const baseSeries = useMemo(
         () =>
             buildAlignedSeries(keys, times, byKeyAndTime, getColorFromIndex, {
@@ -36,44 +43,107 @@ export const MeasurementsBarChart = ({title: _title, data, stacked = false}: Mea
             }),
         [keys, times, byKeyAndTime],
     );
-
-    // Visibility state
     const [hidden, setHidden] = useState<string[]>([]);
-
-    // Map to BarChart series
     const series = useMemo(
         () =>
             baseSeries.map((s: AlignedLineSeries) => ({
                 id: s.id,
                 label: s.label,
                 color: s.color,
-                data: s.data, // (number | null)[], aligned to `times`
+                data: s.data,
                 ...(stacked ? { stack: "total" as const } : {}),
             })),
         [baseSeries, stacked],
     );
-
-    // Replace hidden series with null data so they remain in the legend
     const seriesForChart = useMemo(
         () => applyHiddenToSeries(series, hidden),
-        [series, hidden],
+        [series, hidden]
     );
-
-    // Only Y-axis rescales (x-axis stays fixed)
     const { yMin, yMax } = useMemo(
         () => computeYDomainFromVisible(series, hidden),
-        [series, hidden],
+        [series, hidden]
     );
+
+    // --- Dynamic axes and title ---
+    let xAxisData: string[] = times;
+    let xAxisFormatter: (v: string) => string = formatDate;
+    let adjustedSeriesForChart = seriesForChart;
+    let xAxisTick: any = {}; // To hold possible label rotation
+    let chartHeight: number = 400;
+    let xAxisHeight: number = 0;
+
+    if (singleTimeAndSingleMeasure) {
+        // CASE: Single time and single measure
+        const measureName = data[0]?.name ?? (keys[0] ?? "");
+        xAxisData = descriptions;
+        xAxisFormatter = v => v;
+        xAxisTick = {
+            angle: -60,
+            textAnchor: 'end',
+            dominantBaseline: 'end',
+            fontSize: 10,
+        };
+        chartHeight = 600;
+        xAxisHeight = 200;
+
+        // Only one series; its data is value at single time for each description
+        adjustedSeriesForChart = [{
+            id: measureName,
+            label: measureName,
+            color: getColorFromIndex(0),
+            data: descriptions.map(desc =>
+                data.find(m => (m.name === measureName) && (m.description === desc))?.score ?? null
+            ),
+            ...(stacked ? { stack: "total" as const } : {})
+        }];
+    }
+    else if (singleTime) {
+        // CASE: Only a single time; x-axis = measure names
+        xAxisData = keys;
+        xAxisFormatter = v => v;
+        xAxisTick = {
+            angle: -60,
+            textAnchor: 'end',
+            dominantBaseline: 'end',
+            fontSize: 10,
+        };
+        chartHeight = 600;
+        xAxisHeight = 200;
+
+        adjustedSeriesForChart = [{
+            id: 'singleTime',
+            label: times[0],
+            color: getColorFromIndex(0),
+            data: keys.map(k => byKeyAndTime.get(k)?.get(times[0]) ?? null),
+            ...(stacked ? { stack: "total" as const } : {})
+        }];
+    }
+    else if (singleMeasure) {
+        // CASE: Only a single measure, multiple times
+        const measureName = data[0]?.name ?? (keys[0] ?? "");
+        xAxisData = times;
+        xAxisFormatter = formatDate;
+
+        adjustedSeriesForChart = [{
+            id: measureName,
+            label: measureName,
+            color: getColorFromIndex(0),
+            data: times.map(t => byKeyAndTime.get(keys[0])?.get(t) ?? null),
+            ...(stacked ? { stack: "total" as const } : {})
+        }];
+    }
 
     return (
         <BarChart
-            height={400}
-            series={seriesForChart}
+            height={chartHeight}
+            series={adjustedSeriesForChart}
             xAxis={[
                 {
-                    data: times,
+                    data: xAxisData,
                     scaleType: "band",
-                    valueFormatter: (dateStr: string) => formatDate(dateStr),
+                    valueFormatter: xAxisFormatter,
+                    height: xAxisHeight,
+                    tickLabelStyle: xAxisTick,
                 },
             ]}
             yAxis={[
