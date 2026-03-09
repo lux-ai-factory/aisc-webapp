@@ -70,7 +70,7 @@ export const MeasurementsBarChart = ({title: _title, data, stacked = false}: Mea
     let adjustedSeriesForChart = seriesForChart;
     let xAxisTick: any = {}; // To hold possible label rotation
     let chartHeight: number = 400;
-    let xAxisHeight: number = 0;
+    let xAxisHeight: number = 50;
 
     if (singleTimeAndSingleMeasure) {
         // CASE: Single time and single measure
@@ -115,20 +115,6 @@ export const MeasurementsBarChart = ({title: _title, data, stacked = false}: Mea
             label: times[0],
             color: getColorFromIndex(0),
             data: keys.map(k => byKeyAndTime.get(k)?.get(times[0]) ?? null),
-            ...(stacked ? { stack: "total" as const } : {})
-        }];
-    }
-    else if (singleMeasure) {
-        // CASE: Only a single measure, multiple times
-        const measureName = data[0]?.name ?? (keys[0] ?? "");
-        xAxisData = times;
-        xAxisFormatter = formatDate;
-
-        adjustedSeriesForChart = [{
-            id: measureName,
-            label: measureName,
-            color: getColorFromIndex(0),
-            data: times.map(t => byKeyAndTime.get(keys[0])?.get(t) ?? null),
             ...(stacked ? { stack: "total" as const } : {})
         }];
     }
