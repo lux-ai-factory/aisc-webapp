@@ -18,6 +18,8 @@ import {
     CircularProgress,
     Alert,
     Tooltip,
+    ToggleButton,
+    ToggleButtonGroup,
 } from '@mui/material';
 import VerifiedIcon from '@mui/icons-material/Verified';
 import ErrorIcon from '@mui/icons-material/Error';
@@ -40,6 +42,11 @@ interface AuditEvent {
     verified: boolean;
 }
 
+interface Evaluation {
+    pid: string;
+    status: string;
+}
+
 const getEvaluationAuditEvents = async (evaluationPid: string): Promise<AuditEvent[]> => {
     const res = await fetch(`${API_URL}/audit/evaluations/${evaluationPid}/events`);
     if (!res.ok) throw new Error('Failed to fetch audit events');
@@ -52,11 +59,10 @@ const getVerifiedEvent = async (eventId: number): Promise<AuditEvent> => {
     return await res.json();
 };
 
-const getLatestEvaluation = async (projectUUID: string) => {
-    const res = await fetch(`${API_URL}/projects/${projectUUID}/evaluations?status=Done`);
+const getAllEvaluations = async (projectUUID: string): Promise<Evaluation[]> => {
+    const res = await fetch(`${API_URL}/projects/${projectUUID}/evaluations`);
     if (!res.ok) throw new Error('Failed to fetch evaluations');
-    const evaluations = await res.json();
-    return evaluations.length > 0 ? evaluations[0] : null;
+    return await res.json();
 };
 
 const eventTypeColor = (type: string): 'default' | 'primary' | 'secondary' | 'success' | 'error' | 'warning' | 'info' => {
@@ -72,6 +78,13 @@ const statusColor = (status: string): 'success' | 'error' | 'default' => {
     if (status === 'success') return 'success';
     if (status === 'failure') return 'error';
     return 'default';
+};
+
+const evalStatusColor = (status: string): 'success' | 'error' | 'warning' | 'info' | 'default' => {
+    if (status === 'Done') return 'success';
+    if (status === 'failed') return 'error';
+    if (status === 'Running' || status === 'Pending') return 'warning';
+    return 'info';
 };
 
 function AuditEventRow({ event }: { event: AuditEvent }) {
@@ -172,57 +185,118 @@ function AuditEventRow({ event }: { event: AuditEvent }) {
 
 function AuditLogs() {
     const { projectUUID } = useProject();
+    const [selectedEval, setSelectedEval] = useState<string | null>(null);
+    const [filter, setFilter] = useState<string>('all');
 
-    const { data: latestEval, isPending: evalPending, error: evalError } = useQuery({
-        queryKey: ['latestEvaluation', projectUUID],
-        queryFn: () => getLatestEvaluation(projectUUID ?? ''),
+    const { data: evaluations, isPending: evalPending, error: evalError } = useQuery({
+        queryKey: ['allEvaluations', projectUUID],
+        queryFn: () => getAllEvaluations(projectUUID ?? ''),
         enabled: !!projectUUID,
+        refetchInterval: 5000,
     });
+
+    const activeEvalPid = selectedEval ?? (evaluations && evaluations.length > 0 ? evaluations[0].pid : null);
+    const activeEval = evaluations?.find((e) => e.pid === activeEvalPid);
+    const isRunning = activeEval && activeEval.status !== 'Done' && activeEval.status !== 'failed';
 
     const { data: auditEvents, isPending: auditPending, error: auditError } = useQuery({
-        queryKey: ['auditEvents', latestEval?.pid],
-        queryFn: () => getEvaluationAuditEvents(latestEval.pid),
-        enabled: !!latestEval?.pid,
+        queryKey: ['auditEvents', activeEvalPid],
+        queryFn: () => getEvaluationAuditEvents(activeEvalPid!),
+        enabled: !!activeEvalPid,
+        refetchInterval: isRunning ? 3000 : false,
     });
 
-    if (evalPending || auditPending) return <CircularProgress />;
+    if (evalPending) return <CircularProgress />;
     if (evalError) return <Alert severity="error">Failed to load evaluations: {evalError.message}</Alert>;
-    if (!latestEval) return <Alert severity="info">No completed evaluations found for this project.</Alert>;
-    if (auditError) return <Alert severity="error">Failed to load audit logs: {auditError.message}</Alert>;
+    if (!evaluations || evaluations.length === 0) return <Alert severity="info">No evaluations found for this project.</Alert>;
+
+    const filteredEvents = auditEvents?.filter((event) => {
+        if (filter === 'all') return true;
+        if (filter === 'lifecycle') return !event.event_type.startsWith('API_CALL');
+        if (filter === 'api') return event.event_type.startsWith('API_CALL');
+        if (filter === 'errors') return event.status === 'failure';
+        return true;
+    });
 
     return (
         <>
             <Typography component="h2" variant="h4" gutterBottom>
                 Audit Logs
             </Typography>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
-                Last completed evaluation: <strong>{latestEval.pid}</strong>
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
-                {auditEvents?.length ?? 0} events recorded — click the shield icon to cryptographically verify each entry
-            </Typography>
 
-            <TableContainer component={Paper} variant="outlined">
-                <Table size="small">
-                    <TableHead>
-                        <TableRow>
-                            <TableCell>#</TableCell>
-                            <TableCell>Timestamp</TableCell>
-                            <TableCell>Event</TableCell>
-                            <TableCell>Status</TableCell>
-                            <TableCell>Plugin</TableCell>
-                            <TableCell>Duration</TableCell>
-                            <TableCell>Verified</TableCell>
-                            <TableCell></TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {auditEvents && auditEvents.map((event) => (
-                            <AuditEventRow key={event.id} event={event} />
-                        ))}
-                    </TableBody>
-                </Table>
-            </TableContainer>
+            <Box sx={{ mb: 2, display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
+                    Evaluation:
+                </Typography>
+                {evaluations.map((ev) => (
+                    <Chip
+                        key={ev.pid}
+                        label={`${ev.pid.slice(0, 8)}... (${ev.status})`}
+                        color={evalStatusColor(ev.status)}
+                        variant={ev.pid === activeEvalPid ? 'filled' : 'outlined'}
+                        size="small"
+                        onClick={() => setSelectedEval(ev.pid)}
+                        sx={{ cursor: 'pointer' }}
+                    />
+                ))}
+            </Box>
+
+            {isRunning && (
+                <Alert severity="info" sx={{ mb: 2 }} icon={<CircularProgress size={18} />}>
+                    Evaluation in progress — logs refresh automatically every 3 seconds
+                </Alert>
+            )}
+
+            <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
+                <ToggleButtonGroup
+                    value={filter}
+                    exclusive
+                    onChange={(_, v) => v && setFilter(v)}
+                    size="small"
+                >
+                    <ToggleButton value="all">All ({auditEvents?.length ?? 0})</ToggleButton>
+                    <ToggleButton value="lifecycle">Lifecycle</ToggleButton>
+                    <ToggleButton value="api">API Calls</ToggleButton>
+                    <ToggleButton value="errors">Errors</ToggleButton>
+                </ToggleButtonGroup>
+            </Box>
+
+            {auditPending ? (
+                <CircularProgress />
+            ) : auditError ? (
+                <Alert severity="error">Failed to load audit logs: {auditError.message}</Alert>
+            ) : (
+                <TableContainer component={Paper} variant="outlined">
+                    <Table size="small">
+                        <TableHead>
+                            <TableRow>
+                                <TableCell>#</TableCell>
+                                <TableCell>Timestamp</TableCell>
+                                <TableCell>Event</TableCell>
+                                <TableCell>Status</TableCell>
+                                <TableCell>Plugin</TableCell>
+                                <TableCell>Duration</TableCell>
+                                <TableCell>Verified</TableCell>
+                                <TableCell></TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {filteredEvents && filteredEvents.map((event) => (
+                                <AuditEventRow key={event.id} event={event} />
+                            ))}
+                            {(!filteredEvents || filteredEvents.length === 0) && (
+                                <TableRow>
+                                    <TableCell colSpan={8} align="center">
+                                        <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+                                            {isRunning ? 'Waiting for audit events...' : 'No events matching filter'}
+                                        </Typography>
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+            )}
         </>
     );
 }
