@@ -1,6 +1,7 @@
 import Box from '@mui/material/Box';
 import CssBaseline from '@mui/material/CssBaseline';
 import Toolbar from '@mui/material/Toolbar';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import LeftBar from './components/LeftBar';
 import { Route, Routes } from 'react-router-dom';
@@ -10,9 +11,11 @@ import StartEvaluation from './pages/StartEvaluation';
 import SettingsPage from './pages/Settings';
 import GlobalHome from './pages/GlobalHome';
 import ProjectHome from './pages/ProjectHome';
+import LoginPage from './pages/LoginPage';
 import React, { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useProject } from './context/ProjectContext';
+import { useAuth } from './context/AuthContext';
 import { API_VERSION_PREFIX } from './config';
 import Plugins from "./pages/Plugins.tsx";
 import PluginConfig from "./pages/PluginsConfig.tsx";
@@ -61,6 +64,19 @@ const ProjectContextWrapper: React.FC<ProjectContextWrapperProps> = ({ children 
  * @returns {JSX.Element} The main application layout with navigation and content area
  */
 export default function PermanentDrawerLeft() {
+    const { isAuthenticated, isLoading } = useAuth();
+
+    if (isLoading) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
+
+    if (!isAuthenticated) {
+        return <LoginPage />;
+    }
 
     /**
      * Navigation configuration array
