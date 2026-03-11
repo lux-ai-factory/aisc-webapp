@@ -17,11 +17,14 @@ import {
     Box,
     CircularProgress,
     Alert,
+    Tooltip,
     ToggleButton,
     ToggleButtonGroup,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import VerifiedIcon from '@mui/icons-material/VerifiedUser';
+import ErrorIcon from '@mui/icons-material/Error';
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -29,6 +32,7 @@ interface AuditEvent {
     id: number;
     timestamp: string;
     event_type: string;
+    user_id: number | null;
     evaluation_id: string;
     task_id: string;
     plugin_name: string;
@@ -37,6 +41,11 @@ interface AuditEvent {
     details: Record<string, any> | null;
     error_message: string;
     verified: boolean;
+    test_set: string;
+    configuration: string;
+    target_system: string;
+    execution_start: string | null;
+    execution_end: string | null;
 }
 
 interface Evaluation {
