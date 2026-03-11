@@ -83,12 +83,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }, [checkSession]);
 
     const logout = useCallback(async () => {
+        // 1. Kill Django session (with CSRF token)
+        const csrfMatch = document.cookie.match(/csrftoken=([^;]+)/);
+        const csrfToken = csrfMatch ? csrfMatch[1] : "";
         await fetch(`${ALLAUTH_BASE}/auth/session`, {
             method: "DELETE",
             credentials: "include",
+            headers: { "X-CSRFToken": csrfToken },
         });
         setUser(null);
         setIsAuthenticated(false);
+
+        // 2. Kill Keycloak session so user must re-enter credentials
+        const keycloakLogout = `${import.meta.env.VITE_KEYCLOAK_URL || "http://host.docker.internal:8180"}/realms/a4s/protocol/openid-connect/logout`;
+        const redirectUri = encodeURIComponent(window.location.origin + "/");
+        window.location.href = `${keycloakLogout}?client_id=a4s-backend&post_logout_redirect_uri=${redirectUri}`;
     }, []);
 
     return (
