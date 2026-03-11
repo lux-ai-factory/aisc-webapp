@@ -17,12 +17,9 @@ import {
     Box,
     CircularProgress,
     Alert,
-    Tooltip,
     ToggleButton,
     ToggleButtonGroup,
 } from '@mui/material';
-import VerifiedIcon from '@mui/icons-material/Verified';
-import ErrorIcon from '@mui/icons-material/Error';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 
@@ -276,7 +273,7 @@ function AuditLogs() {
                                 <TableCell>Status</TableCell>
                                 <TableCell>Plugin</TableCell>
                                 <TableCell>Duration</TableCell>
-                                <TableCell>Verified</TableCell>
+                                <TableCell></TableCell>
                                 <TableCell></TableCell>
                             </TableRow>
                         </TableHead>
