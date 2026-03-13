@@ -1,9 +1,17 @@
 import React from 'react';
 import Box from '@mui/material/Box';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
+import {
+    DataGrid,
+    GridColDef,
+    GridToolbarContainer,
+    GridToolbarColumnsButton,
+    GridToolbarFilterButton,
+    GridToolbarDensitySelector,
+    GridToolbarExport
+} from '@mui/x-data-grid';
 import Papa from 'papaparse';
 import { Measurement } from '../../models/models.tsx';
-import { CircularProgress, Alert, AlertTitle } from "@mui/material";
+import { CircularProgress, Alert, AlertTitle, Checkbox, FormControlLabel } from "@mui/material";
 import { API_VERSION_PREFIX } from '../../config';
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
@@ -15,12 +23,61 @@ interface CsvDataByDescriptionGridProps {
 
 type CsvRow = Record<string, unknown> & { id: string | number };
 
+// ---- Style injector for cell coloring ----
+const CssInjector = () => (
+    <style>{`
+        .cell-negative {
+            background-color: #F8C471 !important;
+            color: black !important;
+        }
+        .cell-positive {
+            background-color: #2196f3 !important;
+            color: white !important;
+        }
+    `}</style>
+);
+
+// ---- Cell coloring helper ----
+function getCellClassName(params: any, enableCellColors: boolean) {
+    if (!enableCellColors) return '';
+    if (typeof params.value !== 'number') return '';
+    if (params.value < 0) return 'cell-negative';
+    if (params.value > 0) return 'cell-positive';
+    return '';
+}
+
+// ---- Toolbar with coloring toggle ----
+function CustomToolbar(props: any) {
+    const { cellColorsEnabled, setCellColorsEnabled } = props;
+    return (
+        <GridToolbarContainer>
+            <GridToolbarColumnsButton />
+            <GridToolbarFilterButton />
+            <GridToolbarDensitySelector />
+            <Box sx={{ flexGrow: 1 }} />
+            <FormControlLabel
+                control={
+                    <Checkbox
+                        size="small"
+                        checked={!!cellColorsEnabled}
+                        onChange={e => setCellColorsEnabled?.(e.target.checked)}
+                    />
+                }
+                label="Enable cell coloring"
+                sx={{ ml: 2 }}
+            />
+            <GridToolbarExport />
+        </GridToolbarContainer>
+    );
+}
+
 /** ---- Child: grid for a single dataset PID ---- */
-function CsvGridForPid({ datasetPid, title: _title }: { datasetPid: string; title?: string }) {
+function CsvGridForPid({ datasetPid, title: _title }: { datasetPid: string; title?: string; }) {
     const [columns, setColumns] = React.useState<GridColDef[]>([]);
     const [rows, setRows] = React.useState<CsvRow[]>([]);
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
+    const [cellColorsEnabled, setCellColorsEnabled] = React.useState(true);
 
     React.useEffect(() => {
         if (!datasetPid) {
@@ -49,7 +106,6 @@ function CsvGridForPid({ datasetPid, title: _title }: { datasetPid: string; titl
                 const raw = await response.text();
                 const csvString = raw.replace(/^\uFEFF/, "");
 
-                // IMPORTANT: parse synchronously (no worker), and keep types explicit
                 const result: Papa.ParseResult<Record<string, unknown>> = Papa.parse(csvString, {
                     header: true,
                     skipEmptyLines: true,
@@ -81,11 +137,13 @@ function CsvGridForPid({ datasetPid, title: _title }: { datasetPid: string; titl
                     return hasOwnId ? (row as CsvRow) : ({ id: idx, ...row } as CsvRow);
                 });
 
+                // Add cellClassName for all columns (only shades numeric cells)
                 const parsedColumns: GridColDef[] = fields.map((field: string) => ({
                     field,
                     headerName: field,
                     flex: 1,
                     minWidth: 120,
+                    cellClassName: (params: any) => getCellClassName(params, cellColorsEnabled),
                 }));
 
                 if (cancelled) return;
@@ -93,7 +151,7 @@ function CsvGridForPid({ datasetPid, title: _title }: { datasetPid: string; titl
                 setRows(withIds);
             } catch (e: unknown) {
                 if (cancelled || (e instanceof DOMException && e.name === "AbortError")) {
-                    return; // Swallow aborts
+                    return;
                 }
                 const msg = e instanceof Error ? e.message : typeof e === "string" ? e : "Unknown error";
                 setError(msg);
@@ -108,10 +166,11 @@ function CsvGridForPid({ datasetPid, title: _title }: { datasetPid: string; titl
             cancelled = true;
             controller.abort();
         };
-    }, [datasetPid]);
+    }, [datasetPid, cellColorsEnabled]);
 
     return (
         <Box sx={{ my: 3 }}>
+            {cellColorsEnabled && <CssInjector />}
             {loading && (
                 <Box sx={{ my: 2, display: "flex", flexDirection: "column", alignItems: "center" }}>
                     <CircularProgress />
@@ -131,7 +190,16 @@ function CsvGridForPid({ datasetPid, title: _title }: { datasetPid: string; titl
                     <DataGrid
                         columns={columns}
                         rows={rows}
-                        showToolbar={true}
+                        slots={{
+                            toolbar: CustomToolbar
+                        }}
+                        slotProps={{
+                            toolbar: {
+                                cellColorsEnabled,
+                                setCellColorsEnabled
+                            } as any
+                        }}
+                        showToolbar
                     />
                 </Box>
             )}
@@ -140,8 +208,10 @@ function CsvGridForPid({ datasetPid, title: _title }: { datasetPid: string; titl
 }
 
 /** ---- Parent: render one grid per unique description ---- */
-export const CsvDatasetGridByMeasurement = ({ title: _title, data }: CsvDataByDescriptionGridProps) => {
-    // Unique, non-empty, trimmed descriptions
+export const CsvDatasetGridByMeasurement = ({
+    title: _title,
+    data
+}: CsvDataByDescriptionGridProps) => {
     const descriptions = React.useMemo(() => {
         const list = (data ?? [])
         .map((m) => m?.description?.trim())
