@@ -157,6 +157,11 @@ const TopBar: React.FC = () => {
                         href="/"
                         underline="none"
                         color="inherit"
+                        sx={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            m: 0,
+                        }}
                     >
                         <Box display="flex" alignItems="center" gap={1}>
                             <img
@@ -168,14 +173,26 @@ const TopBar: React.FC = () => {
                                 variant="h6"
                                 noWrap
                                 component="div"
+                                sx={{ ml: 0 }}
                             >
-                                AI Testing Sandbox
+                                AI Assessment Sandbox
                             </Typography>
                         </Box>
                     </Link>
-                    <Typography variant="h6" component="div">
-                        {projectName ? `/ ${projectName}` : ""}
-                    </Typography>
+                    {projectName && (
+                        <Typography
+                            variant="h6"
+                            component="span"
+                            sx={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 1.5
+                            }}
+                        >
+                            <span>|</span>
+                            <span>{projectName}</span>
+                        </Typography>
+                    )}
                 </Box>
 
                 <div style={{flexGrow: 1}}/>

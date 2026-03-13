@@ -69,7 +69,7 @@ const GlobalHome = () => {
     return (
         <>
             <Typography component="h2" variant="h4" gutterBottom>
-                A4S AI Testing
+                AI Assessment Sandbox
             </Typography>
 
             <ProjectsList/>
