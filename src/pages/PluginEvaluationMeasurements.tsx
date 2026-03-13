@@ -9,6 +9,7 @@ import MeasurementsRadarChart from "../components/plugin/MeasurementsRadarChart.
 import MeasurementsKDEChart from "../components/plugin/MeasurementsKDEChart.tsx";
 import MeasurementsBarsChart from "../components/plugin/MeasurementsBarsChart.tsx";
 import MeasurementsPieChart from "../components/plugin/MeasurementsPieChart.tsx";
+import CsvDatasetGridByMeasurement from "../components/plugin/CSVDataGridChart.tsx";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -115,6 +116,12 @@ function PluginEvaluationMeasurements() {
                                 {visualization.chart_type === 'pie' && (
                                     <MeasurementsPieChart
                                         title={`${pluginMeasurement.name} - Pie Chart`}
+                                        data={filteredMeasurements}
+                                    />
+                                )}
+                                {visualization.chart_type === 'csv' && (
+                                    <CsvDatasetGridByMeasurement
+                                        title={`${pluginMeasurement.name} - CSV artificat`}
                                         data={filteredMeasurements}
                                     />
                                 )}
