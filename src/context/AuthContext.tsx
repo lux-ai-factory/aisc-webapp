@@ -1,11 +1,14 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 
 const ALLAUTH_BASE = "/_allauth/browser/v1";
+const API_BASE = import.meta.env.VITE_API_URL + "/api/v1";
 
 type User = {
     id: number;
     email: string;
     username: string;
+    roles: string[];
+    is_admin: boolean;
 };
 
 type AuthContextType = {
@@ -36,7 +39,28 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 const data = await res.json();
                 const u = data?.data?.user;
                 if (u) {
-                    setUser({ id: u.id, email: u.email, username: u.username || u.email });
+                    // Fetch roles from /api/v1/auth/me
+                    let roles: string[] = [];
+                    let is_admin = false;
+                    try {
+                        const meRes = await fetch(`${API_BASE}/auth/me`, {
+                            credentials: "include",
+                        });
+                        if (meRes.ok) {
+                            const meData = await meRes.json();
+                            roles = meData.roles ?? [];
+                            is_admin = meData.is_admin ?? false;
+                        }
+                    } catch {
+                        // Roles endpoint not available, continue without roles
+                    }
+                    setUser({
+                        id: u.id,
+                        email: u.email,
+                        username: u.username || u.email,
+                        roles,
+                        is_admin,
+                    });
                     setIsAuthenticated(true);
                 } else {
                     setUser(null);
@@ -59,12 +83,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }, [checkSession]);
 
     const logout = useCallback(async () => {
+        // 1. Kill Django session (with CSRF token)
+        const csrfMatch = document.cookie.match(/csrftoken=([^;]+)/);
+        const csrfToken = csrfMatch ? csrfMatch[1] : "";
         await fetch(`${ALLAUTH_BASE}/auth/session`, {
             method: "DELETE",
             credentials: "include",
+            headers: { "X-CSRFToken": csrfToken },
         });
         setUser(null);
         setIsAuthenticated(false);
+
+        // 2. Kill Keycloak session so user must re-enter credentials
+        const keycloakLogout = `${import.meta.env.VITE_KEYCLOAK_URL || "http://host.docker.internal:8180"}/realms/a4s/protocol/openid-connect/logout`;
+        const redirectUri = encodeURIComponent(window.location.origin + "/");
+        window.location.href = `${keycloakLogout}?client_id=a4s-backend&post_logout_redirect_uri=${redirectUri}`;
     }, []);
 
     return (
