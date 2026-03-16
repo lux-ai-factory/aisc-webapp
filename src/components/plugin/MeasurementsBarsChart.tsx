@@ -136,7 +136,7 @@ export const MeasurementsBarChart = ({title: _title, data, stacked = false}: Mea
                 {
                     width: 50,
                     min: yMin,
-                    max: yMax,
+                    max: Math.max(1, yMax),
                 },
             ]}
             grid={{ vertical: true, horizontal: true }}
