@@ -25,6 +25,8 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import VerifiedIcon from '@mui/icons-material/VerifiedUser';
 import ErrorIcon from '@mui/icons-material/Error';
+import DownloadIcon from '@mui/icons-material/Download';
+import Button from '@mui/material/Button';
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -297,6 +299,30 @@ function AuditLogs() {
                     <ToggleButton value="api">API Calls</ToggleButton>
                     <ToggleButton value="errors">Errors</ToggleButton>
                 </ToggleButtonGroup>
+                <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<DownloadIcon />}
+                    onClick={() => {
+                        const url = `${API_URL}/audit/events/export/csv${activeEvalPid ? `?evaluation_id=${activeEvalPid}` : ''}`;
+                        window.open(url, '_blank');
+                    }}
+                    disabled={!auditEvents || auditEvents.length === 0}
+                >
+                    Export CSV
+                </Button>
+                <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<DownloadIcon />}
+                    onClick={() => {
+                        const url = `${API_URL}/audit/events/export/json${activeEvalPid ? `?evaluation_id=${activeEvalPid}` : ''}`;
+                        window.open(url, '_blank');
+                    }}
+                    disabled={!auditEvents || auditEvents.length === 0}
+                >
+                    Export JSON
+                </Button>
             </Box>
 
             {auditPending ? (
