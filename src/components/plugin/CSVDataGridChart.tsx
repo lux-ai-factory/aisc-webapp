@@ -40,9 +40,26 @@ const CssInjector = () => (
 // ---- Cell coloring helper ----
 function getCellClassName(params: any, enableCellColors: boolean) {
     if (!enableCellColors) return '';
-    if (typeof params.value !== 'number') return '';
-    if (params.value < 0) return 'cell-negative';
-    if (params.value > 0) return 'cell-positive';
+
+    let change: number | null = null;
+
+    // Handle number case
+    if (typeof params.value === 'number') {
+        change = params.value;
+    }
+
+    // Handle string case: "value (change)"
+    if (typeof params.value === 'string') {
+        const match = params.value.match(/\(([^)]+)\)/); // Extract content inside parentheses
+        if (match) {
+            const str = match[1].replace(/[^\d.-]+/g, ''); // Remove non-number chars (except . and -)
+            change = Number(str);
+        }
+    }
+
+    if (change === null || isNaN(change)) return '';
+    if (change < 0) return 'cell-negative';
+    if (change > 0) return 'cell-positive';
     return '';
 }
 
@@ -141,7 +158,7 @@ function CsvGridForPid({ datasetPid, title: _title }: { datasetPid: string; titl
                 const parsedColumns: GridColDef[] = fields.map((field: string) => ({
                     field,
                     headerName: field,
-                    flex: 1,
+                    // flex: 1,
                     minWidth: 120,
                     cellClassName: (params: any) => getCellClassName(params, cellColorsEnabled),
                 }));
@@ -200,6 +217,7 @@ function CsvGridForPid({ datasetPid, title: _title }: { datasetPid: string; titl
                             } as any
                         }}
                         showToolbar
+                        autosizeOnMount
                     />
                 </Box>
             )}
