@@ -8,6 +8,9 @@ import {Plugin} from "../models/models.tsx";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
+const SHOW_PLUGIN_VISUALIZATION =
+    String(import.meta.env.VITE_SHOW_PLUGIN_VISUALIZATION).toLowerCase() === 'true';
+
 const getDoneEvaluations = async (uuid: string) => {
     if (!uuid) throw new Error('Invalid uuid');
     const res = await fetch(`${API_URL}/projects/${uuid}/evaluations?status=Done`);
@@ -35,7 +38,9 @@ function PluginEvaluations() {
             <List>
             {evaluations && evaluations.map((evaluation: any) => (
                 <ListItem>
-                    <Link to={`${evaluation["pid"]}`}>{evaluation["pid"]}</Link>
+                    {SHOW_PLUGIN_VISUALIZATION &&
+                        <Link to={`${evaluation["pid"]}`}>{evaluation["pid"]}</Link>
+                    }
                     <CheckCircleIcon color="success"/>
                     ({evaluation["evaluation_plugins"].map((plugin: Plugin) => plugin.name).join(',')})
                 </ListItem>
