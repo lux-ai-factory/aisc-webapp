@@ -2,7 +2,7 @@ import {useQuery} from '@tanstack/react-query'
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {Link} from "react-router-dom";
 import {useProject} from "../context/ProjectContext.tsx";
-import {List, ListItem, Typography} from "@mui/material";
+import {List, ListItem, Paper, Stack, Tooltip, Typography} from "@mui/material";
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import {Plugin} from "../models/models.tsx";
 
@@ -36,15 +36,21 @@ function PluginEvaluations() {
                 Completed Evaluations:
             </Typography>
             <List>
-            {evaluations && evaluations.map((evaluation: any) => (
-                <ListItem>
-                    {SHOW_PLUGIN_VISUALIZATION &&
-                        <Link to={`${evaluation["pid"]}`}>{evaluation["pid"]}</Link>
-                    }
-                    <CheckCircleIcon color="success"/>
-                    ({evaluation["evaluation_plugins"].map((plugin: Plugin) => plugin.name).join(',')})
-                </ListItem>
-            ))}
+                {evaluations && evaluations.map((evaluation: any) => (
+                    <ListItem>
+                        {SHOW_PLUGIN_VISUALIZATION &&
+                            <Link to={`${evaluation["pid"]}`}>{evaluation["pid"]}</Link>
+                        }
+                        <CheckCircleIcon color="success"/>
+                        <Stack direction="row" spacing={2}>
+                        {evaluation["evaluation_plugins"] && evaluation["evaluation_plugins"].map((plugin: Plugin) => (
+                            <Tooltip title={JSON.stringify(plugin.plugin_config)}>
+                                <Paper sx={{ padding: "5px" }}>{plugin.name}</Paper>
+                            </Tooltip>
+                        ))}
+                        </Stack>
+                    </ListItem>
+                ))}
             </List>
         </>
     )
