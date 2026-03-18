@@ -1,6 +1,7 @@
 import Box from '@mui/material/Box';
 import CssBaseline from '@mui/material/CssBaseline';
 import Toolbar from '@mui/material/Toolbar';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import LeftBar from './components/LeftBar';
 import { Route, Routes } from 'react-router-dom';
@@ -10,9 +11,11 @@ import StartEvaluation from './pages/StartEvaluation';
 import SettingsPage from './pages/Settings';
 import GlobalHome from './pages/GlobalHome';
 import ProjectHome from './pages/ProjectHome';
+import LoginPage from './pages/LoginPage';
 import React, { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useProject } from './context/ProjectContext';
+import { useAuth } from './context/AuthContext';
 import { API_VERSION_PREFIX } from './config';
 import Plugins from "./pages/Plugins.tsx";
 import PluginConfig from "./pages/PluginsConfig.tsx";
@@ -20,6 +23,7 @@ import PluginStartEvaluation from "./pages/PluginStartEvaluation.tsx";
 import PluginEvaluations from "./pages/PluginEvaluations.tsx";
 import PluginEvaluationMeasurements from "./pages/PluginEvaluationMeasurements.tsx";
 import PluginEvaluationsTasks from "./pages/PluginEvaluationsTasks.tsx";
+import AuditLogs from "./pages/AuditLogs.tsx";
 
 /** Width of the left drawer in pixels */
 const drawerWidth = 320;
@@ -61,6 +65,19 @@ const ProjectContextWrapper: React.FC<ProjectContextWrapperProps> = ({ children 
  * @returns {JSX.Element} The main application layout with navigation and content area
  */
 export default function PermanentDrawerLeft() {
+    const { isAuthenticated, isLoading } = useAuth();
+
+    if (isLoading) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
+
+    if (!isAuthenticated) {
+        return <LoginPage />;
+    }
 
     /**
      * Navigation configuration array
@@ -83,7 +100,8 @@ export default function PermanentDrawerLeft() {
         { id: 7, name: 'Plugin Start Evaluation', path: '/projects/:project_name/plugins/evaluation', element: <ProjectContextWrapper><PluginStartEvaluation /></ProjectContextWrapper> },
         { id: 8, name: 'Plugin Evaluations', path: '/projects/:project_name/plugins/evaluations', element: <ProjectContextWrapper><PluginEvaluations /></ProjectContextWrapper> },
         { id: 9, name: 'Plugin Evaluation Measurements', path: '/projects/:project_name/plugins/evaluations/:evaluation_uuid', element: <ProjectContextWrapper><PluginEvaluationMeasurements /></ProjectContextWrapper> },
-        { id: 10, name: 'Plugin Evaluations Tasks', path: '/projects/:project_name/plugins/evaluations/tasks', element: <ProjectContextWrapper><PluginEvaluationsTasks /></ProjectContextWrapper> }
+        { id: 10, name: 'Plugin Evaluations Tasks', path: '/projects/:project_name/plugins/evaluations/tasks', element: <ProjectContextWrapper><PluginEvaluationsTasks /></ProjectContextWrapper> },
+        { id: 11, name: 'Audit Logs', path: '/projects/:project_name/audit-logs', element: <ProjectContextWrapper><AuditLogs /></ProjectContextWrapper> }
     ];
     return (
         <Box sx={{ display: 'flex', flexDirection: 'row' }}>
