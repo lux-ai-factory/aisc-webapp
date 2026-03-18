@@ -21,6 +21,7 @@ export interface Plugin {
     name: string;
     config: object
     display_icon: string;
+    plugin_config?: PluginConfig | null;
 }
 
 export interface TaskProgress {
@@ -35,9 +36,16 @@ export interface DataObject {
 }
 
 export interface ProjectPluginConfigState {
-    config: object;
+    plugin_config_id?: number | null;
+    config?: object | null;
     formSchema: object;
     uiSchema: object
+}
+
+export interface PluginConfig {
+    id: number;
+    config: object;
+    created_at: string;
 }
 
 export interface PluginFeatureFlags {
