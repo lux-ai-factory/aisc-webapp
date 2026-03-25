@@ -53,6 +53,13 @@ export interface PluginFeatureFlags {
     extra: object
 }
 
+export interface PluginInputDefinition {
+    name: string;
+    label: string;
+    input_type: string;
+    required: boolean;
+}
+
 export interface Measurement {
     name: string;
     description?: string | null;

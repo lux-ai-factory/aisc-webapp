@@ -22,7 +22,7 @@ function PluginEvaluations() {
     const {projectUUID} = useProject();
 
     const {data: evaluations, isPending, error} = useQuery({
-        queryKey: ['evaluations'],
+        queryKey: ['evaluations', projectUUID],
         queryFn: () => getDoneEvaluations(projectUUID ?? "")
     })
 

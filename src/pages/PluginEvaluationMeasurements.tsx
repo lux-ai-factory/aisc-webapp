@@ -36,7 +36,7 @@ function PluginEvaluationMeasurements() {
     const {evaluation_uuid} = useParams();
 
     const {data: evaluation, isPending: isEvaluationPending, error: evaluationError} = useQuery({
-        queryKey: ['evaluationMeasurements'],
+        queryKey: ['evaluationMeasurements', evaluation_uuid],
         queryFn: () => getEvaluation(evaluation_uuid ?? ""),
     })
 

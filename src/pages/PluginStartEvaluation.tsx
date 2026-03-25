@@ -7,6 +7,7 @@ import {Plugin, DataObject} from "../models/models.tsx";
 import toast from "react-hot-toast";
 import {getProject} from "../api/api.tsx";
 import Box from "@mui/material/Box";
+import PluginEvaluationForm from "../components/plugin/PluginEvaluationForm.tsx";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -60,7 +61,7 @@ function PluginStartEvaluation() {
     const [pluginSettings, setPluginSettings] = useState<PluginSettingMap>({});
 
     const {data: project, isPending, error} = useQuery({
-        queryKey: ['project'],
+        queryKey: ['project', projectUUID],
         queryFn: () => getProject(projectUUID ?? "")
     })
 
@@ -126,7 +127,7 @@ function PluginStartEvaluation() {
             </Typography>
             <FormGroup>
                 {project?.plugins.map((projectPlugin: Plugin) => (
-                    <>
+                    <Box key={projectPlugin.pid}>
                         <FormControlLabel control={
                             <Checkbox
                                 checked={checkedItems.includes(projectPlugin.name)}
@@ -143,7 +144,7 @@ function PluginStartEvaluation() {
                                 onChange={(e) => handleDatasetDropdownChange(e, projectPlugin.name)}
                             >
                                 {project?.datasets.map((dataset: DataObject) => (
-                                    <MenuItem value={dataset.pid}>{dataset.name}</MenuItem>
+                                    <MenuItem key={dataset.pid} value={dataset.pid}>{dataset.name}</MenuItem>
                                 ))}
                             </Select>
                         </Box>
@@ -156,12 +157,18 @@ function PluginStartEvaluation() {
                                 onChange={(e) => handleModelDropdownChange(e, projectPlugin.name)}
                             >
                                 {project?.models.map((model: DataObject) => (
-                                    <MenuItem value={model.pid}>{model.name}</MenuItem>
+                                    <MenuItem key={model.pid} value={model.pid}>{model.name}</MenuItem>
                                 ))}
                             </Select>
                         </Box>
 
-                    </>
+                    </Box>
+                ))}
+                {project?.plugins.map((projectPlugin: Plugin) => (
+                    <PluginEvaluationForm
+                        key={projectPlugin.pid}
+                        plugin={projectPlugin}
+                    />
                 ))}
             </FormGroup>
             <Button onClick={() => handleOnClick(projectUUID ?? "")}>Create Evaluation</Button>
