@@ -36,7 +36,8 @@ export default function LoginPage() {
                     setError("No identity provider configured. Contact your administrator.");
                 }
             })
-            .catch(() => {
+            .catch((err) => {
+                console.error("Failed to fetch providers:", err);
                 setError("Unable to reach the server. Is the backend running?");
             })
             .finally(() => setLoading(false));
