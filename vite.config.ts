@@ -21,24 +21,12 @@ export default defineConfig(({ mode }) => {
       host: true,  // Allow external access
       port: 5173,  // Default development port
       proxy: {
-        // Proxy API requests to main backend
+        // Proxy all other API requests to main backend
         '/api/v1': {
           target: env.VITE_API_URL,
           changeOrigin: true,
           secure: false,
-        },
-        // Proxy allauth headless API (OIDC login flow)
-        '/_allauth': {
-          target: env.VITE_API_URL,
-          changeOrigin: true,
-          secure: false,
-        },
-        // Proxy OIDC callback URLs
-        '/accounts': {
-          target: env.VITE_API_URL,
-          changeOrigin: true,
-          secure: false,
-        },
+        }
       }
     },
     plugins: [react()],

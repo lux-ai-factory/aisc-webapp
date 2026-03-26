@@ -161,13 +161,6 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
                             { text: 'Tasks', icon: <Icon>directions_run</Icon>, target: `/projects/${projectName}/plugins/evaluations/tasks` },
                         ]}
                     />
-                    <Divider />
-                    <MenuList
-                        title="Audit"
-                        items={[
-                            { text: 'Audit Logs', icon: <Icon>verified_user</Icon>, target: `/projects/${projectName}/audit-logs` },
-                        ]}
-                    />
 
                 </Box>
             }

@@ -2,7 +2,6 @@ import {
     AppBar,
     Box,
     Button,
-    Chip,
     createTheme,
     Dialog,
     DialogActions,
@@ -11,12 +10,10 @@ import {
     Link,
     TextField,
     Toolbar,
-    Tooltip,
     Typography
 } from '@mui/material';
 import React, {useEffect, useState} from 'react';
 import {useProject} from '../context/ProjectContext';
-import {useAuth} from '../context/AuthContext';
 import {API_VERSION_PREFIX} from '../config';
 import {ThemeProvider} from '@emotion/react';
 import {useNavigate} from 'react-router-dom';
@@ -126,7 +123,6 @@ const ProjectSelector: React.FC<{
 
 const TopBar: React.FC = () => {
     const {setProjectUUID, projectName, setProjectName} = useProject();
-    const {logout, user} = useAuth();
     const [projects, setProjects] = useState<Project[]>([]);
 
     const navigate = useNavigate();
@@ -186,35 +182,6 @@ const TopBar: React.FC = () => {
                 <ProjectSelector
                     onAddProject={addProject}
                 />
-                {user && (
-                    <Box sx={{display: 'flex', alignItems: 'center', ml: 2, gap: 1}}>
-                        <Tooltip title={user.email}>
-                            <Chip
-                                label={user.is_admin ? 'Admin' : 'User'}
-                                size="small"
-                                color={user.is_admin ? 'warning' : 'default'}
-                                variant="outlined"
-                                sx={{color: 'white', borderColor: 'rgba(255,255,255,0.5)'}}
-                            />
-                        </Tooltip>
-                        {user.is_admin && (
-                            <Tooltip title="Manage users & roles in Keycloak">
-                                <Button
-                                    color="inherit"
-                                    size="small"
-                                    href="http://host.docker.internal:8180/admin/master/console/#/a4s/users"
-                                    target="_blank"
-                                    rel="noopener"
-                                >
-                                    Manage Users
-                                </Button>
-                            </Tooltip>
-                        )}
-                        <Button color="inherit" onClick={logout}>
-                            Logout
-                        </Button>
-                    </Box>
-                )}
             </Toolbar>
         </AppBar>
     );
