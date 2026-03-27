@@ -60,6 +60,12 @@ export interface PluginInputDefinition {
     required: boolean;
 }
 
+export interface PluginInputValue {
+    pid: string;
+    name: string;
+    input_type: string;
+}
+
 export interface Measurement {
     name: string;
     description?: string | null;
