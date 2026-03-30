@@ -60,6 +60,8 @@ function PluginEvaluationMeasurements() {
 
     return (
         <div>
+            <h2>Evaluation: {evaluation_uuid}</h2>
+
             {pluginMeasurements && pluginMeasurements.map((pluginMeasurement: any) => (
                 <>
                     <hr/>
