@@ -12,7 +12,7 @@ interface PluginConfigFormProps {
     pluginName: string;
     formSchema: object;
     uiSchema: any;
-    config: object;
+    config?: object | null;
     onFormUpdate: (updatedState: { config: object; formSchema: object; uiSchema: object }) => void;
     onSubmit: (config: object) => void;
 }

@@ -1,0 +1,77 @@
+import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query'
+import {API_VERSION_PREFIX} from "../../config.tsx";
+import {InputLabel, MenuItem, Select, SelectChangeEvent, FormControl} from "@mui/material";
+import {PluginConfig, Plugin} from "../../models/models.tsx";
+import toast from "react-hot-toast";
+
+const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
+
+const fetchConfigHistory = async (plugin_name: string, project_uuid: string): Promise<PluginConfig[]> => {
+    const res = await fetch(`${API_URL}/plugins/${plugin_name}/project/${project_uuid}/configs`);
+    if (!res.ok) throw new Error('Failed to fetch config history');
+    return await res.json();
+};
+
+const restoreConfig = async (plugin_name: string, project_uuid: string, config_id: number): Promise<Plugin> => {
+    const res = await fetch(`${API_URL}/plugins/${plugin_name}/project/${project_uuid}/configs/${config_id}/restore`, {
+        method: 'POST',
+    });
+    if (!res.ok) throw new Error('Failed to restore config');
+    return await res.json();
+};
+
+interface ConfigHistoryProps {
+    pluginName: string;
+    projectUUID: string;
+    plugin_config_id?: number | null;
+}
+
+export default function ConfigHistory({ pluginName, projectUUID, plugin_config_id }: ConfigHistoryProps) {
+    const queryClient = useQueryClient();
+
+    const { data: history, isPending } = useQuery({
+        queryKey: ['pluginConfigHistory', pluginName, projectUUID],
+        queryFn: () => fetchConfigHistory(pluginName, projectUUID),
+        enabled: !!pluginName && !!projectUUID
+    });
+
+    const restoreMutation = useMutation({
+        mutationFn: (configId: number) => restoreConfig(pluginName, projectUUID, configId),
+        onSuccess: async () => {
+            toast.success('Config restored', { position: "bottom-right" });
+            // Force query refresh in parent component
+            await queryClient.invalidateQueries({ queryKey: ['projectPluginConfig'] });
+        },
+        onError: () => {
+            toast.error('Failed to restore config', { position: "bottom-right" });
+        }
+    });
+
+    if (isPending) return <span>Loading history...</span>;
+
+    const handleRestore = (event: SelectChangeEvent<number>) => {
+        const configId = event.target.value as number;
+        restoreMutation.mutate(configId);
+    };
+
+    
+    const selectedConfig = history?.find(c => c.id === plugin_config_id);
+
+    return (
+        <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel id="config-history-label">Config History</InputLabel>
+            <Select
+                labelId="config-history-label"
+                value={selectedConfig?.id || ''}
+                label="Config History"
+                onChange={handleRestore}
+            >
+                {history?.map((c) => (
+                    <MenuItem key={c.id} value={c.id}>
+                        {new Date(c.created_at).toLocaleString()} {c.id === selectedConfig?.id ? '(Current)' : ''}
+                    </MenuItem>
+                ))}
+            </Select>
+        </FormControl>
+    );
+}

@@ -1,4 +1,4 @@
-import {useQuery} from '@tanstack/react-query'
+import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {useProject} from '../context/ProjectContext';
 import {useParams} from "react-router-dom";
@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import {getPluginFeatureFlags, getProject} from "../api/api.tsx";
 import {InputLabel, MenuItem, Select, SelectChangeEvent, Typography} from "@mui/material";
 import InfoBanner from "../components/InfoBanner.tsx";
+import ConfigHistory from "../components/plugin/ConfigHistory.tsx";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -66,6 +67,7 @@ const getProjectPluginConfigState = async (project_uuid: string, plugin_name: st
 function PluginConfig() {
     const {plugin_name} = useParams();
     const {projectUUID} = useProject();
+    const queryClient = useQueryClient();
 
     const [configState, setConfigState] = useState<ProjectPluginConfigState | null>(null);
 
@@ -104,11 +106,22 @@ function PluginConfig() {
     };
 
 
+    const onSubmit = async (data: object) => {
+        await postPluginConfig(plugin_name ?? "", projectUUID ?? "", data);
+        await queryClient.invalidateQueries({ queryKey: ['pluginConfigHistory', plugin_name] });
+    }
+
     return (
         <>
             <Typography component="h2" variant="h4" gutterBottom>
                 Config for plugin: {plugin_name}
             </Typography>
+
+            <ConfigHistory
+                pluginName={plugin_name ?? ""}
+                projectUUID={projectUUID ?? ""}
+                plugin_config_id={projectPluginConfigState?.plugin_config_id}
+            />
 
             {featureFlags?.can_parse_config_from_dataset &&
                 <>
@@ -134,7 +147,7 @@ function PluginConfig() {
                     uiSchema={configState.uiSchema}
                     config={configState.config}
                     onFormUpdate={(state) => setConfigState(state)}
-                    onSubmit={(data) => postPluginConfig(plugin_name ?? "", projectUUID ?? "", data)}
+                    onSubmit={onSubmit}
                 />
             }
         </>

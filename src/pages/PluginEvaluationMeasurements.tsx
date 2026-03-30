@@ -8,6 +8,8 @@ import MeasurementsScatterChart from "../components/plugin/MeasurementsScatterCh
 import MeasurementsRadarChart from "../components/plugin/MeasurementsRadarChart.tsx";
 import MeasurementsKDEChart from "../components/plugin/MeasurementsKDEChart.tsx";
 import MeasurementsBarsChart from "../components/plugin/MeasurementsBarsChart.tsx";
+import MeasurementsPieChart from "../components/plugin/MeasurementsPieChart.tsx";
+import CsvDatasetGridByMeasurement from "../components/plugin/CSVDataGridChart.tsx";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -36,7 +38,7 @@ function PluginEvaluationMeasurements() {
     const {evaluation_uuid} = useParams();
 
     const {data: evaluation, isPending: isEvaluationPending, error: evaluationError} = useQuery({
-        queryKey: ['evaluationMeasurements'],
+        queryKey: ['evaluationMeasurements', evaluation_uuid],
         queryFn: () => getEvaluation(evaluation_uuid ?? ""),
     })
 
@@ -69,6 +71,11 @@ function PluginEvaluationMeasurements() {
                         const filteredMeasurements = pluginMeasurement.measurements.filter(
                             (m: Measurement) => visualization.metrics.includes(m.name)
                         );
+
+                        // Skip this visualization if no data
+                        if (filteredMeasurements.length === 0) {
+                            return null;
+                        }
 
                         return (
                             <div key={index}>
@@ -105,6 +112,18 @@ function PluginEvaluationMeasurements() {
                                 {visualization.chart_type === 'radar' && (
                                     <MeasurementsRadarChart
                                         title={`${pluginMeasurement.name} - Radar Chart`}
+                                        data={filteredMeasurements}
+                                    />
+                                )}
+                                {visualization.chart_type === 'pie' && (
+                                    <MeasurementsPieChart
+                                        title={`${pluginMeasurement.name} - Pie Chart`}
+                                        data={filteredMeasurements}
+                                    />
+                                )}
+                                {visualization.chart_type === 'csv' && (
+                                    <CsvDatasetGridByMeasurement
+                                        title={`${pluginMeasurement.name} - CSV artificat`}
                                         data={filteredMeasurements}
                                     />
                                 )}

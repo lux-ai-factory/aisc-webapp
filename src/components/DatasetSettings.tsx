@@ -4,9 +4,8 @@ import {useProject} from '../context/ProjectContext';
 import {
     Box,
     Button,
-    Checkbox,
     CircularProgress,
-    Divider, FormControlLabel,
+    Divider,
     IconButton,
     List,
     ListItem,
@@ -25,8 +24,6 @@ interface ProjectResponse {
     pid: string;
     name: string;
     status: string;
-    frequency: string;
-    window_size: string;
     datasets: Array<{
         pid: string;
         name: string;
@@ -74,7 +71,6 @@ const UploadDataset = ({dataset, onUploadSuccess}: UploadDatasetProps) => {
     const uploaded = Boolean(dataset.data);
     const [progress, setProgress] = useState<number>(0);
     const [uploading, setUploading] = useState<boolean>(false);
-    const [isCsvToParquet, setIsCsvToParquet] = useState<boolean>(false);
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -83,7 +79,6 @@ const UploadDataset = ({dataset, onUploadSuccess}: UploadDatasetProps) => {
 
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('csvToParquet', `${isCsvToParquet}`)
 
         const xhr = new XMLHttpRequest();
         xhr.open("PUT", `${API_URL}/datasets/${dataset.pid}/data`, true);
@@ -129,12 +124,6 @@ const UploadDataset = ({dataset, onUploadSuccess}: UploadDatasetProps) => {
 
     return (
         <Box sx={{position: "relative", display: "inline-flex", mr: 2}}>
-            {!uploading && (
-                <FormControlLabel control={<Checkbox checked={isCsvToParquet}
-                                                     onChange={(e) => setIsCsvToParquet(e.target.checked)}/>}
-                                  label="CSV to Parquet"/>
-                )
-            }
             <Button
                 component="label"
                 role={undefined}

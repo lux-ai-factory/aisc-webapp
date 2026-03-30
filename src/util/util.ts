@@ -1,7 +1,7 @@
 const MODERN_COLORS = [
-    '#FF6B6B', // Coral
-    '#4ECDC4', // Teal
     '#45B7D1', // Sky Blue
+    '#4ECDC4', // Teal
+    '#FF6B6B', // Coral
     '#96CEB4', // Mint Green
     '#FFEAA7', // Light Yellow
     '#DDA0DD', // Plum

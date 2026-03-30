@@ -1,5 +1,5 @@
 import {API_VERSION_PREFIX} from "../config.tsx";
-import {Project, PluginFeatureFlags} from "../models/models.tsx";
+import {Project, PluginFeatureFlags, PluginInputDefinition} from "../models/models.tsx";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -22,4 +22,13 @@ export const getPluginFeatureFlags = async (plugin_name: string) => {
     if (!res.ok) throw new Error('Network response was not ok');
 
     return await res.json() as PluginFeatureFlags;
+};
+
+export const getPluginInputDefinitions = async (plugin_name: string) => {
+    if (!plugin_name) throw new Error("Plugin name is required");
+
+    const res = await fetch(`${API_URL}/plugins/${plugin_name}/input_definitions`);
+    if (!res.ok) throw new Error('Network response was not ok');
+
+    return await res.json() as PluginInputDefinition[];
 };

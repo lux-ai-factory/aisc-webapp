@@ -1,6 +1,8 @@
 import React from "react";
-import { Box, Grid, Typography, Paper, Chip } from "@mui/material";
+import { Box, Typography, Grid, Container, Card, CardHeader, CardContent, Stack, Button } from "@mui/material";
 import { green, orange, red } from "@mui/material/colors";
+import NorthIcon from '@mui/icons-material/North';
+import SouthIcon from '@mui/icons-material/South';
 
 /**
  * Props interface for the MetricCard component
@@ -8,22 +10,101 @@ import { green, orange, red } from "@mui/material/colors";
  * @property {string} title - The title of the metric card
  * @property {string | number} metric - The main metric value to display
  * @property {string | number} change - The change in metric value (with direction)
- * @property {string} changeColor - Color to display the change (from MUI colors)
  * @property {string} observations - Detailed observations about the metric
  * @property {string} takeaway - Key takeaway or conclusion
  * @property {string} recommendation - Action recommendation
- * @property {string} recommendationColor - Color for the recommendation chip
+ * @property {string} changeColor - Color to display the change and the recommendation (from MUI colors)
  */
 interface MetricCardProps {
     title: string;
-    metric: string | number;
-    change: string | number;
-    changeColor: string;
+    metric: number;
+    change: number;
     observations: string;
     takeaway: string;
     recommendation: string;
-    recommendationColor: string;
+    changeColor: string;
 }
+
+/**
+ * Returns a directional arrow icon (up or down) depending on the sign of `change`.
+ * The icon’s color and size can be customized.
+ *
+ * @param change - The direction value: positive for up, negative for down, zero for none (returns null).
+ * @param changeColor - The color for the icon (any valid CSS color).
+ * @param fontSize - The icon size; one of "inherit" (default), "small", "medium", or "large".
+ *                   "inherit" will use the parent Typography size.
+ * @returns A NorthIcon for positive, SouthIcon for negative, or null for zero.
+ *
+ * @example
+ *   getArrowIcon(5, "#008000", "small"); // Green upward arrow, small size
+ *   getArrowIcon(-2, "red");             // Red downward arrow, size inherits from parent
+ *   getArrowIcon(0, "grey");             // Returns null (renders nothing)
+ */
+const getArrowIcon = (change: number, changeColor: string, fontSize: "inherit" | "small" | "medium" | "large" = "inherit") => {
+    if (change > 0)
+        return <NorthIcon fontSize={fontSize} sx={{ verticalAlign: "middle", color: changeColor }} />;
+    if (change < 0)
+        return <SouthIcon fontSize={fontSize} sx={{ verticalAlign: "middle", color: changeColor }} />;
+    return null;
+};
+
+const metricsData = [
+    {
+        title: "Data Anomalies",
+        metric: 2.2,
+        change: -0.2,
+        observations: "Low levels of anomalies, with no severe anomalies.",
+        takeaway: "The observed anomalies do not have a significant effect.",
+        recommendation: "No Action required",
+        changeColor: green[500],
+    },
+    {
+        title: "Data Drift",
+        metric: 3.6,
+        change: 0.3,
+        observations: "High levels of data drift, with some highly drifted features.",
+        takeaway: "Warning threshold reached.",
+        recommendation: "Urgent: Act now!",
+        changeColor: red[500],
+    },
+    {
+        title: "Model Performance",
+        metric: 44.3,
+        change: 0.1,
+        observations: "F1-score is increasing, but the still not ideal.",
+        takeaway: "A better model can be used.",
+        recommendation: "Warning: Act later",
+        changeColor: orange[500],
+    },
+    {
+        title: "Model Fairness",
+        metric: 5.4,
+        change: -0.1,
+        observations: "The unfairest feature 'purpose' has become more fair.",
+        takeaway: "Unfairest feature 'purpose' is still within acceptable bounds.",
+        recommendation: "No Action required",
+        changeColor: green[500],
+    },
+    {
+        title: "Robustness",
+        metric: 84.8,
+        change: 2.5,
+        observations: "Success rate of adversarial generation increased",
+        takeaway: "Robustness has triggered a warning but is still within acceptable range",
+        recommendation: "Warning: Act later",
+        changeColor: orange[500],
+    },
+    {
+        title: "Explainability",
+        metric: 54.3,
+        change: 0.9,
+        observations: "Slight increase in explainability of the model.",
+        takeaway: "Trustworthiness values are within the threshold",
+        recommendation: "No Action required",
+        changeColor: green[500],
+    },
+];
+
 
 /**
  * MetricCard component
@@ -37,48 +118,78 @@ const MetricCard: React.FC<MetricCardProps> = ({
     title,
     metric,
     change,
-    changeColor,
     observations,
     takeaway,
     recommendation,
-    recommendationColor,
-}) => {
-    return (
-        <Paper elevation={3} sx={{ padding: 2, height: "100%" }}>
-            <Typography variant="subtitle1" fontWeight="bold">
-                {title}
-            </Typography>
-            <Box display="flex" alignItems="center" mt={1}>
-                <Typography variant="h3" fontWeight="bold">
-                    {metric}
+    changeColor,
+}) => (
+        <Card
+            sx={{
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                minWidth: 250,
+                maxWidth: 350,
+                mx: "auto",
+                boxSizing: "border-box",
+            }}
+        >
+            <CardHeader
+                title={
+                    <Typography
+                        variant="h5"
+                        fontWeight="bold"
+                        noWrap={false}
+                    >
+                        {title}
+                    </Typography>
+                }
+                sx={{ pb: 0 }}
+            />
+            <CardContent sx={{ flexGrow: 1, display: "flex", flexDirection: "column", py: 1 }}>
+                {/* Metric & Change aligned horizontally */}
+                <Stack direction="row" alignItems="baseline" spacing={2} sx={{ mb: 1 }}>
+                    <Typography variant="h3" fontWeight="bold">{metric}</Typography>
+                    {change !== 0 && (
+                        <Typography variant="h5" sx={{ color: changeColor, display: "flex", alignItems: "center" }}>
+                            {getArrowIcon(change, changeColor)}
+                            &nbsp;
+                            {change > 0 ? `+${change}` : change}
+                        </Typography>
+                    )}
+                </Stack>
+
+                {/* Observations */}
+                <Typography variant="body1" color="textSecondary" sx={{ mb: 2 }}>
+                    {observations}
                 </Typography>
-                <Typography
-                    variant="body1"
-                    sx={{ color: changeColor, fontWeight: "bold", marginLeft: 1 }}
-                >
-                    {change}
+
+                {/* Takeaway */}
+                <Typography variant="body1" sx={{ mb: 3 }}>
+                    <b>Takeaway:</b> {takeaway}
                 </Typography>
-            </Box>
-            <Typography variant="body1" color="textSecondary" mt={1}>
-                {observations}
-            </Typography>
-            <Typography variant="body1" mt={2}>
-                <strong>Takeaway: </strong>
-                {takeaway}
-            </Typography>
-            <Box mt={2}>
-                <Chip
-                    label={recommendation}
+
+                <Box flexGrow={1} />
+
+                {/* Recommendation Button */}
+                <Button
+                    variant="contained"
+                    fullWidth
                     sx={{
-                        backgroundColor: recommendationColor,
+                        backgroundColor: changeColor,
                         color: "#fff",
                         fontWeight: "bold",
+                        mt: "auto",
+                        ":hover": { backgroundColor: changeColor, opacity: 0.9 },
                     }}
-                />
-            </Box>
-        </Paper>
+                    disableElevation
+                >
+                    {recommendation}
+                </Button>
+            </CardContent>
+        </Card>
     );
-};
+
 
 /**
  * SummaryTable component
@@ -96,87 +207,18 @@ const MetricCard: React.FC<MetricCardProps> = ({
  *
  * @returns {JSX.Element} A grid of metric cards showing model and data health
  */
-const SummaryTable: React.FC = () => {
-    const metricsData = [
-        {
-            title: "Training & Test Data",
-            metric: 0.82,
-            change: "↓ -0.04",
-            changeColor: green[500],
-            observations: "Bias strongest in gender feature",
-            takeaway: "Bias has decreased",
-            recommendation: "No Action required",
-            recommendationColor: green[500],
-        },
-        {
-            title: "Production Data & Data Anomalies",
-            metric: 25.2,
-            change: "↑ 2.1",
-            changeColor: red[500],
-            observations: "Levels of low severity data anomalies stable",
-            takeaway: "High levels of severe Data Anomalies",
-            recommendation: "Immediate Action required",
-            recommendationColor: red[500],
-        },
-        {
-            title: "Model Output & Performance",
-            metric: 0.79,
-            change: "↓ -0.18",
-            changeColor: red[500],
-            observations:
-                "Significant drop in model accuracy, while other metrics remain stable",
-            takeaway: "Warning threshold reached",
-            recommendation: "Action required at some point",
-            recommendationColor: orange[500],
-        },
-        {
-            title: "Model Robustness",
-            metric: 69.1,
-            change: "↓ -2.3",
-            changeColor: red[500],
-            observations: "Success rate of adversarial generation increased",
-            takeaway: "Robustness has triggered a warning but is still within acceptable range",
-            recommendation: "Action required at some point",
-            recommendationColor: orange[500],
-        },
-        {
-            title: "Explainability",
-            metric: 0.98,
-            change: "↑ 0.09",
-            changeColor: red[500],
-            observations:
-                "Slight decrease in explainability of the model, especially in examples with 'total_acc' > 5",
-            takeaway: "SHAP values are within the threshold",
-            recommendation: "No Action required",
-            recommendationColor: green[500],
-        },
-        {
-            title: "Fairness",
-            metric: 5.3,
-            change: "↓ -0.1",
-            changeColor: green[500],
-            observations: "The unfairest feature 'purpose' has become more fair",
-            takeaway:
-                "Unfairest feature 'purpose' is still within acceptable bounds",
-            recommendation: "No Action required",
-            recommendationColor: green[500],
-        },
-    ];
-
-    return (
-        <Box sx={{ padding: 3 }}>
-            <Typography component="h2" variant="h4" gutterBottom>
-                Summary
-            </Typography>
-            <Grid container spacing={2}>
-                {metricsData.map((metric, index) => (
-                    <Grid item xs={12} sm={6} md={2} key={index}>
+const SummaryTable: React.FC = () => (
+    <Container maxWidth="lg" disableGutters sx={{ p: 0, m: 0 }}>
+        <Box sx={{ p: 2, m: 0, width: "100%" }}>
+            <Grid container spacing={3} sx={{ p: 0, m: 0 }}>
+                {metricsData.map((metric, idx) => (
+                    <Grid item key={idx} xs={12} sm={12} md={6} lg={4} xl={3} sx={{ p: 0, m: 0 }}>
                         <MetricCard {...metric} />
                     </Grid>
                 ))}
             </Grid>
         </Box>
-    );
-};
+    </Container>
+);
 
 export default SummaryTable;
