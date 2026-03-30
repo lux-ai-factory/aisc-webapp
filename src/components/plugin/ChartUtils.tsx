@@ -30,7 +30,7 @@ export function buildDistinctTimes<T extends { time: string }>(data: T[]): strin
  * Composite key "name:::description" (description can be null/empty).
  */
 export function toCompositeKey(name: string, description?: string | null): string {
-    return `${name}:::${description ?? ""}`;
+    return description?.trim() ? `${name}:::${description}` : name;
 }
 
 /**
