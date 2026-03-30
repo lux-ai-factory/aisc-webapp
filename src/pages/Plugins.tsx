@@ -41,12 +41,12 @@ function Plugins() {
     const {projectUUID} = useProject();
 
     const {data: plugins, isPending, error} = useQuery({
-        queryKey: ['plugins'],
+        queryKey: ['plugins', projectUUID],
         queryFn: getPlugins,
     })
 
     const {data: project} = useQuery({
-        queryKey: ['project'],
+        queryKey: ['project', projectUUID],
         queryFn: () => getProject(projectUUID ?? "")
     })
 

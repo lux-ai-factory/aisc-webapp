@@ -11,11 +11,7 @@ import {
     ListItem,
     styled,
     TextField,
-    Typography,
-    Select,
-    MenuItem,
-    FormControl,
-    InputLabel
+    Typography
 } from '@mui/material';
 import CloudDoneIcon from '@mui/icons-material/CloudDone';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -160,12 +156,10 @@ const UploadModel = ({ model, onUploadSuccess }: UploadModelProps) => {
 
 const ModelSettings = () => {
     const { projectUUID } = useProject();
-    const [datasetList, setDatasetList] = useState<Dataset[]>([]);
     const [modelList, setModelList] = useState<Model[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
 
     const [newModelName, setNewModelName] = useState<string>('');
-    const [selectedDataset, setSelectedDataset] = useState<string>('');
     const [formError, setFormError] = useState<string>('');
 
     const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -192,10 +186,6 @@ const ModelSettings = () => {
             setFormError('Model name is too short');
             return;
         }
-        if (!selectedDataset) {
-            setFormError('Please select a dataset');
-            return;
-        }
 
         try {
             const response = await fetch(`${API_URL}/projects/${projectUUID}/models`, {
@@ -203,7 +193,6 @@ const ModelSettings = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     name: newModelName,
-                    dataset_pid: selectedDataset
                 }),
             });
 
@@ -215,7 +204,6 @@ const ModelSettings = () => {
 
             setModelList((prev) => [...prev, createdModel]);
             setNewModelName('');
-            setSelectedDataset('');
             setFormError('');
         } catch (error) {
             setFormError((error as Error).message);
@@ -228,10 +216,6 @@ const ModelSettings = () => {
             try {
                 const response = await fetch(`${API_URL}/projects/${projectUUID}`);
                 const data: ProjectResponse = await response.json();
-
-                console.log(data)
-
-                setDatasetList(data.datasets);
                 setModelList(data.models);
             } catch (error) {
                 console.error("Error fetching project:", error);
@@ -260,10 +244,7 @@ const ModelSettings = () => {
                         <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                             <Box sx={{ flexGrow: 1 }}>
                                 <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>{model.name}</Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                    {/* Dataset: {datasetList.find(ds => ds.pid === model.pid)?.name || 'Unknown'} */}
-                                    Dataset: {model.dataset.name}
-                                </Typography>
+                                <Typography variant="body2" color="text.secondary">{model.pid}</Typography>
                             </Box>
                             <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                 <UploadModel model={model} onUploadSuccess={handleUploadSuccess} />
@@ -288,20 +269,6 @@ const ModelSettings = () => {
                             error={Boolean(formError)}
                             helperText={formError}
                         />
-                        <FormControl fullWidth>
-                            <InputLabel>Dataset</InputLabel>
-                            <Select
-                                value={selectedDataset}
-                                onChange={(e) => setSelectedDataset(e.target.value)}
-                                label="Dataset"
-                            >
-                                {datasetList.map((ds) => (
-                                    <MenuItem key={ds.pid} value={ds.pid}>
-                                        {ds.name}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
                         <IconButton
                             edge="end"
                             aria-label="add"

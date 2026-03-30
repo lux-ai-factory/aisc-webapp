@@ -21,6 +21,7 @@ export interface Plugin {
     name: string;
     config: object
     display_icon: string;
+    plugin_config?: PluginConfig | null;
 }
 
 export interface TaskProgress {
@@ -35,14 +36,34 @@ export interface DataObject {
 }
 
 export interface ProjectPluginConfigState {
-    config: object;
+    plugin_config_id?: number | null;
+    config?: object | null;
     formSchema: object;
     uiSchema: object
+}
+
+export interface PluginConfig {
+    id: number;
+    config: object;
+    created_at: string;
 }
 
 export interface PluginFeatureFlags {
     can_parse_config_from_dataset: boolean
     extra: object
+}
+
+export interface PluginInputDefinition {
+    name: string;
+    label: string;
+    input_type: string;
+    required: boolean;
+}
+
+export interface PluginInputValue {
+    pid: string;
+    name: string;
+    input_type: string;
 }
 
 export interface Measurement {
