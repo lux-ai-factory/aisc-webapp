@@ -202,7 +202,7 @@ const TopBar: React.FC = () => {
                                 <Button
                                     color="inherit"
                                     size="small"
-                                    href="http://host.docker.internal:8180/admin/master/console/#/a4s/users"
+                                    href="http://keycloak.localhost:8180/admin/master/console/#/a4s/users"
                                     target="_blank"
                                     rel="noopener"
                                 >
