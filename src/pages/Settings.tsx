@@ -35,8 +35,6 @@ interface ProjectResponse {
     pid: string;
     name: string;
     status: string;
-    frequency: string;
-    window_size: string;
     dataset: Array<{
         id: number;
         dataset_pid: string;
@@ -66,8 +64,6 @@ function ProjectDetails() {
     const { projectUUID } = useProject();
     const [errors, setErrors] = useState<{
         name?: string;
-        frequency?: string;
-        window_size?: string;
     }>({});
 
     useEffect(() => {

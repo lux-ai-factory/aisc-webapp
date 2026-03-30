@@ -37,8 +37,6 @@ interface ProjectResponse {
     pid: string;
     name: string;
     status: string;
-    frequency: string;
-    window_size: string;
     datasets: Dataset[];
     models: Model[];
 }
