@@ -119,6 +119,7 @@ function PluginConfig() {
 
             <ConfigHistory
                 pluginName={plugin_name ?? ""}
+                projectUUID={projectUUID ?? ""}
                 plugin_config_id={projectPluginConfigState?.plugin_config_id}
             />
 
