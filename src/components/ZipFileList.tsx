@@ -10,6 +10,7 @@ import {
     Box
 } from '@mui/material';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
+import React from "react";
 
 const formatFileSize = (bytes: number) => {
     if (!bytes || bytes === 0) return '0 Bytes';
@@ -19,7 +20,16 @@ const formatFileSize = (bytes: number) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
-export const ZipFileList = ({files = []}) => {
+interface File {
+    file_name: string;
+    file_size: number;
+}
+
+interface ZipFileListProps {
+  files: File[];
+}
+
+export const ZipFileList: React.FC<ZipFileListProps> = ({ files }) => {
     return (
         <TableContainer component={Paper} variant="outlined" sx={{borderRadius: 2}}>
             <Table size="small" aria-label="file list table">
