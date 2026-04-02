@@ -20,6 +20,7 @@ import {
     Typography
 } from "@mui/material";
 import GenericCsvDataGrid from "../components/GenericCsvDataGrid.tsx";
+import GenericTextDataGrid from "../components/GenericTextDataGrid.tsx";
 import {Plugin} from "../models/models.tsx";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
@@ -200,6 +201,9 @@ function PluginEvaluationMeasurements() {
                                         switch (artifact.preview.type) {
                                             case '.csv':
                                                 return <GenericCsvDataGrid data={artifact.preview.data}/>;
+                                            case '.txt':
+                                            case '.md':
+                                                return <GenericTextDataGrid fileUrl={`${API_URL}/files/artifact/${artifact.data}`} />;
                                             case '.png':
                                                 return (
                                                     <Paper sx={{width: 'fit-content', margin: 'auto'}}>
