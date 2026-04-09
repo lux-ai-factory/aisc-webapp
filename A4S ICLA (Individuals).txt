@@ -1,6 +1,6 @@
 # Contributor License Agreement (CLA) – Individuals ("Agreement")
 
-**Project**: A4S – AI Assessment for Safety and Sustainability  
+**Project**: VERA – AI Assessment for Safety and Sustainability
 **Hosting Institution**: Université du Luxembourg  
 **Unit**: Serval Research Group, Interdisciplinary Centre for Security, Reliability and Trust (SnT)
 

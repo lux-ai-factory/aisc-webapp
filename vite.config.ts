@@ -2,7 +2,7 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
 /**
- * Vite Configuration for A4S webapp
+ * Vite Configuration for VERA webapp
  * Purpose: Configures the development server and build process
  *
  * Configuration includes:

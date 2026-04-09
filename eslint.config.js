@@ -1,4 +1,4 @@
-// ESLint Configuration for A4S webapp
+// ESLint Configuration for VERA webapp
 
 import js from '@eslint/js'
 import globals from 'globals'
