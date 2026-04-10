@@ -1,4 +1,4 @@
-# A4S Web
+# VERA Web
 
 ## About enviornment variables
 

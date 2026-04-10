@@ -1,4 +1,4 @@
-# Production Dockerfile for A4S webapp
+# Production Dockerfile for VERA webapp
 
 # Build Stage
 # Uses Node.js to create an optimized production build

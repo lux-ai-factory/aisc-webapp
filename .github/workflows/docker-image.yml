@@ -1,4 +1,4 @@
-name: A4S-webapp build pipeline
+name: VERA-webapp build pipeline
 
 on:
   push:

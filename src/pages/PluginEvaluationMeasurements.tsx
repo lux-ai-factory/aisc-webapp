@@ -9,9 +9,29 @@ import MeasurementsRadarChart from "../components/plugin/MeasurementsRadarChart.
 import MeasurementsKDEChart from "../components/plugin/MeasurementsKDEChart.tsx";
 import MeasurementsBarsChart from "../components/plugin/MeasurementsBarsChart.tsx";
 import MeasurementsPieChart from "../components/plugin/MeasurementsPieChart.tsx";
-import CsvDatasetGridByMeasurement from "../components/plugin/CSVDataGridChart.tsx";
+import ZipFileList from "../components/ZipFileList.tsx";
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import {
+    Accordion,
+    AccordionActions,
+    AccordionDetails,
+    AccordionSummary,
+    Button, Paper,
+    Typography
+} from "@mui/material";
+import GenericCsvDataGrid from "../components/GenericCsvDataGrid.tsx";
+import {Plugin} from "../models/models.tsx";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
+
+interface PluginQueryResult {
+    name: string;
+    measurements?: Measurement[];
+    metric_visualizations?: any[];
+    artifacts?: any[];
+}
+
+type PluginResultsMap = Record<string, PluginQueryResult>;
 
 const getEvaluation = async (uuid: string) => {
     if (!uuid) throw new Error('Invalid uuid');
@@ -26,11 +46,29 @@ const getEvaluationMeasurements = async (plugin_name: string, evaluation_uuid: s
     const res = await fetch(`${API_URL}/plugins/${plugin_name}/evaluations/${evaluation_uuid}/result`);
     if (!res.ok) throw new Error('Network response was not ok');
     const data = await res.json()
+
     return {
         name: plugin_name,
         measurements: data.measurements,
         metric_visualizations: data.metric_visualizations
     }
+};
+
+const getEvaluationArtifacts = async (plugin_name: string, evaluation_uuid: string) => {
+    if (!plugin_name) throw new Error('Invalid plugin name');
+    if (!evaluation_uuid) throw new Error('Invalid uuid');
+    const res = await fetch(`${API_URL}/evaluations/${evaluation_uuid}/artifacts?plugin_name=${plugin_name}`);
+    if (!res.ok) throw new Error('Network response was not ok');
+    const data = await res.json()
+
+    return {
+        name: plugin_name,
+        artifacts: data
+    }
+};
+
+const handleDownload = (file_name: string) => {
+    window.location.href = `${API_URL}/files/artifact/${file_name}`;
 };
 
 
@@ -43,32 +81,53 @@ function PluginEvaluationMeasurements() {
     })
 
     const measurementQueries = useQueries({
-        queries: (evaluation?.evaluation_plugins || []).map((plugin: any) => ({
+        queries: (evaluation?.evaluation_plugins || []).map((plugin: Plugin) => ({
             queryKey: ['pluginMeasurements', evaluation_uuid, plugin.name],
             queryFn: () => getEvaluationMeasurements(plugin.name, evaluation_uuid ?? ""),
             enabled: !!evaluation_uuid && !!plugin.name
         }))
     })
 
-    const isPending = isEvaluationPending || measurementQueries.some(q => q.isPending)
-    const error = evaluationError || measurementQueries.find(q => q.error)?.error
+    const artifactsQueries = useQueries({
+        queries: (evaluation?.evaluation_plugins || []).map((plugin: Plugin) => ({
+            queryKey: ['pluginArtifacts', evaluation_uuid, plugin.name],
+            queryFn: () => getEvaluationArtifacts(plugin.name, evaluation_uuid ?? ""),
+            enabled: !!evaluation_uuid && !!plugin.name
+        }))
+    })
+
+    const isPending = isEvaluationPending || measurementQueries.some(q => q.isPending) || artifactsQueries.some(q => q.isPending)
+    const error = evaluationError || measurementQueries.find(q => q.error)?.error || artifactsQueries.find(q => q.error)?.error
 
     if (isPending) return <span>Loading...</span>
     if (error) return <span>Oops!</span>
 
-    let pluginMeasurements = measurementQueries.map(q => q.data);
+    const pluginMeasurements = measurementQueries.reduce((acc, q) => {
+        const data = q.data as PluginQueryResult;
+        return data ? {...acc, [data.name]: data} : acc;
+    }, {} as PluginResultsMap);
+
+    const pluginArtifacts = artifactsQueries.reduce((acc, q) => {
+        const data = q.data as PluginQueryResult;
+        return data ? {...acc, [data.name]: data} : acc;
+    }, {} as PluginResultsMap);
+
+    const pluginResults = Object.keys(pluginMeasurements).reduce((acc, key) => {
+        acc[key] = {...pluginMeasurements[key], ...pluginArtifacts[key]};
+        return acc;
+    }, {} as PluginResultsMap);
 
     return (
         <div>
             <h2>Evaluation: {evaluation_uuid}</h2>
 
-            {pluginMeasurements && pluginMeasurements.map((pluginMeasurement: any) => (
-                <>
+            {pluginResults && Object.values(pluginResults).map((pluginResult) => (
+                <div key={pluginResult['name']}>
                     <hr/>
-                    <h3>Plugin: {pluginMeasurement.name}</h3>
-
-                    {pluginMeasurement.metric_visualizations && pluginMeasurement.metric_visualizations.map((visualization: any, index: number) => {
-                        const filteredMeasurements = pluginMeasurement.measurements.filter(
+                    <h3>Plugin: {pluginResult.name}</h3>
+                    {pluginResult.measurements && pluginResult.measurements.length > 0 && <h4>Measurements</h4>}
+                    {pluginResult.metric_visualizations && pluginResult.metric_visualizations.map((visualization: any, index: number) => {
+                        const filteredMeasurements = pluginResult.measurements!!.filter(
                             (m: Measurement) => visualization.metrics.includes(m.name)
                         );
 
@@ -81,56 +140,102 @@ function PluginEvaluationMeasurements() {
                             <div key={index}>
                                 {visualization.chart_type === 'table' && (
                                     <MeasurementsDataGrid
-                                        title={`${pluginMeasurement.name} - Table`}
+                                        title={`${pluginResult.name} - Table`}
                                         data={filteredMeasurements}
                                     />
                                 )}
                                 {visualization.chart_type === 'line' && (
                                     <MeasurementsLineChart
-                                        title={`${pluginMeasurement.name} - Line Chart`}
+                                        title={`${pluginResult.name} - Line Chart`}
                                         data={filteredMeasurements}
                                     />
                                 )}
                                 {visualization.chart_type === 'scatter' && (
                                     <MeasurementsScatterChart
-                                        title={`${pluginMeasurement.name} - Scatter Chart`}
+                                        title={`${pluginResult.name} - Scatter Chart`}
                                         data={filteredMeasurements}
                                     />
                                 )}
                                 {visualization.chart_type === 'kde' && (
                                     <MeasurementsKDEChart
-                                        title={`${pluginMeasurement.name} - KDE Histogram Chart`}
+                                        title={`${pluginResult.name} - KDE Histogram Chart`}
                                         data={filteredMeasurements}
                                     />
                                 )}
                                 {visualization.chart_type === 'bars' && (
                                     <MeasurementsBarsChart
-                                        title={`${pluginMeasurement.name} - Bars Chart`}
+                                        title={`${pluginResult.name} - Bars Chart`}
                                         data={filteredMeasurements}
                                     />
                                 )}
                                 {visualization.chart_type === 'radar' && (
                                     <MeasurementsRadarChart
-                                        title={`${pluginMeasurement.name} - Radar Chart`}
+                                        title={`${pluginResult.name} - Radar Chart`}
                                         data={filteredMeasurements}
                                     />
                                 )}
                                 {visualization.chart_type === 'pie' && (
                                     <MeasurementsPieChart
-                                        title={`${pluginMeasurement.name} - Pie Chart`}
-                                        data={filteredMeasurements}
-                                    />
-                                )}
-                                {visualization.chart_type === 'csv' && (
-                                    <CsvDatasetGridByMeasurement
-                                        title={`${pluginMeasurement.name} - CSV artificat`}
+                                        title={`${pluginResult.name} - Pie Chart`}
                                         data={filteredMeasurements}
                                     />
                                 )}
                             </div>
                         );
                     })}
-                </>
+                    {pluginResult.artifacts && pluginResult.artifacts!!.length > 0 && <h4>Artifacts</h4>}
+                    {pluginResult.artifacts && pluginResult.artifacts!!.map((artifact: any) => {
+                        // Skip this if no data
+                        if (pluginResult.artifacts!!.length === 0) {
+                            return null;
+                        }
+
+                        return (
+                            <Accordion key={artifact.data}>
+                                <AccordionSummary expandIcon={<ExpandMoreIcon/>}>
+                                    <Typography component="span">{artifact.name}</Typography>
+                                </AccordionSummary>
+                                <AccordionDetails>
+                                    {(() => {
+                                        switch (artifact.preview.type) {
+                                            case '.csv':
+                                                return <GenericCsvDataGrid data={artifact.preview.data}/>;
+                                            case '.png':
+                                                return (
+                                                    <Paper sx={{width: 'fit-content', margin: 'auto'}}>
+                                                        <img src={artifact.preview.data} alt={artifact.artifact_name}/>
+                                                    </Paper>
+                                                );
+                                            case '.pdf':
+                                                return (
+                                                    <iframe
+                                                        title={artifact.artifact_name}
+                                                        src={artifact.preview.data}
+                                                        width="100%"
+                                                        height="800px"
+                                                    >
+                                                        <p>Your browser does not support iframes.</p>
+                                                    </iframe>
+                                                );
+                                            case '.zip':
+                                                return <ZipFileList files={artifact.preview.data}/>;
+                                            default:
+                                                return (
+                                                    <Typography variant="body2" color="textSecondary" align="center"
+                                                                sx={{py: 2}}>
+                                                        No preview for this file type ({artifact.preview.type})
+                                                    </Typography>
+                                                );
+                                        }
+                                    })()}
+                                </AccordionDetails>
+                                <AccordionActions>
+                                    <Button onClick={() => handleDownload(artifact.file_name)}>Download</Button>
+                                </AccordionActions>
+                            </Accordion>
+                        )
+                    })}
+                </div>
             ))}
         </div>
     )
