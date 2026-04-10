@@ -1,6 +1,6 @@
 default:
   tags:
-    - a4s-runner
+    - vera-runner
 
 stages:
   - test
