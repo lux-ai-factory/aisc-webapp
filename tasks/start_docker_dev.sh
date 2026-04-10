@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Docker Development Environment Startup Script for A4S webapp
+# Docker Development Environment Startup Script for VERA webapp
 # Purpose: Builds and runs the development environment in a Docker container
 #
 # This script:

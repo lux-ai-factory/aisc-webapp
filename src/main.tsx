@@ -1,5 +1,5 @@
 /**
- * Main entry point for the A4S web application
+ * Main entry point for the VERA web application
  * Sets up the React application with Material-UI and React Router
  * Renders the application in StrictMode for additional development checks
  */

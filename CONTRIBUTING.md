@@ -1,6 +1,6 @@
-# Contributing to A4S
+# Contributing to VERA
 
-Thank you for your interest in contributing to the A4S project!
+Thank you for your interest in contributing to the VERA project!
 
 We welcome contributions from the community, including bug reports, documentation improvements, feature suggestions, and code contributions.
 
@@ -10,7 +10,7 @@ By submitting a contribution, you confirm that:
 
 - You are the original author of your contribution, or you have the right to submit it.
 - You license your contribution under the terms of the [Apache License 2.0](LICENSE).
-- You agree to the [Contributor License Agreement (CLA)](CLA/CLA_A4S.md).
+- You agree to the [Contributor License Agreement (CLA)](CLA/CLA_VERA.md).
 
 You do not need to sign the CLA separately — by submitting a pull request, issue, or other form of contribution, you implicitly agree to the terms.
 
@@ -24,4 +24,4 @@ You do not need to sign the CLA separately — by submitting a pull request, iss
 We may request changes or ask questions before merging your contribution.
 We reserve the right to reject a pull request for any reason.
 
-Thank you for contributing to the A4S project!
+Thank you for contributing to the VERA project!
