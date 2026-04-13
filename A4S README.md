@@ -1,6 +1,6 @@
-# A4S
+# VERA
 
-**A4S** is an open-source framework developed at the Université du Luxembourg (Serval/SnT) for assessing the performance, robustness, and compliance of AI models, particularly in the context of European AI governance initiatives and the EU AI Act.
+**VERA** is an open-source framework developed at the Université du Luxembourg (Serval/SnT) for assessing the performance, robustness, and compliance of AI models, particularly in the context of European AI governance initiatives and the EU AI Act.
 
 ---
 
@@ -40,7 +40,7 @@ Documentation is coming soon.
 
 We welcome community contributions! Please read our [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
-By submitting contributions, you agree to the [CLA](CLA/CLA_A4S.md) and license your work under [Apache 2.0](LICENSE).
+By submitting contributions, you agree to the [CLA](CLA/CLA_VERA.md) and license your work under [Apache 2.0](LICENSE).
 
 ---
 
