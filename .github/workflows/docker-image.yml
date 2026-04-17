@@ -74,7 +74,7 @@ jobs:
       - name: Generate SBOM with Syft
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
         with:
-          image: ${{ env.REGISTRY }/${{ github.repository }}:sha-${{ github.sha }}
+          image: ${{ env.REGISTRY }}/${{ github.repository }}:sha-${{ github.sha }}
           format: cyclonedx-json
           output-file: sbom.cdx.json
 
