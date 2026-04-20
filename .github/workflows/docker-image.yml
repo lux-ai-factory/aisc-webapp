@@ -96,11 +96,3 @@ jobs:
           name: sbom-${{ github.sha }}
           path: sbom.cdx.json
           retention-days: 90
-
-      - name: Archive Grype report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: grype-report-${{ github.sha }}
-          path: ${{ steps.scan.outputs.sarif }}
-          retention-days: 90
