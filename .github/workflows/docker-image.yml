@@ -93,7 +93,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sbom-${{ needs.build-and-push-image.outputs.image-digest }}
+          name: sbom-${{ github.sha }}
           path: sbom.cdx.json
           retention-days: 90
 
@@ -101,6 +101,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: grype-report-${{ needs.build-and-push-image.outputs.image-digest }}
+          name: grype-report-${{ github.sha }}
           path: ${{ steps.scan.outputs.sarif }}
           retention-days: 90
