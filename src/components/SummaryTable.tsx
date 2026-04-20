@@ -180,15 +180,19 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                 setPluginDurations(dur.runs);
 
                 // Fetch display icons for each plugin
+                const allPluginNames = new Set([
+                    ...pl.plugins.map((p) => p.plugin_name),
+                    ...mt.metrics.map((m) => m.plugin_name),
+                ]);
                 const icons: Record<string, string> = {};
                 await Promise.all(
-                    pl.plugins
-                        .filter((p) => p.plugin_name)
-                        .map(async (p) => {
+                    [...allPluginNames]
+                        .filter(Boolean)
+                        .map(async (name) => {
                             try {
-                                const res = await fetch(`${API_URL}/plugins/${p.plugin_name}/display_icon`);
+                                const res = await fetch(`${API_URL}/plugins/${name}/display_icon`);
                                 if (res.ok) {
-                                    icons[p.plugin_name] = await res.json() as string;
+                                    icons[name] = await res.json() as string;
                                 }
                             } catch {
                                 // ignore, will fall back to default icon
@@ -427,7 +431,11 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                                     {metrics.map((m, idx) => (
                                         <tr key={`${m.plugin_name}-${m.metric_pid}-${idx}`} style={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
                                             <td style={{ padding: "8px 12px" }}>
-                                                <Chip label={m.plugin_name} size="small" variant="outlined" icon={<ExtensionIcon />} />
+                                                <Chip label={m.plugin_name} size="small" variant="outlined" icon={
+                                                    pluginIcons[m.plugin_name]
+                                                        ? <Icon sx={{ fontSize: 16 }}>{pluginIcons[m.plugin_name]}</Icon>
+                                                        : <ExtensionIcon />
+                                                } />
                                             </td>
                                             <td style={{ padding: "8px 12px", fontWeight: 500 }}>{m.metric_name}</td>
                                             <td style={{ padding: "8px 12px" }}>{m.avg_score.toFixed(4)}</td>
