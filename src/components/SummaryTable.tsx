@@ -1,224 +1,468 @@
-import React from "react";
-import { Box, Typography, Grid, Container, Card, CardHeader, CardContent, Stack, Button } from "@mui/material";
-import { green, orange, red } from "@mui/material/colors";
-import NorthIcon from '@mui/icons-material/North';
-import SouthIcon from '@mui/icons-material/South';
+import React, { useEffect, useState } from "react";
+import {
+    Box, Typography, Card, CardContent, Stack, Skeleton, Chip,
+    alpha, useTheme, Divider, Tooltip, Paper, Icon,
+} from "@mui/material";
+import Grid from "@mui/material/Grid2";
+import AssessmentIcon from "@mui/icons-material/Assessment";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CancelIcon from "@mui/icons-material/Cancel";
+import TimerIcon from "@mui/icons-material/Timer";
+import StraightenIcon from "@mui/icons-material/Straighten";
+import StorageIcon from "@mui/icons-material/Storage";
+import ModelTrainingIcon from "@mui/icons-material/ModelTraining";
+import ExtensionIcon from "@mui/icons-material/Extension";
+import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
+import CategoryIcon from "@mui/icons-material/Category";
+import SettingsIcon from "@mui/icons-material/Settings";
+import DatasetIcon from "@mui/icons-material/Dataset";
+import { PieChart } from "@mui/x-charts";
+import { LineChart } from "@mui/x-charts/LineChart";
+import {
+    getProjectStatsOverview,
+    getProjectMetricBreakdown,
+    getProjectPluginUsage,
+    getProjectPluginDurations,
+} from "../api/api";
+import { API_VERSION_PREFIX } from "../config";
+import {
+    ProjectStatsOverview,
+    MetricScoreSummary,
+    PluginUsageSummary,
+    PluginRunDuration,
+} from "../models/models";
 
-/**
- * Props interface for the MetricCard component
- * @interface MetricCardProps
- * @property {string} title - The title of the metric card
- * @property {string | number} metric - The main metric value to display
- * @property {string | number} change - The change in metric value (with direction)
- * @property {string} observations - Detailed observations about the metric
- * @property {string} takeaway - Key takeaway or conclusion
- * @property {string} recommendation - Action recommendation
- * @property {string} changeColor - Color to display the change and the recommendation (from MUI colors)
- */
-interface MetricCardProps {
-    title: string;
-    metric: number;
-    change: number;
-    observations: string;
-    takeaway: string;
-    recommendation: string;
-    changeColor: string;
-}
+const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
-/**
- * Returns a directional arrow icon (up or down) depending on the sign of `change`.
- * The icon’s color and size can be customized.
- *
- * @param change - The direction value: positive for up, negative for down, zero for none (returns null).
- * @param changeColor - The color for the icon (any valid CSS color).
- * @param fontSize - The icon size; one of "inherit" (default), "small", "medium", or "large".
- *                   "inherit" will use the parent Typography size.
- * @returns A NorthIcon for positive, SouthIcon for negative, or null for zero.
- *
- * @example
- *   getArrowIcon(5, "#008000", "small"); // Green upward arrow, small size
- *   getArrowIcon(-2, "red");             // Red downward arrow, size inherits from parent
- *   getArrowIcon(0, "grey");             // Returns null (renders nothing)
- */
-const getArrowIcon = (change: number, changeColor: string, fontSize: "inherit" | "small" | "medium" | "large" = "inherit") => {
-    if (change > 0)
-        return <NorthIcon fontSize={fontSize} sx={{ verticalAlign: "middle", color: changeColor }} />;
-    if (change < 0)
-        return <SouthIcon fontSize={fontSize} sx={{ verticalAlign: "middle", color: changeColor }} />;
-    return null;
+// ─── Helpers ───────────────────────────────────────────────
+
+const formatDuration = (seconds: number | null): string => {
+    if (seconds === null || seconds === undefined) return "N/A";
+    if (seconds < 60) return `${seconds.toFixed(1)}s`;
+    const m = Math.floor(seconds / 60);
+    const s = Math.round(seconds % 60);
+    return `${m}m ${s}s`;
 };
 
-const metricsData = [
-    {
-        title: "Data Anomalies",
-        metric: 2.2,
-        change: -0.2,
-        observations: "Low levels of anomalies, with no severe anomalies.",
-        takeaway: "The observed anomalies do not have a significant effect.",
-        recommendation: "No Action required",
-        changeColor: green[500],
-    },
-    {
-        title: "Data Drift",
-        metric: 3.6,
-        change: 0.3,
-        observations: "High levels of data drift, with some highly drifted features.",
-        takeaway: "Warning threshold reached.",
-        recommendation: "Urgent: Act now!",
-        changeColor: red[500],
-    },
-    {
-        title: "Model Performance",
-        metric: 44.3,
-        change: 0.1,
-        observations: "F1-score is increasing, but the still not ideal.",
-        takeaway: "A better model can be used.",
-        recommendation: "Warning: Act later",
-        changeColor: orange[500],
-    },
-    {
-        title: "Model Fairness",
-        metric: 5.4,
-        change: -0.1,
-        observations: "The unfairest feature 'purpose' has become more fair.",
-        takeaway: "Unfairest feature 'purpose' is still within acceptable bounds.",
-        recommendation: "No Action required",
-        changeColor: green[500],
-    },
-    {
-        title: "Robustness",
-        metric: 84.8,
-        change: 2.5,
-        observations: "Success rate of adversarial generation increased",
-        takeaway: "Robustness has triggered a warning but is still within acceptable range",
-        recommendation: "Warning: Act later",
-        changeColor: orange[500],
-    },
-    {
-        title: "Explainability",
-        metric: 54.3,
-        change: 0.9,
-        observations: "Slight increase in explainability of the model.",
-        takeaway: "Trustworthiness values are within the threshold",
-        recommendation: "No Action required",
-        changeColor: green[500],
-    },
-];
+const STATUS_COLORS: Record<string, string> = {
+    Done: "#4caf50",
+    Failed: "#f44336",
+    Processing: "#2196f3",
+    Pending: "#ff9800",
+    Archived: "#9e9e9e",
+    Custom: "#9c27b0",
+};
 
+// ─── Stat Card ─────────────────────────────────────────────
 
-/**
- * MetricCard component
- * Displays a single metric card with title, value, change, observations, and recommendations
- * Used as a child component in the SummaryTable
- *
- * @param {MetricCardProps} props - Component props
- * @returns {JSX.Element} A paper component containing metric information
- */
-const MetricCard: React.FC<MetricCardProps> = ({
-    title,
-    metric,
-    change,
-    observations,
-    takeaway,
-    recommendation,
-    changeColor,
-}) => (
+interface StatCardProps {
+    icon: React.ReactNode;
+    label: string;
+    value: string | number;
+    subtitle?: string;
+    color?: string;
+}
+
+const StatCard: React.FC<StatCardProps> = ({ icon, label, value, subtitle, color }) => {
+    const theme = useTheme();
+    const c = color || theme.palette.primary.main;
+    return (
         <Card
+            variant="outlined"
             sx={{
                 height: "100%",
-                display: "flex",
-                flexDirection: "column",
-                minWidth: 250,
-                maxWidth: 350,
-                mx: "auto",
-                boxSizing: "border-box",
+                borderLeft: `4px solid ${c}`,
+                transition: "box-shadow 0.2s",
+                "&:hover": { boxShadow: theme.shadows[4] },
             }}
         >
-            <CardHeader
-                title={
-                    <Typography
-                        variant="h5"
-                        fontWeight="bold"
-                        noWrap={false}
-                    >
-                        {title}
-                    </Typography>
-                }
-                sx={{ pb: 0 }}
-            />
-            <CardContent sx={{ flexGrow: 1, display: "flex", flexDirection: "column", py: 1 }}>
-                {/* Metric & Change aligned horizontally */}
-                <Stack direction="row" alignItems="baseline" spacing={2} sx={{ mb: 1 }}>
-                    <Typography variant="h3" fontWeight="bold">{metric}</Typography>
-                    {change !== 0 && (
-                        <Typography variant="h5" sx={{ color: changeColor, display: "flex", alignItems: "center" }}>
-                            {getArrowIcon(change, changeColor)}
-                            &nbsp;
-                            {change > 0 ? `+${change}` : change}
+            <CardContent sx={{ py: 2, "&:last-child": { pb: 2 } }}>
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                    <Box sx={{
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        width: 44, height: 44, borderRadius: 2,
+                        bgcolor: alpha(c, 0.1), color: c,
+                    }}>
+                        {icon}
+                    </Box>
+                    <Box sx={{ minWidth: 0 }}>
+                        <Typography variant="caption" color="text.secondary" noWrap>
+                            {label}
                         </Typography>
-                    )}
+                        <Typography variant="h5" fontWeight={700} noWrap>
+                            {value}
+                        </Typography>
+                        {subtitle && (
+                            <Typography variant="caption" color="text.secondary" noWrap>
+                                {subtitle}
+                            </Typography>
+                        )}
+                    </Box>
                 </Stack>
-
-                {/* Observations */}
-                <Typography variant="body1" color="textSecondary" sx={{ mb: 2 }}>
-                    {observations}
-                </Typography>
-
-                {/* Takeaway */}
-                <Typography variant="body1" sx={{ mb: 3 }}>
-                    <b>Takeaway:</b> {takeaway}
-                </Typography>
-
-                <Box flexGrow={1} />
-
-                {/* Recommendation Button */}
-                <Button
-                    variant="contained"
-                    fullWidth
-                    sx={{
-                        backgroundColor: changeColor,
-                        color: "#fff",
-                        fontWeight: "bold",
-                        mt: "auto",
-                        ":hover": { backgroundColor: changeColor, opacity: 0.9 },
-                    }}
-                    disableElevation
-                >
-                    {recommendation}
-                </Button>
             </CardContent>
         </Card>
     );
+};
 
+// ─── Section Card wrapper ──────────────────────────────────
 
-/**
- * SummaryTable component
- * Displays a grid of metric cards showing various model and data metrics
- * Includes metrics for:
- * - Training & Test Data
- * - Production Data & Anomalies
- * - Model Output & Performance
- * - Model Robustness
- * - Explainability
- * - Fairness
- *
- * Each metric is displayed with its current value, change, observations,
- * and recommended actions using color coding for status indication
- *
- * @returns {JSX.Element} A grid of metric cards showing model and data health
- */
-const SummaryTable: React.FC = () => (
-    <Container maxWidth="lg" disableGutters sx={{ p: 0, m: 0 }}>
-        <Box sx={{ p: 2, m: 0, width: "100%" }}>
-            <Grid container spacing={3} sx={{ p: 0, m: 0 }}>
-                {metricsData.map((metric, idx) => (
-                    <Grid item key={idx} xs={12} sm={12} md={6} lg={4} xl={3} sx={{ p: 0, m: 0 }}>
-                        <MetricCard {...metric} />
-                    </Grid>
-                ))}
-            </Grid>
-        </Box>
-    </Container>
+const SectionCard: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+    <Card variant="outlined" sx={{ height: "100%" }}>
+        <CardContent>
+            <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                {title}
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+            {children}
+        </CardContent>
+    </Card>
 );
+
+// ─── Main Component ────────────────────────────────────────
+
+interface SummaryTableProps {
+    projectPid: string | null;
+}
+
+const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
+    const theme = useTheme();
+    const [overview, setOverview] = useState<ProjectStatsOverview | null>(null);
+    const [metrics, setMetrics] = useState<MetricScoreSummary[]>([]);
+    const [plugins, setPlugins] = useState<PluginUsageSummary[]>([]);
+    const [pluginDurations, setPluginDurations] = useState<PluginRunDuration[]>([]);
+    const [pluginIcons, setPluginIcons] = useState<Record<string, string>>({});
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (!projectPid) return;
+        setLoading(true);
+
+        const fetchWithFallback = async <T,>(fn: () => Promise<T>, fallback: T): Promise<T> => {
+            try {
+                return await fn();
+            } catch {
+                return fallback;
+            }
+        };
+
+        const emptyOverview: ProjectStatsOverview = {
+            total_evaluations: 0,
+            evaluations_by_status: [],
+            success_rate: 0,
+            avg_evaluation_duration_seconds: null,
+            std_evaluation_duration_seconds: null,
+            last_evaluation_date: null,
+            total_measurements: 0,
+            avg_score: null,
+            avg_uncertainty: null,
+            error_rate: 0,
+            unique_metrics_used: 0,
+            feature_coverage: 0,
+            total_datasets: 0,
+            total_models: 0,
+            datasets_evaluated: 0,
+            models_evaluated: 0,
+            active_plugins: 0,
+            total_artifacts: 0,
+            num_configs: 0,
+        };
+
+        Promise.all([
+            fetchWithFallback(() => getProjectStatsOverview(projectPid), emptyOverview),
+            fetchWithFallback(() => getProjectMetricBreakdown(projectPid), { metrics: [] }),
+            fetchWithFallback(() => getProjectPluginUsage(projectPid), { plugins: [] }),
+            fetchWithFallback(() => getProjectPluginDurations(projectPid), { runs: [] }),
+        ])
+            .then(async ([ov, mt, pl, dur]) => {
+                setOverview(ov);
+                setMetrics(mt.metrics);
+                setPlugins(pl.plugins);
+                setPluginDurations(dur.runs);
+
+                // Fetch display icons for each plugin
+                const icons: Record<string, string> = {};
+                await Promise.all(
+                    pl.plugins
+                        .filter((p) => p.plugin_name)
+                        .map(async (p) => {
+                            try {
+                                const res = await fetch(`${API_URL}/plugins/${p.plugin_name}/display_icon`);
+                                if (res.ok) {
+                                    icons[p.plugin_name] = await res.json() as string;
+                                }
+                            } catch {
+                                // ignore, will fall back to default icon
+                            }
+                        })
+                );
+                setPluginIcons(icons);
+            })
+            .finally(() => setLoading(false));
+    }, [projectPid]);
+
+    if (!projectPid) {
+        return (
+            <Box sx={{ p: 4, textAlign: "center" }}>
+                <Typography color="text.secondary">No project selected.</Typography>
+            </Box>
+        );
+    }
+
+    if (loading) {
+        return (
+            <Box sx={{ p: 2 }}>
+                <Grid container spacing={2}>
+                    {Array.from({ length: 8 }).map((_, i) => (
+                        <Grid size={{ sm: 6, lg: 3 }} key={i}>
+                            <Skeleton variant="rounded" height={100} />
+                        </Grid>
+                    ))}
+                </Grid>
+                <Skeleton variant="rounded" height={300} sx={{ mt: 3 }} />
+            </Box>
+        );
+    }
+
+    if (!overview) return null;
+
+    // ── Derived data for charts ──
+
+    const pieData = overview.evaluations_by_status.map((s) => ({
+        id: s.status,
+        value: s.count,
+        label: s.status,
+        color: STATUS_COLORS[s.status] || theme.palette.grey[500],
+    }));
+
+    // Avg duration per plugin line chart data
+    const durationPluginNames = [...new Set(pluginDurations.map((r) => r.plugin_name))];
+    const maxRunIndex = Math.max(0, ...pluginDurations.map((r) => r.run_index));
+    const runIndices = Array.from({ length: maxRunIndex }, (_, i) => i + 1);
+    const durationSeries = durationPluginNames.map((name) => {
+        const runs = new Map(
+            pluginDurations.filter((r) => r.plugin_name === name).map((r) => [r.run_index, r.duration_seconds])
+        );
+        return {
+            label: name,
+            data: runIndices.map((idx) => runs.get(idx) ?? null),
+        };
+    });
+
+    return (
+        <Box sx={{ width: "100%" }}>
+            {/* ── KPI Cards ── */}
+            <Grid container spacing={2}>
+                <Grid size={{ sm: 6, lg: 3 }}>
+                    <StatCard icon={<DatasetIcon />} label="Total Datasets" value={overview.total_datasets} color="#5c6bc0" />
+                </Grid>
+                <Grid size={{ sm: 6, lg: 3 }}>
+                    <StatCard icon={<ModelTrainingIcon />} label="Total Models" value={overview.total_models} color="#ec407a" />
+                </Grid>
+                <Grid size={{ sm: 6, lg: 3 }}>
+                    <StatCard icon={<StorageIcon />} label="Evaluated Datasets" value={overview.datasets_evaluated} color="#26a69a" />
+                </Grid>
+                <Grid size={{ sm: 6, lg: 3 }}>
+                    <StatCard icon={<ModelTrainingIcon />} label="Evaluated Models" value={overview.models_evaluated} color="#ab47bc" />
+                </Grid>
+                <Grid size={{ sm: 6, lg: 3 }}>
+                    <StatCard icon={<AssessmentIcon />} label="Total Evaluations" value={overview.total_evaluations} color="#1976d2" />
+                </Grid>
+                <Grid size={{ sm: 6, lg: 3 }}>
+                    <StatCard
+                        icon={<CheckCircleIcon />}
+                        label="Success Rate"
+                        value={`${overview.success_rate}%`}
+                        subtitle={`${overview.evaluations_by_status.find(s => s.status === "Done")?.count ?? 0} completed`}
+                        color="#4caf50"
+                    />
+                </Grid>
+                <Grid size={{ sm: 6, lg: 3 }}>
+                    <StatCard
+                        icon={<TimerIcon />}
+                        label="Avg Duration"
+                        value={formatDuration(overview.avg_evaluation_duration_seconds)}
+                        subtitle={overview.std_evaluation_duration_seconds !== null
+                            ? `Std: ${formatDuration(overview.std_evaluation_duration_seconds)}`
+                            : undefined}
+                        color="#ff9800"
+                    />
+                </Grid>
+                <Grid size={{ sm: 6, lg: 3 }}>
+                    <StatCard icon={<ExtensionIcon />} label="Active Plugins" value={overview.active_plugins} color="#8d6e63" />
+                </Grid>
+                <Grid size={{ sm: 6, lg: 3 }}>
+                    <StatCard icon={<CategoryIcon />} label="Metrics Used" value={overview.unique_metrics_used} color="#78909c" />
+                </Grid>
+                <Grid size={{ sm: 6, lg: 3 }}>
+                    <StatCard icon={<StraightenIcon />} label="Total Measurements" value={overview.total_measurements.toLocaleString()} color="#9c27b0" />
+                </Grid>
+                <Grid size={{ sm: 6, lg: 3 }}>
+                    <StatCard icon={<InsertDriveFileIcon />} label="Artifacts" value={overview.total_artifacts} color="#546e7a" />
+                </Grid>
+                <Grid size={{ sm: 6, lg: 3 }}>
+                    <StatCard icon={<SettingsIcon />} label="Configs" value={overview.num_configs} color="#6d4c41" />
+                </Grid>
+            </Grid>
+
+            {/* ── Evaluations by Status & Plugin Usage ── */}
+            <Grid container spacing={3} sx={{ mt: 4 }}>
+                {/* Evaluation Status Pie */}
+                {pieData.length > 0 && (
+                    <Grid size={{ xs: 12, lg: 6 }}>
+                        <SectionCard title="Evaluations by Status">
+                            <Box sx={{ display: "flex", justifyContent: "center" }}>
+                                <PieChart
+                                    series={[{
+                                        data: pieData,
+                                        innerRadius: 40,
+                                        paddingAngle: 2,
+                                        cornerRadius: 4,
+                                        highlightScope: { fade: "global", highlight: "item" },
+                                    }]}
+                                    width={360}
+                                    height={240}
+                                    slotProps={{ legend: { direction: "horizontal" as const } }}
+                                />
+                            </Box>
+                        </SectionCard>
+                    </Grid>
+                )}
+
+                {/* Plugin Usage */}
+                {plugins.length > 0 && (
+                    <Grid size={{ xs: 12, lg: 6 }}>
+                        <SectionCard title="Plugin Usage">
+                            <Box sx={{ maxHeight: 280, overflowY: "auto" }}>
+                            <Stack spacing={1.5}>
+                                {plugins.map((p) => (
+                                    <Paper
+                                        key={p.plugin_name}
+                                        variant="outlined"
+                                        sx={{ p: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between" }}
+                                    >
+                                        <Stack direction="row" alignItems="center" spacing={1}>
+                                            {pluginIcons[p.plugin_name]
+                                                ? <Icon sx={{ color: theme.palette.primary.main, fontSize: 20 }}>{pluginIcons[p.plugin_name]}</Icon>
+                                                : <ExtensionIcon sx={{ color: theme.palette.primary.main, fontSize: 20 }} />
+                                            }
+                                            <Typography variant="body2" fontWeight={600}>{p.plugin_name}</Typography>
+                                        </Stack>
+                                        <Stack direction="row" spacing={1}>
+                                            <Tooltip title="Times used">
+                                                <Chip label={`${p.usage_count} runs`} size="small" variant="outlined" />
+                                            </Tooltip>
+                                            <Tooltip title="Successful runs">
+                                                <Chip label={`${p.successful_runs}`} size="small" color="success" variant="outlined" icon={<CheckCircleIcon />} />
+                                            </Tooltip>
+                                            {p.failed_runs > 0 && (
+                                                <Tooltip title="Failed runs">
+                                                    <Chip label={`${p.failed_runs}`} size="small" color="error" variant="outlined" icon={<CancelIcon />} />
+                                                </Tooltip>
+                                            )}
+                                            <Tooltip title="Artifacts produced">
+                                                <Chip label={`${p.artifact_count} artifacts`} size="small" color="primary" variant="outlined" />
+                                            </Tooltip>
+                                            {p.avg_duration_seconds !== null && (
+                                                <Tooltip title="Avg execution time">
+                                                    <Chip label={formatDuration(p.avg_duration_seconds)} size="small" color="secondary" variant="outlined" icon={<TimerIcon />} />
+                                                </Tooltip>
+                                            )}
+                                        </Stack>
+                                    </Paper>
+                                ))}
+                            </Stack>
+                            </Box>
+                        </SectionCard>
+                    </Grid>
+                )}
+            </Grid>
+
+            {/* ── Avg Duration & Metric Details ── */}
+            <Grid container spacing={3} sx={{ mt: 4 }}>
+                {/* Plugin Duration per Run Line Chart */}
+                {durationSeries.length > 0 && (
+                    <Grid size={{ xs: 12, lg: 6 }}>
+                        <SectionCard title="Plugin Duration per Run">
+                            <LineChart
+                                xAxis={[{
+                                    data: runIndices,
+                                    label: "Run #",
+                                    scaleType: "point",
+                                }]}
+                                series={durationSeries.map((s) => ({
+                                    data: s.data,
+                                    label: s.label,
+                                    showMark: runIndices.length < 30,
+                                    connectNulls: false,
+                                }))}
+                                height={300}
+                                slotProps={{ legend: { direction: "horizontal" as const } }}
+                            />
+                        </SectionCard>
+                    </Grid>
+                )}
+
+                {/* Metric Details Table */}
+                {metrics.length > 0 && (
+                    <Grid size={{ xs: 12, lg: 6 }}>
+                        <SectionCard title="Metric Details">
+                            <Box sx={{ maxHeight: 280, overflowY: "auto", overflowX: "auto" }}>
+                                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                                    <thead>
+                                        <tr>
+                                            {["Plugin", "Metric", "Avg", "Min", "Max", "Std", "Count"].map((h) => (
+                                                <th key={h} style={{
+                                                    textAlign: "left", padding: "8px 12px",
+                                                    borderBottom: `2px solid ${theme.palette.divider}`,
+                                                    fontSize: 13, color: theme.palette.text.secondary,
+                                                    fontWeight: 600,
+                                                    position: "sticky", top: 0,
+                                                    backgroundColor: theme.palette.background.paper,
+                                                    zIndex: 1,
+                                                }}>
+                                                    {h}
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {metrics.map((m, idx) => (
+                                            <tr key={`${m.plugin_name}-${m.metric_pid}-${idx}`} style={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
+                                                <td style={{ padding: "8px 12px" }}>
+                                                    <Chip label={m.plugin_name} size="small" variant="outlined" icon={<ExtensionIcon />} />
+                                                </td>
+                                                <td style={{ padding: "8px 12px", fontWeight: 500 }}>{m.metric_name}</td>
+                                                <td style={{ padding: "8px 12px" }}>{m.avg_score.toFixed(4)}</td>
+                                                <td style={{ padding: "8px 12px" }}>{m.min_score.toFixed(4)}</td>
+                                                <td style={{ padding: "8px 12px" }}>{m.max_score.toFixed(4)}</td>
+                                                <td style={{ padding: "8px 12px" }}>{m.std_score.toFixed(4)}</td>
+                                                <td style={{ padding: "8px 12px" }}>
+                                                    <Chip label={m.measurement_count} size="small" />
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </Box>
+                        </SectionCard>
+                    </Grid>
+                )}
+            </Grid>
+
+            {/* Empty state */}
+            {overview.total_evaluations === 0 && (
+                <Box sx={{ textAlign: "center", py: 8, mt: 4 }}>
+                    <AssessmentIcon sx={{ fontSize: 64, color: theme.palette.grey[300], mb: 2 }} />
+                    <Typography variant="h6" color="text.secondary">
+                        No evaluations yet
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                        Run your first evaluation to see stats here.
+                    </Typography>
+                </Box>
+            )}
+        </Box>
+    );
+};
 
 export default SummaryTable;

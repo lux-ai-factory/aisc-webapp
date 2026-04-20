@@ -1,5 +1,13 @@
 import {API_VERSION_PREFIX} from "../config.tsx";
-import {Project, PluginFeatureFlags, PluginInputDefinition} from "../models/models.tsx";
+import {
+    Project,
+    PluginFeatureFlags,
+    PluginInputDefinition,
+    ProjectStatsOverview,
+    MetricScoreSummary,
+    PluginUsageSummary,
+    PluginRunDuration,
+} from "../models/models.tsx";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -32,3 +40,30 @@ export const getPluginInputDefinitions = async (plugin_name: string) => {
 
     return await res.json() as PluginInputDefinition[];
 };
+
+// Stats API
+
+export const getProjectStatsOverview = async (projectPid: string): Promise<ProjectStatsOverview> => {
+    const res = await fetch(`${API_URL}/stats/projects/${projectPid}/overview`);
+    if (!res.ok) throw new Error('Failed to fetch project stats overview');
+    return await res.json();
+};
+
+export const getProjectMetricBreakdown = async (projectPid: string): Promise<{ metrics: MetricScoreSummary[] }> => {
+    const res = await fetch(`${API_URL}/stats/projects/${projectPid}/metrics`);
+    if (!res.ok) throw new Error('Failed to fetch metric breakdown');
+    return await res.json();
+};
+
+export const getProjectPluginUsage = async (projectPid: string): Promise<{ plugins: PluginUsageSummary[] }> => {
+    const res = await fetch(`${API_URL}/stats/projects/${projectPid}/plugins`);
+    if (!res.ok) throw new Error('Failed to fetch plugin usage');
+    return await res.json();
+};
+
+export const getProjectPluginDurations = async (projectPid: string): Promise<{ runs: PluginRunDuration[] }> => {
+    const res = await fetch(`${API_URL}/stats/projects/${projectPid}/plugin-durations`);
+    if (!res.ok) throw new Error('Failed to fetch plugin durations');
+    return await res.json();
+};
+

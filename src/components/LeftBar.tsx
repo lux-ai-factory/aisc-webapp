@@ -137,7 +137,7 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
                     <MenuList
                         title="Project"
                         items={[
-                            { text: 'Overview', icon: <DashboardIcon />, target: `/projects/${projectName}` },
+                            { text: 'Overview', icon: <DashboardIcon />, target: `/projects/${projectName}/overview` },
                             { text: 'Settings', icon: <SettingsIcon />, target: `/projects/${projectName}/settings` },
                         ]}
                     />
