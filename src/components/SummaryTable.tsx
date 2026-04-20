@@ -213,7 +213,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
             <Box sx={{ p: 2 }}>
                 <Grid container spacing={2}>
                     {Array.from({ length: 8 }).map((_, i) => (
-                        <Grid size={{ sm: 6, lg: 3 }} key={i}>
+                        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={i}>
                             <Skeleton variant="rounded" height={100} />
                         </Grid>
                     ))}
@@ -252,22 +252,22 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
         <Box sx={{ width: "100%" }}>
             {/* ── KPI Cards ── */}
             <Grid container spacing={2}>
-                <Grid size={{ sm: 6, lg: 3 }}>
+                <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
                     <StatCard icon={<DatasetIcon />} label="Total Datasets" value={overview.total_datasets} color="#5c6bc0" />
                 </Grid>
-                <Grid size={{ sm: 6, lg: 3 }}>
+                <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
                     <StatCard icon={<ModelTrainingIcon />} label="Total Models" value={overview.total_models} color="#ec407a" />
                 </Grid>
-                <Grid size={{ sm: 6, lg: 3 }}>
+                <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
                     <StatCard icon={<StorageIcon />} label="Evaluated Datasets" value={overview.datasets_evaluated} color="#26a69a" />
                 </Grid>
-                <Grid size={{ sm: 6, lg: 3 }}>
+                <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
                     <StatCard icon={<ModelTrainingIcon />} label="Evaluated Models" value={overview.models_evaluated} color="#ab47bc" />
                 </Grid>
-                <Grid size={{ sm: 6, lg: 3 }}>
+                <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
                     <StatCard icon={<AssessmentIcon />} label="Total Evaluations" value={overview.total_evaluations} color="#1976d2" />
                 </Grid>
-                <Grid size={{ sm: 6, lg: 3 }}>
+                <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
                     <StatCard
                         icon={<CheckCircleIcon />}
                         label="Success Rate"
@@ -276,7 +276,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                         color="#4caf50"
                     />
                 </Grid>
-                <Grid size={{ sm: 6, lg: 3 }}>
+                <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
                     <StatCard
                         icon={<TimerIcon />}
                         label="Avg Duration"
@@ -287,19 +287,19 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                         color="#ff9800"
                     />
                 </Grid>
-                <Grid size={{ sm: 6, lg: 3 }}>
+                <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
                     <StatCard icon={<ExtensionIcon />} label="Active Plugins" value={overview.active_plugins} color="#8d6e63" />
                 </Grid>
-                <Grid size={{ sm: 6, lg: 3 }}>
+                <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
                     <StatCard icon={<CategoryIcon />} label="Metrics Used" value={overview.unique_metrics_used} color="#78909c" />
                 </Grid>
-                <Grid size={{ sm: 6, lg: 3 }}>
+                <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
                     <StatCard icon={<StraightenIcon />} label="Total Measurements" value={overview.total_measurements.toLocaleString()} color="#9c27b0" />
                 </Grid>
-                <Grid size={{ sm: 6, lg: 3 }}>
+                <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
                     <StatCard icon={<InsertDriveFileIcon />} label="Artifacts" value={overview.total_artifacts} color="#546e7a" />
                 </Grid>
-                <Grid size={{ sm: 6, lg: 3 }}>
+                <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
                     <StatCard icon={<SettingsIcon />} label="Configs" value={overview.num_configs} color="#6d4c41" />
                 </Grid>
             </Grid>
@@ -308,7 +308,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
             <Grid container spacing={3} sx={{ mt: 4 }}>
                 {/* Evaluation Status Pie */}
                 {pieData.length > 0 && (
-                    <Grid size={{ xs: 12, lg: 6 }}>
+                    <Grid size={{ xs: 12, xl: 6 }}>
                         <SectionCard title="Evaluations by Status">
                             <Box sx={{ display: "flex", justifyContent: "center" }}>
                                 <PieChart
@@ -330,7 +330,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
 
                 {/* Plugin Usage */}
                 {plugins.length > 0 && (
-                    <Grid size={{ xs: 12, lg: 6 }}>
+                    <Grid size={{ xs: 12, xl: 6 }}>
                         <SectionCard title="Plugin Usage">
                             <Box sx={{ maxHeight: 280, overflowY: "auto" }}>
                             <Stack spacing={1.5}>
@@ -377,77 +377,74 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                 )}
             </Grid>
 
-            {/* ── Avg Duration & Metric Details ── */}
-            <Grid container spacing={3} sx={{ mt: 4 }}>
-                {/* Plugin Duration per Run Line Chart */}
-                {durationSeries.length > 0 && (
-                    <Grid size={{ xs: 12, lg: 6 }}>
-                        <SectionCard title="Plugin Duration per Run">
-                            <LineChart
-                                xAxis={[{
-                                    data: runIndices,
-                                    label: "Run #",
-                                    scaleType: "point",
-                                }]}
-                                series={durationSeries.map((s) => ({
-                                    data: s.data,
-                                    label: s.label,
-                                    showMark: runIndices.length < 30,
-                                    connectNulls: false,
-                                }))}
-                                height={300}
-                                slotProps={{ legend: { direction: "horizontal" as const } }}
-                            />
-                        </SectionCard>
-                    </Grid>
-                )}
+            {/* ── Plugin Duration per Run ── */}
+            {durationSeries.length > 0 && (
+                <Box sx={{ mt: 4 }}>
+                    <SectionCard title="Plugin Duration per Run">
+                        <LineChart
+                            xAxis={[{
+                                data: runIndices,
+                                label: "Run #",
+                                scaleType: "point",
+                            }]}
+                            series={durationSeries.map((s) => ({
+                                data: s.data,
+                                label: s.label,
+                                showMark: runIndices.length < 30,
+                                connectNulls: false,
+                            }))}
+                            height={300}
+                            slotProps={{ legend: { direction: "horizontal" as const } }}
+                        />
+                    </SectionCard>
+                </Box>
+            )}
 
-                {/* Metric Details Table */}
-                {metrics.length > 0 && (
-                    <Grid size={{ xs: 12, lg: 6 }}>
-                        <SectionCard title="Metric Details">
-                            <Box sx={{ maxHeight: 280, overflowY: "auto", overflowX: "auto" }}>
-                                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                                    <thead>
-                                        <tr>
-                                            {["Plugin", "Metric", "Avg", "Min", "Max", "Std", "Count"].map((h) => (
-                                                <th key={h} style={{
-                                                    textAlign: "left", padding: "8px 12px",
-                                                    borderBottom: `2px solid ${theme.palette.divider}`,
-                                                    fontSize: 13, color: theme.palette.text.secondary,
-                                                    fontWeight: 600,
-                                                    position: "sticky", top: 0,
-                                                    backgroundColor: theme.palette.background.paper,
-                                                    zIndex: 1,
-                                                }}>
-                                                    {h}
-                                                </th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {metrics.map((m, idx) => (
-                                            <tr key={`${m.plugin_name}-${m.metric_pid}-${idx}`} style={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
-                                                <td style={{ padding: "8px 12px" }}>
-                                                    <Chip label={m.plugin_name} size="small" variant="outlined" icon={<ExtensionIcon />} />
-                                                </td>
-                                                <td style={{ padding: "8px 12px", fontWeight: 500 }}>{m.metric_name}</td>
-                                                <td style={{ padding: "8px 12px" }}>{m.avg_score.toFixed(4)}</td>
-                                                <td style={{ padding: "8px 12px" }}>{m.min_score.toFixed(4)}</td>
-                                                <td style={{ padding: "8px 12px" }}>{m.max_score.toFixed(4)}</td>
-                                                <td style={{ padding: "8px 12px" }}>{m.std_score.toFixed(4)}</td>
-                                                <td style={{ padding: "8px 12px" }}>
-                                                    <Chip label={m.measurement_count} size="small" />
-                                                </td>
-                                            </tr>
+            {/* ── Metric Details ── */}
+            {metrics.length > 0 && (
+                <Box sx={{ mt: 4 }}>
+                    <SectionCard title="Metric Details">
+                        <Box sx={{ maxHeight: 280, overflowY: "auto", overflowX: "auto" }}>
+                            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                                <thead>
+                                    <tr>
+                                        {["Plugin", "Metric", "Avg", "Min", "Max", "Std", "Count"].map((h) => (
+                                            <th key={h} style={{
+                                                textAlign: "left", padding: "8px 12px",
+                                                borderBottom: `2px solid ${theme.palette.divider}`,
+                                                fontSize: 13, color: theme.palette.text.secondary,
+                                                fontWeight: 600,
+                                                position: "sticky", top: 0,
+                                                backgroundColor: theme.palette.background.paper,
+                                                zIndex: 1,
+                                            }}>
+                                                {h}
+                                            </th>
                                         ))}
-                                    </tbody>
-                                </table>
-                            </Box>
-                        </SectionCard>
-                    </Grid>
-                )}
-            </Grid>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {metrics.map((m, idx) => (
+                                        <tr key={`${m.plugin_name}-${m.metric_pid}-${idx}`} style={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
+                                            <td style={{ padding: "8px 12px" }}>
+                                                <Chip label={m.plugin_name} size="small" variant="outlined" icon={<ExtensionIcon />} />
+                                            </td>
+                                            <td style={{ padding: "8px 12px", fontWeight: 500 }}>{m.metric_name}</td>
+                                            <td style={{ padding: "8px 12px" }}>{m.avg_score.toFixed(4)}</td>
+                                            <td style={{ padding: "8px 12px" }}>{m.min_score.toFixed(4)}</td>
+                                            <td style={{ padding: "8px 12px" }}>{m.max_score.toFixed(4)}</td>
+                                            <td style={{ padding: "8px 12px" }}>{m.std_score.toFixed(4)}</td>
+                                            <td style={{ padding: "8px 12px" }}>
+                                                <Chip label={m.measurement_count} size="small" />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </Box>
+                    </SectionCard>
+                </Box>
+            )}
 
             {/* Empty state */}
             {overview.total_evaluations === 0 && (

@@ -103,7 +103,9 @@ export default function PermanentDrawerLeft() {
                     alignItems: 'left',
                     maxWidth: 'lg',
                     margin: '0 auto',
-                    width: '100%'
+                    width: `calc(100% - ${drawerWidth}px)`,
+                    minWidth: 0,
+                    overflow: 'hidden',
                 }}
             >
                 <Toolbar />
