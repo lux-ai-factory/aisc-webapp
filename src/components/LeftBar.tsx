@@ -77,14 +77,14 @@ const getProject = async (project_uuid: string) => {
     const res = await fetch(`${API_URL}/projects/${project_uuid}`);
     const project = await res.json() as Project;
     for (const plugin of project.plugins) {
-        plugin.display_icon = await getDisplayIcon(plugin.name)
+        plugin.display_icon = await getDisplayIcon(plugin.pid)
     }
     return project;
 };
 
-const getDisplayIcon = async (plugin_name: string) => {
-    if (!plugin_name) throw new Error('Invalid plugin name');
-    const res = await fetch(`${API_URL}/plugins/${plugin_name}/display_icon`);
+const getDisplayIcon = async (plugin_pid: string) => {
+    if (!plugin_pid) throw new Error('Invalid plugin PID');
+    const res = await fetch(`${API_URL}/plugins/${plugin_pid}/display_icon`);
     return await res.json() as string;
 };
 
