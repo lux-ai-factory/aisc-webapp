@@ -32,6 +32,11 @@ import {
     PluginRunDuration,
 } from "../models/models";
 
+import {
+    toggleHidden,
+    computeYDomainFromVisible,
+} from "./plugin/ChartUtils";
+
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
 // ─── Helpers ───────────────────────────────────────────────
@@ -131,6 +136,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
     const [plugins, setPlugins] = useState<PluginUsageSummary[]>([]);
     const [pluginDurations, setPluginDurations] = useState<PluginRunDuration[]>([]);
     const [pluginIcons, setPluginIcons] = useState<Record<string, string>>({});
+    const [hiddenSeriesIds, setHiddenSeriesIds] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -247,10 +253,23 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
             pluginDurations.filter((r) => r.plugin_name === name).map((r) => [r.run_index, r.duration_seconds])
         );
         return {
+            id: name,
             label: name,
             data: runIndices.map((idx) => runs.get(idx) ?? null),
         };
     });
+    const chartSeries = durationSeries.map((s) => ({
+        ...s,
+        showMark: runIndices.length < 30,
+        connectNulls: false,
+    }));
+
+    const { yMin, yMax } = computeYDomainFromVisible(chartSeries, hiddenSeriesIds);
+
+    const hiddenItems = hiddenSeriesIds.map((seriesId) => ({
+        type: "line" as const,
+        seriesId,
+    }));
 
     return (
         <Box sx={{ width: "100%" }}>
@@ -386,25 +405,31 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                 <Box sx={{ mt: 4 }}>
                     <SectionCard title="Plugin Duration per Run">
                         <LineChart
-                            xAxis={[{
-                                data: runIndices,
-                                label: "Run #",
-                                scaleType: "point",
-                            }]}
-                            series={durationSeries.map((s) => ({
-                                data: s.data,
-                                label: s.label,
-                                showMark: runIndices.length < 30,
-                                connectNulls: false,
-                            }))}
+                            xAxis={[
+                                {
+                                    data: runIndices,
+                                    label: "Run #",
+                                    scaleType: "point",
+                                },
+                            ]}
+                            yAxis={[
+                                {
+                                    min: yMin,
+                                    max: yMax,
+                                    domainLimit: "strict",
+                                },
+                            ]}
+                            series={chartSeries}
+                            hiddenItems={hiddenItems}
                             height={300}
                             slotProps={{
                                 legend: {
                                     direction: "horizontal" as const,
-                                    toggleVisibilityOnClick: true,
+                                    onItemClick: (_event: unknown, legendItem: { seriesId: string | number }) => {
+                                        setHiddenSeriesIds((prev) => toggleHidden(prev, String(legendItem.seriesId)));
+                                    },
                                 },
                             }}
-
                         />
                     </SectionCard>
                 </Box>
