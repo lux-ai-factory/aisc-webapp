@@ -398,7 +398,13 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                                 connectNulls: false,
                             }))}
                             height={300}
-                            slotProps={{ legend: { direction: "horizontal" as const } }}
+                            slotProps={{
+                                legend: {
+                                    direction: "horizontal" as const,
+                                    toggleVisibilityOnClick: true,
+                                },
+                            }}
+
                         />
                     </SectionCard>
                 </Box>
