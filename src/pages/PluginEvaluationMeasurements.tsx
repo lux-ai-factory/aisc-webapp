@@ -222,6 +222,31 @@ function PluginEvaluationMeasurements() {
                                                 );
                                             case '.zip':
                                                 return <ZipFileList files={artifact.preview.data}/>;
+                                            case '.txt':
+                                            case '.log':
+                                                return (
+                                                    <Paper
+                                                        variant="outlined"
+                                                        sx={{
+                                                            p: 2,
+                                                            backgroundColor: '#f5f5f5',
+                                                            maxHeight: '500px',
+                                                            overflow: 'auto'
+                                                        }}
+                                                    >
+                                                        <Typography
+                                                            component="pre"
+                                                            variant="body2"
+                                                            sx={{
+                                                                fontFamily: 'monospace',
+                                                                whiteSpace: 'pre-wrap',
+                                                                wordBreak: 'break-all'
+                                                            }}
+                                                        >
+                                                            {artifact.preview.data}
+                                                        </Typography>
+                                                    </Paper>
+                                                );
                                             default:
                                                 return (
                                                     <Typography variant="body2" color="textSecondary" align="center"
