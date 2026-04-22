@@ -76,11 +76,11 @@ const AddProjectDialog: React.FC<{
             slotProps={{
                 paper: {
                     sx: {
-                        backgroundColor: "#001075 !important",
-                        backgroundImage: "none !important",   // kills MUI elevation overlay
+                        backgroundColor: "#0048ff", // fallback base
+                        backgroundImage: "linear-gradient(135deg, #001075, #0020b5)",
                         borderRadius: "16px",
                         padding: "8px 0",
-                        boxShadow: "none",                    // prevents tinting from elevation
+                        boxShadow: "none",
                     }
                 }
             }}
