@@ -35,6 +35,7 @@ import {
 import {
     toggleHidden,
     computeYDomainFromVisible,
+    computeXIndexBoundsFromVisible,
 } from "./plugin/ChartUtils";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
@@ -264,7 +265,16 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
         connectNulls: false,
     }));
 
-    const { yMin, yMax } = computeYDomainFromVisible(chartSeries, hiddenSeriesIds);
+    const xBounds = computeXIndexBoundsFromVisible(chartSeries, hiddenSeriesIds);
+    const xStart = xBounds?.start ?? 0;
+    const xEnd = (xBounds?.end ?? (runIndices.length - 1)) + 1;
+    const visibleRunIndices = runIndices.slice(xStart, xEnd);
+    const visibleChartSeries = chartSeries.map((s) => ({
+        ...s,
+        data: s.data.slice(xStart, xEnd),
+    }));
+
+    const { yMin, yMax } = computeYDomainFromVisible(visibleChartSeries, hiddenSeriesIds);
 
     const hiddenItems = hiddenSeriesIds.map((seriesId) => ({
         type: "line" as const,
@@ -407,7 +417,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                         <LineChart
                             xAxis={[
                                 {
-                                    data: runIndices,
+                                    data: visibleRunIndices,
                                     label: "Run #",
                                     scaleType: "point",
                                 },
@@ -419,7 +429,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                                     domainLimit: "strict",
                                 },
                             ]}
-                            series={chartSeries}
+                            series={visibleChartSeries}
                             hiddenItems={hiddenItems}
                             height={300}
                             slotProps={{
