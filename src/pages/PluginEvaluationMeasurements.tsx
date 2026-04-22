@@ -258,7 +258,7 @@ function PluginEvaluationMeasurements() {
                                     })()}
                                 </AccordionDetails>
                                 <AccordionActions>
-                                    <Button onClick={() => handleDownload(artifact.file_name)}>Download</Button>
+                                    <Button onClick={() => handleDownload(artifact.data)}>Download</Button>
                                 </AccordionActions>
                             </Accordion>
                         )
