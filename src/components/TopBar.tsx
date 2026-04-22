@@ -70,9 +70,25 @@ const AddProjectDialog: React.FC<{
     };
 
     return (
-        <Dialog open={open} onClose={onClose}>
-            <DialogTitle>Add New Project</DialogTitle>
-            <DialogContent>
+        <Dialog
+            open={open}
+            onClose={onClose}
+            slotProps={{
+                paper: {
+                    sx: {
+                        backgroundColor: "#001075 !important",
+                        backgroundImage: "none !important",   // kills MUI elevation overlay
+                        borderRadius: "16px",
+                        padding: "8px 0",
+                        boxShadow: "none",                    // prevents tinting from elevation
+                    }
+                }
+            }}
+
+        >
+            <DialogTitle sx={{ color: "white" }}>Add New Project</DialogTitle>
+
+            <DialogContent sx={{ color: "white" }}>
                 <TextField
                     autoFocus
                     margin="dense"
@@ -87,6 +103,29 @@ const AddProjectDialog: React.FC<{
                     }}
                     error={nameError}
                     helperText={nameError ? "Project name must be at least 3 characters" : ""}
+                    variant="outlined"
+                    InputProps={{
+                        sx: {
+                            color: "white", // text color
+                            "& .MuiOutlinedInput-notchedOutline": {
+                                borderColor: "white",
+                            },
+                            "&:hover .MuiOutlinedInput-notchedOutline": {
+                                borderColor: "white",
+                            },
+                            "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                                borderColor: "white",
+                            },
+                        }
+                    }}
+                    InputLabelProps={{
+                        sx: {
+                            color: "white",
+                            "&.Mui-focused": {
+                                color: "white",
+                            }
+                        }
+                    }}
                 />
             </DialogContent>
             <DialogActions>
