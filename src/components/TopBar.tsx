@@ -6,7 +6,7 @@ import {
     Dialog,
     DialogActions,
     DialogContent,
-    DialogTitle,
+    DialogTitle, Icon,
     Link,
     TextField,
     Toolbar,
@@ -17,6 +17,7 @@ import {useProject} from '../context/ProjectContext';
 import {API_VERSION_PREFIX} from '../config';
 import {ThemeProvider} from '@emotion/react';
 import {useNavigate} from 'react-router-dom';
+import "./addProjectButton.css";
 
 interface Project {
     pid: string;
@@ -109,9 +110,12 @@ const ProjectSelector: React.FC<{
                 variant="contained"
                 color="primary"
                 onClick={() => setDialogOpen(true)}
+                className="add-project-btn"
             >
-                Add Project
+                <span className="icon"><Icon>add</Icon></span>
+                <span className="label">ADD PROJECT</span>
             </Button>
+
             <AddProjectDialog
                 open={dialogOpen}
                 onClose={() => setDialogOpen(false)}
