@@ -5,6 +5,9 @@
     /*I've been trying many colors but can't figure out an accent color so leaving the default for now*/
     /*background-color: #23CE6B;*/
 
+    background: linear-gradient(135deg, #4591FB, #0034ff) !important;
+    color: white !important;
+
     height: 48px;
     width: 48px;
     min-width: 0 !important;
@@ -24,6 +27,7 @@
     padding-left: 16px !important;
     padding-right: 16px !important;
     gap: 8px;
+    background: linear-gradient(135deg, #4591FB, #0048ff) !important;
 }
 
 .add-project-btn .icon {
