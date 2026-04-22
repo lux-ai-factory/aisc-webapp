@@ -68,9 +68,10 @@ const ProjectsList = () => {
 const GlobalHome = () => {
     return (
         <>
-            <Typography component="h2" variant="h4" gutterBottom>
-                AI Assessment Sandbox
-            </Typography>
+            {/*I remove this for now because we already have the same title in top toolbar*/}
+            {/*<Typography component="h2" variant="h4" gutterBottom>*/}
+            {/*    AI Assessment Sandbox*/}
+            {/*</Typography>*/}
 
             <ProjectsList/>
 
