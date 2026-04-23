@@ -5,6 +5,7 @@ import {FormControlLabel, FormGroup, Switch, Typography} from "@mui/material";
 import {Plugin} from "../models/models.tsx";
 import React from "react";
 import {getPlugins, getProject} from "../api/api.tsx";
+import toast from "react-hot-toast";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -30,7 +31,7 @@ const createProjectPlugin = async (uuid: string, plugin_name: string) => {
 
 const deleteProjectPlugin = async (plugin_uuid: string) => {
     if (!plugin_uuid) throw new Error('Invalid uuid');
-    await fetch(`${API_URL}/plugins/${plugin_uuid}`, {
+    return await fetch(`${API_URL}/plugins/${plugin_uuid}`, {
         method: 'DELETE'
     });
 };
@@ -72,7 +73,10 @@ function Plugins() {
             await createProjectPlugin(pid, plugin_name)
         } else {
             if (!project_plugin_pid) return;
-            await deleteProjectPlugin(project_plugin_pid)
+            const res = await deleteProjectPlugin(project_plugin_pid)
+            if (!res.ok) {
+                toast.error('Plugin is currently in use', {position: "bottom-right"});
+            }
         }
         await queryClient.invalidateQueries({queryKey: ['project']});
     };
