@@ -44,7 +44,7 @@ export default function PluginEvaluationForm({
                         onChange={onToggle}
                     />
                 }
-                label={plugin.name}
+                label={plugin.display_name}
             />
 
             {isSelected && (

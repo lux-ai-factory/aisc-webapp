@@ -116,7 +116,7 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
     let pluginMenuHeader = { text: 'Plugins', icon: <ExtensionIcon />, target: `/projects/${projectName}/plugins` }
 
     let pluginsMenuItems = project?.plugins.map((plugin: Plugin) => {
-        return {text: plugin.name, icon: <Icon>{plugin.display_icon}</Icon>, target: `/projects/${projectName}/plugins/${plugin.name}`}
+        return {text: plugin.display_name, icon: <Icon>{plugin.display_icon}</Icon>, target: `/projects/${projectName}/plugins/${plugin.name}`}
     }) ?? []
 
 

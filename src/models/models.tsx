@@ -30,6 +30,7 @@ export interface Plugin {
     plugin_config?: PluginConfig | null;
     package_name: string;
     version: string;
+    display_name: string;
 }
 
 export interface TaskProgress {
