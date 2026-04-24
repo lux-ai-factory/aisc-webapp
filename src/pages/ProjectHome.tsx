@@ -1,24 +1,19 @@
-// src/components/Home.jsx
-
 import { Typography } from "@mui/material";
 import SummaryTable from "../components/SummaryTable";
+import { useProject } from "../context/ProjectContext";
 
-/**
- * Home page component
- * Main dashboard page of the VERA application
- * Displays the dashboard title and a summary table of metrics
- *
- * @returns {JSX.Element} The home page with dashboard title and summary table
- */
 const ProjectHome = () => {
+    const { projectUUID } = useProject();
+
     return (
         <>
-            <Typography component="h2" variant="h4" gutterBottom>
+            <Typography component="h2" variant="h4" sx={{ mb: 3 }}>
                 Overview
             </Typography>
 
-            <SummaryTable />
-        </>);
+            <SummaryTable projectPid={projectUUID} />
+        </>
+    );
 };
 
 export default ProjectHome;

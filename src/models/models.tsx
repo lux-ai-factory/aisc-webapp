@@ -84,3 +84,59 @@ export interface Measurement {
     error?: string | null;
     feature_pid?: string | null;
 }
+
+// Stats types
+
+export interface EvaluationStatusBreakdown {
+    status: string;
+    count: number;
+}
+
+export interface ProjectStatsOverview {
+    total_evaluations: number;
+    evaluations_by_status: EvaluationStatusBreakdown[];
+    success_rate: number;
+    avg_evaluation_duration_seconds: number | null;
+    std_evaluation_duration_seconds: number | null;
+    last_evaluation_date: string | null;
+    total_measurements: number;
+    avg_score: number | null;
+    avg_uncertainty: number | null;
+    error_rate: number;
+    unique_metrics_used: number;
+    feature_coverage: number;
+    total_datasets: number;
+    total_models: number;
+    datasets_evaluated: number;
+    models_evaluated: number;
+    active_plugins: number;
+    total_artifacts: number;
+    num_configs: number;
+}
+
+export interface MetricScoreSummary {
+    metric_pid: string;
+    metric_name: string;
+    plugin_name: string;
+    avg_score: number;
+    min_score: number;
+    max_score: number;
+    std_score: number;
+    measurement_count: number;
+}
+
+export interface PluginUsageSummary {
+    plugin_name: string;
+    usage_count: number;
+    artifact_count: number;
+    avg_duration_seconds: number | null;
+    successful_runs: number;
+    failed_runs: number;
+}
+
+export interface PluginRunDuration {
+    plugin_name: string;
+    run_index: number;
+    duration_seconds: number;
+}
+
