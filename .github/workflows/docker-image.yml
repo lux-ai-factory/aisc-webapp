@@ -64,7 +64,6 @@ jobs:
     permissions:
       contents: read
       packages: read
-      security-events: write
       actions: read
     steps:
       - name: Log in to the Container registry
@@ -73,6 +72,7 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Generate SBOM with Syft
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
         with:
@@ -85,17 +85,14 @@ jobs:
         id: scan
         with:
           sbom: sbom.cdx.json
-          fail-build: false # start non-blocking
-          severity-cutoff: critical
-          output-format: sarif
-
-      - name: Upload SARIF to GitHub Security
-        uses: github/codeql-action/upload-sarif@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4.35.2
-        with:
-          sarif_file: ${{ steps.scan.outputs.sarif }}
+          fail-build: false # Do not fail if threshold reached
+          severity-cutoff: high # Keep cutoff on high, anyway the build will not fail because of prev setting
+          output-format: table
 
       - name: Archive SBOM
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sbom
+          name: sbom-${{ github.sha }}
           path: sbom.cdx.json
+          retention-days: 90
