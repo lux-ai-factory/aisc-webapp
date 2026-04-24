@@ -16,12 +16,21 @@ export interface Evaluation {
     task: string;
 }
 
+export interface Package {
+    package_name: string;
+    version: string;
+    source: string;
+}
+
 export interface Plugin {
     pid: string;
     name: string;
     config: object
     display_icon: string;
     plugin_config?: PluginConfig | null;
+    package_name: string;
+    version: string;
+    display_name: string;
 }
 
 export interface TaskProgress {

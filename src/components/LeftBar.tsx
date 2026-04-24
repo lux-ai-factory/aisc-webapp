@@ -77,14 +77,14 @@ const getProject = async (project_uuid: string) => {
     const res = await fetch(`${API_URL}/projects/${project_uuid}`);
     const project = await res.json() as Project;
     for (const plugin of project.plugins) {
-        plugin.display_icon = await getDisplayIcon(plugin.name)
+        plugin.display_icon = await getDisplayIcon(plugin.pid)
     }
     return project;
 };
 
-const getDisplayIcon = async (plugin_name: string) => {
-    if (!plugin_name) throw new Error('Invalid plugin name');
-    const res = await fetch(`${API_URL}/plugins/${plugin_name}/display_icon`);
+const getDisplayIcon = async (plugin_pid: string) => {
+    if (!plugin_pid) throw new Error('Invalid plugin PID');
+    const res = await fetch(`${API_URL}/plugins/${plugin_pid}/display_icon`);
     return await res.json() as string;
 };
 
@@ -116,7 +116,7 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
     let pluginMenuHeader = { text: 'Plugins', icon: <ExtensionIcon />, target: `/projects/${projectName}/plugins` }
 
     let pluginsMenuItems = project?.plugins.map((plugin: Plugin) => {
-        return {text: plugin.name, icon: <Icon>{plugin.display_icon}</Icon>, target: `/projects/${projectName}/plugins/${plugin.name}`}
+        return {text: plugin.display_name, icon: <Icon>{plugin.display_icon}</Icon>, target: `/projects/${projectName}/plugins/${plugin.name}`}
     }) ?? []
 
 

@@ -36,15 +36,17 @@ type PluginResultsMap = Record<string, PluginQueryResult>;
 
 const getEvaluation = async (uuid: string) => {
     if (!uuid) throw new Error('Invalid uuid');
+
     const res = await fetch(`${API_URL}/evaluations/${uuid}?include=project,dataset,model,datashape,plugin`);
     if (!res.ok) throw new Error('Network response was not ok');
     return await res.json();
 };
 
-const getEvaluationMeasurements = async (plugin_name: string, evaluation_uuid: string) => {
-    if (!plugin_name) throw new Error('Invalid plugin name');
+const getEvaluationMeasurements = async (evaluation_plugin_pid: string, plugin_name: string, evaluation_uuid: string) => {
+    if (!evaluation_plugin_pid) throw new Error('Invalid evaluation plugin PID');
     if (!evaluation_uuid) throw new Error('Invalid uuid');
-    const res = await fetch(`${API_URL}/plugins/${plugin_name}/evaluations/${evaluation_uuid}/result`);
+
+    const res = await fetch(`${API_URL}/plugins/${evaluation_plugin_pid}/evaluations/${evaluation_uuid}/result`);
     if (!res.ok) throw new Error('Network response was not ok');
     const data = await res.json()
 
@@ -55,10 +57,11 @@ const getEvaluationMeasurements = async (plugin_name: string, evaluation_uuid: s
     }
 };
 
-const getEvaluationArtifacts = async (plugin_name: string, evaluation_uuid: string) => {
-    if (!plugin_name) throw new Error('Invalid plugin name');
+const getEvaluationArtifacts = async (evaluation_plugin_uuid: string, plugin_name: string, evaluation_uuid: string) => {
+    if (!evaluation_plugin_uuid) throw new Error('Invalid evaluation plugin PID');
     if (!evaluation_uuid) throw new Error('Invalid uuid');
-    const res = await fetch(`${API_URL}/evaluations/${evaluation_uuid}/artifacts?plugin_name=${plugin_name}`);
+
+    const res = await fetch(`${API_URL}/evaluations/${evaluation_uuid}/artifacts?evaluation_plugin_uuid=${evaluation_plugin_uuid}`);
     if (!res.ok) throw new Error('Network response was not ok');
     const data = await res.json()
 
@@ -82,18 +85,18 @@ function PluginEvaluationMeasurements() {
     })
 
     const measurementQueries = useQueries({
-        queries: (evaluation?.evaluation_plugins || []).map((plugin: Plugin) => ({
-            queryKey: ['pluginMeasurements', evaluation_uuid, plugin.name],
-            queryFn: () => getEvaluationMeasurements(plugin.name, evaluation_uuid ?? ""),
-            enabled: !!evaluation_uuid && !!plugin.name
+        queries: (evaluation?.evaluation_plugins || []).map((eval_plugin: Plugin) => ({
+            queryKey: ['pluginMeasurements', evaluation_uuid, eval_plugin.pid],
+            queryFn: () => getEvaluationMeasurements(eval_plugin.pid, eval_plugin.name, evaluation_uuid ?? ""),
+            enabled: !!evaluation_uuid && !!eval_plugin.pid
         }))
     })
 
     const artifactsQueries = useQueries({
-        queries: (evaluation?.evaluation_plugins || []).map((plugin: Plugin) => ({
-            queryKey: ['pluginArtifacts', evaluation_uuid, plugin.name],
-            queryFn: () => getEvaluationArtifacts(plugin.name, evaluation_uuid ?? ""),
-            enabled: !!evaluation_uuid && !!plugin.name
+        queries: (evaluation?.evaluation_plugins || []).map((eval_plugin: Plugin) => ({
+            queryKey: ['pluginArtifacts', evaluation_uuid, eval_plugin.name],
+            queryFn: () => getEvaluationArtifacts(eval_plugin.pid, eval_plugin.name, evaluation_uuid ?? ""),
+            enabled: !!evaluation_uuid && !!eval_plugin.name
         }))
     })
 
@@ -223,6 +226,31 @@ function PluginEvaluationMeasurements() {
                                                 );
                                             case '.zip':
                                                 return <ZipFileList files={artifact.preview.data}/>;
+                                            case '.txt':
+                                            case '.log':
+                                                return (
+                                                    <Paper
+                                                        variant="outlined"
+                                                        sx={{
+                                                            p: 2,
+                                                            backgroundColor: '#f5f5f5',
+                                                            maxHeight: '500px',
+                                                            overflow: 'auto'
+                                                        }}
+                                                    >
+                                                        <Typography
+                                                            component="pre"
+                                                            variant="body2"
+                                                            sx={{
+                                                                fontFamily: 'monospace',
+                                                                whiteSpace: 'pre-wrap',
+                                                                wordBreak: 'break-all'
+                                                            }}
+                                                        >
+                                                            {artifact.preview.data}
+                                                        </Typography>
+                                                    </Paper>
+                                                );
                                             default:
                                                 return (
                                                     <Typography variant="body2" color="textSecondary" align="center"
@@ -234,7 +262,7 @@ function PluginEvaluationMeasurements() {
                                     })()}
                                 </AccordionDetails>
                                 <AccordionActions>
-                                    <Button onClick={() => handleDownload(artifact.file_name)}>Download</Button>
+                                    <Button onClick={() => handleDownload(artifact.data)}>Download</Button>
                                 </AccordionActions>
                             </Accordion>
                         )
