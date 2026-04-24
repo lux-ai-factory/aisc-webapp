@@ -158,3 +158,28 @@ export function computeYDomainFromVisible(
         yMax: max + pad,
     };
 }
+
+/**
+ * Compute visible x-index bounds from currently visible series (ignoring nulls).
+ * Returns null when there are no visible points.
+ */
+export function computeXIndexBoundsFromVisible(
+    series: AlignedLineSeries[],
+    hidden: string[],
+): { start: number; end: number } | null {
+    const hiddenSet = new Set(hidden);
+    let start = Number.POSITIVE_INFINITY;
+    let end = Number.NEGATIVE_INFINITY;
+
+    for (const s of series) {
+        if (hiddenSet.has(String(s.id))) continue;
+        for (let i = 0; i < s.data.length; i += 1) {
+            if (s.data[i] == null) continue;
+            start = Math.min(start, i);
+            end = Math.max(end, i);
+        }
+    }
+
+    if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+    return { start, end };
+}
