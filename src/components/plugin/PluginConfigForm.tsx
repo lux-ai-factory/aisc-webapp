@@ -9,7 +9,7 @@ import toast from "react-hot-toast";
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
 interface PluginConfigFormProps {
-    pluginName: string;
+    pluginPID: string;
     formSchema: object;
     uiSchema: any;
     config?: object | null;
@@ -17,10 +17,10 @@ interface PluginConfigFormProps {
     onSubmit: (config: object) => void;
 }
 
-const updateConfigDynamics = async ({ pluginName, config }: { pluginName: string; config: object }) => {
+const updateConfigDynamics = async ({ pluginPID, config }: { pluginPID: string; config: object }) => {
     const data = { config: config }
 
-    const response = await fetch(`${API_URL}/plugins/${pluginName}/config/update`, {
+    const response = await fetch(`${API_URL}/plugins/${pluginPID}/config/state`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -30,7 +30,7 @@ const updateConfigDynamics = async ({ pluginName, config }: { pluginName: string
 };
 
 function PluginConfigForm({
-                              pluginName,
+                              pluginPID,
                               formSchema,
                               uiSchema,
                               config,
@@ -49,9 +49,9 @@ function PluginConfigForm({
     // Debounced function to avoid hammering the server on every keystroke
     const debouncedUpdate = useCallback(
         debounce((data: any) => {
-            mutation.mutate({ pluginName, config: data });
+            mutation.mutate({ pluginPID, config: data });
         }, 500),
-        [pluginName, mutation.mutate]
+        [pluginPID, mutation.mutate]
     );
 
     const handleChange = (e: any) => {
@@ -69,7 +69,7 @@ function PluginConfigForm({
         const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
         const url = URL.createObjectURL(blob);
 
-        const safeName = (pluginName || 'plugin').replace(/[^a-z0-9_-]+/gi, '_');
+        const safeName = (pluginPID || 'plugin').replace(/[^a-z0-9_-]+/gi, '_');
         const filename = `${safeName}-config.json`;
 
         const a = document.createElement('a');
@@ -133,7 +133,7 @@ function PluginConfigForm({
 
     return (
         <Form
-            key={pluginName}
+            key={pluginPID}
             schema={formSchema}
             uiSchema={uiSchema}
             validator={validator}

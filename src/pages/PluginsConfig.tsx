@@ -14,16 +14,13 @@ import ConfigHistory from "../components/plugin/ConfigHistory.tsx";
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
 
-const postPluginConfig = async (plugin_name: string, uuid: string, formData: object) => {
-    if (!plugin_name) throw new Error("Plugin name is required");
-    if (!uuid) throw new Error('Invalid uuid');
+const postPluginConfig = async (plugin_pid: string, formData: object) => {
+    if (!plugin_pid) throw new Error("Plugin name is required");
 
     const data = {
-        name: plugin_name,
-        project_uuid: uuid,
         config: formData,
     }
-    const response = await fetch(`${API_URL}/plugins`, {
+    const response = await fetch(`${API_URL}/plugins/${plugin_pid}/config`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -39,11 +36,11 @@ const postPluginConfig = async (plugin_name: string, uuid: string, formData: obj
     return await response.json();
 };
 
-const parseConfigStateFromDataset = async (plugin_name: string, dataset_uuid: string) => {
-    if (!plugin_name) throw new Error("Plugin name is required");
+const parseConfigStateFromDataset = async (plugin_pid: string, dataset_uuid: string) => {
+    if (!plugin_pid) throw new Error("Plugin PID is required");
     if (!dataset_uuid) throw new Error('Invalid dataset uuid');
 
-    const res = await fetch(`${API_URL}/plugins/${plugin_name}/parse_dataset/${dataset_uuid}/config/state`);
+    const res = await fetch(`${API_URL}/plugins/${plugin_pid}/parse_dataset/${dataset_uuid}/config/state`);
     if (!res.ok) {
         toast.error('Failed to parse config from dataset', {position: "bottom-right"});
         throw new Error('Failed to submit form');
@@ -53,11 +50,10 @@ const parseConfigStateFromDataset = async (plugin_name: string, dataset_uuid: st
     return await res.json() as ProjectPluginConfigState;
 };
 
-const getProjectPluginConfigState = async (project_uuid: string, plugin_name: string) => {
-    if (!project_uuid) throw new Error('Invalid project UUID');
-    if (!plugin_name) throw new Error("Plugin name is required");
+const getProjectPluginConfigState = async (plugin_pid: string) => {
+    if (!plugin_pid) throw new Error("Plugin PID is required");
 
-    const res = await fetch(`${API_URL}/plugins/${plugin_name}/project/${project_uuid}/config/state`);
+    const res = await fetch(`${API_URL}/plugins/${plugin_pid}/config/state`);
     if (!res.ok) throw new Error('Network response was not ok');
 
     return await res.json() as ProjectPluginConfigState;
@@ -77,16 +73,20 @@ function PluginConfig() {
         enabled: !!projectUUID
     })
 
+    // Find plugin PID from name
+    const plugin = project?.plugins.find(p => p.name === plugin_name);
+    const plugin_pid = plugin?.pid;
+
     const {data: projectPluginConfigState, isPending: isProjectPluginConfigStatePending, error} = useQuery({
-        queryKey: ['projectPluginConfig', projectUUID, plugin_name],
-        queryFn: () => getProjectPluginConfigState(projectUUID!!, plugin_name!!),
-        enabled: !!projectUUID && !!plugin_name
+        queryKey: ['projectPluginConfig', projectUUID, plugin_pid],
+        queryFn: () => getProjectPluginConfigState(plugin_pid!!),
+        enabled: !!projectUUID && !!plugin_pid
     })
 
     const {data: featureFlags} = useQuery({
-        queryKey: ['featureFlags', plugin_name],
-        queryFn: () => getPluginFeatureFlags(plugin_name!!),
-        enabled: !!plugin_name
+        queryKey: ['featureFlags', plugin_pid],
+        queryFn: () => getPluginFeatureFlags(plugin_pid!!),
+        enabled: !!plugin_pid
     })
 
     useEffect(() => {
@@ -100,15 +100,15 @@ function PluginConfig() {
 
     const handleDatasetChange = async (e: SelectChangeEvent<any>) => {
         const dataset_uuid = e.target.value as string;
-        if (!dataset_uuid) return;
-        const configState = await parseConfigStateFromDataset(plugin_name ?? "", dataset_uuid);
+        if (!dataset_uuid || !plugin_pid) return;
+        const configState = await parseConfigStateFromDataset(plugin_pid, dataset_uuid);
         setConfigState(configState);
     };
 
 
     const onSubmit = async (data: object) => {
-        await postPluginConfig(plugin_name ?? "", projectUUID ?? "", data);
-        await queryClient.invalidateQueries({ queryKey: ['pluginConfigHistory', plugin_name] });
+        await postPluginConfig(plugin_pid ?? "", data);
+        await queryClient.invalidateQueries({ queryKey: ['pluginConfigHistory', plugin_pid] });
     }
 
     return (
@@ -118,8 +118,7 @@ function PluginConfig() {
             </Typography>
 
             <ConfigHistory
-                pluginName={plugin_name ?? ""}
-                projectUUID={projectUUID ?? ""}
+                pluginPID={plugin_pid ?? ""}
                 plugin_config_id={projectPluginConfigState?.plugin_config_id}
             />
 
@@ -139,10 +138,10 @@ function PluginConfig() {
                 </>
             }
 
-            {configState &&
+            {configState && plugin_pid &&
                 <PluginConfigForm
-                    key={plugin_name ?? "" + projectUUID ?? ""}
-                    pluginName={plugin_name ?? ""}
+                    key={plugin_pid + projectUUID}
+                    pluginPID={plugin_pid}
                     formSchema={configState.formSchema}
                     uiSchema={configState.uiSchema}
                     config={configState.config}
