@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { API_VERSION_PREFIX } from "../config.tsx";
 import { useProject } from "../context/ProjectContext.tsx";
-import { Button, FormGroup, Typography, Box } from "@mui/material";
+import {Button, FormGroup, Typography, Box, Icon} from "@mui/material";
 import { useState } from "react";
 import { Plugin, PluginInputValue } from "../models/models.tsx";
 import toast from "react-hot-toast";
@@ -101,11 +101,13 @@ export default function PluginStartEvaluation() {
                     />
                 ))}
             </FormGroup>
+            {/*Maybe this button could need a revamp too but I'm thinking of changing it later completely*/}
             <Button
                 variant="contained"
                 onClick={handleOnClick}
                 disabled={Object.keys(selectedPlugins).length === 0}
             >
+                <Icon>play_arrow</Icon>
                 Create Evaluation
             </Button>
         </Box>
