@@ -43,24 +43,48 @@ function MenuList(props: MenuListProps) {
 
     const location = useLocation().pathname;
 
-    return (<List>
+    return (
+        <List>
 
-        {props.title && (
-            <ListItem>
-                <ListItemText primary={props.title} />
-            </ListItem>
-        )}
-        {props.items.map((item, index) => (
-            <ListItem key={index} disablePadding>
-                <ListItemButton component={Link} to={item.target} selected={location === item.target}>
-                    <ListItemIcon>
-                        {item.icon}
-                    </ListItemIcon>
-                    <ListItemText primary={item.text} />
-                </ListItemButton>
-            </ListItem>
-        ))}
-    </List>);
+            {props.title && (
+                <ListItem>
+                    <ListItemText primary={props.title} />
+                </ListItem>
+            )}
+
+            {props.items.map((item, index) => (
+                <ListItem
+                    key={index}
+                    disablePadding
+                    sx={{
+                        pl: item.nested ? 4 : 0
+                    }}
+                >
+                    <ListItemButton
+                        component={Link}
+                        to={item.target}
+                        selected={location === item.target}
+                        sx={{
+                            opacity: item.nested ? 0.85 : 1,
+                            '&:hover': { opacity: 1 }
+                        }}
+                    >
+                        <ListItemIcon sx={{ minWidth: item.nested ? 36 : 40 }}>
+                            {item.icon}
+                        </ListItemIcon>
+
+                        <ListItemText
+                            primary={item.text}
+                            primaryTypographyProps={{
+                                fontSize: item.nested ? 14 : 16,
+                            }}
+                        />
+                    </ListItemButton>
+                </ListItem>
+            ))}
+
+        </List>
+    )
 }
 
 /**
@@ -116,7 +140,12 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
     let pluginMenuHeader = { text: 'Plugins', icon: <ExtensionIcon />, target: `/projects/${projectName}/plugins` }
 
     let pluginsMenuItems = project?.plugins.map((plugin: Plugin) => {
-        return {text: plugin.name, icon: <Icon>{plugin.display_icon}</Icon>, target: `/projects/${projectName}/plugins/${plugin.name}`}
+        return {
+            text: plugin.name,
+            icon: <Icon>{plugin.display_icon}</Icon>,
+            target: `/projects/${projectName}/plugins/${plugin.name}`,
+            nested: true
+        }
     }) ?? []
 
 
