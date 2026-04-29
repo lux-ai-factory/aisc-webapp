@@ -1,7 +1,7 @@
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {useProject} from '../context/ProjectContext';
-import {FormControlLabel, FormGroup, Switch, Typography} from "@mui/material";
+import {FormControlLabel, FormGroup, Icon, Switch, Typography} from "@mui/material";
 import {Plugin} from "../models/models.tsx";
 import React from "react";
 import {getPlugins, getProject} from "../api/api.tsx";
@@ -83,17 +83,42 @@ function Plugins() {
             <Typography component="h2" variant="h4" gutterBottom>
                 Available Plugins
             </Typography>
-            <FormGroup>
-                {projectPlugins.map((projectPlugin: any) => (
-                    <FormControlLabel
-                        key={projectPlugin.pluginName}
-                        control={<Switch
-                            checked={Boolean(projectPlugin.projectPluginPid)}
-                            onChange={(e) => handleChange(e, projectUUID ?? "", projectPlugin.pluginName, projectPlugin.projectPluginPid)}/>
-                        }
-                        label={projectPlugin.pluginName}/>
-                ))}
-            </FormGroup>
+            <div>
+                {projectPlugins.map((projectPlugin: any) => {
+                    const isEnabled = Boolean(projectPlugin.projectPluginPid);
+                    const inputId = `plugin-${projectPlugin.pluginName}`;
+
+                    return (
+                        <div
+                            key={projectPlugin.pluginName}
+                            className={`plugin-card ${isEnabled ? "enabled" : ""}`}
+                            onClick={() => {
+                                const input = document.getElementById(inputId) as HTMLInputElement;
+                                input?.click();
+                            }}
+                        >
+                            <input
+                                id={inputId}
+                                type="checkbox"
+                                checked={isEnabled}
+                                onChange={(e) =>
+                                    handleChange(
+                                        e,
+                                        projectUUID ?? "",
+                                        projectPlugin.pluginName,
+                                        projectPlugin.projectPluginPid
+                                    )
+                                }
+                                className="plugin-hidden-checkbox"
+                            />
+                            <span className="plugin-label">{projectPlugin.pluginName}</span>
+                            {isEnabled && (
+                                <Icon className="plugin-check">check_circle</Icon>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
         </>
     )
 }
