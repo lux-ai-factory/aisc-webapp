@@ -18,6 +18,8 @@ import {API_VERSION_PREFIX} from '../config';
 import {ThemeProvider} from '@emotion/react';
 import {useNavigate} from 'react-router-dom';
 import "./addProjectButton.css";
+import AddProjectWizard from "./addProjectWizard.tsx";
+
 
 interface Project {
     pid: string;
@@ -138,33 +140,79 @@ const AddProjectDialog: React.FC<{
 };
 
 const ProjectSelector: React.FC<{
-    onAddProject: (name: string) => void;
-}> = ({onAddProject}) => {
-    const [dialogOpen, setDialogOpen] = useState(false);
-
+    onAddProject: (wizardData: any) => void;
+    datasets: any[];
+    models: any[];
+    plugins: any[];
+}> = ({ onAddProject, datasets, models, plugins }) => {
+    const [wizardOpen, setWizardOpen] = useState(false);
 
     return (
         <ThemeProvider theme={darkTheme}>
             <Button
                 variant="contained"
                 color="primary"
-                onClick={() => setDialogOpen(true)}
+                onClick={() => setWizardOpen(true)}
                 className="add-project-btn"
             >
                 <span className="icon"><Icon>add</Icon></span>
                 <span className="label">ADD PROJECT</span>
             </Button>
 
-            <AddProjectDialog
-                open={dialogOpen}
-                onClose={() => setDialogOpen(false)}
-                onAdd={onAddProject}
+            <AddProjectWizard
+                open={wizardOpen}
+                onClose={() => setWizardOpen(false)}
+                onFinish={onAddProject}
+                datasets={datasets}
+                models={models}
+                plugins={plugins}
             />
         </ThemeProvider>
     );
 };
 
+
 const TopBar: React.FC = () => {
+    const [datasets, setDatasets] = useState([]);
+    const [models, setModels] = useState([]);
+    const [plugins, setPlugins] = useState([]);
+
+    const fetchDatasets = async () => {
+        const data = await apiCall('/datasets');
+        if (data) setDatasets(data);
+    };
+
+    const fetchModels = async () => {
+        const data = await apiCall('/models');
+        if (data) setModels(data);
+    };
+
+    const fetchPlugins = async () => {
+        const data = await apiCall('/plugins');
+        if (!data) return;
+
+        // Convert string plugins → objects with a name field
+        const normalized = data.map((p: string) => ({
+            name: p
+        }));
+
+        // Fetch display icons for each plugin
+        const withIcons = await Promise.all(
+            normalized.map(async (p) => {
+                const icon = await apiCall(`/plugins/${p.name}/display_icon`);
+                return {
+                    ...p,
+                    display_icon: icon || "extension"
+                };
+            })
+        );
+
+        setPlugins(withIcons);
+    };
+
+
+
+
     const {setProjectUUID, projectName, setProjectName} = useProject();
     const [projects, setProjects] = useState<Project[]>([]);
 
@@ -175,21 +223,40 @@ const TopBar: React.FC = () => {
         if (data) setProjects(data);
     };
 
-    const addProject = async (name: string) => {
-        const newProject = await apiCall('/projects', 'POST', {name});
-        if (newProject) {
-            setProjects([...projects, newProject]);
-            setProjectUUID(newProject.pid);
-            setProjectName(newProject.name);
+    const addProject = async (wizardData: any) => {
+        const { name, dataset, model, plugins } = wizardData;
 
-            const redirectUrl = `/projects/${newProject.name}/settings`;
-            navigate(redirectUrl)
+        const newProject = await apiCall('/projects', 'POST', { name });
+        if (!newProject) return;
+
+        setProjects([...projects, newProject]);
+        setProjectUUID(newProject.pid);
+        setProjectName(newProject.name);
+
+        await apiCall(`/projects/${newProject.pid}/dataset`, 'POST', { dataset });
+        await apiCall(`/projects/${newProject.pid}/model`, 'POST', { model });
+
+        // Im starting the configs null so we configure them later
+        for (const pluginName of Object.keys(plugins)) {
+            await apiCall('/plugins', 'POST', {
+                name: pluginName,
+                project_uuid: newProject.pid,
+                config: null
+            });
         }
+
+        navigate(`/projects/${newProject.name}`);
     };
+
+
 
     useEffect(() => {
         fetchProjects();
+        fetchDatasets();
+        fetchModels();
+        fetchPlugins();
     }, []);
+
 
     return (
         <AppBar position="fixed" sx={{zIndex: (theme) => theme.zIndex.drawer + 1}} style={{backgroundColor: '#001075'}}>
@@ -241,7 +308,11 @@ const TopBar: React.FC = () => {
                 <div style={{flexGrow: 1}}/>
                 <ProjectSelector
                     onAddProject={addProject}
+                    datasets={datasets}
+                    models={models}
+                    plugins={plugins}
                 />
+
             </Toolbar>
         </AppBar>
     );
