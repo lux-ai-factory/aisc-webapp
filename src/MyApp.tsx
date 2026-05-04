@@ -20,6 +20,7 @@ import PluginStartEvaluation from "./pages/PluginStartEvaluation.tsx";
 import PluginEvaluations from "./pages/PluginEvaluations.tsx";
 import PluginEvaluationMeasurements from "./pages/PluginEvaluationMeasurements.tsx";
 import PluginEvaluationsTasks from "./pages/PluginEvaluationsTasks.tsx";
+import RecommendationsPage from "./pages/Recommendations.tsx";
 
 /** Width of the left drawer in pixels */
 const drawerWidth = 320;
@@ -84,6 +85,7 @@ export default function PermanentDrawerLeft() {
         { id: 7, name: 'Plugin Start Evaluation', path: '/projects/:project_name/plugins/evaluation', element: <ProjectContextWrapper><PluginStartEvaluation /></ProjectContextWrapper> },
         { id: 8, name: 'Plugin Evaluations', path: '/projects/:project_name/plugins/evaluations', element: <ProjectContextWrapper><PluginEvaluations /></ProjectContextWrapper> },
         { id: 9, name: 'Plugin Evaluation Measurements', path: '/projects/:project_name/plugins/evaluations/:evaluation_uuid', element: <ProjectContextWrapper><PluginEvaluationMeasurements /></ProjectContextWrapper> },
+        { id: 12, name: 'Recommendations', path: '/projects/:project_name/recommendations', element: <ProjectContextWrapper><RecommendationsPage /></ProjectContextWrapper> },
         { id: 10, name: 'Plugin Evaluations Tasks', path: '/projects/:project_name/plugins/evaluations/tasks', element: <ProjectContextWrapper><PluginEvaluationsTasks /></ProjectContextWrapper> }
     ];
     return (
