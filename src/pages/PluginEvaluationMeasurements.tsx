@@ -22,6 +22,7 @@ import {
 import GenericCsvDataGrid from "../components/GenericCsvDataGrid.tsx";
 import GenericTextDataGrid from "../components/GenericTextDataGrid.tsx";
 import {Plugin} from "../models/models.tsx";
+import MeasurementsGauge from "../components/plugin/MeasurementsGauge.tsx";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -182,6 +183,12 @@ function PluginEvaluationMeasurements() {
                                     <MeasurementsPieChart
                                         title={`${pluginResult.name} - Pie Chart`}
                                         data={filteredMeasurements}
+                                    />
+                                )}
+                                {visualization.chart_type === 'gauage' && (
+                                    <MeasurementsGauge
+                                        title={`${pluginResult.name} - Gauge`}
+                                        value={filteredMeasurements}
                                     />
                                 )}
                             </div>

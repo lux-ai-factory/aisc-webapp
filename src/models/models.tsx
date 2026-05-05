@@ -82,7 +82,8 @@ export interface Measurement {
     score: number;
     time: string;
     error?: string | null;
-    feature_pid?: string | null;
+    dimensions?: Record<string, string | number | boolean>;
+    created_at: string;
 }
 
 // Stats types
