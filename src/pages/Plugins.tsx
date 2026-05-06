@@ -95,9 +95,11 @@ function Plugins() {
                     const inputId = `plugin-${projectPlugin.pluginName}`;
 
                     return (
-                        <div style={{display: "flex", gap: 20}}>
+                        <div
+                            key={projectPlugin.pluginName}   // <-- FIX HERE
+                            style={{display: "flex", gap: 20}}
+                        >
                             <div
-                                key={projectPlugin.pluginName}
                                 className={`plugin-card ${isEnabled ? "enabled" : ""}`}
                                 onClick={() => {
                                     const input = document.getElementById(inputId) as HTMLInputElement;
@@ -131,13 +133,15 @@ function Plugins() {
                                     anchorOrigin={{ vertical: "top", horizontal: "right" }}
                                     sx={{ paddingTop: 2.5, marginTop: 1.5}}
                                 >
-                                <Icon
-                                    style={{cursor: "pointer", color: isConfigured ? "#4591FB" : "red"}}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        navigate(`/projects/${projectName}/plugins/${projectPlugin.pluginName}`);
-                                    }}
-                                >settings</Icon>
+                                    <Icon
+                                        style={{cursor: "pointer", color: isConfigured ? "#4591FB" : "red"}}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            navigate(`/projects/${projectName}/plugins/${projectPlugin.pluginName}`);
+                                        }}
+                                    >
+                                        settings
+                                    </Icon>
                                 </Badge>
                             )}
                         </div>
