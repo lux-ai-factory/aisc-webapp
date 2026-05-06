@@ -45,7 +45,13 @@ export default function AddProjectWizard({
         }
     }, [open]);
 
-    const handleNext = () => setActiveStep((s) => s + 1);
+    const handleNext = () => {
+        if (activeStep === 0 && projectName.trim().length === 0) {
+            return;
+        }
+        setActiveStep((s) => s + 1);
+    };
+
     const handleBack = () => setActiveStep((s) => s - 1);
 
     const handleFinish = () => {
@@ -82,7 +88,7 @@ export default function AddProjectWizard({
                 {activeStep === 0 && (
                     <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
                         <TextField
-                            label="Project Name"
+                            label="Project Name *"
                             fullWidth
                             value={projectName}
                             onChange={(e) => setProjectName(e.target.value)}
@@ -198,9 +204,14 @@ export default function AddProjectWizard({
                     </Button>
 
                     {activeStep < steps.length - 1 ? (
-                        <Button onClick={handleNext} variant="contained">
+                        <Button
+                            onClick={handleNext}
+                            variant="contained"
+                            disabled={activeStep === 0 && projectName.trim().length === 0}
+                        >
                             Next
                         </Button>
+
                     ) : (
                         <Button onClick={handleFinish} variant="contained">
                             <Icon>check</Icon>
