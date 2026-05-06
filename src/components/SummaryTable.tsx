@@ -482,10 +482,13 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                         <Stack spacing={3}>
                             {runningEvaluations.map((evaluation) => {
                                 const progress = taskProgress[evaluation.pid] || {};
-                                const pluginStatuses = evaluationPluginStatuses[evaluation.pid] || [];
+                                const pluginStatuses = evaluationPluginStatuses[evaluation.pid];
+
+                                // Ignore evaluations with no plugins (e.g. stuck from a failed create)
+                                if (pluginStatuses !== undefined && pluginStatuses.length === 0) return null;
 
                                 // Calculate main progress based on actual plugin statuses
-                                const totalPlugins = pluginStatuses.length;
+                                const totalPlugins = (pluginStatuses || []).length;
                                 const completedPlugins = pluginStatuses.filter(ps => ps.status === "Done").length;
                                 const failedPlugins = pluginStatuses.filter(ps => ps.status === "Failed").length;
                                 const mainProgressValue = totalPlugins > 0 ? (completedPlugins / totalPlugins) * 100 : 0;
