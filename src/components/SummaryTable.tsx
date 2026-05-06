@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
     Box, Typography, Card, CardContent, Stack, Skeleton, Chip,
-    alpha, useTheme, Divider, Tooltip, Paper, Icon, LinearProgress,
+    alpha, useTheme, Divider, Tooltip, Paper, Icon, LinearProgress, CircularProgress,
 } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import AssessmentIcon from "@mui/icons-material/Assessment";
@@ -509,18 +509,27 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                                                         {failedPlugins > 0 && <> • {failedPlugins} failed</>}
                                                     </Typography>
                                                 </Stack>
-                                                <LinearProgress
-                                                    variant="determinate"
-                                                    value={mainProgressValue}
-                                                    sx={{
-                                                        height: 8,
-                                                        borderRadius: 1,
-                                                        bgcolor: alpha(theme.palette.primary.main, 0.1),
-                                                        '& .MuiLinearProgress-bar': {
-                                                            bgcolor: failedPlugins > 0 ? theme.palette.error.main : theme.palette.primary.main,
-                                                        }
-                                                    }}
-                                                />
+                                                {Object.keys(progress).length === 0 && completedPlugins === 0 ? (
+                                                    <Stack direction="row" alignItems="center" spacing={1}>
+                                                        <CircularProgress size={16} thickness={5} />
+                                                        <Typography variant="caption" color="text.secondary">
+                                                            Installing dependencies...
+                                                        </Typography>
+                                                    </Stack>
+                                                ) : (
+                                                    <LinearProgress
+                                                        variant="determinate"
+                                                        value={mainProgressValue}
+                                                        sx={{
+                                                            height: 8,
+                                                            borderRadius: 1,
+                                                            bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                                            '& .MuiLinearProgress-bar': {
+                                                                bgcolor: failedPlugins > 0 ? theme.palette.error.main : theme.palette.primary.main,
+                                                            }
+                                                        }}
+                                                    />
+                                                )}
                                             </Stack>
                                         </Paper>
 
