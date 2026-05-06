@@ -227,8 +227,9 @@ const TopBar: React.FC = () => {
     };
 
     const addProject = async (wizardData: any) => {
-        const { name, dataset, model, plugins } = wizardData;
+        const { name, datasets, models, plugins } = wizardData;
 
+        // 1. Create project
         const newProject = await apiCall('/projects', 'POST', { name });
         if (!newProject) return;
 
@@ -236,10 +237,63 @@ const TopBar: React.FC = () => {
         setProjectUUID(newProject.pid);
         setProjectName(newProject.name);
 
-        await apiCall(`/projects/${newProject.pid}/dataset`, 'POST', { dataset });
-        await apiCall(`/projects/${newProject.pid}/model`, 'POST', { model });
+        // 2. Create DATASETS (exact same as DatasetSettings)
+        for (const ds of datasets) {
+            if (!ds.name || ds.name.trim().length < 1) continue;
 
-        // Im starting the configs null so we configure them later
+            // 2a. Create dataset row
+            const created = await fetch(
+                `${API_URL}/projects/${newProject.pid}/datasets`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name: ds.name })
+                }
+            ).then(r => r.json());
+
+            ds.pid = created.pid;
+
+            // 2b. Upload dataset file
+            if (ds.file) {
+                const formData = new FormData();
+                formData.append("file", ds.file);
+
+                await fetch(`${API_URL}/datasets/${ds.pid}/data`, {
+                    method: "PUT",
+                    body: formData
+                });
+            }
+        }
+
+        // 3. Create MODELS
+        for (const m of models) {
+            if (!m.name || m.name.trim().length < 1) continue;
+
+            // 3a. Create model row
+            const created = await fetch(
+                `${API_URL}/projects/${newProject.pid}/models`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name: m.name })
+                }
+            ).then(r => r.json());
+
+            m.pid = created.pid;
+
+            // 3b. Upload model file
+            if (m.file) {
+                const formData = new FormData();
+                formData.append("file", m.file);
+
+                await fetch(`${API_URL}/models/${m.pid}/data`, {
+                    method: "PUT",
+                    body: formData
+                });
+            }
+        }
+
+        // 4. Enable plugins
         for (const pluginName of Object.keys(plugins)) {
             await apiCall('/plugins', 'POST', {
                 name: pluginName,
@@ -248,8 +302,10 @@ const TopBar: React.FC = () => {
             });
         }
 
+        // 5. Navigate
         navigate(`/projects/${newProject.name}/plugins`);
     };
+
 
 
 
