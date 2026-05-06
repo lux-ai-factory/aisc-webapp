@@ -189,14 +189,25 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
             fetchWithFallback(() => getProjectMetricBreakdown(projectPid), { metrics: [] }),
             fetchWithFallback(() => getProjectPluginUsage(projectPid), { plugins: [] }),
             fetchWithFallback(() => getProjectPluginDurations(projectPid), { runs: [] }),
+            fetchWithFallback(async () => {
+                const res = await fetch(`${API_URL}/projects/${projectPid}`);
+                return await res.json() as { plugins: { name: string; pid: string }[] };
+            }, { plugins: [] }),
         ])
-            .then(async ([ov, mt, pl, dur]) => {
+            .then(async ([ov, mt, pl, dur, project]) => {
                 setOverview(ov);
                 setMetrics(mt.metrics);
                 setPlugins(pl.plugins);
                 setPluginDurations(dur.runs);
+                setLoading(false);
 
-                // Fetch display icons for each plugin
+                // Build name → pid map from the project's plugin list
+                const pidByName: Record<string, string> = {};
+                for (const plugin of project.plugins) {
+                    pidByName[plugin.name] = plugin.pid;
+                }
+
+                // Fetch icons in the background using pid (same as LeftBar)
                 const allPluginNames = new Set([
                     ...pl.plugins.map((p) => p.plugin_name),
                     ...mt.metrics.map((m) => m.plugin_name),
@@ -206,24 +217,26 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                     [...allPluginNames]
                         .filter(Boolean)
                         .map(async (name) => {
+                            // metric plugin_name is "package::name (v0.0.0)" — extract short name
+                            const shortName = name.includes('::') ? name.split('::')[1].split(' ')[0] : name;
+                            const pid = pidByName[shortName];
+                            if (!pid) return;
                             try {
-                                const res = await fetch(`${API_URL}/plugins/${name}/display_icon`);
+                                const res = await fetch(`${API_URL}/plugins/${pid}/display_icon`);
                                 if (res.ok) {
                                     icons[name] = await res.json() as string;
                                 }
-                            } catch {
-                                // ignore, will fall back to default icon
-                            }
+                            } catch { /* ignore */ }
                         })
                 );
                 setPluginIcons(icons);
             })
-            .finally(() => setLoading(false));
+            .catch(() => setLoading(false));
     }, [projectPid]);
 
     // Fetch running evaluations and poll for task progress
     useEffect(() => {
-        if (!projectPid) return;
+        if (!projectPid || loading) return;
 
         const fetchRunningEvaluations = async () => {
             try {
@@ -278,7 +291,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
         const interval = setInterval(fetchRunningEvaluations, 2000); // Poll every 2 seconds
 
         return () => clearInterval(interval);
-    }, [projectPid]);
+    }, [projectPid, loading]);
 
     if (!projectPid) {
         return (
@@ -488,9 +501,10 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                                 if (pluginStatuses !== undefined && pluginStatuses.length === 0) return null;
 
                                 // Calculate main progress based on actual plugin statuses
-                                const totalPlugins = (pluginStatuses || []).length;
-                                const completedPlugins = pluginStatuses.filter(ps => ps.status === "Done").length;
-                                const failedPlugins = pluginStatuses.filter(ps => ps.status === "Failed").length;
+                                const statuses = pluginStatuses || [];
+                                const totalPlugins = statuses.length;
+                                const completedPlugins = statuses.filter(ps => ps.status === "Done").length;
+                                const failedPlugins = statuses.filter(ps => ps.status === "Failed").length;
                                 const mainProgressValue = totalPlugins > 0 ? (completedPlugins / totalPlugins) * 100 : 0;
 
                                 return (
