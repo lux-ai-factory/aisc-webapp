@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
     Box, Typography, Card, CardContent, Stack, Skeleton, Chip,
-    alpha, useTheme, Divider, Tooltip, Paper, Icon,
+    alpha, useTheme, Divider, Tooltip, Paper, Icon, LinearProgress,
 } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import AssessmentIcon from "@mui/icons-material/Assessment";
@@ -30,6 +30,8 @@ import {
     MetricScoreSummary,
     PluginUsageSummary,
     PluginRunDuration,
+    Evaluation,
+    TaskProgress,
 } from "../models/models";
 
 import {
@@ -130,6 +132,11 @@ interface SummaryTableProps {
     projectPid: string | null;
 }
 
+interface EvaluationPluginStatus {
+    pid: string;
+    status: string;
+}
+
 const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
     const theme = useTheme();
     const [overview, setOverview] = useState<ProjectStatsOverview | null>(null);
@@ -139,6 +146,9 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
     const [pluginIcons, setPluginIcons] = useState<Record<string, string>>({});
     const [hiddenSeriesIds, setHiddenSeriesIds] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
+    const [runningEvaluations, setRunningEvaluations] = useState<Evaluation[]>([]);
+    const [taskProgress, setTaskProgress] = useState<Record<string, Record<string, TaskProgress>>>({});
+    const [evaluationPluginStatuses, setEvaluationPluginStatuses] = useState<Record<string, EvaluationPluginStatus[]>>({});
 
     useEffect(() => {
         if (!projectPid) return;
@@ -209,6 +219,65 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                 setPluginIcons(icons);
             })
             .finally(() => setLoading(false));
+    }, [projectPid]);
+
+    // Fetch running evaluations and poll for task progress
+    useEffect(() => {
+        if (!projectPid) return;
+
+        const fetchRunningEvaluations = async () => {
+            try {
+                const res = await fetch(`${API_URL}/projects/${projectPid}/evaluations?exclude_status=Done&exclude_status=Failed&exclude_status=Archived`);
+                if (res.ok) {
+                    const evaluations = await res.json() as Evaluation[];
+                    setRunningEvaluations(evaluations);
+
+                    // Fetch task progress and plugin statuses for each evaluation
+                    for (const evaluation of evaluations) {
+                        // Fetch detailed evaluation with plugin statuses
+                        try {
+                            const evalRes = await fetch(`${API_URL}/evaluations/${evaluation.pid}?include=plugin`);
+                            if (evalRes.ok) {
+                                const detailedEval = await evalRes.json();
+                                const pluginStatuses: EvaluationPluginStatus[] = (detailedEval.evaluation_plugins || []).map((ep: any) => ({
+                                    pid: ep.pid,
+                                    status: ep.status || 'Pending'
+                                }));
+                                setEvaluationPluginStatuses(prev => ({
+                                    ...prev,
+                                    [evaluation.pid]: pluginStatuses
+                                }));
+                            }
+                        } catch {
+                            // ignore
+                        }
+
+                        // Fetch task progress
+                        if (evaluation.task) {
+                            try {
+                                const taskRes = await fetch(`${API_URL}/tasks/${evaluation.task}/status`);
+                                if (taskRes.ok) {
+                                    const progress = await taskRes.json() as Record<string, TaskProgress>;
+                                    setTaskProgress(prev => ({
+                                        ...prev,
+                                        [evaluation.pid]: progress
+                                    }));
+                                }
+                            } catch {
+                                // ignore
+                            }
+                        }
+                    }
+                }
+            } catch {
+                // ignore
+            }
+        };
+
+        fetchRunningEvaluations();
+        const interval = setInterval(fetchRunningEvaluations, 2000); // Poll every 2 seconds
+
+        return () => clearInterval(interval);
     }, [projectPid]);
 
     if (!projectPid) {
@@ -381,25 +450,21 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                                             <Typography variant="body2" fontWeight={600}>{p.plugin_name}</Typography>
                                         </Stack>
                                         <Stack direction="row" spacing={1}>
-                                            <Tooltip title="Times used">
+                                            <Tooltip title="Total executions">
                                                 <Chip label={`${p.usage_count} runs`} size="small" variant="outlined" />
                                             </Tooltip>
                                             <Tooltip title="Successful runs">
                                                 <Chip label={`${p.successful_runs}`} size="small" color="success" variant="outlined" icon={<CheckCircleIcon />} />
                                             </Tooltip>
-                                            {p.failed_runs > 0 && (
-                                                <Tooltip title="Failed runs">
-                                                    <Chip label={`${p.failed_runs}`} size="small" color="error" variant="outlined" icon={<CancelIcon />} />
-                                                </Tooltip>
-                                            )}
+                                            <Tooltip title="Failed runs">
+                                                <Chip label={`${p.failed_runs}`} size="small" color="error" variant="outlined" icon={<CancelIcon />} />
+                                            </Tooltip>
                                             <Tooltip title="Artifacts produced">
                                                 <Chip label={`${p.artifact_count} artifacts`} size="small" color="primary" variant="outlined" />
                                             </Tooltip>
-                                            {p.avg_duration_seconds !== null && (
-                                                <Tooltip title="Avg execution time">
-                                                    <Chip label={formatDuration(p.avg_duration_seconds)} size="small" color="secondary" variant="outlined" icon={<TimerIcon />} />
-                                                </Tooltip>
-                                            )}
+                                            <Tooltip title="Avg execution time">
+                                                <Chip label={p.avg_duration_seconds !== null ? formatDuration(p.avg_duration_seconds) : 'N/A'} size="small" color="secondary" variant="outlined" icon={<TimerIcon />} />
+                                            </Tooltip>
                                         </Stack>
                                     </Paper>
                                 ))}
@@ -409,6 +474,120 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                     </Grid>
                 )}
             </Grid>
+
+            {/* ── Progress Report ── */}
+            {runningEvaluations.length > 0 && (
+                <Box sx={{ mt: 4 }}>
+                    <SectionCard title="Progress Report">
+                        <Stack spacing={3}>
+                            {runningEvaluations.map((evaluation) => {
+                                const progress = taskProgress[evaluation.pid] || {};
+                                const pluginStatuses = evaluationPluginStatuses[evaluation.pid] || [];
+
+                                // Calculate main progress based on actual plugin statuses
+                                const totalPlugins = pluginStatuses.length;
+                                const completedPlugins = pluginStatuses.filter(ps => ps.status === "Done").length;
+                                const failedPlugins = pluginStatuses.filter(ps => ps.status === "Failed").length;
+                                const mainProgressValue = totalPlugins > 0 ? (completedPlugins / totalPlugins) * 100 : 0;
+
+                                return (
+                                    <Box key={evaluation.pid}>
+                                        {/* Evaluation Progress Bar */}
+                                        <Paper variant="outlined" sx={{ p: 2 }}>
+                                            <Stack spacing={1}>
+                                                <Stack direction="row" alignItems="center" justifyContent="space-between">
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                        <Typography variant="body2" fontWeight={600}>
+                                                            Evaluation Progress
+                                                        </Typography>
+                                                        <Typography variant="caption" color="text.secondary">
+                                                            {evaluation.pid}
+                                                        </Typography>
+                                                    </Box>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        {completedPlugins} / {totalPlugins} plugins complete
+                                                        {failedPlugins > 0 && <> • {failedPlugins} failed</>}
+                                                    </Typography>
+                                                </Stack>
+                                                <LinearProgress
+                                                    variant="determinate"
+                                                    value={mainProgressValue}
+                                                    sx={{
+                                                        height: 8,
+                                                        borderRadius: 1,
+                                                        bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                                        '& .MuiLinearProgress-bar': {
+                                                            bgcolor: failedPlugins > 0 ? theme.palette.error.main : theme.palette.primary.main,
+                                                        }
+                                                    }}
+                                                />
+                                            </Stack>
+                                        </Paper>
+
+                                        {/* Individual Plugin Progress Bars — nested under evaluation */}
+                                        {Object.keys(progress).length > 0 && (
+                                            <Box sx={{ display: 'flex', mt: 0.5 }}>
+                                                {/* Tree connector line */}
+                                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 24, flexShrink: 0, pt: 1, pb: 1 }}>
+                                                    <Box sx={{ width: 2, flex: 1, bgcolor: theme.palette.divider, borderRadius: 1 }} />
+                                                </Box>
+                                                <Stack spacing={1} sx={{ flex: 1 }}>
+                                                    {Object.entries(progress).map(([pluginName, taskProgress]) => {
+                                                        const progressValue = (taskProgress.progress || 0) * 100;
+                                                        const extra = taskProgress.extra as any;
+                                                        const description = extra?.desc || extra?.message || null;
+                                                        const iteration = extra?.iteration || extra?.current || null;
+                                                        const total = extra?.total || null;
+
+                                                        return (
+                                                            <Paper
+                                                                key={pluginName}
+                                                                variant="outlined"
+                                                                sx={{ p: 2 }}
+                                                            >
+                                                                <Stack spacing={1}>
+                                                                    <Stack direction="row" alignItems="center" justifyContent="space-between">
+                                                                        <Stack direction="row" alignItems="center" spacing={1}>
+                                                                            {pluginIcons[pluginName]
+                                                                                ? <Icon sx={{ color: theme.palette.primary.main, fontSize: 18 }}>{pluginIcons[pluginName]}</Icon>
+                                                                                : <ExtensionIcon sx={{ color: theme.palette.primary.main, fontSize: 18 }} />
+                                                                            }
+                                                                            <Typography variant="body2" fontWeight={600}>
+                                                                                {pluginName}
+                                                                            </Typography>
+                                                                        </Stack>
+                                                                        <Typography variant="caption" color="text.secondary">
+                                                                            {iteration !== null && total !== null
+                                                                                ? `${iteration} / ${total}`
+                                                                                : `${Math.round(progressValue)}%`
+                                                                            }
+                                                                        </Typography>
+                                                                    </Stack>
+                                                                    <LinearProgress
+                                                                        variant="determinate"
+                                                                        value={progressValue}
+                                                                        sx={{ height: 8, borderRadius: 1 }}
+                                                                    />
+                                                                    {description && (
+                                                                        <Typography variant="caption" color="text.secondary">
+                                                                            {description}
+                                                                        </Typography>
+                                                                    )}
+                                                                </Stack>
+                                                            </Paper>
+                                                        );
+                                                     })}
+                                                </Stack>
+                                            </Box>
+                                        )}
+                                    </Box>
+                                );
+
+                            })}
+                        </Stack>
+                    </SectionCard>
+                </Box>
+            )}
 
             {/* ── Plugin Duration per Run ── */}
             {durationSeries.length > 0 && (
