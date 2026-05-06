@@ -138,6 +138,15 @@ export default function AddProjectWizard({
         onClose();
     };
 
+    const datasetsValid = localDatasets.every(
+        ds => ds.name.trim().length > 0 && ds.file
+    );
+
+    const modelsValid = localModels.every(
+        m => m.name.trim().length > 0 && m.file
+    );
+
+
     return (
         <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
             <DialogTitle sx={{ color: "white", backgroundColor: "AccentColor" }}>
@@ -478,12 +487,14 @@ export default function AddProjectWizard({
                             onClick={handleNext}
                             variant="contained"
                             disabled={
-                                activeStep === 0 &&
-                                projectName.trim().length === 0
+                                (activeStep === 0 && projectName.trim().length === 0) ||
+                                (activeStep === 1 && !datasetsValid) ||
+                                (activeStep === 2 && !modelsValid)
                             }
                         >
                             Next
                         </Button>
+
                     ) : (
                         <Button onClick={handleFinish} variant="contained">
                             <Icon>check</Icon>
