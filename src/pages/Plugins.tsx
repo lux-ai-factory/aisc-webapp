@@ -1,7 +1,7 @@
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {useProject} from '../context/ProjectContext';
-import {Icon, Typography} from "@mui/material";
+import {Badge, Icon, Typography} from "@mui/material";
 import {Plugin} from "../models/models.tsx";
 import React from "react";
 import {getPlugins, getProject} from "../api/api.tsx";
@@ -62,7 +62,8 @@ function Plugins() {
             project?.plugins.find((projectPlugin: any) => projectPlugin.name === plugin)
         return {
             'pluginName': plugin,
-            'projectPluginPid': projectPlugin?.pid
+            'projectPluginPid': projectPlugin?.pid,
+            'config': projectPlugin?.config ?? null
         }
     })
 
@@ -90,6 +91,7 @@ function Plugins() {
             <div>
                 {projectPlugins.map((projectPlugin: any) => {
                     const isEnabled = Boolean(projectPlugin.projectPluginPid);
+                    const isConfigured = projectPlugin.config !== null;
                     const inputId = `plugin-${projectPlugin.pluginName}`;
 
                     return (
@@ -122,13 +124,21 @@ function Plugins() {
                                 )}
                             </div>
                             {isEnabled && (
+                                <Badge
+                                    color="error"
+                                    badgeContent={!isConfigured ? "!" : null}
+                                    overlap="circular"
+                                    anchorOrigin={{ vertical: "top", horizontal: "right" }}
+                                    sx={{ paddingTop: 2.5, marginTop: 1.5}}
+                                >
                                 <Icon
-                                    style={{marginTop: 30, cursor: "pointer", color: "#4591FB"}}
+                                    style={{cursor: "pointer", color: isConfigured ? "#4591FB" : "red"}}
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         navigate(`/projects/${projectName}/plugins/${projectPlugin.pluginName}`);
                                     }}
                                 >settings</Icon>
+                                </Badge>
                             )}
                         </div>
                     );
