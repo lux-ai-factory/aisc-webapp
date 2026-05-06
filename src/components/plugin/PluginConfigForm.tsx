@@ -5,6 +5,8 @@ import React, {useCallback, useRef} from 'react';
 import { debounce } from 'lodash';
 import { API_VERSION_PREFIX } from "../../config.tsx";
 import toast from "react-hot-toast";
+import { useQueryClient } from '@tanstack/react-query';
+import { useProject } from '../../context/ProjectContext';
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -38,11 +40,18 @@ function PluginConfigForm({
                               onSubmit
                           }: PluginConfigFormProps) {
 
+    const queryClient = useQueryClient();
+    const { projectUUID } = useProject();
+
     // Mutation to handle background schema/data synchronization
     const mutation = useMutation({
         mutationFn: updateConfigDynamics,
         onSuccess: (data) => {
             onFormUpdate(data);
+            // I added this to remove the warning icon on the plugin on the left bar, but it takes like 10s
+            queryClient.invalidateQueries({
+                queryKey: ['project', projectUUID, 'withIcons']
+            });
         },
     });
 

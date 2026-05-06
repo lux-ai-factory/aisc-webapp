@@ -66,20 +66,30 @@ function MenuList(props: MenuListProps) {
                         selected={location === item.target}
                         sx={{
                             opacity: item.nested ? 0.85 : 1,
-                            '&:hover': { opacity: 1 }
+                            '&:hover': { opacity: 1 },
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center"
                         }}
                     >
-                        <ListItemIcon sx={{ minWidth: item.nested ? 36 : 40 }}>
-                            {item.icon}
-                        </ListItemIcon>
+                        <Box sx={{ display: "flex", alignItems: "center" }}>
+                            <ListItemIcon sx={{ minWidth: item.nested ? 36 : 40 }}>
+                                {item.icon}
+                            </ListItemIcon>
 
-                        <ListItemText
-                            primary={item.text}
-                            primaryTypographyProps={{
-                                fontSize: item.nested ? 14 : 16,
-                            }}
-                        />
+                            <ListItemText
+                                primary={item.text}
+                                primaryTypographyProps={{
+                                    fontSize: item.nested ? 14 : 16,
+                                }}
+                            />
+                        </Box>
+
+                        {item.needsConfig && (
+                            <Icon sx={{ color: "red"}}>error</Icon>
+                        )}
                     </ListItemButton>
+
                 </ListItem>
             ))}
 
@@ -144,7 +154,8 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
             text: plugin.name,
             icon: <Icon>{plugin.display_icon}</Icon>,
             target: `/projects/${projectName}/plugins/${plugin.name}`,
-            nested: true
+            nested: true,
+            needsConfig: plugin.config === null
         }
     }) ?? []
 
