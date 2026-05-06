@@ -264,6 +264,7 @@ export default function AddProjectWizard({
                                                     Upload
                                                     <HiddenInput
                                                         type="file"
+                                                        accept=".csv"
                                                         onChange={e =>
                                                             updateDatasetFile(
                                                                 index,
@@ -373,6 +374,7 @@ export default function AddProjectWizard({
                                                     Upload
                                                     <HiddenInput
                                                         type="file"
+                                                        accept=".onnx"
                                                         onChange={e =>
                                                             updateModelFile(
                                                                 index,
