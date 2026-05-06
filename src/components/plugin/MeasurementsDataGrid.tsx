@@ -49,7 +49,7 @@ const columns: GridColDef[] = [
         headerName: 'Dimensions',
         flex: 3,
         minWidth: 300,
-        valueGetter: (_value, row) => Object.values(row.dimensions).join(","),
+        valueGetter: (_value, row) => row.dimensions ? Object.values(row.dimensions).join(",") : "",
         renderCell: (params) => {
             const dimensions = params.row.dimensions;
             if (!dimensions || typeof dimensions !== 'object') return null;

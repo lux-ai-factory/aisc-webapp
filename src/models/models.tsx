@@ -58,8 +58,9 @@ export interface PluginConfig {
 }
 
 export interface PluginFeatureFlags {
-    can_parse_config_from_dataset: boolean
-    extra: object
+    can_parse_config_from_dataset: boolean;
+    show_dimensions_visualisation: boolean;
+    extra: object;
 }
 
 export interface PluginInputDefinition {
