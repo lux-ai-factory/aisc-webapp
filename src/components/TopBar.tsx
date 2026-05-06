@@ -3,12 +3,8 @@ import {
     Box,
     Button,
     createTheme,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle, Icon,
+    Icon,
     Link,
-    TextField,
     Toolbar,
     Typography
 } from '@mui/material';
@@ -52,99 +48,103 @@ const darkTheme = createTheme({
     },
 });
 
-const AddProjectDialog: React.FC<{
-    open: boolean;
-    onClose: () => void;
-    onAdd: (name: string) => void;
-}> = ({open, onClose, onAdd}) => {
-    const [projectName, setProjectName] = useState('');
-    const [nameError, setNameError] = useState(false);
-
-    const handleSubmit = () => {
-        if (projectName.trim().length >= 3) {
-            onAdd(projectName.trim());
-            setProjectName('');
-            setNameError(false);
-            onClose();
-        } else {
-            setNameError(true);
-        }
-    };
-
-    return (
-        <Dialog
-            open={open}
-            onClose={onClose}
-            slotProps={{
-                paper: {
-                    sx: {
-                        backgroundColor: "#0048ff", // fallback base
-                        backgroundImage: "linear-gradient(135deg, #001075, #0020b5)",
-                        borderRadius: "16px",
-                        padding: "8px 0",
-                        boxShadow: "none",
-                    }
-                }
-            }}
-
-        >
-            <DialogTitle sx={{ color: "white" }}>Add New Project</DialogTitle>
-
-            <DialogContent sx={{ color: "white" }}>
-                <TextField
-                    autoFocus
-                    margin="dense"
-                    label="Project Name"
-                    fullWidth
-                    value={projectName}
-                    onChange={(e) => {
-                        setProjectName(e.target.value);
-                        if (e.target.value.trim().length >= 3) {
-                            setNameError(false);
-                        }
-                    }}
-                    error={nameError}
-                    helperText={nameError ? "Project name must be at least 3 characters" : ""}
-                    variant="outlined"
-                    InputProps={{
-                        sx: {
-                            color: "white", // text color
-                            "& .MuiOutlinedInput-notchedOutline": {
-                                borderColor: "white",
-                            },
-                            "&:hover .MuiOutlinedInput-notchedOutline": {
-                                borderColor: "white",
-                            },
-                            "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                                borderColor: "white",
-                            },
-                        }
-                    }}
-                    InputLabelProps={{
-                        sx: {
-                            color: "white",
-                            "&.Mui-focused": {
-                                color: "white",
-                            }
-                        }
-                    }}
-                />
-            </DialogContent>
-            <DialogActions>
-                <Button onClick={onClose}>Cancel</Button>
-                <Button onClick={handleSubmit}>Add</Button>
-            </DialogActions>
-        </Dialog>
-    );
-
-};
+// I comment this because its no longer being used with the new wizard
+// const AddProjectDialog: React.FC<{
+//     open: boolean;
+//     onClose: () => void;
+//     onAdd: (name: string) => void;
+// }> = ({open, onClose, onAdd}) => {
+//     const [projectName, setProjectName] = useState('');
+//     const [nameError, setNameError] = useState(false);
+//
+//     const handleSubmit = () => {
+//         if (projectName.trim().length >= 3) {
+//             onAdd(projectName.trim());
+//             setProjectName('');
+//             setNameError(false);
+//             onClose();
+//         } else {
+//             setNameError(true);
+//         }
+//     };
+//
+//     return (
+//         <Dialog
+//             open={open}
+//             onClose={onClose}
+//             slotProps={{
+//                 paper: {
+//                     sx: {
+//                         backgroundColor: "#0048ff", // fallback base
+//                         backgroundImage: "linear-gradient(135deg, #001075, #0020b5)",
+//                         borderRadius: "16px",
+//                         padding: "8px 0",
+//                         boxShadow: "none",
+//                     }
+//                 }
+//             }}
+//
+//         >
+//             <DialogTitle sx={{ color: "white" }}>Add New Project</DialogTitle>
+//
+//             <DialogContent sx={{ color: "white" }}>
+//                 <TextField
+//                     autoFocus
+//                     margin="dense"
+//                     label="Project Name"
+//                     fullWidth
+//                     value={projectName}
+//                     onChange={(e) => {
+//                         setProjectName(e.target.value);
+//                         if (e.target.value.trim().length >= 3) {
+//                             setNameError(false);
+//                         }
+//                     }}
+//                     error={nameError}
+//                     helperText={nameError ? "Project name must be at least 3 characters" : ""}
+//                     variant="outlined"
+//                     InputProps={{
+//                         sx: {
+//                             color: "white", // text color
+//                             "& .MuiOutlinedInput-notchedOutline": {
+//                                 borderColor: "white",
+//                             },
+//                             "&:hover .MuiOutlinedInput-notchedOutline": {
+//                                 borderColor: "white",
+//                             },
+//                             "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+//                                 borderColor: "white",
+//                             },
+//                         }
+//                     }}
+//                     InputLabelProps={{
+//                         sx: {
+//                             color: "white",
+//                             "&.Mui-focused": {
+//                                 color: "white",
+//                             }
+//                         }
+//                     }}
+//                 />
+//             </DialogContent>
+//             <DialogActions>
+//                 <Button onClick={onClose}>Cancel</Button>
+//                 <Button onClick={handleSubmit}>Add</Button>
+//             </DialogActions>
+//         </Dialog>
+//     );
+//
+// };
 
 const ProjectSelector: React.FC<{
     onAddProject: (wizardData: any) => void;
     datasets: any[];
     models: any[];
     plugins: any[];
-}> = ({ onAddProject, datasets, models, plugins }) => {
+    fetchDatasets: () => void;
+    fetchModels: () => void;
+    fetchPlugins: () => void;
+}> = ({ onAddProject, datasets, models, plugins, fetchDatasets, fetchModels, fetchPlugins }) => {
     const [wizardOpen, setWizardOpen] = useState(false);
 
     return (
@@ -166,6 +166,9 @@ const ProjectSelector: React.FC<{
                 datasets={datasets}
                 models={models}
                 plugins={plugins}
+                fetchDatasets={fetchDatasets}
+                fetchModels={fetchModels}
+                fetchPlugins={fetchPlugins}
             />
         </ThemeProvider>
     );
@@ -245,16 +248,13 @@ const TopBar: React.FC = () => {
             });
         }
 
-        navigate(`/projects/${newProject.name}`);
+        navigate(`/projects/${newProject.name}/plugins`);
     };
 
 
 
     useEffect(() => {
         fetchProjects();
-        fetchDatasets();
-        fetchModels();
-        fetchPlugins();
     }, []);
 
 
@@ -311,7 +311,11 @@ const TopBar: React.FC = () => {
                     datasets={datasets}
                     models={models}
                     plugins={plugins}
+                    fetchDatasets={fetchDatasets}
+                    fetchModels={fetchModels}
+                    fetchPlugins={fetchPlugins}
                 />
+
 
             </Toolbar>
         </AppBar>

@@ -14,9 +14,19 @@ import {
     InputLabel,
     Icon
 } from "@mui/material";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-export default function AddProjectWizard({ open, onClose, onFinish, datasets, models, plugins }) {
+export default function AddProjectWizard({
+     open,
+     onClose,
+     onFinish,
+     datasets,
+     models,
+     plugins,
+     fetchDatasets,
+     fetchModels,
+     fetchPlugins
+}) {
     const [activeStep, setActiveStep] = useState(0);
 
     const [projectName, setProjectName] = useState("");
@@ -25,6 +35,15 @@ export default function AddProjectWizard({ open, onClose, onFinish, datasets, mo
     const [selectedPlugins, setSelectedPlugins] = useState({});
 
     const steps = ["Project Name", "Datasets & Models", "Plugins"];
+
+    // Load wizard data ONLY when the wizard opens
+    useEffect(() => {
+        if (open) {
+            fetchDatasets();
+            fetchModels();
+            fetchPlugins();
+        }
+    }, [open]);
 
     const handleNext = () => setActiveStep((s) => s + 1);
     const handleBack = () => setActiveStep((s) => s - 1);
