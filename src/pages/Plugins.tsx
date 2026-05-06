@@ -1,10 +1,11 @@
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {useProject} from '../context/ProjectContext';
-import {FormControlLabel, FormGroup, Icon, Switch, Typography} from "@mui/material";
+import {Icon, Typography} from "@mui/material";
 import {Plugin} from "../models/models.tsx";
 import React from "react";
 import {getPlugins, getProject} from "../api/api.tsx";
+import {useNavigate} from 'react-router-dom';
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -39,6 +40,7 @@ const deleteProjectPlugin = async (plugin_uuid: string) => {
 function Plugins() {
     const queryClient = useQueryClient();
     const {projectUUID} = useProject();
+    const navigate = useNavigate();
 
     const {data: plugins, isPending, error} = useQuery({
         queryKey: ['plugins', projectUUID],
@@ -49,6 +51,8 @@ function Plugins() {
         queryKey: ['project', projectUUID],
         queryFn: () => getProject(projectUUID ?? "")
     })
+
+    const { projectName } = useProject();
 
     if (isPending) return <span>Loading...</span>
     if (error) return <span>Oops!</span>
@@ -89,31 +93,42 @@ function Plugins() {
                     const inputId = `plugin-${projectPlugin.pluginName}`;
 
                     return (
-                        <div
-                            key={projectPlugin.pluginName}
-                            className={`plugin-card ${isEnabled ? "enabled" : ""}`}
-                            onClick={() => {
-                                const input = document.getElementById(inputId) as HTMLInputElement;
-                                input?.click();
-                            }}
-                        >
-                            <input
-                                id={inputId}
-                                type="checkbox"
-                                checked={isEnabled}
-                                onChange={(e) =>
-                                    handleChange(
-                                        e,
-                                        projectUUID ?? "",
-                                        projectPlugin.pluginName,
-                                        projectPlugin.projectPluginPid
-                                    )
-                                }
-                                className="plugin-hidden-checkbox"
-                            />
-                            <span className="plugin-label">{projectPlugin.pluginName}</span>
+                        <div style={{display: "flex", gap: 20}}>
+                            <div
+                                key={projectPlugin.pluginName}
+                                className={`plugin-card ${isEnabled ? "enabled" : ""}`}
+                                onClick={() => {
+                                    const input = document.getElementById(inputId) as HTMLInputElement;
+                                    input?.click();
+                                }}
+                            >
+                                <input
+                                    id={inputId}
+                                    type="checkbox"
+                                    checked={isEnabled}
+                                    onChange={(e) =>
+                                        handleChange(
+                                            e,
+                                            projectUUID ?? "",
+                                            projectPlugin.pluginName,
+                                            projectPlugin.projectPluginPid
+                                        )
+                                    }
+                                    className="plugin-hidden-checkbox"
+                                />
+                                <span className="plugin-label">{projectPlugin.pluginName}</span>
+                                {isEnabled && (
+                                    <Icon className="plugin-check">check_circle</Icon>
+                                )}
+                            </div>
                             {isEnabled && (
-                                <Icon className="plugin-check">check_circle</Icon>
+                                <Icon
+                                    style={{marginTop: 30, cursor: "pointer", color: "#4591FB"}}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigate(`/projects/${projectName}/plugins/${projectPlugin.pluginName}`);
+                                    }}
+                                >settings</Icon>
                             )}
                         </div>
                     );
