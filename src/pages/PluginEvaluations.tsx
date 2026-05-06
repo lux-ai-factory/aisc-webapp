@@ -2,9 +2,10 @@ import {useQuery} from '@tanstack/react-query'
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {Link} from "react-router-dom";
 import {useProject} from "../context/ProjectContext.tsx";
-import {List, ListItem, Paper, Stack, Tooltip, Typography} from "@mui/material";
+import {List, ListItem, Stack, Tooltip, Typography} from "@mui/material";
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import {Plugin} from "../models/models.tsx";
+import Box from "@mui/material/Box";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -35,19 +36,71 @@ function PluginEvaluations() {
             <Typography component="h2" variant="h4" gutterBottom>
                 Completed Evaluations:
             </Typography>
-            <List>
+            <List sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
                 {evaluations && evaluations.map((evaluation: any) => (
-                    <ListItem>
-                        {SHOW_PLUGIN_VISUALIZATION &&
-                            <Link to={`${evaluation["pid"]}`}>{evaluation["pid"]}</Link>
-                        }
-                        <CheckCircleIcon color="success"/>
-                        <Stack direction="row" spacing={2}>
-                        {evaluation["evaluation_plugins"] && evaluation["evaluation_plugins"].map((plugin: Plugin) => (
-                            <Tooltip title={JSON.stringify(plugin.plugin_config)}>
-                                <Paper sx={{ padding: "5px" }}>{plugin.name}</Paper>
-                            </Tooltip>
-                        ))}
+                    <ListItem
+                        key={evaluation.pid}
+                        sx={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "flex-start",
+                            gap: 1,
+                            padding: "12px 16px",
+                            borderRadius: "8px",
+                            border: "1px solid rgba(255,255,255,0.15)",
+                            background: "rgba(255,255,255,0.03)",
+                            cursor: "pointer",
+                            transition: "0.15s",
+                            "&:hover": {
+                                background: "rgba(255,255,255,0.08)"
+                            }
+                        }}
+                    >
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                            <CheckCircleIcon sx={{ color: "#00e676" }} />
+
+                            {SHOW_PLUGIN_VISUALIZATION ? (
+                                <Link
+                                    to={`${evaluation.pid}`}
+                                    style={{
+                                        textDecoration: "none",
+                                        fontWeight: 600
+                                    }}
+                                >
+                                    {evaluation.pid}
+                                </Link>
+                            ) : (
+                                <Typography sx={{ fontWeight: 600 }}>
+                                    {evaluation.pid}
+                                </Typography>
+                            )}
+                        </Box>
+
+                        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+                            {evaluation.evaluation_plugins?.map((plugin: Plugin) => (
+                                <Tooltip
+                                    key={plugin.name}
+                                    title={JSON.stringify(plugin.plugin_config, null, 2)}
+                                    placement="top"
+                                >
+                                    <Box
+                                        sx={{
+                                            padding: "3px 8px",
+                                            borderRadius: "6px",
+                                            background: "#4591FB",
+                                            color: "white",
+                                            fontSize: "0.8rem",
+                                            cursor: "pointer",
+                                            transition: "0.15s",
+                                            "&:hover": {
+                                                background: "#5aa0ff"
+                                            }
+                                        }}
+                                    >
+                                        {plugin.name}
+                                    </Box>
+                                </Tooltip>
+                            ))}
                         </Stack>
                     </ListItem>
                 ))}
