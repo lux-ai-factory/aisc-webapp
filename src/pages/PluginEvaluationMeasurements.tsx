@@ -2,7 +2,7 @@ import {useQuery, useQueries} from '@tanstack/react-query'
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {useParams} from "react-router-dom";
 import MeasurementsLineChart from "../components/plugin/MeasurementsLineChart.tsx";
-import {Measurement, PluginFeatureFlags} from "../models/models.tsx";
+import {Artifact, Measurement, MetricVisualization, PluginFeatureFlags, File} from "../models/models.tsx";
 import MeasurementsDataGrid from "../components/plugin/MeasurementsDataGrid.tsx";
 import MeasurementsScatterChart from "../components/plugin/MeasurementsScatterChart.tsx";
 import MeasurementsRadarChart from "../components/plugin/MeasurementsRadarChart.tsx";
@@ -23,7 +23,6 @@ import {
 import GenericCsvDataGrid from "../components/GenericCsvDataGrid.tsx";
 import GenericTextDataGrid from "../components/GenericTextDataGrid.tsx";
 import {Plugin} from "../models/models.tsx";
-import MeasurementsGauge from "../components/plugin/MeasurementsGauge.tsx";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -32,8 +31,8 @@ interface PluginQueryResult {
     pid?: string;
     plugin_pid?: string;
     measurements?: Measurement[];
-    metric_visualizations?: any[];
-    artifacts?: any[];
+    metric_visualizations?: MetricVisualization[];
+    artifacts?: Artifact[];
     feature_flags?: PluginFeatureFlags;
 }
 
@@ -97,7 +96,7 @@ function PluginEvaluationMeasurements() {
     })
 
     const measurementQueries = useQueries({
-        queries: (evaluation?.evaluation_plugins || []).map((eval_plugin: any) => ({
+        queries: (evaluation?.evaluation_plugins || []).map((eval_plugin: Plugin) => ({
             queryKey: ['pluginMeasurements', evaluation_uuid, eval_plugin.pid],
             queryFn: () => getEvaluationMeasurements(eval_plugin.pid, eval_plugin.name, evaluation_uuid ?? "", eval_plugin.plugin_pid || ""),
             enabled: !!evaluation_uuid && !!eval_plugin.pid
@@ -147,7 +146,7 @@ function PluginEvaluationMeasurements() {
                     )}
 
                     {pluginResult.measurements && pluginResult.measurements.length > 0 && <h4>Measurements</h4>}
-                    {pluginResult.metric_visualizations && pluginResult.metric_visualizations.map((visualization: any, index: number) => {
+                    {pluginResult.metric_visualizations && pluginResult.metric_visualizations.map((visualization: MetricVisualization, index: number) => {
                         const filteredMeasurements = pluginResult.measurements!!.filter(
                             (m: Measurement) => visualization.metrics.includes(m.name)
                         );
@@ -201,17 +200,11 @@ function PluginEvaluationMeasurements() {
                                         data={filteredMeasurements}
                                     />
                                 )}
-                                {visualization.chart_type === 'gauage' && (
-                                    <MeasurementsGauge
-                                        title={`${pluginResult.name} - Gauge`}
-                                        value={filteredMeasurements}
-                                    />
-                                )}
                             </div>
                         );
                     })}
                     {pluginResult.artifacts && pluginResult.artifacts!!.length > 0 && <h4>Artifacts</h4>}
-                    {pluginResult.artifacts && pluginResult.artifacts!!.map((artifact: any) => {
+                    {pluginResult.artifacts && pluginResult.artifacts!!.map((artifact: Artifact) => {
                         // Skip this if no data
                         if (pluginResult.artifacts!!.length === 0) {
                             return null;
@@ -226,21 +219,21 @@ function PluginEvaluationMeasurements() {
                                     {(() => {
                                         switch (artifact.preview.type) {
                                             case '.csv':
-                                                return <GenericCsvDataGrid data={artifact.preview.data}/>;
+                                                return <GenericCsvDataGrid data={artifact.preview.data as string[][]}/>;
                                             case '.txt':
                                             case '.md':
                                                 return <GenericTextDataGrid fileUrl={`${API_URL}/files/artifact/${artifact.data}`} />;
                                             case '.png':
                                                 return (
                                                     <Paper sx={{width: 'fit-content', margin: 'auto'}}>
-                                                        <img src={artifact.preview.data} alt={artifact.artifact_name}/>
+                                                        <img src={artifact.preview.data as string} alt={artifact.name}/>
                                                     </Paper>
                                                 );
                                             case '.pdf':
                                                 return (
                                                     <iframe
-                                                        title={artifact.artifact_name}
-                                                        src={artifact.preview.data}
+                                                        title={artifact.name}
+                                                        src={artifact.preview.data as string}
                                                         width="100%"
                                                         height="800px"
                                                     >
@@ -248,8 +241,7 @@ function PluginEvaluationMeasurements() {
                                                     </iframe>
                                                 );
                                             case '.zip':
-                                                return <ZipFileList files={artifact.preview.data}/>;
-                                            case '.txt':
+                                                return <ZipFileList files={artifact.preview.data as File[]}/>;
                                             case '.log':
                                                 return (
                                                     <Paper
@@ -270,7 +262,7 @@ function PluginEvaluationMeasurements() {
                                                                 wordBreak: 'break-all'
                                                             }}
                                                         >
-                                                            {artifact.preview.data}
+                                                            {artifact.preview.data as string}
                                                         </Typography>
                                                     </Paper>
                                                 );

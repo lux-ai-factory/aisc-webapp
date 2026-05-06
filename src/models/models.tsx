@@ -87,6 +87,27 @@ export interface Measurement {
     created_at: string;
 }
 
+export interface MetricVisualization {
+    chart_type: string;
+    metrics: string[];
+}
+
+interface File {
+    file_name: string;
+    file_size: number;
+}
+
+export interface ArtifactPreview {
+  type: string;
+  data: string | string[][] | File[] | undefined;
+}
+
+export interface Artifact {
+  preview: ArtifactPreview;
+  name: string;
+  data: string;
+}
+
 // Stats types
 
 export interface EvaluationStatusBreakdown {
