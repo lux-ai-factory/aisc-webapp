@@ -7,6 +7,8 @@ import { Plugin, PluginInputValue } from "../models/models.tsx";
 import toast from "react-hot-toast";
 import { getProject } from "../api/api.tsx";
 import PluginEvaluationForm from "../components/plugin/PluginEvaluationForm.tsx";
+import PluginEvaluationsTasks from "./PluginEvaluationsTasks.tsx";
+
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -85,31 +87,47 @@ export default function PluginStartEvaluation() {
     };
 
     return (
-        <Box>
-            <Typography component="h2" variant="h4" gutterBottom>
-                Start an Evaluation
-            </Typography>
-            <FormGroup>
-                {project?.plugins.map((projectPlugin: Plugin) => (
-                    <PluginEvaluationForm
-                        key={projectPlugin.pid}
-                        plugin={projectPlugin}
-                        isSelected={!!selectedPlugins[projectPlugin.name]}
-                        selections={selectedPlugins[projectPlugin.name] || []}
-                        onToggle={() => handleTogglePlugin(projectPlugin.name)}
-                        onSelectionChange={(item, inputName) => handleUpdateSetting(projectPlugin.name, item, inputName)}
-                    />
-                ))}
-            </FormGroup>
-            {/*Maybe this button could need a revamp too but I'm thinking of changing it later completely*/}
-            <Button
-                variant="contained"
-                onClick={handleOnClick}
-                disabled={Object.keys(selectedPlugins).length === 0}
+        <Box sx={{ display: "flex", gap: 4 }}>
+            <Box sx={{ flex: 1 }}>
+                <Typography component="h2" variant="h4" gutterBottom>
+                    Start an Evaluation
+                </Typography>
+
+                <FormGroup>
+                    {project?.plugins.map((projectPlugin: Plugin) => (
+                        <PluginEvaluationForm
+                            key={projectPlugin.pid}
+                            plugin={projectPlugin}
+                            isSelected={!!selectedPlugins[projectPlugin.name]}
+                            selections={selectedPlugins[projectPlugin.name] || []}
+                            onToggle={() => handleTogglePlugin(projectPlugin.name)}
+                            onSelectionChange={(item, inputName) =>
+                                handleUpdateSetting(projectPlugin.name, item, inputName)
+                            }
+                        />
+                    ))}
+                </FormGroup>
+
+                <Button
+                    variant="contained"
+                    onClick={handleOnClick}
+                    disabled={Object.keys(selectedPlugins).length === 0}
+                    sx={{ mt: 2 }}
+                >
+                    <Icon>play_arrow</Icon>
+                    Create Evaluation
+                </Button>
+            </Box>
+
+            <Box
+                sx={{
+                    flex: 1,
+                    borderLeft: "2px solid rgba(255,255,255,0.1)",
+                    paddingLeft: 3,
+                }}
             >
-                <Icon>play_arrow</Icon>
-                Create Evaluation
-            </Button>
+                <PluginEvaluationsTasks />
+            </Box>
         </Box>
     );
 }
