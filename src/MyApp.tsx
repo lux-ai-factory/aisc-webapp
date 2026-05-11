@@ -11,7 +11,7 @@ import SettingsPage from './pages/Settings';
 import GlobalHome from './pages/GlobalHome';
 import ProjectHome from './pages/ProjectHome';
 import React, { useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Navigate } from 'react-router-dom';
 import { useProject } from './context/ProjectContext';
 import { API_VERSION_PREFIX } from './config';
 import Plugins from "./pages/Plugins.tsx";
@@ -72,7 +72,8 @@ export default function PermanentDrawerLeft() {
      */
     const navs = [
         { id: 1, name: 'Home', path: '/', element: <GlobalHome /> },
-        { id: 2, name: 'Project', path: '/projects/:project_name', element: <ProjectContextWrapper><ProjectHome /></ProjectContextWrapper> },
+        { id: 2, name: 'Project', path: '/projects/:project_name', element: <ProjectContextWrapper><Navigate to="overview" replace /></ProjectContextWrapper> },
+        { id: 11, name: 'Overview', path: '/projects/:project_name/overview', element: <ProjectContextWrapper><ProjectHome /></ProjectContextWrapper> },
         { id: 3, name: 'Start evaluation', path: '/projects/:project_name/start-eval', element: <ProjectContextWrapper><StartEvaluation /></ProjectContextWrapper> },
         {
             id: 4, name: 'Settings', path: '/projects/:project_name/settings', element: (
@@ -105,7 +106,9 @@ export default function PermanentDrawerLeft() {
                     alignItems: 'left',
                     maxWidth: 'lg',
                     margin: '0 auto',
-                    width: '100%'
+                    width: `calc(100% - ${drawerWidth}px)`,
+                    minWidth: 0,
+                    overflow: 'hidden',
                 }}
             >
                 <Toolbar />

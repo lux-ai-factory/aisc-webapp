@@ -2,21 +2,29 @@ import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {useProject} from '../context/ProjectContext';
 import {Badge, Icon, Typography} from "@mui/material";
-import {Plugin} from "../models/models.tsx";
+import {Plugin, Package} from "../models/models.tsx";
 import React from "react";
 import {getPlugins, getProject} from "../api/api.tsx";
 import {useNavigate} from 'react-router-dom';
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
+interface ProjectPackage {
+    package_name: string;
+    version: string;
+    source: string;
+    enabled: boolean;
+}
 
-const createProjectPlugin = async (uuid: string, plugin_name: string) => {
-    if (!uuid) throw new Error('Invalid uuid');
-    if (!plugin_name) throw new Error('Invalid plugin name')
+const createProjectPlugins = async (project_uuid: string, package_name: string, version: string) => {
+    if (!project_uuid) throw new Error('Invalid project uuid');
+    if (!package_name) throw new Error('Invalid package name')
+    if (!version) throw new Error('Invalid version')
 
     const data = {
-        name: plugin_name,
-        project_uuid: uuid,
+        package_name: package_name,
+        project_uuid: project_uuid,
+        version: version,
         config: null
     }
     const res = await fetch(`${API_URL}/plugins`, {
@@ -29,10 +37,23 @@ const createProjectPlugin = async (uuid: string, plugin_name: string) => {
     return await res.json() as Plugin;
 };
 
-const deleteProjectPlugin = async (plugin_uuid: string) => {
-    if (!plugin_uuid) throw new Error('Invalid uuid');
-    await fetch(`${API_URL}/plugins/${plugin_uuid}`, {
-        method: 'DELETE'
+const deleteProjectPlugins = async (project_uuid: string, package_name: string, version: string) => {
+    if (!project_uuid) throw new Error('Invalid project uuid');
+    if (!package_name) throw new Error('Invalid package name')
+    if (!version) throw new Error('Invalid version')
+
+    const data = {
+        package_name: package_name,
+        project_uuid: project_uuid,
+        version: version,
+    }
+
+    await fetch(`${API_URL}/plugins`, {
+        method: 'DELETE',
+                headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
     });
 };
 
@@ -42,8 +63,8 @@ function Plugins() {
     const {projectUUID} = useProject();
     const navigate = useNavigate();
 
-    const {data: plugins, isPending, error} = useQuery({
-        queryKey: ['plugins', projectUUID],
+    const {data: packages, isPending, error} = useQuery({
+        queryKey: ['packages', projectUUID],
         queryFn: getPlugins,
     })
 
@@ -57,27 +78,33 @@ function Plugins() {
     if (isPending) return <span>Loading...</span>
     if (error) return <span>Oops!</span>
 
-    let projectPlugins = plugins.map((plugin: string) => {
-        let projectPlugin: Plugin | undefined =
-            project?.plugins.find((projectPlugin: any) => projectPlugin.name === plugin)
+    const projectPackages: ProjectPackage[] = packages.map((pkg: Package) => {
+        const enabled = project?.plugins?.some((projectPkg: any) => {
+            return (
+                projectPkg.package_name === pkg.package_name &&
+                projectPkg.version === pkg.version
+            )
+        });
+
         return {
-            'pluginName': plugin,
-            'projectPluginPid': projectPlugin?.pid,
-            'config': projectPlugin?.config ?? null
-        }
-    })
+            package_name: pkg.package_name,
+            version: pkg.version,
+            source: pkg.source,
+            enabled
+        };
+    });
+
 
     const handleChange = async (
         event: React.ChangeEvent<HTMLInputElement>,
         pid: string,
-        plugin_name: string,
-        project_plugin_pid: string | undefined
+        package_name: string,
+        version: string,
     ) => {
         if (event.target.checked) {
-            await createProjectPlugin(pid, plugin_name)
+            await createProjectPlugins(pid, package_name, version)
         } else {
-            if (!project_plugin_pid) return;
-            await deleteProjectPlugin(project_plugin_pid)
+            await deleteProjectPlugins(pid, package_name, version)
         }
         await queryClient.invalidateQueries({queryKey: ['project']});
     };
@@ -86,18 +113,19 @@ function Plugins() {
     return (
         <>
             <Typography component="h2" variant="h4" gutterBottom>
-                Available Plugins
+                Available Packages
             </Typography>
+
             <div>
-                {projectPlugins.map((projectPlugin: any) => {
-                    const isEnabled = Boolean(projectPlugin.projectPluginPid);
-                    const isConfigured = projectPlugin.config !== null;
-                    const inputId = `plugin-${projectPlugin.pluginName}`;
+                {projectPackages.map((pkg: ProjectPackage) => {
+                    const isEnabled = Boolean(pkg.enabled);
+                    const isConfigured = true; // TODO: if config exists later
+                    const inputId = `pkg-${pkg.package_name}-${pkg.version}`;
 
                     return (
                         <div
-                            key={projectPlugin.pluginName}   // <-- FIX HERE
-                            style={{display: "flex", gap: 20}}
+                            key={`${pkg.package_name}-${pkg.version}-${pkg.source}`}
+                            style={{ display: "flex", gap: 20 }}
                         >
                             <div
                                 className={`plugin-card ${isEnabled ? "enabled" : ""}`}
@@ -114,30 +142,41 @@ function Plugins() {
                                         handleChange(
                                             e,
                                             projectUUID ?? "",
-                                            projectPlugin.pluginName,
-                                            projectPlugin.projectPluginPid
+                                            pkg.package_name,
+                                            pkg.version
                                         )
                                     }
                                     className="plugin-hidden-checkbox"
                                 />
-                                <span className="plugin-label">{projectPlugin.pluginName}</span>
+
+                                <span className="plugin-label">
+                                {pkg.package_name} ({pkg.version})
+                                    {pkg.source === "local" ? " [local]" : ""}
+                            </span>
+
                                 {isEnabled && (
                                     <Icon className="plugin-check">check_circle</Icon>
                                 )}
                             </div>
+
                             {isEnabled && (
                                 <Badge
                                     color="error"
                                     badgeContent={!isConfigured ? "!" : null}
                                     overlap="circular"
                                     anchorOrigin={{ vertical: "top", horizontal: "right" }}
-                                    sx={{ paddingTop: 2.5, marginTop: 1.5}}
+                                    sx={{ paddingTop: 2.5, marginTop: 1.5 }}
                                 >
                                     <Icon
-                                        style={{cursor: "pointer", color: isConfigured ? "#4591FB" : "red"}}
+                                        style={{
+                                            cursor: "pointer",
+                                            color: isConfigured ? "#4591FB" : "red"
+                                        }}
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            navigate(`/projects/${projectName}/plugins/${projectPlugin.pluginName}`);
+                                            navigate(
+                                                `/projects/${projectName}/packages/${pkg.package_name}/${pkg.version}`
+                                            );
                                         }}
                                     >
                                         settings
@@ -149,7 +188,8 @@ function Plugins() {
                 })}
             </div>
         </>
-    )
+    );
+
 }
 
 export default Plugins

@@ -6,14 +6,14 @@ import toast from "react-hot-toast";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
-const fetchConfigHistory = async (plugin_name: string, project_uuid: string): Promise<PluginConfig[]> => {
-    const res = await fetch(`${API_URL}/plugins/${plugin_name}/project/${project_uuid}/configs`);
+const fetchConfigHistory = async (plugin_pid: string): Promise<PluginConfig[]> => {
+    const res = await fetch(`${API_URL}/plugins/${plugin_pid}/configs`);
     if (!res.ok) throw new Error('Failed to fetch config history');
     return await res.json();
 };
 
-const restoreConfig = async (plugin_name: string, project_uuid: string, config_id: number): Promise<Plugin> => {
-    const res = await fetch(`${API_URL}/plugins/${plugin_name}/project/${project_uuid}/configs/${config_id}/restore`, {
+const restoreConfig = async (plugin_pid: string, config_id: number): Promise<Plugin> => {
+    const res = await fetch(`${API_URL}/plugins/${plugin_pid}/configs/${config_id}/restore`, {
         method: 'POST',
     });
     if (!res.ok) throw new Error('Failed to restore config');
@@ -21,22 +21,21 @@ const restoreConfig = async (plugin_name: string, project_uuid: string, config_i
 };
 
 interface ConfigHistoryProps {
-    pluginName: string;
-    projectUUID: string;
+    pluginPID: string;
     plugin_config_id?: number | null;
 }
 
-export default function ConfigHistory({ pluginName, projectUUID, plugin_config_id }: ConfigHistoryProps) {
+export default function ConfigHistory({ pluginPID, plugin_config_id }: ConfigHistoryProps) {
     const queryClient = useQueryClient();
 
     const { data: history, isPending } = useQuery({
-        queryKey: ['pluginConfigHistory', pluginName, projectUUID],
-        queryFn: () => fetchConfigHistory(pluginName, projectUUID),
-        enabled: !!pluginName && !!projectUUID
+        queryKey: ['pluginConfigHistory', pluginPID],
+        queryFn: () => fetchConfigHistory(pluginPID),
+        enabled: !!pluginPID
     });
 
     const restoreMutation = useMutation({
-        mutationFn: (configId: number) => restoreConfig(pluginName, projectUUID, configId),
+        mutationFn: (configId: number) => restoreConfig(pluginPID, configId),
         onSuccess: async () => {
             toast.success('Config restored', { position: "bottom-right" });
             // Force query refresh in parent component

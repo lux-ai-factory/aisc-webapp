@@ -15,7 +15,7 @@ interface EvaluationTask {
 
 const getEvaluations = async (uuid: string) => {
     if (!uuid) throw new Error('Invalid uuid');
-    const res = await fetch(`${API_URL}/projects/${uuid}/evaluations?exclude_status=Done`);
+    const res = await fetch(`${API_URL}/projects/${uuid}/evaluations?exclude_status=Done&exclude_status=Failed`);
     if (!res.ok) throw new Error('Network response was not ok');
     return await res.json() as [Evaluation];
 };

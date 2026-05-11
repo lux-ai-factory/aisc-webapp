@@ -22,9 +22,9 @@ export default function PluginEvaluationForm({
     const { projectUUID } = useProject();
 
     const { data: inputDefinitions, isPending: isDefinitionsPending } = useQuery({
-        queryKey: ['inputDefinitions', plugin.name],
-        queryFn: () => getPluginInputDefinitions(plugin.name),
-        enabled: !!plugin.name
+        queryKey: ['inputDefinitions', plugin.pid],
+        queryFn: () => getPluginInputDefinitions(plugin.pid),
+        enabled: !!plugin.pid
     });
 
     const { data: project, isPending: isProjectPending } = useQuery({
@@ -43,7 +43,7 @@ export default function PluginEvaluationForm({
             <Box className="plugin-eval-header">
                 <Box className="plugin-eval-left">
                     <Icon>{plugin.display_icon}</Icon>
-                    <span>{plugin.name}</span>
+                    <span>{plugin.display_name}</span>
                 </Box>
 
                 {isSelected && (
