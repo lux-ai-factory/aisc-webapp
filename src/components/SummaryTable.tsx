@@ -16,6 +16,7 @@ import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
 import CategoryIcon from "@mui/icons-material/Category";
 import SettingsIcon from "@mui/icons-material/Settings";
 import DatasetIcon from "@mui/icons-material/Dataset";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import { PieChart } from "@mui/x-charts";
 import { LineChart } from "@mui/x-charts/LineChart";
 import {
@@ -144,6 +145,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
     const [plugins, setPlugins] = useState<PluginUsageSummary[]>([]);
     const [pluginDurations, setPluginDurations] = useState<PluginRunDuration[]>([]);
     const [pluginIcons, setPluginIcons] = useState<Record<string, string>>({});
+    const [pluginDisplayNames, setPluginDisplayNames] = useState<Record<string, string>>({});
     const [hiddenSeriesIds, setHiddenSeriesIds] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [runningEvaluations, setRunningEvaluations] = useState<Evaluation[]>([]);
@@ -191,7 +193,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
             fetchWithFallback(() => getProjectPluginDurations(projectPid), { runs: [] }),
             fetchWithFallback(async () => {
                 const res = await fetch(`${API_URL}/projects/${projectPid}`);
-                return await res.json() as { plugins: { name: string; pid: string }[] };
+                return await res.json() as { plugins: { name: string; pid: string; display_name: string }[] };
             }, { plugins: [] }),
         ])
             .then(async ([ov, mt, pl, dur, project]) => {
@@ -203,9 +205,12 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
 
                 // Build name → pid map from the project's plugin list
                 const pidByName: Record<string, string> = {};
+                const displayNameByName: Record<string, string> = {};
                 for (const plugin of project.plugins) {
                     pidByName[plugin.name] = plugin.pid;
+                    displayNameByName[plugin.name] = plugin.display_name;
                 }
+                setPluginDisplayNames(displayNameByName);
 
                 // Fetch icons in the background using pid (same as LeftBar)
                 const allPluginNames = new Set([
@@ -337,7 +342,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
         );
         return {
             id: name,
-            label: name,
+            label: pluginDisplayNames[name] || name,
             data: runIndices.map((idx) => runs.get(idx) ?? null),
         };
     });
@@ -453,18 +458,18 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                                     <Paper
                                         key={p.plugin_name}
                                         variant="outlined"
-                                        sx={{ p: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between" }}
+                                        sx={{ p: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}
                                     >
-                                        <Stack direction="row" alignItems="center" spacing={1}>
+                                        <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 0, flex: "1 1 auto" }}>
                                             {pluginIcons[p.plugin_name]
-                                                ? <Icon sx={{ color: theme.palette.primary.main, fontSize: 20 }}>{pluginIcons[p.plugin_name]}</Icon>
-                                                : <ExtensionIcon sx={{ color: theme.palette.primary.main, fontSize: 20 }} />
+                                                ? <Icon sx={{ color: theme.palette.primary.main, fontSize: 20, flexShrink: 0 }}>{pluginIcons[p.plugin_name]}</Icon>
+                                                : <ExtensionIcon sx={{ color: theme.palette.primary.main, fontSize: 20, flexShrink: 0 }} />
                                             }
-                                            <Typography variant="body2" fontWeight={600}>{p.plugin_name}</Typography>
+                            <Typography variant="body2" fontWeight={600} noWrap title={pluginDisplayNames[p.plugin_name] || p.plugin_name}>{pluginDisplayNames[p.plugin_name] || p.plugin_name}</Typography>
                                         </Stack>
-                                        <Stack direction="row" spacing={1}>
+                                        <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
                                             <Tooltip title="Total executions">
-                                                <Chip label={`${p.usage_count} runs`} size="small" variant="outlined" />
+                                                <Chip label={`${p.usage_count}`} size="small" variant="outlined" icon={<PlayArrowIcon />} />
                                             </Tooltip>
                                             <Tooltip title="Successful runs">
                                                 <Chip label={`${p.successful_runs}`} size="small" color="success" variant="outlined" icon={<CheckCircleIcon />} />
@@ -473,7 +478,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                                                 <Chip label={`${p.failed_runs}`} size="small" color="error" variant="outlined" icon={<CancelIcon />} />
                                             </Tooltip>
                                             <Tooltip title="Artifacts produced">
-                                                <Chip label={`${p.artifact_count} artifacts`} size="small" color="primary" variant="outlined" />
+                                                <Chip label={`${p.artifact_count}`} size="small" color="primary" variant="outlined" icon={<InsertDriveFileIcon />} />
                                             </Tooltip>
                                             <Tooltip title="Avg execution time">
                                                 <Chip label={p.avg_duration_seconds !== null ? formatDuration(p.avg_duration_seconds) : 'N/A'} size="small" color="secondary" variant="outlined" icon={<TimerIcon />} />
@@ -677,7 +682,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                                     {metrics.map((m, idx) => (
                                         <tr key={`${m.plugin_name}-${m.metric_pid}-${idx}`} style={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
                                             <td style={{ padding: "8px 12px" }}>
-                                                <Chip label={m.plugin_name} size="small" variant="outlined" icon={
+                                                 <Chip label={pluginDisplayNames[m.plugin_name.includes('::') ? m.plugin_name.split('::')[1].split(' ')[0] : m.plugin_name] || m.plugin_name} size="small" variant="outlined" icon={
                                                     pluginIcons[m.plugin_name]
                                                         ? <Icon sx={{ fontSize: 16 }}>{pluginIcons[m.plugin_name]}</Icon>
                                                         : <ExtensionIcon />
