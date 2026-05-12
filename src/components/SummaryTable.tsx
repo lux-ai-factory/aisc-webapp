@@ -584,7 +584,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                                                                                 : <ExtensionIcon sx={{ color: theme.palette.primary.main, fontSize: 18 }} />
                                                                             }
                                                                             <Typography variant="body2" fontWeight={600}>
-                                                                                {pluginName}
+                                                                                {pluginDisplayNames[pluginName] || pluginName}
                                                                             </Typography>
                                                                         </Stack>
                                                                         <Typography variant="caption" color="text.secondary">
