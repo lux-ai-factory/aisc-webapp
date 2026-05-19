@@ -123,8 +123,8 @@
 
 .plugin-card.enabled {
   background: linear-gradient(135deg, #4591FB, #0048ff);
-  border-color: transparent;
   color: white;
+  border: 3px solid #00e676;
 }
 
 .plugin-label {

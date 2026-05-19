@@ -155,7 +155,7 @@ function Plugins() {
                             </span>
 
                                 {isEnabled && (
-                                    <Icon className="plugin-check">check_circle</Icon>
+                                    <Icon sx={{color: "#00e676"}}>check_circle</Icon>
                                 )}
                             </div>
 
