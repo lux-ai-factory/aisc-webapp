@@ -156,7 +156,7 @@
 
 .plugin-eval-card.selected {
   background: linear-gradient(135deg, #4591FB, #0048ff);
-  border-color: transparent;
+  border: 3px solid #00e676;
   color: white;
 }
 

@@ -47,7 +47,7 @@ export default function PluginEvaluationForm({
                 </Box>
 
                 {isSelected && (
-                    <Icon className="plugin-eval-check">check_circle</Icon>
+                    <Icon sx={{color: "#00e676"}}>check_circle</Icon>
                 )}
             </Box>
 
@@ -86,7 +86,7 @@ export default function PluginEvaluationForm({
                                         }
                                     }}
                                     sx={{
-                                        color: "white", // text color
+                                        color: "white",
                                         backgroundColor: "transparent",
                                         "& .MuiOutlinedInput-notchedOutline": {
                                             borderColor: "white"
