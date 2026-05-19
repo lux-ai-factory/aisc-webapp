@@ -88,9 +88,37 @@ export default function PluginStartEvaluation() {
 
     return (
         <Box>
-            <Typography component="h2" variant="h4" gutterBottom>
-                Start an Evaluation
-            </Typography>
+            <Box sx={{display: "flex", justifyContent: "space-between", marginBottom: 5}}>
+                <Typography component="h2" variant="h4" gutterBottom>
+                    Start an Evaluation
+                </Typography>
+
+                <Button
+                    variant="contained"
+                    onClick={handleOnClick}
+                    disabled={Object.keys(selectedPlugins).length === 0}
+                    sx={{
+                        borderRadius: "10px",
+                        fontSize: "1rem",
+                        fontWeight: 600,
+                        textTransform: "none",
+                        gap: 1.2,
+                        background: "linear-gradient(135deg, #4A8CFF, #00e676)",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                        "&:hover": {
+                            background: "linear-gradient(135deg, #5A9CFF, #00e676)",
+                            boxShadow: "0 6px 16px rgba(0,0,0,0.25)"
+                        },
+                        "&:disabled": {
+                            background: "#9bbcff",
+                            boxShadow: "none"
+                        }
+                    }}
+                >
+                    <Icon>play_arrow</Icon>
+                    Create Evaluation
+                </Button>
+            </Box>
 
             <FormGroup>
                 {project?.plugins.map((projectPlugin: Plugin) => (
@@ -106,16 +134,6 @@ export default function PluginStartEvaluation() {
                     />
                 ))}
             </FormGroup>
-
-            <Button
-                variant="contained"
-                onClick={handleOnClick}
-                disabled={Object.keys(selectedPlugins).length === 0}
-                sx={{ mt: 2 }}
-            >
-                <Icon>play_arrow</Icon>
-                Create Evaluation
-            </Button>
         </Box>
     );
 }
