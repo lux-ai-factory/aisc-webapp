@@ -87,47 +87,35 @@ export default function PluginStartEvaluation() {
     };
 
     return (
-        <Box sx={{ display: "flex", gap: 4 }}>
-            <Box sx={{ flex: 1 }}>
-                <Typography component="h2" variant="h4" gutterBottom>
-                    Start an Evaluation
-                </Typography>
+        <Box>
+            <Typography component="h2" variant="h4" gutterBottom>
+                Start an Evaluation
+            </Typography>
 
-                <FormGroup>
-                    {project?.plugins.map((projectPlugin: Plugin) => (
-                        <PluginEvaluationForm
-                            key={projectPlugin.pid}
-                            plugin={projectPlugin}
-                            isSelected={!!selectedPlugins[projectPlugin.name]}
-                            selections={selectedPlugins[projectPlugin.name] || []}
-                            onToggle={() => handleTogglePlugin(projectPlugin.name)}
-                            onSelectionChange={(item, inputName) =>
-                                handleUpdateSetting(projectPlugin.name, item, inputName)
-                            }
-                        />
-                    ))}
-                </FormGroup>
+            <FormGroup>
+                {project?.plugins.map((projectPlugin: Plugin) => (
+                    <PluginEvaluationForm
+                        key={projectPlugin.pid}
+                        plugin={projectPlugin}
+                        isSelected={!!selectedPlugins[projectPlugin.name]}
+                        selections={selectedPlugins[projectPlugin.name] || []}
+                        onToggle={() => handleTogglePlugin(projectPlugin.name)}
+                        onSelectionChange={(item, inputName) =>
+                            handleUpdateSetting(projectPlugin.name, item, inputName)
+                        }
+                    />
+                ))}
+            </FormGroup>
 
-                <Button
-                    variant="contained"
-                    onClick={handleOnClick}
-                    disabled={Object.keys(selectedPlugins).length === 0}
-                    sx={{ mt: 2 }}
-                >
-                    <Icon>play_arrow</Icon>
-                    Create Evaluation
-                </Button>
-            </Box>
-
-            <Box
-                sx={{
-                    flex: 1,
-                    borderLeft: "2px solid rgba(255,255,255,0.1)",
-                    paddingLeft: 3,
-                }}
+            <Button
+                variant="contained"
+                onClick={handleOnClick}
+                disabled={Object.keys(selectedPlugins).length === 0}
+                sx={{ mt: 2 }}
             >
-                <PluginEvaluationsTasks />
-            </Box>
+                <Icon>play_arrow</Icon>
+                Create Evaluation
+            </Button>
         </Box>
     );
 }
