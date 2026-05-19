@@ -413,23 +413,23 @@ export default function AddProjectWizard({
                     </Box>
                 )}
 
-                {/* Plugins */}
+                {/* PLUGINS (now packages) */}
                 {activeStep === 3 && (
                     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                         {plugins.map(plugin => {
                             if (!plugin.name) return null;
 
-                            const selected = !!selectedPlugins[plugin.name];
+                            const key = plugin.name;
+                            const selected = !!selectedPlugins[key];
 
                             return (
                                 <Box
-                                    key={plugin.name}
+                                    key={key}
                                     onClick={() =>
                                         setSelectedPlugins(prev => {
                                             const next = { ...prev };
-                                            if (next[plugin.name])
-                                                delete next[plugin.name];
-                                            else next[plugin.name] = [];
+                                            if (next[key]) delete next[key];
+                                            else next[key] = { name: plugin.name, version: plugin.version };
                                             return next;
                                         })
                                     }
@@ -458,7 +458,9 @@ export default function AddProjectWizard({
                                         }}
                                     >
                                         <Icon>{plugin.display_icon}</Icon>
-                                        <Typography>{plugin.name}</Typography>
+                                        <Typography>
+                                            {plugin.name} ({plugin.version}) [{plugin.source}]
+                                        </Typography>
                                     </Box>
 
                                     {selected && (

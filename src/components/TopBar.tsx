@@ -181,12 +181,14 @@ const TopBar: React.FC = () => {
     const [plugins, setPlugins] = useState([]);
 
     const fetchDatasets = async () => {
-        const data = await apiCall('/datasets');
+        // const data = await apiCall('/datasets');'
+        const data = null;
         if (data) setDatasets(data);
     };
 
     const fetchModels = async () => {
-        const data = await apiCall('/models');
+        // const data = await apiCall('/models');
+        const data = null;
         if (data) setModels(data);
     };
 
@@ -194,15 +196,16 @@ const TopBar: React.FC = () => {
         const data = await apiCall('/plugins');
         if (!data) return;
 
-        // Convert string plugins → objects with a name field
-        const normalized = data.map((p: string) => ({
-            name: p
+        const normalized = data.map((p: any) => ({
+            name: p.package_name,
+            version: p.version,
+            source: p.source
         }));
 
         // Fetch display icons for each plugin
         const withIcons = await Promise.all(
             normalized.map(async (p) => {
-                const icon = await apiCall(`/plugins/${p.name}/display_icon`);
+                const icon = await apiCall(`/plugins/${p.package_name}/display_icon`);
                 return {
                     ...p,
                     display_icon: icon || "extension"
@@ -293,12 +296,14 @@ const TopBar: React.FC = () => {
             }
         }
 
-        // 4. Enable plugins
-        for (const pluginName of Object.keys(plugins)) {
+        // 4. Enable packages (formerly plugins)
+        for (const key of Object.keys(plugins)) {
+            const pkg = plugins[key];
+
             await apiCall('/plugins', 'POST', {
-                name: pluginName,
-                project_uuid: newProject.pid,
-                config: null
+                package_name: pkg.name,
+                version: pkg.version,
+                project_uuid: newProject.pid
             });
         }
 
