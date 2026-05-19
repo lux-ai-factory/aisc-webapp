@@ -159,30 +159,30 @@ function Plugins() {
                                 )}
                             </div>
 
-                            {isEnabled && (
-                                <Badge
-                                    color="error"
-                                    badgeContent={!isConfigured ? "!" : null}
-                                    overlap="circular"
-                                    anchorOrigin={{ vertical: "top", horizontal: "right" }}
-                                    sx={{ paddingTop: 2.5, marginTop: 1.5 }}
-                                >
-                                    <Icon
-                                        style={{
-                                            cursor: "pointer",
-                                            color: isConfigured ? "#4591FB" : "red"
-                                        }}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            navigate(
-                                                `/projects/${projectName}/packages/${pkg.package_name}/${pkg.version}`
-                                            );
-                                        }}
-                                    >
-                                        settings
-                                    </Icon>
-                                </Badge>
-                            )}
+                            {/*{isEnabled && (*/}
+                            {/*    <Badge*/}
+                            {/*        color="error"*/}
+                            {/*        badgeContent={!isConfigured ? "!" : null}*/}
+                            {/*        overlap="circular"*/}
+                            {/*        anchorOrigin={{ vertical: "top", horizontal: "right" }}*/}
+                            {/*        sx={{ paddingTop: 2.5, marginTop: 1.5 }}*/}
+                            {/*    >*/}
+                            {/*        <Icon*/}
+                            {/*            style={{*/}
+                            {/*                cursor: "pointer",*/}
+                            {/*                color: isConfigured ? "#4591FB" : "red"*/}
+                            {/*            }}*/}
+                            {/*            onClick={(e) => {*/}
+                            {/*                e.stopPropagation();*/}
+                            {/*                navigate(*/}
+                            {/*                    `/projects/${projectName}/packages/${pkg.package_name}/${pkg.version}`*/}
+                            {/*                );*/}
+                            {/*            }}*/}
+                            {/*        >*/}
+                            {/*            settings*/}
+                            {/*        </Icon>*/}
+                            {/*    </Badge>*/}
+                            {/*)}*/}
                         </div>
                     );
                 })}
