@@ -191,7 +191,8 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
                         title="Evaluations"
                         items={[
                             { text: 'Start Evaluations', icon: <Icon>play_circle</Icon>, target: `/projects/${projectName}/plugins/evaluation` },
-                            { text: 'Evaluations', icon: <Icon>sports_score</Icon>, target: `/projects/${projectName}/plugins/evaluations` }
+                            { text: 'Evaluations', icon: <Icon>sports_score</Icon>, target: `/projects/${projectName}/plugins/evaluations` },
+                            { text: 'Recommendations', icon: <Icon>reviews</Icon>, target: `/projects/${projectName}/recommendations` }
                         ]}
                     />
                     <Divider />
