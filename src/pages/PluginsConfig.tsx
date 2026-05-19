@@ -108,8 +108,14 @@ function PluginConfig() {
 
     const onSubmit = async (data: object) => {
         await postPluginConfig(plugin_pid ?? "", data);
+
+        // Refresh config history
         await queryClient.invalidateQueries({ queryKey: ['pluginConfigHistory', plugin_pid] });
-    }
+
+        // Refresh project so LeftBar updates instantly
+        await queryClient.invalidateQueries({ queryKey: ['project', projectUUID] });
+    };
+
 
     return (
         <>
