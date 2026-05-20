@@ -20,11 +20,6 @@ const formatFileSize = (bytes: number) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
-interface File {
-    file_name: string;
-    file_size: number;
-}
-
 interface ZipFileListProps {
   files: File[];
 }
