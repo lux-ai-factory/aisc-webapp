@@ -7,7 +7,6 @@ import { Plugin, PluginInputValue } from "../models/models.tsx";
 import toast from "react-hot-toast";
 import { getProject } from "../api/api.tsx";
 import PluginEvaluationForm from "../components/plugin/PluginEvaluationForm.tsx";
-import PluginEvaluationsTasks from "./PluginEvaluationsTasks.tsx";
 
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;

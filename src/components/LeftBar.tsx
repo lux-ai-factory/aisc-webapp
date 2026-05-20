@@ -27,7 +27,7 @@ const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
  */
 interface MenuListProps {
     title: string,
-    items: { text: string, icon: React.ReactNode, target: string }[]
+    items: { text: string, icon: React.ReactNode, target: string, nested?: boolean, needsConfig?: boolean }[]
 }
 
 /**

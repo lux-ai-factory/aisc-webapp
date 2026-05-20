@@ -176,9 +176,9 @@ const ProjectSelector: React.FC<{
 
 
 const TopBar: React.FC = () => {
-    const [datasets, setDatasets] = useState([]);
-    const [models, setModels] = useState([]);
-    const [plugins, setPlugins] = useState([]);
+    const [datasets, setDatasets] = useState<any[]>([]);
+    const [models, setModels] = useState<any[]>([]);
+    const [plugins, setPlugins] = useState<any[]>([]);
 
     const fetchDatasets = async () => {
         // const data = await apiCall('/datasets');'
@@ -204,8 +204,8 @@ const TopBar: React.FC = () => {
 
         // Fetch display icons for each plugin
         const withIcons = await Promise.all(
-            normalized.map(async (p) => {
-                const icon = await apiCall(`/plugins/${p.package_name}/display_icon`);
+            normalized.map(async (p: { name: string }) => {
+                const icon = await apiCall(`/plugins/${p.name}/display_icon`);
                 return {
                     ...p,
                     display_icon: icon || "extension"

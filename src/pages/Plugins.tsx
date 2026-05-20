@@ -1,11 +1,10 @@
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {useProject} from '../context/ProjectContext';
-import {Badge, Icon, Typography} from "@mui/material";
+import {Icon, Typography} from "@mui/material";
 import {Plugin, Package} from "../models/models.tsx";
 import React from "react";
 import {getPlugins, getProject} from "../api/api.tsx";
-import {useNavigate} from 'react-router-dom';
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -61,7 +60,6 @@ const deleteProjectPlugins = async (project_uuid: string, package_name: string, 
 function Plugins() {
     const queryClient = useQueryClient();
     const {projectUUID} = useProject();
-    const navigate = useNavigate();
 
     const {data: packages, isPending, error} = useQuery({
         queryKey: ['packages', projectUUID],
@@ -72,8 +70,6 @@ function Plugins() {
         queryKey: ['project', projectUUID],
         queryFn: () => getProject(projectUUID ?? "")
     })
-
-    const { projectName } = useProject();
 
     if (isPending) return <span>Loading...</span>
     if (error) return <span>Oops!</span>
@@ -90,7 +86,7 @@ function Plugins() {
             package_name: pkg.package_name,
             version: pkg.version,
             source: pkg.source,
-            enabled
+            enabled: enabled ?? false
         };
     });
 
@@ -119,7 +115,7 @@ function Plugins() {
             <div>
                 {projectPackages.map((pkg: ProjectPackage) => {
                     const isEnabled = Boolean(pkg.enabled);
-                    const isConfigured = true; // TODO: if config exists later
+                    {/* const isConfigured = true; // TODO: if config exists later */}
                     const inputId = `pkg-${pkg.package_name}-${pkg.version}`;
 
                     return (

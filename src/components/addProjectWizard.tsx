@@ -34,24 +34,57 @@ const HiddenInput = styled("input")({
     width: 1
 });
 
+interface DatasetItem {
+    name: string;
+    file: File | null;
+    uploaded: boolean;
+}
+
+interface ModelItem {
+    name: string;
+    file: File | null;
+    uploaded: boolean;
+}
+
+interface PluginItem {
+    name: string;
+    version: string;
+    source?: string;
+    display_icon?: string;
+}
+
+interface AddProjectWizardProps {
+    open: boolean;
+    onClose: () => void;
+    onFinish: (data: any) => void;
+    datasets: any[];
+    models: any[];
+    plugins: PluginItem[];
+    fetchDatasets: () => void;
+    fetchModels: () => void;
+    fetchPlugins: () => void;
+}
+
 export default function AddProjectWizard({
-                                             open,
-                                             onClose,
-                                             onFinish,
-                                             plugins,
-                                             fetchDatasets,
-                                             fetchModels,
-                                             fetchPlugins
-                                         }) {
+    open,
+    onClose,
+    onFinish,
+    datasets: _datasets,
+    models: _models,
+    plugins,
+    fetchDatasets,
+    fetchModels,
+    fetchPlugins
+}: AddProjectWizardProps) {
     const [activeStep, setActiveStep] = useState(0);
 
     const [projectName, setProjectName] = useState("");
 
     // Local dataset + model lists (like Settings page)
-    const [localDatasets, setLocalDatasets] = useState([]);
-    const [localModels, setLocalModels] = useState([]);
+    const [localDatasets, setLocalDatasets] = useState<DatasetItem[]>([]);
+    const [localModels, setLocalModels] = useState<ModelItem[]>([]);
 
-    const [selectedPlugins, setSelectedPlugins] = useState({});
+    const [selectedPlugins, setSelectedPlugins] = useState<Record<string, { name: string; version: string }>>({});
 
     const steps = ["Project Name", "Datasets", "Models", "Plugins"];
 
@@ -78,13 +111,14 @@ export default function AddProjectWizard({
         ]);
     };
 
-    const updateDatasetName = (index, name) => {
+    const updateDatasetName = (index: number, name: string) => {
         setLocalDatasets(prev =>
             prev.map((ds, i) => (i === index ? { ...ds, name } : ds))
         );
     };
 
-    const updateDatasetFile = (index, file) => {
+    const updateDatasetFile = (index: number, file: File | undefined) => {
+        if (!file) return;
         setLocalDatasets(prev =>
             prev.map((ds, i) =>
                 i === index ? { ...ds, file, uploaded: true } : ds
@@ -92,7 +126,7 @@ export default function AddProjectWizard({
         );
     };
 
-    const deleteDatasetRow = index => {
+    const deleteDatasetRow = (index: number) => {
         setLocalDatasets(prev => prev.filter((_, i) => i !== index));
     };
 
@@ -103,13 +137,14 @@ export default function AddProjectWizard({
         ]);
     };
 
-    const updateModelName = (index, name) => {
+    const updateModelName = (index: number, name: string) => {
         setLocalModels(prev =>
             prev.map((m, i) => (i === index ? { ...m, name } : m))
         );
     };
 
-    const updateModelFile = (index, file) => {
+    const updateModelFile = (index: number, file: File | undefined) => {
+        if (!file) return;
         setLocalModels(prev =>
             prev.map((m, i) =>
                 i === index ? { ...m, file, uploaded: true } : m
@@ -117,7 +152,7 @@ export default function AddProjectWizard({
         );
     };
 
-    const deleteModelRow = index => {
+    const deleteModelRow = (index: number) => {
         setLocalModels(prev => prev.filter((_, i) => i !== index));
     };
 
