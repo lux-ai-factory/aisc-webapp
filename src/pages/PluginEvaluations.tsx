@@ -2,7 +2,8 @@ import {useQuery} from '@tanstack/react-query'
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {Link} from "react-router-dom";
 import {useProject} from "../context/ProjectContext.tsx";
-import {List, ListItem, Paper, Stack, Tooltip, Typography} from "@mui/material";
+import {Button, List, ListItem, Paper, Stack, Tooltip, Typography} from "@mui/material";
+import AssessmentIcon from '@mui/icons-material/Assessment';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import {Plugin} from "../models/models.tsx";
 
@@ -39,9 +40,20 @@ function PluginEvaluations() {
                 {evaluations && evaluations.map((evaluation: any) => (
                     <ListItem>
                         {SHOW_PLUGIN_VISUALIZATION &&
-                            <Link to={`${evaluation["pid"]}`}>{evaluation["pid"]}</Link>
+                            <Tooltip title={evaluation["pid"]} placement="top">
+                                <Button
+                                    component={Link}
+                                    to={`${evaluation["pid"]}`}
+                                    variant="outlined"
+                                    size="small"
+                                    sx={{ minWidth: 36, px: 1, mr: 2 }}
+                                >
+                                    <AssessmentIcon fontSize="small" sx={{ mr: 0.5 }}/>
+                                    Results
+                                    <CheckCircleIcon color="success" fontSize="small" sx={{ ml: 0.5 }}/>
+                                </Button>
+                            </Tooltip>
                         }
-                        <CheckCircleIcon color="success"/>
                         <Stack direction="row" spacing={2}>
                         {evaluation["evaluation_plugins"] && evaluation["evaluation_plugins"].map((plugin: Plugin) => (
                             <Tooltip title={JSON.stringify(plugin.plugin_config)}>
