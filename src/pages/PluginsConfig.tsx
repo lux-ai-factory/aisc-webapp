@@ -114,7 +114,7 @@ function PluginConfig() {
     return (
         <>
             <Typography component="h2" variant="h4" gutterBottom>
-                Config for plugin: {plugin_name}
+                Config for plugin: {plugin?.display_name || plugin_name}
             </Typography>
 
             <ConfigHistory

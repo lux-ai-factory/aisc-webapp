@@ -56,6 +56,13 @@ function PluginEvaluationsTasks() {
     if (isPending) return <span>Loading...</span>
     if (error) return <span>Oops!</span>
 
+    const evalPluginDisplayNames = (evaluations || []).reduce((acc, eval_: Evaluation) => {
+        const map: Record<string, string> = {};
+        eval_.evaluation_plugins.forEach(p => { map[p.name] = p.display_name; });
+        acc[eval_.pid] = map;
+        return acc;
+    }, {} as Record<string, Record<string, string>>);
+
     let evaluationTasks: EvaluationTask[] = evaluationTaskQueries
         .map(q => q.data!)
 
@@ -74,7 +81,7 @@ function PluginEvaluationsTasks() {
                             <Tooltip title={JSON.stringify(taskProgress.extra)}>
                                 <div key={taskName} style={{display: 'flex', alignItems: 'center', gap: 12}}>
                                     <Typography variant="body2" sx={{minWidth: 220}}>
-                                        {taskName}
+                                        {evalPluginDisplayNames[evaluationTask.evaluation_uuid]?.[taskName] || taskName}
                                     </Typography>
 
                                     <CircularProgressWithLabel value={taskProgress.progress * 100}/>

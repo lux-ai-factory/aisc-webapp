@@ -45,7 +45,7 @@ function PluginEvaluations() {
                         <Stack direction="row" spacing={2}>
                         {evaluation["evaluation_plugins"] && evaluation["evaluation_plugins"].map((plugin: Plugin) => (
                             <Tooltip title={JSON.stringify(plugin.plugin_config)}>
-                                <Paper sx={{ padding: "5px" }}>{plugin.name}</Paper>
+                                <Paper sx={{ padding: "5px" }}>{plugin.display_name}</Paper>
                             </Tooltip>
                         ))}
                         </Stack>
