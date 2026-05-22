@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import Form from '@rjsf/react-bootstrap';
 import validator from '@rjsf/validator-ajv8';
-import React, {useCallback, useRef} from 'react';
+import React, {useCallback, useImperativeHandle, useRef} from 'react';
 import { debounce } from 'lodash';
 import { API_VERSION_PREFIX } from "../../config.tsx";
 import toast from "react-hot-toast";
@@ -31,14 +31,14 @@ const updateConfigDynamics = async ({ pluginPID, config }: { pluginPID: string; 
     return response.json();
 };
 
-function PluginConfigForm({
-                              pluginPID,
-                              formSchema,
-                              uiSchema,
-                              config,
-                              onFormUpdate,
-                              onSubmit
-                          }: PluginConfigFormProps) {
+const PluginConfigForm = React.forwardRef<any, PluginConfigFormProps>(function PluginConfigForm({
+    pluginPID,
+    formSchema,
+    uiSchema,
+    config,
+    onFormUpdate,
+    onSubmit,
+}: PluginConfigFormProps, ref) {
 
     const queryClient = useQueryClient();
     const { projectUUID } = useProject();
@@ -92,6 +92,7 @@ function PluginConfigForm({
     };
 
     const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const formRefInternal = useRef<any>(null);
 
     const handleImportClick = () => {
         fileInputRef.current?.click();
@@ -140,8 +141,15 @@ function PluginConfigForm({
         reader.readAsText(file);
     };
 
+    useImperativeHandle(ref, () => ({
+        submit: () => formRefInternal.current?.submit(),
+        exportJson: handleExportJson,
+        importClick: handleImportClick,
+    }));
+
     return (
         <Form
+            ref={formRefInternal}
             key={pluginPID}
             schema={formSchema}
             uiSchema={uiSchema}
@@ -150,30 +158,16 @@ function PluginConfigForm({
             onChange={handleChange}
             onSubmit={({ formData }) => onSubmit(formData)}
         >
-            <div className="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
-                <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="application/json,.json"
-                    onChange={handleFileSelected}
-                    style={{ display: 'none' }}
-                />
-                <abbr title="Export form data as a JSON file">
-                    <button className="btn btn-outline-secondary" type="button" onClick={handleExportJson}>
-                        Export
-                    </button>
-                </abbr>
-                <abbr title="Import form data from a JSON file">
-                    <button className="btn btn-outline-secondary" type="button" onClick={handleImportClick}>
-                        Import
-                    </button>
-                </abbr>
-                <button className="btn btn-primary" type="submit">
-                    Save Configuration
-                </button>
-            </div>
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/json,.json"
+                onChange={handleFileSelected}
+                style={{ display: 'none' }}
+            />
+            <button type="submit" style={{ display: 'none' }}>Save</button>
         </Form>
     );
-}
+});
 
 export default PluginConfigForm;
