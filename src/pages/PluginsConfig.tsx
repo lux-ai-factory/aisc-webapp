@@ -120,10 +120,11 @@ function PluginConfig() {
 
 
     return (
+
         <Box>
             <Box sx={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3}}>
                 <Typography component="h2" variant="h4">
-                    Config for plugin: {plugin_name}
+                    Config for plugin: {plugin?.display_name || plugin_name}
                 </Typography>
 
                 <Box sx={{display: "flex", gap: 1.5}}>

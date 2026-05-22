@@ -2,7 +2,8 @@ import {useQuery} from '@tanstack/react-query'
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {Link} from "react-router-dom";
 import {useProject} from "../context/ProjectContext.tsx";
-import {List, ListItem, Stack, Tooltip, Typography} from "@mui/material";
+import {Button, List, ListItem, Paper, Stack, Tooltip, Typography} from "@mui/material";
+import AssessmentIcon from '@mui/icons-material/Assessment';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import {Plugin} from "../models/models.tsx";
 import Box from "@mui/material/Box";
@@ -38,69 +39,47 @@ function PluginEvaluations() {
             </Typography>
             <List sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
                 {evaluations && evaluations.map((evaluation: any) => (
-                    <ListItem
-                        key={evaluation.pid}
-                        sx={{
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "flex-start",
-                            gap: 1,
-                            padding: "12px 16px",
-                            borderRadius: "8px",
-                            border: "1px solid rgba(255,255,255,0.15)",
-                            background: "rgba(255,255,255,0.03)",
-                            cursor: "pointer",
-                            transition: "0.15s",
-                            "&:hover": {
-                                background: "rgba(255,255,255,0.08)"
-                            }
-                        }}
-                    >
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                            <CheckCircleIcon sx={{ color: "#00e676" }} />
-
-                            {SHOW_PLUGIN_VISUALIZATION ? (
-                                <Link
-                                    to={`${evaluation.pid}`}
-                                    style={{
-                                        textDecoration: "none",
-                                        fontWeight: 600
+                    <ListItem>
+                        {SHOW_PLUGIN_VISUALIZATION &&
+                            <Tooltip title={evaluation["pid"]} placement="top">
+                                <Button
+                                    component={Link}
+                                    to={`${evaluation["pid"]}`}
+                                    variant="outlined"
+                                    size="small"
+                                    sx={{ minWidth: 36, px: 1, mr: 2 }}
+                                >
+                                    <AssessmentIcon fontSize="small" sx={{ mr: 0.5 }}/>
+                                    Results
+                                    <CheckCircleIcon color="success" fontSize="small" sx={{ ml: 0.5 }}/>
+                                </Button>
+                            </Tooltip>
+                        }
+                        <Stack direction="row" spacing={2}>
+                        {evaluation["evaluation_plugins"] && evaluation["evaluation_plugins"].map((plugin: Plugin) => (
+                            <Tooltip
+                                key={plugin.name}
+                                title={JSON.stringify(plugin.plugin_config, null, 2)}
+                                placement="top"
+                            >
+                                <Box
+                                    sx={{
+                                        padding: "3px 8px",
+                                        borderRadius: "6px",
+                                        background: "#4591FB",
+                                        color: "white",
+                                        fontSize: "0.8rem",
+                                        cursor: "pointer",
+                                        transition: "0.15s",
+                                        "&:hover": {
+                                            background: "#5aa0ff"
+                                        }
                                     }}
                                 >
-                                    {evaluation.pid}
-                                </Link>
-                            ) : (
-                                <Typography sx={{ fontWeight: 600 }}>
-                                    {evaluation.pid}
-                                </Typography>
-                            )}
-                        </Box>
-
-                        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
-                            {evaluation.evaluation_plugins?.map((plugin: Plugin) => (
-                                <Tooltip
-                                    key={plugin.name}
-                                    title={JSON.stringify(plugin.plugin_config, null, 2)}
-                                    placement="top"
-                                >
-                                    <Box
-                                        sx={{
-                                            padding: "3px 8px",
-                                            borderRadius: "6px",
-                                            background: "#4591FB",
-                                            color: "white",
-                                            fontSize: "0.8rem",
-                                            cursor: "pointer",
-                                            transition: "0.15s",
-                                            "&:hover": {
-                                                background: "#5aa0ff"
-                                            }
-                                        }}
-                                    >
-                                        {plugin.name}
-                                    </Box>
-                                </Tooltip>
-                            ))}
+                                    {plugin.display_name}
+                                </Box>
+                            </Tooltip>
+                        ))}
                         </Stack>
                     </ListItem>
                 ))}

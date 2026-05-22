@@ -16,7 +16,7 @@ import {
     AccordionActions,
     AccordionDetails,
     AccordionSummary,
-    Button, Paper,
+    Box, Button, Card, CardContent, Divider, Paper, Tooltip,
     Typography
 } from "@mui/material";
 import GenericCsvDataGrid from "../components/GenericCsvDataGrid.tsx";
@@ -116,160 +116,145 @@ function PluginEvaluationMeasurements() {
         return data ? {...acc, [data.name]: data} : acc;
     }, {} as PluginResultsMap);
 
+    const pluginDisplayNames = (evaluation?.evaluation_plugins || []).reduce((acc: Record<string, string>, p: Plugin) => {
+        acc[p.name] = p.display_name;
+        return acc;
+    }, {} as Record<string, string>);
+
     const pluginResults = Object.keys(pluginMeasurements).reduce((acc, key) => {
         acc[key] = {...pluginMeasurements[key], ...pluginArtifacts[key]};
         return acc;
     }, {} as PluginResultsMap);
 
+    const renderVisualization = (pluginResult: PluginQueryResult, visualization: any) => {
+        const filteredMeasurements = pluginResult.measurements!!.filter(
+            (m: Measurement) => visualization.metrics.includes(m.name)
+        );
+
+        if (filteredMeasurements.length === 0) return null;
+
+        const name = pluginDisplayNames[pluginResult.name] || pluginResult.name;
+        const data = filteredMeasurements;
+
+        switch (visualization.chart_type) {
+            case 'table': return <MeasurementsDataGrid title={`${name} - Table`} data={data} />;
+            case 'line': return <MeasurementsLineChart title={`${name} - Line Chart`} data={data} />;
+            case 'scatter': return <MeasurementsScatterChart title={`${name} - Scatter Chart`} data={data} />;
+            case 'kde': return <MeasurementsKDEChart title={`${name} - KDE Histogram Chart`} data={data} />;
+            case 'bars': return <MeasurementsBarsChart title={`${name} - Bars Chart`} data={data} />;
+            case 'radar': return <MeasurementsRadarChart title={`${name} - Radar Chart`} data={data} />;
+            case 'pie': return <MeasurementsPieChart title={`${name} - Pie Chart`} data={data} />;
+            default: return null;
+        }
+    };
+
+    const renderArtifactPreview = (artifact: any) => {
+        switch (artifact.preview.type) {
+            case '.csv':
+                return <GenericCsvDataGrid data={artifact.preview.data}/>;
+            case '.txt':
+            case '.md':
+                return <GenericTextDataGrid fileUrl={`${API_URL}/files/artifact/${artifact.data}`} />;
+            case '.log':
+                return (
+                    <Paper variant="outlined" sx={{p: 2, backgroundColor: '#f5f5f5', maxHeight: '500px', overflow: 'auto'}}>
+                        <Typography component="pre" variant="body2" sx={{fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-all'}}>
+                            {artifact.preview.data}
+                        </Typography>
+                    </Paper>
+                );
+            case '.png':
+                return (
+                    <Paper sx={{width: 'fit-content', margin: 'auto'}}>
+                        <img src={artifact.preview.data} alt={artifact.artifact_name}/>
+                    </Paper>
+                );
+            case '.pdf':
+                return (
+                    <iframe
+                        title={artifact.artifact_name}
+                        src={artifact.preview.data}
+                        width="100%"
+                        height="800px"
+                    >
+                        <p>Your browser does not support iframes.</p>
+                    </iframe>
+                );
+            case '.zip':
+                return <ZipFileList files={artifact.preview.data}/>;
+            default:
+                return (
+                    <Typography variant="body2" color="textSecondary" align="center" sx={{py: 2}}>
+                        No preview for this file type ({artifact.preview.type})
+                    </Typography>
+                );
+        }
+    };
+
     return (
-        <div>
-            <h2>Evaluation: {evaluation_uuid}</h2>
+        <Box>
+            <Typography variant="h4" gutterBottom>
+                <Tooltip title={evaluation_uuid} placement="right">
+                    <span>Evaluation:</span>
+                </Tooltip>
+                {evaluation?.dataset && <Typography variant="subtitle1" color="text.secondary">Dataset: {evaluation.dataset.name} | Model: {evaluation.model?.name}</Typography>}
+            </Typography>
 
-            {pluginResults && Object.values(pluginResults).map((pluginResult) => (
-                <div key={pluginResult['name']}>
-                    <hr/>
-                    <h3>Plugin: {pluginResult.name}</h3>
-                    {pluginResult.measurements && pluginResult.measurements.length > 0 && <h4>Measurements</h4>}
-                    {pluginResult.metric_visualizations && pluginResult.metric_visualizations.map((visualization: any, index: number) => {
-                        const filteredMeasurements = pluginResult.measurements!!.filter(
-                            (m: Measurement) => visualization.metrics.includes(m.name)
-                        );
+            {pluginResults && Object.values(pluginResults).map((pluginResult) => {
+                const displayName = pluginDisplayNames[pluginResult.name] || pluginResult.name;
+                const hasMeasurements = pluginResult.measurements && pluginResult.measurements.length > 0;
+                const hasArtifacts = pluginResult.artifacts && pluginResult.artifacts.length > 0;
 
-                        // Skip this visualization if no data
-                        if (filteredMeasurements.length === 0) {
-                            return null;
-                        }
+                return (
+                    <Card key={pluginResult.name} variant="outlined" sx={{mb: 3}}>
+                        <CardContent>
+                            <Typography variant="h5" fontWeight="bold" gutterBottom>
+                                {displayName}
+                            </Typography>
+                            <Divider sx={{ mb: 2 }} />
 
-                        return (
-                            <div key={index}>
-                                {visualization.chart_type === 'table' && (
-                                    <MeasurementsDataGrid
-                                        title={`${pluginResult.name} - Table`}
-                                        data={filteredMeasurements}
-                                    />
-                                )}
-                                {visualization.chart_type === 'line' && (
-                                    <MeasurementsLineChart
-                                        title={`${pluginResult.name} - Line Chart`}
-                                        data={filteredMeasurements}
-                                    />
-                                )}
-                                {visualization.chart_type === 'scatter' && (
-                                    <MeasurementsScatterChart
-                                        title={`${pluginResult.name} - Scatter Chart`}
-                                        data={filteredMeasurements}
-                                    />
-                                )}
-                                {visualization.chart_type === 'kde' && (
-                                    <MeasurementsKDEChart
-                                        title={`${pluginResult.name} - KDE Histogram Chart`}
-                                        data={filteredMeasurements}
-                                    />
-                                )}
-                                {visualization.chart_type === 'bars' && (
-                                    <MeasurementsBarsChart
-                                        title={`${pluginResult.name} - Bars Chart`}
-                                        data={filteredMeasurements}
-                                    />
-                                )}
-                                {visualization.chart_type === 'radar' && (
-                                    <MeasurementsRadarChart
-                                        title={`${pluginResult.name} - Radar Chart`}
-                                        data={filteredMeasurements}
-                                    />
-                                )}
-                                {visualization.chart_type === 'pie' && (
-                                    <MeasurementsPieChart
-                                        title={`${pluginResult.name} - Pie Chart`}
-                                        data={filteredMeasurements}
-                                    />
-                                )}
-                            </div>
-                        );
-                    })}
-                    {pluginResult.artifacts && pluginResult.artifacts!!.length > 0 && <h4>Artifacts</h4>}
-                    {pluginResult.artifacts && pluginResult.artifacts!!.map((artifact: any) => {
-                        // Skip this if no data
-                        if (pluginResult.artifacts!!.length === 0) {
-                            return null;
-                        }
+                            {hasMeasurements && (
+                                <>
+                                    <Typography variant="h6" sx={{mt: 2, mb: 1}} color="primary">
+                                        Measurements
+                                    </Typography>
+                                    <Divider sx={{mb: 2}} />
+                                    {pluginResult.metric_visualizations && pluginResult.metric_visualizations.map(
+                                        (visualization: any, index: number) => (
+                                            <Box key={index} sx={{mb: 2}}>
+                                                {renderVisualization(pluginResult, visualization)}
+                                            </Box>
+                                        )
+                                    )}
+                                </>
+                            )}
 
-                        return (
-                            <Accordion key={artifact.data}>
-                                <AccordionSummary expandIcon={<ExpandMoreIcon/>}>
-                                    <Typography component="span">{artifact.name}</Typography>
-                                </AccordionSummary>
-                                <AccordionDetails>
-                                    {(() => {
-                                        switch (artifact.preview.type) {
-                                            case '.csv':
-                                                return <GenericCsvDataGrid data={artifact.preview.data}/>;
-                                            case '.txt':
-                                            case '.md':
-                                                return <GenericTextDataGrid fileUrl={`${API_URL}/files/artifact/${artifact.data}`} />;
-                                            case '.png':
-                                                return (
-                                                    <Paper sx={{width: 'fit-content', margin: 'auto'}}>
-                                                        <img src={artifact.preview.data} alt={artifact.artifact_name}/>
-                                                    </Paper>
-                                                );
-                                            case '.pdf':
-                                                return (
-                                                    <iframe
-                                                        title={artifact.artifact_name}
-                                                        src={artifact.preview.data}
-                                                        width="100%"
-                                                        height="800px"
-                                                    >
-                                                        <p>Your browser does not support iframes.</p>
-                                                    </iframe>
-                                                );
-                                            case '.zip':
-                                                return <ZipFileList files={artifact.preview.data}/>;
-                                            case '.txt':
-                                            case '.log':
-                                                return (
-                                                    <Paper
-                                                        variant="outlined"
-                                                        sx={{
-                                                            p: 2,
-                                                            backgroundColor: '#f5f5f5',
-                                                            maxHeight: '500px',
-                                                            overflow: 'auto'
-                                                        }}
-                                                    >
-                                                        <Typography
-                                                            component="pre"
-                                                            variant="body2"
-                                                            sx={{
-                                                                fontFamily: 'monospace',
-                                                                whiteSpace: 'pre-wrap',
-                                                                wordBreak: 'break-all'
-                                                            }}
-                                                        >
-                                                            {artifact.preview.data}
-                                                        </Typography>
-                                                    </Paper>
-                                                );
-                                            default:
-                                                return (
-                                                    <Typography variant="body2" color="textSecondary" align="center"
-                                                                sx={{py: 2}}>
-                                                        No preview for this file type ({artifact.preview.type})
-                                                    </Typography>
-                                                );
-                                        }
-                                    })()}
-                                </AccordionDetails>
-                                <AccordionActions>
-                                    <Button onClick={() => handleDownload(artifact.data)}>Download</Button>
-                                </AccordionActions>
-                            </Accordion>
-                        )
-                    })}
-                </div>
-            ))}
-        </div>
+                            {hasArtifacts && (
+                                <>
+                                    <Typography variant="h6" sx={{mt: 3, mb: 1}} color="primary">
+                                        Artifacts
+                                    </Typography>
+                                    <Divider sx={{mb: 2}} />
+                                    {pluginResult.artifacts!!.map((artifact: any) => (
+                                        <Accordion key={artifact.data} sx={{mb: 1}}>
+                                            <AccordionSummary expandIcon={<ExpandMoreIcon/>}>
+                                                <Typography component="span">{artifact.name}</Typography>
+                                            </AccordionSummary>
+                                            <AccordionDetails>
+                                                {renderArtifactPreview(artifact)}
+                                            </AccordionDetails>
+                                            <AccordionActions>
+                                                <Button onClick={() => handleDownload(artifact.data)}>Download</Button>
+                                            </AccordionActions>
+                                        </Accordion>
+                                    ))}
+                                </>
+                            )}
+                        </CardContent>
+                    </Card>
+                );
+            })}
+        </Box>
     )
 }
 

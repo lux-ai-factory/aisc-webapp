@@ -148,6 +148,12 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
     const [pluginDisplayNames, setPluginDisplayNames] = useState<Record<string, string>>({});
     const [hiddenSeriesIds, setHiddenSeriesIds] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
+    const [fontLoaded, setFontLoaded] = useState(false);
+
+    useEffect(() => {
+        document.fonts.ready.then(() => setFontLoaded(true));
+    }, []);
+
     const [runningEvaluations, setRunningEvaluations] = useState<Evaluation[]>([]);
     const [taskProgress, setTaskProgress] = useState<Record<string, Record<string, TaskProgress>>>({});
     const [evaluationPluginStatuses, setEvaluationPluginStatuses] = useState<Record<string, EvaluationPluginStatus[]>>({});
@@ -461,7 +467,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                                         sx={{ p: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}
                                     >
                                         <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 0, flex: "1 1 auto" }}>
-                                            {pluginIcons[p.plugin_name]
+                                            {pluginIcons[p.plugin_name] && fontLoaded
                                                 ? <Icon sx={{ color: theme.palette.primary.main, fontSize: 20, flexShrink: 0 }}>{pluginIcons[p.plugin_name]}</Icon>
                                                 : <ExtensionIcon sx={{ color: theme.palette.primary.main, fontSize: 20, flexShrink: 0 }} />
                                             }
@@ -579,10 +585,10 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                                                                 <Stack spacing={1}>
                                                                     <Stack direction="row" alignItems="center" justifyContent="space-between">
                                                                         <Stack direction="row" alignItems="center" spacing={1}>
-                                                                            {pluginIcons[pluginName]
-                                                                                ? <Icon sx={{ color: theme.palette.primary.main, fontSize: 18 }}>{pluginIcons[pluginName]}</Icon>
-                                                                                : <ExtensionIcon sx={{ color: theme.palette.primary.main, fontSize: 18 }} />
-                                                                            }
+                                                                             {pluginIcons[pluginName] && fontLoaded
+                                                                                 ? <Icon sx={{ color: theme.palette.primary.main, fontSize: 18 }}>{pluginIcons[pluginName]}</Icon>
+                                                                                 : <ExtensionIcon sx={{ color: theme.palette.primary.main, fontSize: 18 }} />
+                                                                             }
                                                                             <Typography variant="body2" fontWeight={600}>
                                                                                 {pluginDisplayNames[pluginName] || pluginName}
                                                                             </Typography>
@@ -683,10 +689,10 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                                         <tr key={`${m.plugin_name}-${m.metric_pid}-${idx}`} style={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
                                             <td style={{ padding: "8px 12px" }}>
                                                  <Chip label={pluginDisplayNames[m.plugin_name.includes('::') ? m.plugin_name.split('::')[1].split(' ')[0] : m.plugin_name] || m.plugin_name} size="small" variant="outlined" icon={
-                                                    pluginIcons[m.plugin_name]
-                                                        ? <Icon sx={{ fontSize: 16 }}>{pluginIcons[m.plugin_name]}</Icon>
-                                                        : <ExtensionIcon />
-                                                } />
+                                                     pluginIcons[m.plugin_name] && fontLoaded
+                                                         ? <Icon sx={{ fontSize: 16 }}>{pluginIcons[m.plugin_name]}</Icon>
+                                                         : <ExtensionIcon />
+                                                 } />
                                             </td>
                                             <td style={{ padding: "8px 12px", fontWeight: 500 }}>{m.metric_name}</td>
                                             <td style={{ padding: "8px 12px" }}>{m.avg_score.toFixed(4)}</td>
