@@ -304,7 +304,7 @@ export default function AddProjectWizard({
                                                     Upload
                                                     <HiddenInput
                                                         type="file"
-                                                        accept=".csv"
+                                                        accept="*/*"
                                                         onChange={e =>
                                                             updateDatasetFile(
                                                                 index,
