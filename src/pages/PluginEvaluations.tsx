@@ -60,7 +60,6 @@ function PluginEvaluations() {
                             <Tooltip
                                 key={plugin.name}
                                 title={JSON.stringify(plugin.plugin_config, null, 2)}
-                                placement="top"
                             >
                                 <Box
                                     sx={{
