@@ -96,52 +96,6 @@
 }
 
 
-.plugin-hidden-checkbox {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.plugin-card {
-  width: 50%;
-  position: relative;
-  padding: 16px 20px;
-  margin: 12px 0;
-  border-radius: 12px;
-  cursor: pointer;
-
-  background: white;
-  border: 3px solid #4591FB;
-
-  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease,
-  border-color 0.2s ease;
-
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.plugin-card.enabled {
-  background: linear-gradient(135deg, #4591FB, #0048ff);
-  color: white;
-  border: 3px solid #00e676;
-}
-
-.plugin-label {
-  font-size: 16px;
-  font-weight: 500;
-  color: #0b1b3b;
-}
-
-.plugin-card.enabled .plugin-label {
-  color: white;
-}
-
-.plugin-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-
 
 .plugin-eval-card {
   /*width: 50%;*/

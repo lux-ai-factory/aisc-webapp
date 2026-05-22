@@ -1,7 +1,15 @@
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {useProject} from '../context/ProjectContext';
-import {Icon, Typography} from "@mui/material";
+import {
+    Box,
+    Card,
+    CardContent,
+    Chip,
+    Icon,
+    Typography,
+} from "@mui/material";
+import Grid from "@mui/material/Grid2";
 import {Plugin, Package} from "../models/models.tsx";
 import React from "react";
 import {getPlugins, getProject} from "../api/api.tsx";
@@ -49,7 +57,7 @@ const deleteProjectPlugins = async (project_uuid: string, package_name: string, 
 
     await fetch(`${API_URL}/plugins`, {
         method: 'DELETE',
-                headers: {
+        headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify(data),
@@ -112,19 +120,31 @@ function Plugins() {
                 Available Packages
             </Typography>
 
-            <div>
+            <Grid container spacing={2}>
                 {projectPackages.map((pkg: ProjectPackage) => {
                     const isEnabled = Boolean(pkg.enabled);
-                    {/* const isConfigured = true; // TODO: if config exists later */}
                     const inputId = `pkg-${pkg.package_name}-${pkg.version}`;
 
                     return (
-                        <div
+                        <Grid
+                            size={{xs: 12, sm: 6, md: 4, lg: 3}}
                             key={`${pkg.package_name}-${pkg.version}-${pkg.source}`}
-                            style={{ display: "flex", gap: 20 }}
                         >
-                            <div
-                                className={`plugin-card ${isEnabled ? "enabled" : ""}`}
+                            <Card
+                                sx={{
+                                    position: 'relative',
+                                    cursor: 'pointer',
+                                    border: 2,
+                                    borderColor: isEnabled ? 'primary.main' : 'grey.200',
+                                    background: isEnabled
+                                        ? 'linear-gradient(135deg, rgba(69, 145, 251, 0.15), rgba(0, 52, 255, 0.1))'
+                                        : 'white',
+                                    transition: 'all 0.2s ease',
+                                    '&:hover': {
+                                        boxShadow: 4,
+                                        borderColor: isEnabled ? 'primary.main' : 'grey.300',
+                                    },
+                                }}
                                 onClick={() => {
                                     const input = document.getElementById(inputId) as HTMLInputElement;
                                     input?.click();
@@ -142,47 +162,40 @@ function Plugins() {
                                             pkg.version
                                         )
                                     }
-                                    className="plugin-hidden-checkbox"
+                                    style={{display: 'none'}}
                                 />
 
-                                <span className="plugin-label">
-                                {pkg.package_name} ({pkg.version})
-                                    {pkg.source === "local" ? " [local]" : ""}
-                            </span>
+                                <CardContent sx={{display: 'flex', alignItems: 'flex-start', gap: 1.5}}>
+                                    <Box sx={{flex: 1}}>
+                                        <Typography variant="subtitle1" fontWeight={600} color="text.primary">
+                                            {pkg.package_name}
+                                        </Typography>
 
-                                {isEnabled && (
-                                    <Icon sx={{color: "#00e676"}}>check_circle</Icon>
-                                )}
-                            </div>
+                                        <Box sx={{display: 'flex', gap: 0.5, mt: 0.5, flexWrap: 'wrap'}}>
+                                            <Chip
+                                                label={`v${pkg.version}`}
+                                                size="small"
+                                                variant="outlined"
+                                                color="default"
+                                            />
+                                            <Chip
+                                                label={pkg.source}
+                                                size="small"
+                                                color={pkg.source === 'local' ? 'info' : 'default'}
+                                                variant={pkg.source === 'local' ? 'filled' : 'outlined'}
+                                            />
+                                        </Box>
+                                    </Box>
 
-                            {/*{isEnabled && (*/}
-                            {/*    <Badge*/}
-                            {/*        color="error"*/}
-                            {/*        badgeContent={!isConfigured ? "!" : null}*/}
-                            {/*        overlap="circular"*/}
-                            {/*        anchorOrigin={{ vertical: "top", horizontal: "right" }}*/}
-                            {/*        sx={{ paddingTop: 2.5, marginTop: 1.5 }}*/}
-                            {/*    >*/}
-                            {/*        <Icon*/}
-                            {/*            style={{*/}
-                            {/*                cursor: "pointer",*/}
-                            {/*                color: isConfigured ? "#4591FB" : "red"*/}
-                            {/*            }}*/}
-                            {/*            onClick={(e) => {*/}
-                            {/*                e.stopPropagation();*/}
-                            {/*                navigate(*/}
-                            {/*                    `/projects/${projectName}/packages/${pkg.package_name}/${pkg.version}`*/}
-                            {/*                );*/}
-                            {/*            }}*/}
-                            {/*        >*/}
-                            {/*            settings*/}
-                            {/*        </Icon>*/}
-                            {/*    </Badge>*/}
-                            {/*)}*/}
-                        </div>
+                                    {isEnabled && (
+                                        <Icon sx={{color: 'success.main', alignSelf: 'center'}}>check_circle</Icon>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </Grid>
                     );
                 })}
-            </div>
+            </Grid>
         </>
     );
 
