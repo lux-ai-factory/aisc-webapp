@@ -2,7 +2,7 @@ import {useQuery} from '@tanstack/react-query'
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {Link} from "react-router-dom";
 import {useProject} from "../context/ProjectContext.tsx";
-import {Button, List, ListItem, Paper, Stack, Tooltip, Typography} from "@mui/material";
+import {Button, List, ListItem, Stack, Tooltip, Typography} from "@mui/material";
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import {Plugin} from "../models/models.tsx";
