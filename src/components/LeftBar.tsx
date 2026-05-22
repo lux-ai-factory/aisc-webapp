@@ -150,6 +150,7 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
     const {data: project} = useQuery({
         queryKey: ['project', projectUUID, 'withIcons'],
         queryFn: () => getProject(projectUUID ?? ""),
+        enabled: !!projectUUID,
     })
 
     let pluginMenuHeader = { text: 'Plugins', icon: <ExtensionIcon />, target: `/projects/${projectName}/plugins` }
@@ -173,7 +174,11 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
             sx={{
                 width: drawerWidth,
                 flexShrink: 0,
-                [`& .MuiDrawer-paper`]: { width: drawerWidth, boxSizing: 'border-box' },
+                [`& .MuiDrawer-paper`]: {
+                    width: drawerWidth,
+                    boxSizing: 'border-box',
+                    borderRight: projectUUID ? undefined : 'none',
+                },
             }}
         >
             <Toolbar />
