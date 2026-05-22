@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { API_VERSION_PREFIX } from "../config.tsx";
 import { useProject } from "../context/ProjectContext.tsx";
-import {Button, FormGroup, Typography, Box, Icon} from "@mui/material";
+import {Button, Typography, Box, Icon} from "@mui/material";
+import Grid from "@mui/material/Grid2";
 import { useState } from "react";
 import { Plugin, PluginInputValue } from "../models/models.tsx";
 import toast from "react-hot-toast";
@@ -18,7 +19,6 @@ type SelectedPluginsState = {
 const createEvaluation = async (project_uuid: string, selectedPlugins: SelectedPluginsState) => {
     if (!project_uuid) throw new Error('Invalid uuid');
 
-    // Transform state to the format expected by the backend
     const plugins_to_run = Object.entries(selectedPlugins).map(([name, inputs]) => ({name, inputs}));
 
     const data = {
@@ -49,6 +49,8 @@ const createEvaluation = async (project_uuid: string, selectedPlugins: SelectedP
 export default function PluginStartEvaluation() {
     const { projectUUID } = useProject();
     const [selectedPlugins, setSelectedPlugins] = useState<SelectedPluginsState>({});
+    const [activePlugin, setActivePlugin] = useState<string | null>(null);
+    const [validPlugins, setValidPlugins] = useState<Record<string, boolean>>({});
 
     const { data: project, isPending, error } = useQuery({
         queryKey: ['project', projectUUID],
@@ -60,15 +62,19 @@ export default function PluginStartEvaluation() {
     if (error) return <span>Oops! Something went wrong.</span>;
 
     const handleTogglePlugin = (pluginName: string) => {
-        setSelectedPlugins(prev => {
-            const newState = { ...prev };
-            if (newState[pluginName]) {
+        if (activePlugin === pluginName && selectedPlugins[pluginName]) {
+            setActivePlugin(null);
+            setSelectedPlugins(prev => {
+                const newState = { ...prev };
                 delete newState[pluginName];
-            } else {
-                newState[pluginName] = [];
+                return newState;
+            });
+        } else {
+            setActivePlugin(pluginName);
+            if (!selectedPlugins[pluginName]) {
+                setSelectedPlugins(prev => ({ ...prev, [pluginName]: [] }));
             }
-            return newState;
-        });
+        }
     };
 
     const handleUpdateSetting = (pluginName: string, item: PluginInputValue | null, inputName: string) => {
@@ -82,11 +88,13 @@ export default function PluginStartEvaluation() {
 
     const handleOnClick = async () => {
         if (!projectUUID) return;
-        await createEvaluation(projectUUID, selectedPlugins);
+        const validEntries = Object.entries(selectedPlugins).filter(([name]) => validPlugins[name]);
+        if (validEntries.length === 0) return;
+        await createEvaluation(projectUUID, Object.fromEntries(validEntries));
     };
 
     return (
-        <Box>
+        <Box onClick={() => setActivePlugin(null)}>
             <Box sx={{display: "flex", justifyContent: "space-between", marginBottom: 5}}>
                 <Typography component="h2" variant="h4" gutterBottom>
                     Start an Evaluation
@@ -95,7 +103,7 @@ export default function PluginStartEvaluation() {
                 <Button
                     variant="contained"
                     onClick={handleOnClick}
-                    disabled={Object.keys(selectedPlugins).length === 0}
+                    disabled={Object.values(validPlugins).filter(Boolean).length === 0}
                     sx={{
                         borderRadius: "10px",
                         fontSize: "1rem",
@@ -119,20 +127,23 @@ export default function PluginStartEvaluation() {
                 </Button>
             </Box>
 
-            <FormGroup>
+            <Grid container spacing={2}>
                 {project?.plugins.map((projectPlugin: Plugin) => (
-                    <PluginEvaluationForm
-                        key={projectPlugin.pid}
-                        plugin={projectPlugin}
-                        isSelected={!!selectedPlugins[projectPlugin.name]}
-                        selections={selectedPlugins[projectPlugin.name] || []}
-                        onToggle={() => handleTogglePlugin(projectPlugin.name)}
-                        onSelectionChange={(item, inputName) =>
-                            handleUpdateSetting(projectPlugin.name, item, inputName)
-                        }
-                    />
+                    <Grid key={projectPlugin.pid} size={{ xs: 12, lg: 6 }}>
+                        <PluginEvaluationForm
+                            plugin={projectPlugin}
+                            isConfigured={!!selectedPlugins[projectPlugin.name]}
+                            isActive={activePlugin === projectPlugin.name}
+                            selections={selectedPlugins[projectPlugin.name] || []}
+                            onToggle={() => handleTogglePlugin(projectPlugin.name)}
+                            onSelectionChange={(item, inputName) =>
+                                handleUpdateSetting(projectPlugin.name, item, inputName)
+                            }
+                            onValidationChange={(valid) => setValidPlugins(prev => ({ ...prev, [projectPlugin.name]: valid }))}
+                        />
+                    </Grid>
                 ))}
-            </FormGroup>
+            </Grid>
         </Box>
     );
 }
