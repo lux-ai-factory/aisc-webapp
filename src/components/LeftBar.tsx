@@ -117,9 +117,14 @@ const getProject = async (project_uuid: string) => {
 };
 
 const getDisplayIcon = async (plugin_pid: string) => {
-    if (!plugin_pid) throw new Error('Invalid plugin PID');
-    const res = await fetch(`${API_URL}/plugins/${plugin_pid}/display_icon`);
-    return await res.json() as string;
+    if (!plugin_pid) return 'extension';
+    try {
+        const res = await fetch(`${API_URL}/plugins/${plugin_pid}/display_icon`);
+        if (!res.ok) return 'extension';
+        return await res.json() as string;
+    } catch {
+        return 'extension';
+    }
 };
 
 /**

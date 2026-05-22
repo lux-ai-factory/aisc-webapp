@@ -148,16 +148,18 @@ const ProjectSelector: React.FC<{
     const [wizardOpen, setWizardOpen] = useState(false);
 
     return (
-        <ThemeProvider theme={darkTheme}>
-            <Button
-                variant="contained"
-                color="primary"
-                onClick={() => setWizardOpen(true)}
-                className="add-project-btn"
-            >
-                <span className="icon"><Icon>add</Icon></span>
-                <span className="label">ADD PROJECT</span>
-            </Button>
+        <>
+            <ThemeProvider theme={darkTheme}>
+                <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={() => setWizardOpen(true)}
+                    className="add-project-btn"
+                >
+                    <span className="icon"><Icon>add</Icon></span>
+                    <span className="label">ADD PROJECT</span>
+                </Button>
+            </ThemeProvider>
 
             <AddProjectWizard
                 open={wizardOpen}
@@ -170,7 +172,7 @@ const ProjectSelector: React.FC<{
                 fetchModels={fetchModels}
                 fetchPlugins={fetchPlugins}
             />
-        </ThemeProvider>
+        </>
     );
 };
 
@@ -202,18 +204,7 @@ const TopBar: React.FC = () => {
             source: p.source
         }));
 
-        // Fetch display icons for each plugin
-        const withIcons = await Promise.all(
-            normalized.map(async (p: { name: string }) => {
-                const icon = await apiCall(`/plugins/${p.name}/display_icon`);
-                return {
-                    ...p,
-                    display_icon: icon || "extension"
-                };
-            })
-        );
-
-        setPlugins(withIcons);
+        setPlugins(normalized);
     };
 
 
@@ -237,8 +228,6 @@ const TopBar: React.FC = () => {
         if (!newProject) return;
 
         setProjects([...projects, newProject]);
-        setProjectUUID(newProject.pid);
-        setProjectName(newProject.name);
 
         // 2. Create DATASETS (exact same as DatasetSettings)
         for (const ds of datasets) {
@@ -296,16 +285,23 @@ const TopBar: React.FC = () => {
             }
         }
 
-        // 4. Enable packages (formerly plugins)
-        for (const key of Object.keys(plugins)) {
+        // 4. Enable all packages in parallel
+        await Promise.all(Object.keys(plugins).map(async (key) => {
             const pkg = plugins[key];
-
-            await apiCall('/plugins', 'POST', {
-                package_name: pkg.name,
-                version: pkg.version,
-                project_uuid: newProject.pid
+            await fetch(`${API_URL}/plugins`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    package_name: pkg.name,
+                    version: pkg.version,
+                    project_uuid: newProject.pid,
+                    config: null
+                }),
             });
-        }
+        }));
+
+        setProjectUUID(newProject.pid);
+        setProjectName(newProject.name);
 
         // 5. Navigate
         navigate(`/projects/${newProject.name}/plugins`);

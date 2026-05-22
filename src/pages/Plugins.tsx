@@ -6,13 +6,27 @@ import {
     Card,
     CardContent,
     Chip,
+    Divider,
     Icon,
+    Switch,
     Typography,
 } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import {Plugin, Package} from "../models/models.tsx";
 import React from "react";
 import {getPlugins, getProject} from "../api/api.tsx";
+
+class PluginErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
+    constructor(props: {children: React.ReactNode}) {
+        super(props);
+        this.state = {hasError: false};
+    }
+    static getDerivedStateFromError() { return {hasError: true}; }
+    render() {
+        if (this.state.hasError) return <Typography color="error" sx={{p: 2}}>Failed to render plugin list</Typography>;
+        return this.props.children;
+    }
+}
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -21,6 +35,7 @@ interface ProjectPackage {
     version: string;
     source: string;
     enabled: boolean;
+    plugins: Plugin[];
 }
 
 const createProjectPlugins = async (project_uuid: string, package_name: string, version: string) => {
@@ -57,13 +72,10 @@ const deleteProjectPlugins = async (project_uuid: string, package_name: string, 
 
     await fetch(`${API_URL}/plugins`, {
         method: 'DELETE',
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
     });
 };
-
 
 function Plugins() {
     const queryClient = useQueryClient();
@@ -83,21 +95,25 @@ function Plugins() {
     if (error) return <span>Oops!</span>
 
     const projectPackages: ProjectPackage[] = packages.map((pkg: Package) => {
-        const enabled = project?.plugins?.some((projectPkg: any) => {
+        const packagePlugins = project?.plugins?.filter((projectPkg: any) => {
             return (
                 projectPkg.package_name === pkg.package_name &&
                 projectPkg.version === pkg.version
             )
-        });
+        }) ?? [];
 
         return {
             package_name: pkg.package_name,
             version: pkg.version,
             source: pkg.source,
-            enabled: enabled ?? false
+            enabled: packagePlugins.length > 0,
+            plugins: packagePlugins.filter((pl: Plugin) => pl.pid),
         };
     });
 
+    const refreshProjectQueries = () => {
+        queryClient.invalidateQueries({queryKey: ['project']});
+    };
 
     const handleChange = async (
         event: React.ChangeEvent<HTMLInputElement>,
@@ -110,9 +126,8 @@ function Plugins() {
         } else {
             await deleteProjectPlugins(pid, package_name, version)
         }
-        await queryClient.invalidateQueries({queryKey: ['project']});
+        refreshProjectQueries();
     };
-
 
     return (
         <>
@@ -127,19 +142,23 @@ function Plugins() {
 
                     return (
                         <Grid
-                            size={{xs: 12, sm: 6, md: 4, lg: 3}}
+                            size={{xs: 12, sm: 12, md: 6, lg: 4, xl: 3}}
                             key={`${pkg.package_name}-${pkg.version}-${pkg.source}`}
                         >
                             <Card
                                 sx={{
                                     position: 'relative',
                                     cursor: 'pointer',
-                                    border: 2,
+                                    minWidth: 250,
+                                    border: '2px solid',
                                     borderColor: isEnabled ? 'primary.main' : 'grey.200',
                                     background: isEnabled
                                         ? 'linear-gradient(135deg, rgba(69, 145, 251, 0.15), rgba(0, 52, 255, 0.1))'
                                         : 'white',
                                     transition: 'all 0.2s ease',
+                                    height: '100%',
+                                    display: 'flex',
+                                    flexDirection: 'column',
                                     '&:hover': {
                                         boxShadow: 4,
                                         borderColor: isEnabled ? 'primary.main' : 'grey.300',
@@ -171,7 +190,7 @@ function Plugins() {
                                             {pkg.package_name}
                                         </Typography>
 
-                                        <Box sx={{display: 'flex', gap: 0.5, mt: 0.5, flexWrap: 'wrap'}}>
+                                        <Box sx={{display: 'flex', gap: 0.5, mt: 0.5, flexWrap: 'wrap', alignItems: 'center'}}>
                                             <Chip
                                                 label={`v${pkg.version}`}
                                                 size="small"
@@ -184,13 +203,67 @@ function Plugins() {
                                                 color={pkg.source === 'local' ? 'info' : 'default'}
                                                 variant={pkg.source === 'local' ? 'filled' : 'outlined'}
                                             />
+                                            {isEnabled && (
+                                                <Chip
+                                                    label={`${pkg.plugins.length} plugin${pkg.plugins.length > 1 ? 's' : ''}`}
+                                                    size="small"
+                                                    color="primary"
+                                                    variant="outlined"
+                                                />
+                                            )}
                                         </Box>
                                     </Box>
 
                                     {isEnabled && (
-                                        <Icon sx={{color: 'success.main', alignSelf: 'center'}}>check_circle</Icon>
+                                        <Icon sx={{color: 'success.main', alignSelf: 'center', fontSize: 24}}>
+                                            check_circle
+                                        </Icon>
                                     )}
                                 </CardContent>
+
+                                <PluginErrorBoundary>
+                                    {isEnabled && pkg.plugins.length > 0 && (
+                                        <Box sx={{px: 2, pb: 1.5, mt: -0.5}} onClick={e => e.stopPropagation()}>
+                                            <Divider sx={{mb: 1}} />
+                                            <Typography variant="caption" color="text.secondary" sx={{mb: 0.5, display: 'block'}}>
+                                                Plugins:
+                                            </Typography>
+                                            {pkg.plugins.map((plugin) => {
+                                                const pluginDisplayName = plugin.display_name;
+                                                const pluginName = plugin.name;
+                                                return (
+                                                    <Box
+                                                        key={plugin.pid ?? Math.random()}
+                                                        sx={{
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'space-between',
+                                                            py: 0.3,
+                                                            px: 0.5,
+                                                            borderRadius: 1,
+                                                            '&:hover': {bgcolor: 'action.hover'},
+                                                        }}
+                                                    >
+                                                        <Typography
+                                                            variant="body2"
+                                                            noWrap
+                                                            sx={{cursor: 'default', flex: 1}}
+                                                        >
+                                                            {pluginDisplayName ?? pluginName ?? 'Unknown'}
+                                                        </Typography>
+
+                                                        <Box sx={{display: 'flex', alignItems: 'center', gap: 0.25}}>
+                                                            <Switch
+                                                                size="small"
+                                                                checked
+                                                            />
+                                                        </Box>
+                                                    </Box>
+                                                );
+                                            })}
+                                        </Box>
+                                    )}
+                                </PluginErrorBoundary>
                             </Card>
                         </Grid>
                     );
