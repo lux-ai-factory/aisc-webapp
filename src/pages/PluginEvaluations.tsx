@@ -6,6 +6,7 @@ import {Button, List, ListItem, Paper, Stack, Tooltip, Typography} from "@mui/ma
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import {Plugin} from "../models/models.tsx";
+import Box from "@mui/material/Box";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -36,7 +37,7 @@ function PluginEvaluations() {
             <Typography component="h2" variant="h4" gutterBottom>
                 Completed Evaluations:
             </Typography>
-            <List>
+            <List sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
                 {evaluations && evaluations.map((evaluation: any) => (
                     <ListItem>
                         {SHOW_PLUGIN_VISUALIZATION &&
@@ -56,8 +57,27 @@ function PluginEvaluations() {
                         }
                         <Stack direction="row" spacing={2}>
                         {evaluation["evaluation_plugins"] && evaluation["evaluation_plugins"].map((plugin: Plugin) => (
-                            <Tooltip title={JSON.stringify(plugin.plugin_config)}>
-                                <Paper sx={{ padding: "5px" }}>{plugin.display_name}</Paper>
+                            <Tooltip
+                                key={plugin.name}
+                                title={JSON.stringify(plugin.plugin_config, null, 2)}
+                                placement="top"
+                            >
+                                <Box
+                                    sx={{
+                                        padding: "3px 8px",
+                                        borderRadius: "6px",
+                                        background: "#4591FB",
+                                        color: "white",
+                                        fontSize: "0.8rem",
+                                        cursor: "pointer",
+                                        transition: "0.15s",
+                                        "&:hover": {
+                                            background: "#5aa0ff"
+                                        }
+                                    }}
+                                >
+                                    {plugin.display_name}
+                                </Box>
                             </Tooltip>
                         ))}
                         </Stack>

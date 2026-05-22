@@ -27,7 +27,7 @@ const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
  */
 interface MenuListProps {
     title: string,
-    items: { text: string, icon: React.ReactNode, target: string }[]
+    items: { text: string, icon: React.ReactNode, target: string, nested?: boolean, needsConfig?: boolean }[]
 }
 
 /**
@@ -43,24 +43,58 @@ function MenuList(props: MenuListProps) {
 
     const location = useLocation().pathname;
 
-    return (<List>
+    return (
+        <List>
 
-        {props.title && (
-            <ListItem>
-                <ListItemText primary={props.title} />
-            </ListItem>
-        )}
-        {props.items.map((item, index) => (
-            <ListItem key={index} disablePadding>
-                <ListItemButton component={Link} to={item.target} selected={location === item.target}>
-                    <ListItemIcon>
-                        {item.icon}
-                    </ListItemIcon>
-                    <ListItemText primary={item.text} />
-                </ListItemButton>
-            </ListItem>
-        ))}
-    </List>);
+            {props.title && (
+                <ListItem>
+                    <ListItemText primary={props.title} />
+                </ListItem>
+            )}
+
+            {props.items.map((item, index) => (
+                <ListItem
+                    key={index}
+                    disablePadding
+                    sx={{
+                        pl: item.nested ? 4 : 0
+                    }}
+                >
+                    <ListItemButton
+                        component={Link}
+                        to={item.target}
+                        selected={location === item.target}
+                        sx={{
+                            opacity: item.nested ? 0.85 : 1,
+                            '&:hover': { opacity: 1 },
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center"
+                        }}
+                    >
+                        <Box sx={{ display: "flex", alignItems: "center" }}>
+                            <ListItemIcon sx={{ minWidth: item.nested ? 36 : 40 }}>
+                                {item.icon}
+                            </ListItemIcon>
+
+                            <ListItemText
+                                primary={item.text}
+                                primaryTypographyProps={{
+                                    fontSize: item.nested ? 14 : 16,
+                                }}
+                            />
+                        </Box>
+
+                        {item.needsConfig && (
+                            <Icon sx={{ color: "red"}}>error</Icon>
+                        )}
+                    </ListItemButton>
+
+                </ListItem>
+            ))}
+
+        </List>
+    )
 }
 
 /**
@@ -83,9 +117,14 @@ const getProject = async (project_uuid: string) => {
 };
 
 const getDisplayIcon = async (plugin_pid: string) => {
-    if (!plugin_pid) throw new Error('Invalid plugin PID');
-    const res = await fetch(`${API_URL}/plugins/${plugin_pid}/display_icon`);
-    return await res.json() as string;
+    if (!plugin_pid) return 'extension';
+    try {
+        const res = await fetch(`${API_URL}/plugins/${plugin_pid}/display_icon`);
+        if (!res.ok) return 'extension';
+        return await res.json() as string;
+    } catch {
+        return 'extension';
+    }
 };
 
 /**
@@ -111,12 +150,19 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
     const {data: project} = useQuery({
         queryKey: ['project', projectUUID, 'withIcons'],
         queryFn: () => getProject(projectUUID ?? ""),
+        enabled: !!projectUUID,
     })
 
     let pluginMenuHeader = { text: 'Plugins', icon: <ExtensionIcon />, target: `/projects/${projectName}/plugins` }
 
     let pluginsMenuItems = project?.plugins.map((plugin: Plugin) => {
-        return {text: plugin.display_name, icon: <Icon>{plugin.display_icon}</Icon>, target: `/projects/${projectName}/plugins/${plugin.name}`}
+        return {
+            text: plugin.display_name,
+            icon: <Icon>{plugin.display_icon}</Icon>,
+            target: `/projects/${projectName}/plugins/${plugin.name}`,
+            nested: true,
+            needsConfig: plugin.config === null
+        }
     }) ?? []
 
 
@@ -128,7 +174,11 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
             sx={{
                 width: drawerWidth,
                 flexShrink: 0,
-                [`& .MuiDrawer-paper`]: { width: drawerWidth, boxSizing: 'border-box' },
+                [`& .MuiDrawer-paper`]: {
+                    width: drawerWidth,
+                    boxSizing: 'border-box',
+                    borderRight: projectUUID ? undefined : 'none',
+                },
             }}
         >
             <Toolbar />
@@ -156,12 +206,12 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
                         ]}
                     />
                     <Divider />
-                    <MenuList
-                        title="Tasks"
-                        items={[
-                            { text: 'Tasks', icon: <Icon>directions_run</Icon>, target: `/projects/${projectName}/plugins/evaluations/tasks` },
-                        ]}
-                    />
+                    {/*<MenuList*/}
+                    {/*    title="Tasks"*/}
+                    {/*    items={[*/}
+                    {/*        { text: 'Tasks', icon: <Icon>directions_run</Icon>, target: `/projects/${projectName}/plugins/evaluations/tasks` },*/}
+                    {/*    ]}*/}
+                    {/*/>*/}
 
                 </Box>
             }

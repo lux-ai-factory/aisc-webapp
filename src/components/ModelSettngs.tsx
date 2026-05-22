@@ -129,6 +129,7 @@ const UploadModel = ({ model, onUploadSuccess }: UploadModelProps) => {
                 {uploading ? "Uploading..." : "Upload ONNX"}
                 <VisuallyHiddenInput
                     type="file"
+                    accept=".onnx"
                     onChange={handleFileChange}
                 />
             </Button>
