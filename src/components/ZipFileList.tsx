@@ -11,6 +11,7 @@ import {
 } from '@mui/material';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import React from "react";
+import { ZippedFile } from '../models/models.tsx';
 
 const formatFileSize = (bytes: number) => {
     if (!bytes || bytes === 0) return '0 Bytes';
@@ -21,7 +22,7 @@ const formatFileSize = (bytes: number) => {
 };
 
 interface ZipFileListProps {
-  files: File[];
+  files: ZippedFile[];
 }
 
 export const ZipFileList: React.FC<ZipFileListProps> = ({ files }) => {
