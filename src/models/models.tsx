@@ -92,14 +92,14 @@ export interface MetricVisualization {
     metrics: string[];
 }
 
-interface File {
+export interface ZippedFile {
     file_name: string;
     file_size: number;
 }
 
 export interface ArtifactPreview {
   type: string;
-  data: string | string[][] | File[] | undefined;
+  data: string | string[][] | ZippedFile[] | undefined;
 }
 
 export interface Artifact {

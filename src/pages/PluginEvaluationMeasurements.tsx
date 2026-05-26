@@ -2,7 +2,7 @@ import {useQuery, useQueries} from '@tanstack/react-query'
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {useParams} from "react-router-dom";
 import MeasurementsLineChart from "../components/plugin/MeasurementsLineChart.tsx";
-import {Artifact, Measurement, MetricVisualization, PluginFeatureFlags, File} from "../models/models.tsx";
+import {Artifact, Measurement, MetricVisualization, PluginFeatureFlags, ZippedFile} from "../models/models.tsx";
 import MeasurementsDataGrid from "../components/plugin/MeasurementsDataGrid.tsx";
 import MeasurementsScatterChart from "../components/plugin/MeasurementsScatterChart.tsx";
 import MeasurementsRadarChart from "../components/plugin/MeasurementsRadarChart.tsx";
@@ -98,7 +98,7 @@ function PluginEvaluationMeasurements() {
     const measurementQueries = useQueries({
         queries: (evaluation?.evaluation_plugins || []).map((eval_plugin: Plugin) => ({
             queryKey: ['pluginMeasurements', evaluation_uuid, eval_plugin.pid],
-            queryFn: () => getEvaluationMeasurements(eval_plugin.pid, eval_plugin.name, evaluation_uuid ?? "", eval_plugin.plugin_pid || ""),
+            queryFn: () => getEvaluationMeasurements(eval_plugin.pid, eval_plugin.name, evaluation_uuid ?? "", eval_plugin.pid || ""),
             enabled: !!evaluation_uuid && !!eval_plugin.pid
         }))
     })
@@ -241,7 +241,7 @@ function PluginEvaluationMeasurements() {
                                                     </iframe>
                                                 );
                                             case '.zip':
-                                                return <ZipFileList files={artifact.preview.data as File[]}/>;
+                                                return <ZipFileList files={artifact.preview.data as ZippedFile[]}/>;
                                             case '.log':
                                                 return (
                                                     <Paper
