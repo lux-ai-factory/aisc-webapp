@@ -128,9 +128,7 @@ const MetricCard: React.FC<MetricCardProps> = ({
                 height: "100%",
                 display: "flex",
                 flexDirection: "column",
-                minWidth: 250,
-                maxWidth: 350,
-                mx: "auto",
+                width: "100%",
                 boxSizing: "border-box",
             }}
         >

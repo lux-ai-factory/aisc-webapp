@@ -1,0 +1,53 @@
+.add-project-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /*I've been trying many colors but can't figure out an accent color so leaving the default for now*/
+    /*background-color: #23CE6B;*/
+
+    background: linear-gradient(135deg, #4591FB, #0034ff) !important;
+    color: white !important;
+
+    height: 48px;
+    width: 48px;
+    min-width: 0 !important;
+
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+
+    border-radius: 999px !important;
+    overflow: hidden;
+    white-space: nowrap;
+
+    transition: width 0.25s ease, gap 0.25s ease;
+}
+
+.add-project-btn:hover {
+    width: 180px;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    gap: 8px;
+    background: linear-gradient(135deg, #4591FB, #0048ff) !important;
+}
+
+.add-project-btn .icon {
+    font-size: 26px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.add-project-btn .label {
+    opacity: 0;
+    width: 0;
+    overflow: hidden;
+    transform: translateX(-10px);
+    transition: opacity 0.2s ease, transform 0.2s ease, width 0.25s ease;
+}
+
+.add-project-btn:hover .label {
+    opacity: 1;
+    width: auto;
+    transform: translateX(0);
+}

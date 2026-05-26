@@ -3,11 +3,11 @@ import {API_VERSION_PREFIX} from "../config.tsx";
 import {useProject} from '../context/ProjectContext';
 import {useParams} from "react-router-dom";
 import PluginConfigForm from "../components/plugin/PluginConfigForm.tsx";
-import {useEffect, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {DataObject, ProjectPluginConfigState} from "../models/models.tsx";
 import toast from 'react-hot-toast';
 import {getPluginFeatureFlags, getProject} from "../api/api.tsx";
-import {InputLabel, MenuItem, Select, SelectChangeEvent, Typography} from "@mui/material";
+import {InputLabel, MenuItem, Select, SelectChangeEvent, Typography, Box, Button, Icon} from "@mui/material";
 import InfoBanner from "../components/InfoBanner.tsx";
 import ConfigHistory from "../components/plugin/ConfigHistory.tsx";
 
@@ -95,6 +95,8 @@ function PluginConfig() {
 
     const isPending = isProjectPending || isProjectPluginConfigStatePending;
 
+    const formRef = useRef<any>(null);
+
     if (isPending) return <span>Loading...</span>
     if (error) return <span>Oops!</span>
 
@@ -108,14 +110,62 @@ function PluginConfig() {
 
     const onSubmit = async (data: object) => {
         await postPluginConfig(plugin_pid ?? "", data);
+
+        // Refresh config history
         await queryClient.invalidateQueries({ queryKey: ['pluginConfigHistory', plugin_pid] });
-    }
+
+        // Refresh project so LeftBar updates instantly
+        await queryClient.invalidateQueries({ queryKey: ['project', projectUUID] });
+    };
+
 
     return (
-        <>
-            <Typography component="h2" variant="h4" gutterBottom>
-                Config for plugin: {plugin_name}
-            </Typography>
+
+        <Box>
+            <Box sx={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3}}>
+                <Typography component="h2" variant="h4">
+                    Config for plugin: {plugin?.display_name || plugin_name}
+                </Typography>
+
+                <Box sx={{display: "flex", gap: 1.5}}>
+                    <Button
+                        variant="outlined"
+                        startIcon={<Icon>file_download</Icon>}
+                        sx={{borderRadius: "10px", textTransform: "none", fontSize: "0.9rem", fontWeight: 600}}
+                        onClick={() => formRef.current?.exportJson()}
+                    >
+                        Export
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        startIcon={<Icon>file_upload</Icon>}
+                        sx={{borderRadius: "10px", textTransform: "none", fontSize: "0.9rem", fontWeight: 600}}
+                        onClick={() => formRef.current?.importClick()}
+                    >
+                        Import
+                    </Button>
+                    <Button
+                        variant="contained"
+                        startIcon={<Icon>save</Icon>}
+                        sx={{
+                            borderRadius: "10px",
+                            fontSize: "0.9rem",
+                            fontWeight: 600,
+                            textTransform: "none",
+                            gap: 1,
+                            background: "linear-gradient(135deg, #4A8CFF, #00e676)",
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                            "&:hover": {
+                                background: "linear-gradient(135deg, #5A9CFF, #00e676)",
+                                boxShadow: "0 6px 16px rgba(0,0,0,0.25)"
+                            }
+                        }}
+                        onClick={() => formRef.current?.submit()}
+                    >
+                        Save Configuration
+                    </Button>
+                </Box>
+            </Box>
 
             <ConfigHistory
                 pluginPID={plugin_pid ?? ""}
@@ -140,6 +190,7 @@ function PluginConfig() {
 
             {configState && plugin_pid &&
                 <PluginConfigForm
+                    ref={formRef}
                     key={plugin_pid + projectUUID}
                     pluginPID={plugin_pid}
                     formSchema={configState.formSchema}
@@ -149,7 +200,7 @@ function PluginConfig() {
                     onSubmit={onSubmit}
                 />
             }
-        </>
+        </Box>
     )
 }
 
