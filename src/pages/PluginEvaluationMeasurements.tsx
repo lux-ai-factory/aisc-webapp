@@ -2,13 +2,14 @@ import {useQuery, useQueries} from '@tanstack/react-query'
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {useParams} from "react-router-dom";
 import MeasurementsLineChart from "../components/plugin/MeasurementsLineChart.tsx";
-import {Measurement} from "../models/models.tsx";
+import {Artifact, Measurement, MetricVisualization, PluginFeatureFlags, File} from "../models/models.tsx";
 import MeasurementsDataGrid from "../components/plugin/MeasurementsDataGrid.tsx";
 import MeasurementsScatterChart from "../components/plugin/MeasurementsScatterChart.tsx";
 import MeasurementsRadarChart from "../components/plugin/MeasurementsRadarChart.tsx";
 import MeasurementsKDEChart from "../components/plugin/MeasurementsKDEChart.tsx";
 import MeasurementsBarsChart from "../components/plugin/MeasurementsBarsChart.tsx";
 import MeasurementsPieChart from "../components/plugin/MeasurementsPieChart.tsx";
+import MeasurementsExplorer from "../components/plugin/MeasurementsExplorer.tsx";
 import ZipFileList from "../components/ZipFileList.tsx";
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import {
@@ -27,9 +28,12 @@ const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
 interface PluginQueryResult {
     name: string;
+    pid?: string;
+    plugin_pid?: string;
     measurements?: Measurement[];
-    metric_visualizations?: any[];
-    artifacts?: any[];
+    metric_visualizations?: MetricVisualization[];
+    artifacts?: Artifact[];
+    feature_flags?: PluginFeatureFlags;
 }
 
 type PluginResultsMap = Record<string, PluginQueryResult>;
@@ -42,7 +46,7 @@ const getEvaluation = async (uuid: string) => {
     return await res.json();
 };
 
-const getEvaluationMeasurements = async (evaluation_plugin_pid: string, plugin_name: string, evaluation_uuid: string) => {
+const getEvaluationMeasurements = async (evaluation_plugin_pid: string, plugin_name: string, evaluation_uuid: string, plugin_pid: string) => {
     if (!evaluation_plugin_pid) throw new Error('Invalid evaluation plugin PID');
     if (!evaluation_uuid) throw new Error('Invalid uuid');
 
@@ -50,10 +54,17 @@ const getEvaluationMeasurements = async (evaluation_plugin_pid: string, plugin_n
     if (!res.ok) throw new Error('Network response was not ok');
     const data = await res.json()
 
+    // Fetch feature flags
+    const ffRes = await fetch(`${API_URL}/plugins/${plugin_pid}/feature_flags`);
+    const feature_flags = ffRes.ok ? await ffRes.json() : null;
+
     return {
         name: plugin_name,
+        pid: evaluation_plugin_pid,
+        plugin_pid: plugin_pid,
         measurements: data.measurements,
-        metric_visualizations: data.metric_visualizations
+        metric_visualizations: data.metric_visualizations,
+        feature_flags
     }
 };
 
@@ -87,7 +98,7 @@ function PluginEvaluationMeasurements() {
     const measurementQueries = useQueries({
         queries: (evaluation?.evaluation_plugins || []).map((eval_plugin: Plugin) => ({
             queryKey: ['pluginMeasurements', evaluation_uuid, eval_plugin.pid],
-            queryFn: () => getEvaluationMeasurements(eval_plugin.pid, eval_plugin.name, evaluation_uuid ?? ""),
+            queryFn: () => getEvaluationMeasurements(eval_plugin.pid, eval_plugin.name, evaluation_uuid ?? "", eval_plugin.plugin_pid || ""),
             enabled: !!evaluation_uuid && !!eval_plugin.pid
         }))
     })

@@ -58,8 +58,9 @@ export interface PluginConfig {
 }
 
 export interface PluginFeatureFlags {
-    can_parse_config_from_dataset: boolean
-    extra: object
+    can_parse_config_from_dataset: boolean;
+    show_dimensions_visualisation: boolean;
+    extra: object;
 }
 
 export interface PluginInputDefinition {
@@ -82,7 +83,29 @@ export interface Measurement {
     score: number;
     time: string;
     error?: string | null;
-    feature_pid?: string | null;
+    dimensions?: Record<string, string | number | boolean>;
+    created_at: string;
+}
+
+export interface MetricVisualization {
+    chart_type: string;
+    metrics: string[];
+}
+
+interface File {
+    file_name: string;
+    file_size: number;
+}
+
+export interface ArtifactPreview {
+  type: string;
+  data: string | string[][] | File[] | undefined;
+}
+
+export interface Artifact {
+  preview: ArtifactPreview;
+  name: string;
+  data: string;
 }
 
 // Stats types
