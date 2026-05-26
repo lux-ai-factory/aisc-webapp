@@ -63,3 +63,74 @@ export const getProjectPluginDurations = async (projectPid: string): Promise<{ r
     return await res.json();
 };
 
+// Measurements Aggregation API
+
+export const getEvaluationDimensionKeys = async (
+    evaluationPid: string, 
+    evaluationPluginPid?: string,
+    metricName?: string
+): Promise<{ keys: string[] }> => {
+    const res = await fetch(`${API_URL}/evaluations/${evaluationPid}/measurements/dimension-keys`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            evaluation_plugin_pid: evaluationPluginPid,
+            metric_name: metricName
+        }),
+    });
+    if (!res.ok) throw new Error('Failed to fetch dimension keys');
+    return await res.json();
+};
+
+export const getEvaluationDimensionValues = async (
+    evaluationPid: string, 
+    key: string,
+    evaluationPluginPid?: string,
+    metricName?: string
+): Promise<{ key: string, values: any[] }> => {
+    const res = await fetch(`${API_URL}/evaluations/${evaluationPid}/measurements/dimension-values/${key}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            evaluation_plugin_pid: evaluationPluginPid,
+            metric_name: metricName
+        }),
+    });
+    if (!res.ok) throw new Error('Failed to fetch dimension values');
+    return await res.json();
+};
+
+export const getEvaluationMetricNames = async (
+    evaluationPid: string,
+    evaluationPluginPid?: string
+): Promise<{ names: string[] }> => {
+    const res = await fetch(`${API_URL}/evaluations/${evaluationPid}/measurements/metric-names`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            evaluation_plugin_pid: evaluationPluginPid
+        }),
+    });
+    if (!res.ok) throw new Error('Failed to fetch metric names');
+    return await res.json();
+}
+
+export const aggregateEvaluationMeasurements = async (evaluationPid: string, aggregationRequest: {
+    evaluation_plugin_pid?: string,
+    plugin_name?: string,
+    metric_name?: string,
+    group_by?: string[],
+    filters?: Record<string, any>,
+    aggregations?: string[]
+}): Promise<{ results: any[] }> => {
+    const res = await fetch(`${API_URL}/evaluations/${evaluationPid}/measurements/aggregate`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(aggregationRequest),
+    });
+    if (!res.ok) throw new Error('Failed to aggregate measurements');
+    return await res.json();
+};
+

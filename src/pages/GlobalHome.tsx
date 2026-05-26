@@ -43,10 +43,16 @@ const ProjectsList = () => {
             <Typography component="h3" variant="h5" gutterBottom>
                 Projects
             </Typography>
-            <List>
+            {/*I would add more information to the project list, like creation date*/}
+            {/*Also I'm not a fan of leaving the empty left bar when on project list, to be thought about later*/}
+            <List className="project-list">
                 {projects.map((project) => (
                     <ListItem key={project.pid} disablePadding>
-                        <Link href={`/projects/${project.name}`} underline="hover">
+                        <Link
+                            href={`/projects/${project.name}`}
+                            underline="none"
+                            className="project-card"
+                        >
                             {project.name}
                         </Link>
                     </ListItem>
@@ -68,9 +74,10 @@ const ProjectsList = () => {
 const GlobalHome = () => {
     return (
         <>
-            <Typography component="h2" variant="h4" gutterBottom>
-                AI Assessment Sandbox
-            </Typography>
+            {/*I remove this for now because we already have the same title in top toolbar*/}
+            {/*<Typography component="h2" variant="h4" gutterBottom>*/}
+            {/*    AI Assessment Sandbox*/}
+            {/*</Typography>*/}
 
             <ProjectsList/>
 

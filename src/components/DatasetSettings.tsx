@@ -134,6 +134,7 @@ const UploadDataset = ({dataset, onUploadSuccess}: UploadDatasetProps) => {
                 {uploading ? "Uploading..." : "Upload files"}
                 <VisuallyHiddenInput
                     type="file"
+                    accept="*/*"
                     onChange={handleFileChange}
                 />
             </Button>

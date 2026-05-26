@@ -27,3 +27,13 @@ export const formatDate = (isoString: string) => {
 };
 
 export const getColorFromIndex = (index: number) => MODERN_COLORS[index % MODERN_COLORS.length];
+
+
+export const getColorFromString = (key: string): string => {
+    let hash = 0;
+    for (let i = 0; i < key.length; i++) {
+        hash = key.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % MODERN_COLORS.length;
+    return MODERN_COLORS[index];
+};
