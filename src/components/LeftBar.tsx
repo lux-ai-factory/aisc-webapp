@@ -206,13 +206,6 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
                         ]}
                     />
                     <Divider />
-                    {/*<MenuList*/}
-                    {/*    title="Tasks"*/}
-                    {/*    items={[*/}
-                    {/*        { text: 'Tasks', icon: <Icon>directions_run</Icon>, target: `/projects/${projectName}/plugins/evaluations/tasks` },*/}
-                    {/*    ]}*/}
-                    {/*/>*/}
-
                 </Box>
             }
         </Drawer >)
