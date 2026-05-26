@@ -21,6 +21,9 @@ import PluginEvaluations from "./pages/PluginEvaluations.tsx";
 import PluginEvaluationMeasurements from "./pages/PluginEvaluationMeasurements.tsx";
 import PluginEvaluationsTasks from "./pages/PluginEvaluationsTasks.tsx";
 import RecommendationsPage from "./pages/Recommendations.tsx";
+import './App.css';
+// I must add this for files to take it into consideration
+
 
 /** Width of the left drawer in pixels */
 const drawerWidth = 320;
