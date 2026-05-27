@@ -2,7 +2,7 @@ import {useQuery, useQueries} from '@tanstack/react-query'
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {useParams} from "react-router-dom";
 import MeasurementsLineChart from "../components/plugin/MeasurementsLineChart.tsx";
-import {Artifact, Measurement, MetricVisualization, PluginFeatureFlags, ZippedFile} from "../models/models.tsx";
+import {Artifact, Measurement, MetricVisualization, PluginFeatureFlags} from "../models/models.tsx";
 import MeasurementsDataGrid from "../components/plugin/MeasurementsDataGrid.tsx";
 import MeasurementsScatterChart from "../components/plugin/MeasurementsScatterChart.tsx";
 import MeasurementsRadarChart from "../components/plugin/MeasurementsRadarChart.tsx";
@@ -98,7 +98,7 @@ function PluginEvaluationMeasurements() {
     const measurementQueries = useQueries({
         queries: (evaluation?.evaluation_plugins || []).map((eval_plugin: Plugin) => ({
             queryKey: ['pluginMeasurements', evaluation_uuid, eval_plugin.pid],
-            queryFn: () => getEvaluationMeasurements(eval_plugin.pid, eval_plugin.name, evaluation_uuid ?? "", eval_plugin.pid || ""),
+            queryFn: () => getEvaluationMeasurements(eval_plugin.pid, eval_plugin.name, evaluation_uuid ?? "", eval_plugin.plugin_pid || ""),
             enabled: !!evaluation_uuid && !!eval_plugin.pid
         }))
     })
@@ -215,6 +215,7 @@ function PluginEvaluationMeasurements() {
                 const displayName = pluginDisplayNames[pluginResult.name] || pluginResult.name;
                 const hasMeasurements = pluginResult.measurements && pluginResult.measurements.length > 0;
                 const hasArtifacts = pluginResult.artifacts && pluginResult.artifacts.length > 0;
+                const showDimensionsVisualisation = pluginResult.feature_flags?.show_dimensions_visualisation
 
                 return (
                     <Card key={pluginResult.name} variant="outlined" sx={{mb: 3}}>
@@ -223,6 +224,10 @@ function PluginEvaluationMeasurements() {
                                 {displayName}
                             </Typography>
                             <Divider sx={{ mb: 2 }} />
+
+                            {showDimensionsVisualisation && (
+                                <MeasurementsExplorer evaluationPid={evaluation_uuid!!} evaluationPluginPid={pluginResult.pid} />
+                            )}
 
                             {hasMeasurements && (
                                 <>
