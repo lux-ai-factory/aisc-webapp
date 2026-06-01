@@ -31,6 +31,7 @@ export interface Plugin {
     package_name: string;
     version: string;
     display_name: string;
+    plugin_pid: string;
 }
 
 export interface TaskProgress {
