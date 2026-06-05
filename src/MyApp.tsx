@@ -10,7 +10,7 @@ import StartEvaluation from './pages/StartEvaluation';
 import SettingsPage from './pages/Settings';
 import GlobalHome from './pages/GlobalHome';
 import ProjectHome from './pages/ProjectHome';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
 import { useProject } from './context/ProjectContext';
 import { API_VERSION_PREFIX } from './config';
@@ -25,8 +25,9 @@ import './App.css';
 // I must add this for files to take it into consideration
 
 
-/** Width of the left drawer in pixels */
+/** Width of the left drawer in pixels (expanded / collapsed) */
 const drawerWidth = 320;
+const collapsedWidth = 72;
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
 
@@ -91,11 +92,14 @@ export default function PermanentDrawerLeft() {
         { id: 12, name: 'Recommendations', path: '/projects/:project_name/recommendations', element: <ProjectContextWrapper><RecommendationsPage /></ProjectContextWrapper> },
         { id: 10, name: 'Plugin Evaluations Tasks', path: '/projects/:project_name/plugins/evaluations/tasks', element: <ProjectContextWrapper><PluginEvaluationsTasks /></ProjectContextWrapper> }
     ];
+    const [collapsed, setCollapsed] = useState(false);
+    const effectiveWidth = collapsed ? collapsedWidth : drawerWidth;
+
     return (
         <Box sx={{ display: 'flex', flexDirection: 'row' }}>
             <CssBaseline />
             <TopBar />
-            <LeftBar drawerWidth={drawerWidth} />
+            <LeftBar drawerWidth={effectiveWidth} collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} />
             <Box
                 component="main"
                 sx={{
@@ -108,7 +112,7 @@ export default function PermanentDrawerLeft() {
                     alignItems: 'left',
                     maxWidth: 'lg',
                     margin: '0 auto',
-                    width: `calc(100% - ${drawerWidth}px)`,
+                    width: `calc(100% - ${effectiveWidth}px)`,
                     minWidth: 0,
                     overflow: 'hidden',
                 }}
