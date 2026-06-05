@@ -15,6 +15,7 @@ import Grid from "@mui/material/Grid2";
 import {Plugin, Package} from "../models/models.tsx";
 import React, {useState} from "react";
 import {getPlugins, getProject} from "../api/api.tsx";
+import toast from "react-hot-toast";
 
 class PluginErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
     constructor(props: {children: React.ReactNode}) {
@@ -145,14 +146,19 @@ function Plugins() {
         if (pendingPackages[packageKey]) return;
         setPendingPackages(prev => ({...prev, [packageKey]: true}));
 
-        if (event.target.checked) {
-            await createProjectPlugins(pid, package_name, version)
-        } else {
-            await deleteProjectPlugins(pid, package_name, version)
+        try {
+            if (event.target.checked) {
+                await createProjectPlugins(pid, package_name, version)
+            } else {
+                await deleteProjectPlugins(pid, package_name, version)
+            }
+        } catch (err) {
+            const message = 'Could not update package state.';
+            toast.error(message, { position: 'bottom-right' });
+        } finally {
+            setPendingPackages(prev => ({...prev, [packageKey]: false}));
+            await refreshProjectQueries();
         }
-
-        setPendingPackages(prev => ({...prev, [packageKey]: false}));
-        await refreshProjectQueries();
     };
 
     // Handler for toggling individual plugin state
@@ -160,10 +166,15 @@ function Plugins() {
         if (pendingPlugins[plugin.pid]) return;
         setPendingPlugins(prev => ({...prev, [plugin.pid]: true}));
 
-        await updatePluginEnabled(plugin.pid, !plugin.enabled);
-
-        setPendingPlugins(prev => ({...prev, [plugin.pid]: false}));
-        await refreshProjectQueries();
+        try {
+            await updatePluginEnabled(plugin.pid, !plugin.enabled);
+        } catch (err) {
+            const message = 'Could not update plugin state.';
+            toast.error(message, { position: 'bottom-right' });
+        } finally {
+            setPendingPlugins(prev => ({...prev, [plugin.pid]: false}));
+            await refreshProjectQueries();
+        }
     };
 
     return (
