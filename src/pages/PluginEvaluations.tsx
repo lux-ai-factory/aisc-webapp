@@ -1,12 +1,15 @@
 import {useQuery} from '@tanstack/react-query'
+import {useState} from 'react';
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {Link} from "react-router-dom";
 import {useProject} from "../context/ProjectContext.tsx";
-import {Button, List, ListItem, Stack, Tooltip, Typography} from "@mui/material";
+import {Box, Button, IconButton, List, ListItem, Stack, ToggleButton, ToggleButtonGroup, Tooltip, Typography} from "@mui/material";
+import SwapVertIcon from '@mui/icons-material/SwapVert';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import DownloadIcon from '@mui/icons-material/Download';
 import {Plugin} from "../models/models.tsx";
-import Box from "@mui/material/Box";
+import EvaluationProgressList from "../components/EvaluationProgressList.tsx";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -20,8 +23,21 @@ const getDoneEvaluations = async (uuid: string) => {
     return await res.json();
 };
 
+const REPORT_URL = (import.meta.env.VITE_REPORT_URL as string | undefined) ?? '/report';
+
 function PluginEvaluations() {
-    const {projectUUID} = useProject();
+    const {projectUUID, projectName} = useProject();
+    const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+
+    const handleDownloadReport = () => {
+        if (!projectName) return;
+        window.location.href = `${REPORT_URL}/generate?project=${encodeURIComponent(projectName)}`;
+    };
+
+    const handleDownloadEvalReport = (evaluationPid: string) => {
+        if (!projectName || !evaluationPid) return;
+        window.location.href = `${REPORT_URL}/generate?project=${encodeURIComponent(projectName)}&evaluation_pid=${encodeURIComponent(evaluationPid)}`;
+    };
 
     const {data: evaluations, isPending, error} = useQuery({
         queryKey: ['evaluations', projectUUID],
@@ -34,12 +50,47 @@ function PluginEvaluations() {
 
     return (
         <>
-            <Typography component="h2" variant="h4" gutterBottom>
-                Completed Evaluations:
-            </Typography>
+            {projectUUID && <EvaluationProgressList projectUUID={projectUUID} />}
+            <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2}}>
+                <Stack direction="row" spacing={2} alignItems="center">
+                    <Typography component="h2" variant="h4" gutterBottom sx={{mb: 0}}>
+                        Completed Evaluations:
+                    </Typography>
+                    <ToggleButtonGroup
+                        size="small"
+                        exclusive
+                        value={sortOrder}
+                        onChange={(_, val) => { if (val) setSortOrder(val); }}
+                        aria-label="sort order"
+                    >
+                        <ToggleButton value="newest" aria-label="newest first">
+                            <SwapVertIcon fontSize="small" sx={{mr: 0.5}}/> Newest
+                        </ToggleButton>
+                        <ToggleButton value="oldest" aria-label="oldest first">
+                            Oldest
+                        </ToggleButton>
+                    </ToggleButtonGroup>
+                </Stack>
+                <Button
+                    variant="contained"
+                    color="primary"
+                    startIcon={<DownloadIcon/>}
+                    onClick={handleDownloadReport}
+                    disabled={!projectName || !evaluations || evaluations.length === 0}
+                >
+                    Download Report
+                </Button>
+            </Box>
             <List sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                {evaluations && evaluations.map((evaluation: any) => (
-                    <ListItem>
+
+                {evaluations && [...evaluations].sort((a: any, b: any) => sortOrder === 'newest' ? b.id - a.id : a.id - b.id).map((evaluation: any) => (
+                    <ListItem key={evaluation["pid"]} secondaryAction={
+                        <Tooltip title="Download report for this evaluation">
+                            <IconButton edge="end" onClick={() => handleDownloadEvalReport(evaluation["pid"])}>
+                                <DownloadIcon/>
+                            </IconButton>
+                        </Tooltip>
+                    }>
                         {SHOW_PLUGIN_VISUALIZATION &&
                             <Tooltip title={evaluation["pid"]} placement="top">
                                 <Button
