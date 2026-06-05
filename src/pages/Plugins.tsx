@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import {Plugin, Package} from "../models/models.tsx";
-import React from "react";
+import React, {useState} from "react";
 import {getPlugins, getProject} from "../api/api.tsx";
 
 class PluginErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
@@ -38,6 +38,7 @@ interface ProjectPackage {
     plugins: Plugin[];
 }
 
+// Package ON
 const createProjectPlugins = async (project_uuid: string, package_name: string, version: string) => {
     if (!project_uuid) throw new Error('Invalid project uuid');
     if (!package_name) throw new Error('Invalid package name')
@@ -59,6 +60,7 @@ const createProjectPlugins = async (project_uuid: string, package_name: string, 
     return await res.json() as Plugin;
 };
 
+// Package OFF
 const deleteProjectPlugins = async (project_uuid: string, package_name: string, version: string) => {
     if (!project_uuid) throw new Error('Invalid project uuid');
     if (!package_name) throw new Error('Invalid package name')
@@ -77,9 +79,25 @@ const deleteProjectPlugins = async (project_uuid: string, package_name: string, 
     });
 };
 
+// Plugin toggle
+const updatePluginEnabled = async (plugin_pid: string, enabled: boolean) => {
+    if (!plugin_pid) throw new Error('Invalid plugin pid');
+
+    const res = await fetch(`${API_URL}/plugins/${plugin_pid}/enabled`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled }),
+    });
+
+    return await res.json();
+};
+
 function Plugins() {
     const queryClient = useQueryClient();
     const {projectUUID} = useProject();
+    // Pending states to prevent multiple simultaneous requests for the same package or plugin
+    const [pendingPackages, setPendingPackages] = useState<Record<string, boolean>>({});
+    const [pendingPlugins, setPendingPlugins] = useState<Record<string, boolean>>({});
 
     const {data: packages, isPending, error} = useQuery({
         queryKey: ['packages', projectUUID],
@@ -102,11 +120,12 @@ function Plugins() {
             )
         }) ?? [];
 
+        const enabledPluginsCount = packagePlugins.filter(p => p.enabled).length;
         return {
             package_name: pkg.package_name,
             version: pkg.version,
             source: pkg.source,
-            enabled: packagePlugins.length > 0,
+            enabled: enabledPluginsCount > 0,
             plugins: packagePlugins.filter((pl: Plugin) => pl.pid),
         };
     });
@@ -115,17 +134,35 @@ function Plugins() {
         queryClient.invalidateQueries({queryKey: ['project']});
     };
 
+    // Handler for toggling package state
     const handleChange = async (
         event: React.ChangeEvent<HTMLInputElement>,
         pid: string,
         package_name: string,
         version: string,
     ) => {
+        const packageKey = `${package_name}::${version}`;
+        if (pendingPackages[packageKey]) return;
+        setPendingPackages(prev => ({...prev, [packageKey]: true}));
+
         if (event.target.checked) {
             await createProjectPlugins(pid, package_name, version)
         } else {
             await deleteProjectPlugins(pid, package_name, version)
         }
+
+        setPendingPackages(prev => ({...prev, [packageKey]: false}));
+        refreshProjectQueries();
+    };
+
+    // Handler for toggling individual plugin state
+    const handlePluginToggle = async (plugin: Plugin) => {
+        if (pendingPlugins[plugin.pid]) return;
+        setPendingPlugins(prev => ({...prev, [plugin.pid]: true}));
+
+        await updatePluginEnabled(plugin.pid, !plugin.enabled);
+
+        setPendingPlugins(prev => ({...prev, [plugin.pid]: false}));
         refreshProjectQueries();
     };
 
@@ -139,6 +176,8 @@ function Plugins() {
                 {projectPackages.map((pkg: ProjectPackage) => {
                     const isEnabled = Boolean(pkg.enabled);
                     const inputId = `pkg-${pkg.package_name}-${pkg.version}`;
+                    const packageKey = `${pkg.package_name}::${pkg.version}`;
+                    const isPackagePending = Boolean(pendingPackages[packageKey]);
 
                     return (
                         <Grid
@@ -165,6 +204,7 @@ function Plugins() {
                                     },
                                 }}
                                 onClick={() => {
+                                    if (isPackagePending) return;
                                     const input = document.getElementById(inputId) as HTMLInputElement;
                                     input?.click();
                                 }}
@@ -173,6 +213,7 @@ function Plugins() {
                                     id={inputId}
                                     type="checkbox"
                                     checked={isEnabled}
+                                    disabled={isPackagePending}
                                     onChange={(e) =>
                                         handleChange(
                                             e,
@@ -231,6 +272,7 @@ function Plugins() {
                                             {pkg.plugins.map((plugin) => {
                                                 const pluginDisplayName = plugin.display_name;
                                                 const pluginName = plugin.name;
+                                                const isPluginPending = Boolean(pendingPlugins[plugin.pid]);
                                                 return (
                                                     <Box
                                                         key={plugin.pid ?? Math.random()}
@@ -255,7 +297,10 @@ function Plugins() {
                                                         <Box sx={{display: 'flex', alignItems: 'center', gap: 0.25}}>
                                                             <Switch
                                                                 size="small"
-                                                                checked
+                                                                checked={plugin.enabled}
+                                                                disabled={isPackagePending || isPluginPending}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                onChange={() => handlePluginToggle(plugin)}
                                                             />
                                                         </Box>
                                                     </Box>
