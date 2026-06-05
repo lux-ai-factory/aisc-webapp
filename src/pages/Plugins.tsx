@@ -130,8 +130,8 @@ function Plugins() {
         };
     });
 
-    const refreshProjectQueries = () => {
-        queryClient.invalidateQueries({queryKey: ['project']});
+    const refreshProjectQueries = async () => {
+        await queryClient.invalidateQueries({queryKey: ['project']});
     };
 
     // Handler for toggling package state
@@ -152,7 +152,7 @@ function Plugins() {
         }
 
         setPendingPackages(prev => ({...prev, [packageKey]: false}));
-        refreshProjectQueries();
+        await refreshProjectQueries();
     };
 
     // Handler for toggling individual plugin state
@@ -163,7 +163,7 @@ function Plugins() {
         await updatePluginEnabled(plugin.pid, !plugin.enabled);
 
         setPendingPlugins(prev => ({...prev, [plugin.pid]: false}));
-        refreshProjectQueries();
+        await refreshProjectQueries();
     };
 
     return (
