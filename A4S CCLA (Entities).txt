@@ -1,6 +1,6 @@
 # Contributor License Agreement (CLA) – Corporate ("Agreement")
 
-**Project**: VERA – AI Assessment for Safety and Sustainability
+**Project**: AISC – AI Assessment Sandbox
 **Hosting Institution**: Université du Luxembourg  
 **Unit**: Serval Research Group, Interdisciplinary Centre for Security, Reliability and Trust (SnT)
 

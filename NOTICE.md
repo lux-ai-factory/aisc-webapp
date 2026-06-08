@@ -1,6 +1,6 @@
 # NOTICE
 
-This product includes software, originally developed as the **VERA** project, by Maxime Cordy and Thibault Simonetto, at the **Université du Luxembourg**, **Interdisciplinary Centre for Security, Reliability and Trust (SnT)**, **SerVal Research Group**.
+This product includes software, originally developed as the A4S project, by Maxime Cordy and Thibault Simonetto, at the Universite du Luxembourg, Interdisciplinary Centre for Security, Reliability and Trust (SnT), SerVal Research Group.
 
 © 2024–2025 Université du Luxembourg. All rights reserved.  
 
