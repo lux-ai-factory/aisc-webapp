@@ -29,6 +29,12 @@ export default function PluginEvaluationForm({
     const { projectUUID } = useProject();
     const [selectedConfig, setSelectedConfig] = useState<number | null>(null);
 
+    const { data: displayIcon } = useQuery({
+        queryKey: ['pluginDisplayIcon', plugin.pid],
+        queryFn: () => fetch(`${API_URL}/plugins/${plugin.pid}/display_icon`).then(r => r.ok ? r.json() : Promise.resolve('extension')),
+        enabled: !!plugin.pid,
+    });
+
     const { data: inputDefinitions, isPending: isDefinitionsPending } = useQuery({
         queryKey: ['inputDefinitions', plugin.pid],
         queryFn: () => getPluginInputDefinitions(plugin.pid),
@@ -96,6 +102,9 @@ export default function PluginEvaluationForm({
         >
             <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+                    <Icon sx={{ fontSize: 32, color: 'primary.main', alignSelf: 'center' }}>
+                        {displayIcon}
+                    </Icon>
                     <Box sx={{ flex: 1 }}>
                         <Typography variant="subtitle1" fontWeight={600} color="text.primary">
                             {plugin.display_name || plugin.name}

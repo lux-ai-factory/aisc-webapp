@@ -121,6 +121,7 @@ const getProject = async (project_uuid: string) => {
     const res = await fetch(`${API_URL}/projects/${project_uuid}`);
     const project = await res.json() as Project;
     for (const plugin of project.plugins) {
+        if (!plugin.enabled) continue;
         plugin.display_icon = await getDisplayIcon(plugin.pid)
     }
     return project;
@@ -165,7 +166,7 @@ export default function LeftBar({ drawerWidth, collapsed, onToggle }: LeftBarPro
 
     let pluginMenuHeader = { text: 'Plugins', icon: <ExtensionIcon />, target: `/projects/${projectName}/plugins` }
 
-    let pluginsMenuItems = project?.plugins.map((plugin: Plugin) => {
+    let pluginsMenuItems = (project?.plugins ?? []).filter(p => p.enabled).map((plugin: Plugin) => {
         return {
             text: plugin.display_name,
             icon: <Icon>{plugin.display_icon}</Icon>,

@@ -66,7 +66,7 @@ const ProjectsList = () => {
 
 /**
  * Home page component
- * Main dashboard page of the VERA application
+ * Main dashboard page of the AISC application
  * Displays the dashboard title and a summary table of metrics
  *
  * @returns {JSX.Element} The home page with dashboard title and summary table
