@@ -1,17 +1,75 @@
-# VERA Web
+# AISC Web Frontend
 
-## About enviornment variables
+This is the React-based frontend for the AI Assessment Sandbox (AISC) platform. It provides a graphical interface for managing AI model evaluation projects, configuring plugins, running evaluations, and inspecting results.
 
-By default, vite as a system to manage environment variables.
+## Architecture
 
-Environment variables are defined in `.env` files, which are loaded based on the mode you are running.
-The default mode is `development`, so the `.env.development` file will be loaded when running `npm run dev`.
-The default mode when building is `production`, so the `.env.production` file will be loaded when running `npm run build`.
+The application is a single-page application (SPA) with a permanent left navigation drawer. It communicates with the AISC backend API (Django-based) via REST endpoints under `/api/v1/`. The API base URL is configured through the `VITE_API_URL` environment variable.
 
-Read more here: https://vite.dev/guide/env-and-mode.
+## Development
 
-Because we only run whitin docker, in production mode, all variables in the `.env.production` file are place holders where `VITE_XXX` is replaced with `APP_XXX` for the `npm run build` command.
+### Prerequisites
 
-When you start the production docker container the entrypoint script `env.sh` will replace the `APP_XXX` variables with the values from the environment variables set in the docker container.
+- Node.js 22+
+- npm
 
-Please do not change the name of the `.env.XXX` files as this will break autodiscovery of the environment variables of Vite.js.
+### Setup
+
+```bash
+npm install
+```
+
+### Run development server
+
+```bash
+npm run dev
+```
+
+This starts Vite in development mode. It loads environment variables from `.env.development` by default.
+
+### Build for production
+
+```bash
+npm run build
+```
+
+### Lint
+
+```bash
+npm run lint
+```
+
+## Environment Variables
+
+Vite loads environment variables from `.env` files based on the current mode. See [Vite Env and Mode](https://vite.dev/guide/env-and-mode) for details.
+
+Key variables:
+
+| Variable | Description |
+|---|---|
+| `VITE_API_URL` | Base URL of the AISC backend API |
+| `VITE_SHOW_PLUGIN_VISUALIZATION` | Boolean flag to enable/disable plugin visualization links |
+
+### Docker / Production Notes
+
+In production, the application is served via Nginx inside a Docker container. All `VITE_XXX` placeholders in the built JavaScript files are replaced at container startup by the `env.sh` entrypoint script, which substitutes corresponding `APP_XXX` environment variables.
+
+## Docker
+
+Two Dockerfiles are provided:
+
+- **Dockerfile** — Multi-stage build for production: builds with Node.js, serves with Nginx
+- **Dockerfile.dev** — Development-specific Docker build
+
+## Related Repositories
+
+This frontend is part of the [AISC](https://github.com/lux-ai-factory/aisc) monorepo, which also includes:
+
+- **apps/backend** — Django REST API backend
+- **apps/eval** — Celery worker for running evaluations
+- **shared/plugin-interface** — Plugin interface specification
+- **shared/plugin-manager** — Plugin discovery and loading library
+
+## License
+
+This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE) for details.
