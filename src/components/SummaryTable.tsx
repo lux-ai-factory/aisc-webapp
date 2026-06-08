@@ -17,29 +17,19 @@ import CategoryIcon from "@mui/icons-material/Category";
 import SettingsIcon from "@mui/icons-material/Settings";
 import DatasetIcon from "@mui/icons-material/Dataset";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
-import { PieChart } from "@mui/x-charts";
-import { LineChart } from "@mui/x-charts/LineChart";
 import {
     getProjectStatsOverview,
     getProjectMetricBreakdown,
     getProjectPluginUsage,
-    getProjectPluginDurations,
 } from "../api/api";
 import { API_VERSION_PREFIX } from "../config";
 import {
     ProjectStatsOverview,
     MetricScoreSummary,
     PluginUsageSummary,
-    PluginRunDuration,
     Evaluation,
     TaskProgress,
 } from "../models/models";
-
-import {
-    toggleHidden,
-    computeYDomainFromVisible,
-    computeXIndexBoundsFromVisible,
-} from "./plugin/ChartUtils";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -51,15 +41,6 @@ const formatDuration = (seconds: number | null): string => {
     const m = Math.floor(seconds / 60);
     const s = Math.round(seconds % 60);
     return `${m}m ${s}s`;
-};
-
-const STATUS_COLORS: Record<string, string> = {
-    Done: "#4caf50",
-    Failed: "#f44336",
-    Processing: "#2196f3",
-    Pending: "#ff9800",
-    Archived: "#9e9e9e",
-    Custom: "#9c27b0",
 };
 
 // ─── Stat Card ─────────────────────────────────────────────
@@ -143,10 +124,8 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
     const [overview, setOverview] = useState<ProjectStatsOverview | null>(null);
     const [metrics, setMetrics] = useState<MetricScoreSummary[]>([]);
     const [plugins, setPlugins] = useState<PluginUsageSummary[]>([]);
-    const [pluginDurations, setPluginDurations] = useState<PluginRunDuration[]>([]);
     const [pluginIcons, setPluginIcons] = useState<Record<string, string>>({});
     const [pluginDisplayNames, setPluginDisplayNames] = useState<Record<string, string>>({});
-    const [hiddenSeriesIds, setHiddenSeriesIds] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [fontLoaded, setFontLoaded] = useState(false);
 
@@ -196,17 +175,15 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
             fetchWithFallback(() => getProjectStatsOverview(projectPid), emptyOverview),
             fetchWithFallback(() => getProjectMetricBreakdown(projectPid), { metrics: [] }),
             fetchWithFallback(() => getProjectPluginUsage(projectPid), { plugins: [] }),
-            fetchWithFallback(() => getProjectPluginDurations(projectPid), { runs: [] }),
             fetchWithFallback(async () => {
                 const res = await fetch(`${API_URL}/projects/${projectPid}`);
                 return await res.json() as { plugins: { name: string; pid: string; display_name: string }[] };
             }, { plugins: [] }),
         ])
-            .then(async ([ov, mt, pl, dur, project]) => {
+            .then(async ([ov, mt, pl, project]) => {
                 setOverview(ov);
                 setMetrics(mt.metrics);
                 setPlugins(pl.plugins);
-                setPluginDurations(dur.runs);
                 setLoading(false);
 
                 // Build name → pid map from the project's plugin list
@@ -329,51 +306,6 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
 
     if (!overview) return null;
 
-    // ── Derived data for charts ──
-
-    const pieData = overview.evaluations_by_status.map((s) => ({
-        id: s.status,
-        value: s.count,
-        label: s.status,
-        color: STATUS_COLORS[s.status] || theme.palette.grey[500],
-    }));
-
-    // Avg duration per plugin line chart data
-    const durationPluginNames = [...new Set(pluginDurations.map((r) => r.plugin_name))];
-    const maxRunIndex = Math.max(0, ...pluginDurations.map((r) => r.run_index));
-    const runIndices = Array.from({ length: maxRunIndex }, (_, i) => i + 1);
-    const durationSeries = durationPluginNames.map((name) => {
-        const runs = new Map(
-            pluginDurations.filter((r) => r.plugin_name === name).map((r) => [r.run_index, r.duration_seconds])
-        );
-        return {
-            id: name,
-            label: pluginDisplayNames[name] || name,
-            data: runIndices.map((idx) => runs.get(idx) ?? null),
-        };
-    });
-    const chartSeries = durationSeries.map((s) => ({
-        ...s,
-        showMark: runIndices.length < 30,
-        connectNulls: false,
-    }));
-
-    const xBounds = computeXIndexBoundsFromVisible(chartSeries, hiddenSeriesIds);
-    const xStart = xBounds?.start ?? 0;
-    const xEnd = (xBounds?.end ?? (runIndices.length - 1)) + 1;
-    const visibleRunIndices = runIndices.slice(xStart, xEnd);
-    const visibleChartSeries = chartSeries.map((s) => ({
-        ...s,
-        data: s.data.slice(xStart, xEnd),
-    }));
-
-    const { yMin, yMax } = computeYDomainFromVisible(visibleChartSeries, hiddenSeriesIds);
-
-    const hiddenItems = hiddenSeriesIds.map((seriesId) => ({
-        type: "line" as const,
-        seriesId,
-    }));
-
     return (
         <Box sx={{ width: "100%" }}>
             {/* ── KPI Cards ── */}
@@ -430,30 +362,8 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                 </Grid>
             </Grid>
 
-            {/* ── Evaluations by Status & Plugin Usage ── */}
+            {/* ── Plugin Usage ── */}
             <Grid container spacing={3} sx={{ mt: 4 }}>
-                {/* Evaluation Status Pie */}
-                {pieData.length > 0 && (
-                    <Grid size={{ xs: 12, xl: 6 }}>
-                        <SectionCard title="Evaluations by Status">
-                            <Box sx={{ display: "flex", justifyContent: "center" }}>
-                                <PieChart
-                                    series={[{
-                                        data: pieData,
-                                        innerRadius: 40,
-                                        paddingAngle: 2,
-                                        cornerRadius: 4,
-                                        highlightScope: { fade: "global", highlight: "item" },
-                                    }]}
-                                    width={360}
-                                    height={240}
-                                    slotProps={{ legend: { direction: "horizontal" as const } }}
-                                />
-                            </Box>
-                        </SectionCard>
-                    </Grid>
-                )}
-
                 {/* Plugin Usage */}
                 {plugins.length > 0 && (
                     <Grid size={{ xs: 12, xl: 6 }}>
@@ -622,41 +532,6 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
 
                             })}
                         </Stack>
-                    </SectionCard>
-                </Box>
-            )}
-
-            {/* ── Plugin Duration per Run ── */}
-            {durationSeries.length > 0 && (
-                <Box sx={{ mt: 4 }}>
-                    <SectionCard title="Plugin Duration per Run">
-                        <LineChart
-                            xAxis={[
-                                {
-                                    data: visibleRunIndices,
-                                    label: "Run #",
-                                    scaleType: "point",
-                                },
-                            ]}
-                            yAxis={[
-                                {
-                                    min: yMin,
-                                    max: yMax,
-                                    domainLimit: "strict",
-                                },
-                            ]}
-                            series={visibleChartSeries}
-                            hiddenItems={hiddenItems}
-                            height={300}
-                            slotProps={{
-                                legend: {
-                                    direction: "horizontal" as const,
-                                    onItemClick: (_event: unknown, legendItem: { seriesId: string | number }) => {
-                                        setHiddenSeriesIds((prev) => toggleHidden(prev, String(legendItem.seriesId)));
-                                    },
-                                },
-                            }}
-                        />
                     </SectionCard>
                 </Box>
             )}

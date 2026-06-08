@@ -10,6 +10,7 @@ import MeasurementsKDEChart from "../components/plugin/MeasurementsKDEChart.tsx"
 import MeasurementsBarsChart from "../components/plugin/MeasurementsBarsChart.tsx";
 import MeasurementsPieChart from "../components/plugin/MeasurementsPieChart.tsx";
 import MeasurementsExplorer from "../components/plugin/MeasurementsExplorer.tsx";
+import KpiScorecard from "../components/plugin/KpiScorecard.tsx";
 import ZipFileList from "../components/ZipFileList.tsx";
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import {
@@ -232,15 +233,25 @@ function PluginEvaluationMeasurements() {
                             {hasMeasurements && (
                                 <>
                                     <Typography variant="h6" sx={{mt: 2, mb: 1}} color="primary">
-                                        Measurements
+                                        Key Results
                                     </Typography>
                                     <Divider sx={{mb: 2}} />
-                                    {pluginResult.metric_visualizations && pluginResult.metric_visualizations.map(
-                                        (visualization: any, index: number) => (
-                                            <Box key={index} sx={{mb: 2}}>
-                                                {renderVisualization(pluginResult, visualization)}
-                                            </Box>
-                                        )
+                                    <KpiScorecard measurements={pluginResult.measurements!!} />
+                                    {pluginResult.metric_visualizations && pluginResult.metric_visualizations.length > 0 && (
+                                        <Accordion sx={{mt: 2}}>
+                                            <AccordionSummary expandIcon={<ExpandMoreIcon/>}>
+                                                <Typography component="span" color="primary">Detailed measurements</Typography>
+                                            </AccordionSummary>
+                                            <AccordionDetails>
+                                                {pluginResult.metric_visualizations.map(
+                                                    (visualization: any, index: number) => (
+                                                        <Box key={index} sx={{mb: 2}}>
+                                                            {renderVisualization(pluginResult, visualization)}
+                                                        </Box>
+                                                    )
+                                                )}
+                                            </AccordionDetails>
+                                        </Accordion>
                                     )}
                                 </>
                             )}
