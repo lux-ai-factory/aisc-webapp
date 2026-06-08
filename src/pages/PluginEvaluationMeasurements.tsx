@@ -215,17 +215,8 @@ function PluginEvaluationMeasurements() {
             {pluginResults && Object.values(pluginResults).map((pluginResult) => {
                 const displayName = pluginDisplayNames[pluginResult.name] || pluginResult.name;
                 const hasMeasurements = pluginResult.measurements && pluginResult.measurements.length > 0;
+                const hasArtifacts = pluginResult.artifacts && pluginResult.artifacts.length > 0;
                 const showDimensionsVisualisation = pluginResult.feature_flags?.show_dimensions_visualisation
-
-                // The per-row results table: each plugin's wide CSV (one row per
-                // run/sample, columns = prompt/response + metrics). Surfaced inline
-                // below the scorecard, and excluded from the Artifacts accordion.
-                const allArtifacts = (pluginResult.artifacts || []) as any[];
-                const perRowCsv = allArtifacts.find((a) =>
-                    /(per_prompt|per_task|per_test|evaluation|per_row)\.csv$/i.test(a.name)
-                );
-                const otherArtifacts = allArtifacts.filter((a) => a !== perRowCsv);
-                const hasArtifacts = otherArtifacts.length > 0;
 
                 return (
                     <Card key={pluginResult.name} variant="outlined" sx={{mb: 3}}>
@@ -265,23 +256,13 @@ function PluginEvaluationMeasurements() {
                                 </>
                             )}
 
-                            {perRowCsv && perRowCsv.preview && (
-                                <>
-                                    <Typography variant="h6" sx={{mt: 3, mb: 1}} color="primary">
-                                        Per-run results
-                                    </Typography>
-                                    <Divider sx={{mb: 2}} />
-                                    {renderArtifactPreview(perRowCsv)}
-                                </>
-                            )}
-
                             {hasArtifacts && (
                                 <>
                                     <Typography variant="h6" sx={{mt: 3, mb: 1}} color="primary">
                                         Artifacts
                                     </Typography>
                                     <Divider sx={{mb: 2}} />
-                                    {otherArtifacts.map((artifact: any) => (
+                                    {pluginResult.artifacts!!.map((artifact: any) => (
                                         <Accordion key={artifact.data} sx={{mb: 1}}>
                                             <AccordionSummary expandIcon={<ExpandMoreIcon/>}>
                                                 <Typography component="span">{artifact.name}</Typography>
