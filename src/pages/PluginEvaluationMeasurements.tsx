@@ -10,6 +10,7 @@ import MeasurementsKDEChart from "../components/plugin/MeasurementsKDEChart.tsx"
 import MeasurementsBarsChart from "../components/plugin/MeasurementsBarsChart.tsx";
 import MeasurementsPieChart from "../components/plugin/MeasurementsPieChart.tsx";
 import MeasurementsExplorer from "../components/plugin/MeasurementsExplorer.tsx";
+import KpiScorecard from "../components/plugin/KpiScorecard.tsx";
 import ZipFileList from "../components/ZipFileList.tsx";
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import {
@@ -214,8 +215,17 @@ function PluginEvaluationMeasurements() {
             {pluginResults && Object.values(pluginResults).map((pluginResult) => {
                 const displayName = pluginDisplayNames[pluginResult.name] || pluginResult.name;
                 const hasMeasurements = pluginResult.measurements && pluginResult.measurements.length > 0;
-                const hasArtifacts = pluginResult.artifacts && pluginResult.artifacts.length > 0;
                 const showDimensionsVisualisation = pluginResult.feature_flags?.show_dimensions_visualisation
+
+                // The per-row results table: each plugin's wide CSV (one row per
+                // run/sample, columns = prompt/response + metrics). Surfaced inline
+                // below the scorecard, and excluded from the Artifacts accordion.
+                const allArtifacts = (pluginResult.artifacts || []) as any[];
+                const perRowCsv = allArtifacts.find((a) =>
+                    /(per_prompt|per_task|per_test|evaluation|per_row)\.csv$/i.test(a.name)
+                );
+                const otherArtifacts = allArtifacts.filter((a) => a !== perRowCsv);
+                const hasArtifacts = otherArtifacts.length > 0;
 
                 return (
                     <Card key={pluginResult.name} variant="outlined" sx={{mb: 3}}>
@@ -232,16 +242,36 @@ function PluginEvaluationMeasurements() {
                             {hasMeasurements && (
                                 <>
                                     <Typography variant="h6" sx={{mt: 2, mb: 1}} color="primary">
-                                        Measurements
+                                        Key Results
                                     </Typography>
                                     <Divider sx={{mb: 2}} />
-                                    {pluginResult.metric_visualizations && pluginResult.metric_visualizations.map(
-                                        (visualization: any, index: number) => (
-                                            <Box key={index} sx={{mb: 2}}>
-                                                {renderVisualization(pluginResult, visualization)}
-                                            </Box>
-                                        )
+                                    <KpiScorecard measurements={pluginResult.measurements!!} />
+                                    {pluginResult.metric_visualizations && pluginResult.metric_visualizations.length > 0 && (
+                                        <Accordion sx={{mt: 2}}>
+                                            <AccordionSummary expandIcon={<ExpandMoreIcon/>}>
+                                                <Typography component="span" color="primary">Detailed measurements</Typography>
+                                            </AccordionSummary>
+                                            <AccordionDetails>
+                                                {pluginResult.metric_visualizations.map(
+                                                    (visualization: any, index: number) => (
+                                                        <Box key={index} sx={{mb: 2}}>
+                                                            {renderVisualization(pluginResult, visualization)}
+                                                        </Box>
+                                                    )
+                                                )}
+                                            </AccordionDetails>
+                                        </Accordion>
                                     )}
+                                </>
+                            )}
+
+                            {perRowCsv && perRowCsv.preview && (
+                                <>
+                                    <Typography variant="h6" sx={{mt: 3, mb: 1}} color="primary">
+                                        Per-run results
+                                    </Typography>
+                                    <Divider sx={{mb: 2}} />
+                                    {renderArtifactPreview(perRowCsv)}
                                 </>
                             )}
 
@@ -251,7 +281,7 @@ function PluginEvaluationMeasurements() {
                                         Artifacts
                                     </Typography>
                                     <Divider sx={{mb: 2}} />
-                                    {pluginResult.artifacts!!.map((artifact: any) => (
+                                    {otherArtifacts.map((artifact: any) => (
                                         <Accordion key={artifact.data} sx={{mb: 1}}>
                                             <AccordionSummary expandIcon={<ExpandMoreIcon/>}>
                                                 <Typography component="span">{artifact.name}</Typography>
