@@ -22,23 +22,15 @@ import {
     getProjectStatsOverview,
     getProjectMetricBreakdown,
     getProjectPluginUsage,
-    getProjectPluginDurations,
 } from "../api/api";
 import { API_VERSION_PREFIX } from "../config";
 import {
     ProjectStatsOverview,
     MetricScoreSummary,
     PluginUsageSummary,
-    PluginRunDuration,
     Evaluation,
     TaskProgress,
 } from "../models/models";
-
-import {
-    toggleHidden,
-    computeYDomainFromVisible,
-    computeXIndexBoundsFromVisible,
-} from "./plugin/ChartUtils";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -133,10 +125,8 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
     const [overview, setOverview] = useState<ProjectStatsOverview | null>(null);
     const [metrics, setMetrics] = useState<MetricScoreSummary[]>([]);
     const [plugins, setPlugins] = useState<PluginUsageSummary[]>([]);
-    const [pluginDurations, setPluginDurations] = useState<PluginRunDuration[]>([]);
     const [pluginIcons, setPluginIcons] = useState<Record<string, string>>({});
     const [pluginDisplayNames, setPluginDisplayNames] = useState<Record<string, string>>({});
-    const [hiddenSeriesIds, setHiddenSeriesIds] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [fontLoaded, setFontLoaded] = useState(false);
 
@@ -186,17 +176,15 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
             fetchWithFallback(() => getProjectStatsOverview(projectPid), emptyOverview),
             fetchWithFallback(() => getProjectMetricBreakdown(projectPid), { metrics: [] }),
             fetchWithFallback(() => getProjectPluginUsage(projectPid), { plugins: [] }),
-            fetchWithFallback(() => getProjectPluginDurations(projectPid), { runs: [] }),
             fetchWithFallback(async () => {
                 const res = await fetch(`${API_URL}/projects/${projectPid}`);
                 return await res.json() as { plugins: { name: string; pid: string; display_name: string }[] };
             }, { plugins: [] }),
         ])
-            .then(async ([ov, mt, pl, dur, project]) => {
+            .then(async ([ov, mt, pl, project]) => {
                 setOverview(ov);
                 setMetrics(mt.metrics);
                 setPlugins(pl.plugins);
-                setPluginDurations(dur.runs);
                 setLoading(false);
 
                 // Build name → pid map from the project's plugin list

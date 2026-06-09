@@ -10,7 +10,9 @@ import ListItemText from '@mui/material/ListItemText';
 import SettingsIcon from '@mui/icons-material/Settings';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import ExtensionIcon from '@mui/icons-material/Extension';
-import {Box, Icon} from '@mui/material';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import MenuIcon from '@mui/icons-material/Menu';
+import {Box, Icon, IconButton, Tooltip} from '@mui/material';
 import { Link, useLocation } from 'react-router-dom';
 import { useProject } from '../context/ProjectContext';
 import {useQuery} from "@tanstack/react-query";
@@ -27,7 +29,8 @@ const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
  */
 interface MenuListProps {
     title: string,
-    items: { text: string, icon: React.ReactNode, target: string, nested?: boolean, needsConfig?: boolean }[]
+    items: { text: string, icon: React.ReactNode, target: string, nested?: boolean, needsConfig?: boolean }[],
+    collapsed?: boolean
 }
 
 /**
@@ -42,11 +45,12 @@ interface MenuListProps {
 function MenuList(props: MenuListProps) {
 
     const location = useLocation().pathname;
+    const collapsed = props.collapsed;
 
     return (
         <List>
 
-            {props.title && (
+            {props.title && !collapsed && (
                 <ListItem>
                     <ListItemText primary={props.title} />
                 </ListItem>
@@ -57,38 +61,42 @@ function MenuList(props: MenuListProps) {
                     key={index}
                     disablePadding
                     sx={{
-                        pl: item.nested ? 4 : 0
+                        pl: collapsed ? 0 : (item.nested ? 4 : 0)
                     }}
                 >
-                    <ListItemButton
-                        component={Link}
-                        to={item.target}
-                        selected={location === item.target}
-                        sx={{
-                            opacity: item.nested ? 0.85 : 1,
-                            '&:hover': { opacity: 1 },
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center"
-                        }}
-                    >
-                        <Box sx={{ display: "flex", alignItems: "center" }}>
-                            <ListItemIcon sx={{ minWidth: item.nested ? 36 : 40 }}>
-                                {item.icon}
-                            </ListItemIcon>
+                    <Tooltip title={collapsed ? item.text : ''} placement="right" arrow>
+                        <ListItemButton
+                            component={Link}
+                            to={item.target}
+                            selected={location === item.target}
+                            sx={{
+                                opacity: item.nested ? 0.85 : 1,
+                                '&:hover': { opacity: 1 },
+                                display: "flex",
+                                justifyContent: collapsed ? "center" : "space-between",
+                                alignItems: "center"
+                            }}
+                        >
+                            <Box sx={{ display: "flex", alignItems: "center" }}>
+                                <ListItemIcon sx={{ minWidth: collapsed ? 0 : (item.nested ? 36 : 40), justifyContent: 'center' }}>
+                                    {item.icon}
+                                </ListItemIcon>
 
-                            <ListItemText
-                                primary={item.text}
-                                primaryTypographyProps={{
-                                    fontSize: item.nested ? 14 : 16,
-                                }}
-                            />
-                        </Box>
+                                {!collapsed && (
+                                    <ListItemText
+                                        primary={item.text}
+                                        primaryTypographyProps={{
+                                            fontSize: item.nested ? 14 : 16,
+                                        }}
+                                    />
+                                )}
+                            </Box>
 
-                        {item.needsConfig && (
-                            <Icon sx={{ color: "red"}}>error</Icon>
-                        )}
-                    </ListItemButton>
+                            {!collapsed && item.needsConfig && (
+                                <Icon sx={{ color: "red"}}>error</Icon>
+                            )}
+                        </ListItemButton>
+                    </Tooltip>
 
                 </ListItem>
             ))}
@@ -104,6 +112,8 @@ function MenuList(props: MenuListProps) {
  */
 interface LeftBarProps {
     drawerWidth: number;
+    collapsed?: boolean;
+    onToggle?: () => void;
 }
 
 const getProject = async (project_uuid: string) => {
@@ -111,6 +121,7 @@ const getProject = async (project_uuid: string) => {
     const res = await fetch(`${API_URL}/projects/${project_uuid}`);
     const project = await res.json() as Project;
     for (const plugin of project.plugins) {
+        if (!plugin.enabled) continue;
         plugin.display_icon = await getDisplayIcon(plugin.pid)
     }
     return project;
@@ -141,7 +152,7 @@ const getDisplayIcon = async (plugin_pid: string) => {
  * @param {LeftBarProps} props - Component props
  * @returns {JSX.Element} A permanent drawer with navigation menu
  */
-export default function LeftBar({ drawerWidth }: LeftBarProps) {
+export default function LeftBar({ drawerWidth, collapsed, onToggle }: LeftBarProps) {
 
     const { projectName } = useProject()
 
@@ -155,7 +166,7 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
 
     let pluginMenuHeader = { text: 'Plugins', icon: <ExtensionIcon />, target: `/projects/${projectName}/plugins` }
 
-    let pluginsMenuItems = project?.plugins.map((plugin: Plugin) => {
+    let pluginsMenuItems = (project?.plugins ?? []).filter(p => p.enabled).map((plugin: Plugin) => {
         return {
             text: plugin.display_name,
             icon: <Icon>{plugin.display_icon}</Icon>,
@@ -174,18 +185,33 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
             sx={{
                 width: drawerWidth,
                 flexShrink: 0,
+                whiteSpace: 'nowrap',
                 [`& .MuiDrawer-paper`]: {
                     width: drawerWidth,
                     boxSizing: 'border-box',
                     borderRight: projectUUID ? undefined : 'none',
+                    overflowX: 'hidden',
+                    transition: theme => theme.transitions.create('width', {
+                        easing: theme.transitions.easing.sharp,
+                        duration: theme.transitions.duration.enteringScreen,
+                    }),
                 },
             }}
         >
             <Toolbar />
             {projectName &&
                 <Box sx={{ overflow: 'auto' }}>
+                    <Box sx={{ display: 'flex', justifyContent: collapsed ? 'center' : 'flex-end', px: 1, py: 0.5 }}>
+                        <Tooltip title={collapsed ? 'Expand menu' : 'Collapse menu'} placement="right" arrow>
+                            <IconButton size="small" onClick={onToggle} aria-label="toggle menu">
+                                {collapsed ? <MenuIcon /> : <ChevronLeftIcon />}
+                            </IconButton>
+                        </Tooltip>
+                    </Box>
+                    <Divider />
                     <MenuList
                         title="Project"
+                        collapsed={collapsed}
                         items={[
                             { text: 'Overview', icon: <DashboardIcon />, target: `/projects/${projectName}/overview` },
                             { text: 'Settings', icon: <SettingsIcon />, target: `/projects/${projectName}/settings` },
@@ -194,11 +220,13 @@ export default function LeftBar({ drawerWidth }: LeftBarProps) {
                     <Divider />
                     <MenuList
                         title="Plugin Management"
+                        collapsed={collapsed}
                         items={pluginsMenu}
                     />
                     <Divider />
                     <MenuList
                         title="Evaluations"
+                        collapsed={collapsed}
                         items={[
                             { text: 'Start Evaluations', icon: <Icon>play_circle</Icon>, target: `/projects/${projectName}/plugins/evaluation` },
                             { text: 'Evaluations', icon: <Icon>sports_score</Icon>, target: `/projects/${projectName}/plugins/evaluations` },

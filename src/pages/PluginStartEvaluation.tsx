@@ -128,7 +128,7 @@ export default function PluginStartEvaluation() {
             </Box>
 
             <Grid container spacing={2}>
-                {project?.plugins.map((projectPlugin: Plugin) => (
+                {project?.plugins.filter(p => p.enabled).map((projectPlugin: Plugin) => (
                     <Grid key={projectPlugin.pid} size={{ xs: 12, lg: 6 }}>
                         <PluginEvaluationForm
                             plugin={projectPlugin}

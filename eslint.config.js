@@ -1,4 +1,4 @@
-// ESLint Configuration for VERA webapp
+// ESLint Configuration for AISC webapp
 
 import js from '@eslint/js'
 import globals from 'globals'
