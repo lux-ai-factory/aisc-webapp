@@ -1,6 +1,6 @@
-# VERA
+# AISC
 
-**VERA** is an open-source framework developed at the Université du Luxembourg (Serval/SnT) for assessing the performance, robustness, and compliance of AI models, particularly in the context of European AI governance initiatives and the EU AI Act.
+**AISC** is an open-source framework developed at the Université du Luxembourg (Serval/SnT) for assessing the performance, robustness, and compliance of AI models, particularly in the context of European AI governance initiatives and the EU AI Act.
 
 ---
 
