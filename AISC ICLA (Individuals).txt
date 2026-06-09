@@ -1,6 +1,6 @@
 # Contributor License Agreement (CLA) – Individuals ("Agreement")
 
-**Project**: AISC 
+**Project**: AISC – AI Assessment Sandbox
 **Hosting Institution**: Université du Luxembourg  
 **Unit**: Serval Research Group, Interdisciplinary Centre for Security, Reliability and Trust (SnT)
 
