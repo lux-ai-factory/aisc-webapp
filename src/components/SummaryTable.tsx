@@ -17,7 +17,6 @@ import CategoryIcon from "@mui/icons-material/Category";
 import SettingsIcon from "@mui/icons-material/Settings";
 import DatasetIcon from "@mui/icons-material/Dataset";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
-import { LineChart } from "@mui/x-charts/LineChart";
 import {
     getProjectStatsOverview,
     getProjectMetricBreakdown,
@@ -30,6 +29,7 @@ import {
     PluginUsageSummary,
     Evaluation,
     TaskProgress,
+    Plugin
 } from "../models/models";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
@@ -241,7 +241,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                             const evalRes = await fetch(`${API_URL}/evaluations/${evaluation.pid}?include=plugin`);
                             if (evalRes.ok) {
                                 const detailedEval = await evalRes.json();
-                                const pluginStatuses: EvaluationPluginStatus[] = (detailedEval.evaluation_plugins || []).map((ep: any) => ({
+                                const pluginStatuses: EvaluationPluginStatus[] = (detailedEval.evaluation_plugins || []).map((ep: Plugin) => ({
                                     pid: ep.pid,
                                     status: ep.status || 'Pending'
                                 }));
@@ -308,42 +308,6 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
     if (!overview) return null;
 
     // ── Derived data for charts ──
-
-    // Avg duration per plugin line chart data
-    const durationPluginNames = [...new Set(pluginDurations.map((r) => r.plugin_name))];
-    const maxRunIndex = Math.max(0, ...pluginDurations.map((r) => r.run_index));
-    const runIndices = Array.from({ length: maxRunIndex }, (_, i) => i + 1);
-    const durationSeries = durationPluginNames.map((name) => {
-        const runs = new Map(
-            pluginDurations.filter((r) => r.plugin_name === name).map((r) => [r.run_index, r.duration_seconds])
-        );
-        return {
-            id: name,
-            label: pluginDisplayNames[name] || name,
-            data: runIndices.map((idx) => runs.get(idx) ?? null),
-        };
-    });
-    const chartSeries = durationSeries.map((s) => ({
-        ...s,
-        showMark: runIndices.length < 30,
-        connectNulls: false,
-    }));
-
-    const xBounds = computeXIndexBoundsFromVisible(chartSeries, hiddenSeriesIds);
-    const xStart = xBounds?.start ?? 0;
-    const xEnd = (xBounds?.end ?? (runIndices.length - 1)) + 1;
-    const visibleRunIndices = runIndices.slice(xStart, xEnd);
-    const visibleChartSeries = chartSeries.map((s) => ({
-        ...s,
-        data: s.data.slice(xStart, xEnd),
-    }));
-
-    const { yMin, yMax } = computeYDomainFromVisible(visibleChartSeries, hiddenSeriesIds);
-
-    const hiddenItems = hiddenSeriesIds.map((seriesId) => ({
-        type: "line" as const,
-        seriesId,
-    }));
 
     return (
         <Box sx={{ width: "100%", display: "flex", flexDirection: "column", gap: 4 }}>
@@ -517,10 +481,6 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                                                 <Stack spacing={1} sx={{ flex: 1 }}>
                                                     {Object.entries(progress).map(([pluginName, taskProgress]) => {
                                                         const progressValue = (taskProgress.progress || 0) * 100;
-                                                        const extra = taskProgress.extra as any;
-                                                        const description = extra?.desc || extra?.message || null;
-                                                        const iteration = extra?.iteration || extra?.current || null;
-                                                        const total = extra?.total || null;
 
                                                         return (
                                                             <Paper
@@ -540,10 +500,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                                                                             </Typography>
                                                                         </Stack>
                                                                         <Typography variant="caption" color="text.secondary">
-                                                                            {iteration !== null && total !== null
-                                                                                ? `${iteration} / ${total}`
-                                                                                : `${Math.round(progressValue)}%`
-                                                                            }
+                                                                            {`${Math.round(progressValue)}%`}
                                                                         </Typography>
                                                                     </Stack>
                                                                     <LinearProgress
@@ -551,11 +508,6 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                                                                         value={progressValue}
                                                                         sx={{ height: 8, borderRadius: 1 }}
                                                                     />
-                                                                    {description && (
-                                                                        <Typography variant="caption" color="text.secondary">
-                                                                            {description}
-                                                                        </Typography>
-                                                                    )}
                                                                 </Stack>
                                                             </Paper>
                                                         );
@@ -568,41 +520,6 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
 
                             })}
                         </Stack>
-                    </SectionCard>
-                </Box>
-            )}
-
-            {/* ── Plugin Duration per Run ── */}
-            {durationSeries.length > 0 && (
-                <Box sx={{ order: 4 }}>
-                    <SectionCard title="Plugin Duration per Run">
-                        <LineChart
-                            xAxis={[
-                                {
-                                    data: visibleRunIndices,
-                                    label: "Run #",
-                                    scaleType: "point",
-                                },
-                            ]}
-                            yAxis={[
-                                {
-                                    min: yMin,
-                                    max: yMax,
-                                    domainLimit: "strict",
-                                },
-                            ]}
-                            series={visibleChartSeries}
-                            hiddenItems={hiddenItems}
-                            height={300}
-                            slotProps={{
-                                legend: {
-                                    direction: "horizontal" as const,
-                                    onItemClick: (_event: unknown, legendItem: { seriesId: string | number }) => {
-                                        setHiddenSeriesIds((prev) => toggleHidden(prev, String(legendItem.seriesId)));
-                                    },
-                                },
-                            }}
-                        />
                     </SectionCard>
                 </Box>
             )}

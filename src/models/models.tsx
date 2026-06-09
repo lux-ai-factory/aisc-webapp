@@ -33,6 +33,7 @@ export interface Plugin {
     display_name: string;
     plugin_pid: string;
     enabled: boolean;
+    status: string;
 }
 
 export interface TaskProgress {
