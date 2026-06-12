@@ -153,11 +153,11 @@ function PluginConfig() {
                             fontWeight: 600,
                             textTransform: "none",
                             gap: 1,
-                            background: "linear-gradient(135deg, #4A8CFF, #00e676)",
-                            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                            background: "linear-gradient(135deg, #57a8ff 0%, #2f7df6 48%, #0d47b8 100%)",
+                            boxShadow: "0 8px 18px rgba(18, 84, 188, 0.32)",
                             "&:hover": {
-                                background: "linear-gradient(135deg, #5A9CFF, #00e676)",
-                                boxShadow: "0 6px 16px rgba(0,0,0,0.25)"
+                                background: "linear-gradient(135deg, #6ab4ff 0%, #3b88ff 45%, #1554c7 100%)",
+                                boxShadow: "0 10px 20px rgba(14, 75, 173, 0.4)"
                             }
                         }}
                         onClick={() => formRef.current?.submit()}
@@ -179,6 +179,33 @@ function PluginConfig() {
                     <Select
                         labelId="dataset-select-label"
                         fullWidth
+                        sx={{
+                            mt: 0.5,
+                            bgcolor: 'rgba(255, 255, 255, 0.96)',
+                            borderRadius: 1.5,
+                            boxShadow: '0 1px 6px rgba(18, 84, 188, 0.08)',
+                            '& .MuiOutlinedInput-notchedOutline': {
+                                borderColor: 'rgba(25, 87, 191, 0.35)',
+                                borderWidth: 1.5,
+                            },
+                            '&:hover .MuiOutlinedInput-notchedOutline': {
+                                borderColor: 'rgba(25, 87, 191, 0.62)',
+                            },
+                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                borderColor: 'primary.main',
+                                borderWidth: 2,
+                            },
+                        }}
+                        MenuProps={{
+                            PaperProps: {
+                                sx: {
+                                    mt: 0.5,
+                                    borderRadius: 1.5,
+                                    border: '1px solid rgba(25, 87, 191, 0.2)',
+                                    boxShadow: '0 10px 24px rgba(18, 84, 188, 0.18)',
+                                },
+                            },
+                        }}
                         onChange={(e) => handleDatasetChange(e)}
                     >
                         {project?.datasets.map((dataset: DataObject) => (
@@ -193,6 +220,7 @@ function PluginConfig() {
                     ref={formRef}
                     key={plugin_pid + projectUUID}
                     pluginPID={plugin_pid}
+                    pluginDisplayName={plugin?.display_name}
                     formSchema={configState.formSchema}
                     uiSchema={configState.uiSchema}
                     config={configState.config}

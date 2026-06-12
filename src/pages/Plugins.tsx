@@ -45,18 +45,12 @@ const createProjectPlugins = async (project_uuid: string, package_name: string, 
     if (!package_name) throw new Error('Invalid package name')
     if (!version) throw new Error('Invalid version')
 
-    const data = {
-        package_name: package_name,
-        project_uuid: project_uuid,
-        version: version,
-        config: null
-    }
     const res = await fetch(`${API_URL}/plugins`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({package_name, project_uuid, version, config: null}),
     });
     return await res.json() as Plugin;
 };
@@ -67,16 +61,10 @@ const deleteProjectPlugins = async (project_uuid: string, package_name: string, 
     if (!package_name) throw new Error('Invalid package name')
     if (!version) throw new Error('Invalid version')
 
-    const data = {
-        package_name: package_name,
-        project_uuid: project_uuid,
-        version: version,
-    }
-
     await fetch(`${API_URL}/plugins`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify({package_name, project_uuid, version}),
     });
 };
 
@@ -107,7 +95,8 @@ function Plugins() {
 
     const {data: project} = useQuery({
         queryKey: ['project', projectUUID],
-        queryFn: () => getProject(projectUUID ?? "")
+        queryFn: () => getProject(projectUUID ?? ""),
+        enabled: !!projectUUID,
     })
 
     if (isPending) return <span>Loading...</span>
@@ -133,24 +122,29 @@ function Plugins() {
 
     const refreshProjectQueries = async () => {
         await queryClient.invalidateQueries({queryKey: ['project']});
+        await queryClient.invalidateQueries({queryKey: ['project', projectUUID, 'withIcons']});
     };
 
     // Handler for toggling package state
     const handleChange = async (
         event: React.ChangeEvent<HTMLInputElement>,
-        pid: string,
         package_name: string,
         version: string,
     ) => {
+        if (!projectUUID) {
+            toast.error('Project is still loading. Please wait a second.', { position: 'bottom-right' });
+            return;
+        }
+
         const packageKey = `${package_name}::${version}`;
         if (pendingPackages[packageKey]) return;
         setPendingPackages(prev => ({...prev, [packageKey]: true}));
 
         try {
             if (event.target.checked) {
-                await createProjectPlugins(pid, package_name, version)
+                await createProjectPlugins(projectUUID, package_name, version)
             } else {
-                await deleteProjectPlugins(pid, package_name, version)
+                await deleteProjectPlugins(projectUUID, package_name, version)
             }
         } catch (err) {
             const message = 'Could not update package state.';
@@ -183,7 +177,21 @@ function Plugins() {
                 Available Packages
             </Typography>
 
-            <Grid container spacing={2}>
+            <Grid
+                container
+                spacing={2}
+                sx={{
+                    '&:hover .package-card-focus': {
+                        opacity: 0.74,
+                        filter: 'saturate(0.88)',
+                    },
+                    '& .package-card-focus:hover': {
+                        opacity: 1,
+                        filter: 'saturate(1.18)',
+                        transform: 'translateY(-3px) scale(1.01)',
+                    },
+                }}
+            >
                 {projectPackages.map((pkg: ProjectPackage) => {
                     const isEnabled = Boolean(pkg.enabled);
                     const inputId = `pkg-${pkg.package_name}-${pkg.version}`;
@@ -191,11 +199,9 @@ function Plugins() {
                     const isPackagePending = Boolean(pendingPackages[packageKey]);
 
                     return (
-                        <Grid
-                            size={{xs: 12, sm: 12, md: 6, lg: 4, xl: 3}}
-                            key={`${pkg.package_name}-${pkg.version}-${pkg.source}`}
-                        >
+                        <Grid key={`${pkg.package_name}-${pkg.version}-${pkg.source}`} size={{xs: 12, sm: 12, md: 6, lg: 4}}>
                             <Card
+                                className="package-card-focus"
                                 sx={{
                                     position: 'relative',
                                     cursor: 'pointer',
@@ -215,7 +221,7 @@ function Plugins() {
                                     },
                                 }}
                                 onClick={() => {
-                                    if (isPackagePending) return;
+                                    if (isPackagePending || !projectUUID) return;
                                     const input = document.getElementById(inputId) as HTMLInputElement;
                                     input?.click();
                                 }}
@@ -224,11 +230,10 @@ function Plugins() {
                                     id={inputId}
                                     type="checkbox"
                                     checked={isEnabled}
-                                    disabled={isPackagePending}
+                                    disabled={isPackagePending || !projectUUID}
                                     onChange={(e) =>
                                         handleChange(
                                             e,
-                                            projectUUID ?? "",
                                             pkg.package_name,
                                             pkg.version
                                         )

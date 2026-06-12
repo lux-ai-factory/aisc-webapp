@@ -1,5 +1,5 @@
 import * as React from 'react';
-import Drawer from '@mui/material/Drawer';
+import MuiDrawer from '@mui/material/Drawer';
 import Toolbar from '@mui/material/Toolbar';
 import Divider from '@mui/material/Divider';
 import List from '@mui/material/List';
@@ -10,9 +10,11 @@ import ListItemText from '@mui/material/ListItemText';
 import SettingsIcon from '@mui/icons-material/Settings';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import ExtensionIcon from '@mui/icons-material/Extension';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import MenuIcon from '@mui/icons-material/Menu';
+import KeyboardDoubleArrowLeftRoundedIcon from '@mui/icons-material/KeyboardDoubleArrowLeftRounded';
+import KeyboardDoubleArrowRightRoundedIcon from '@mui/icons-material/KeyboardDoubleArrowRightRounded';
+import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
 import {Box, Icon, IconButton, Tooltip} from '@mui/material';
+import {styled} from '@mui/material/styles';
 import { Link, useLocation } from 'react-router-dom';
 import { useProject } from '../context/ProjectContext';
 import {useQuery} from "@tanstack/react-query";
@@ -45,18 +47,35 @@ interface MenuListProps {
 function MenuList(props: MenuListProps) {
 
     const location = useLocation().pathname;
+    const normalizePath = (path: string) => path.replace(/\/+$/, '') || '/';
+    const currentPath = normalizePath(location);
     const collapsed = props.collapsed;
 
     return (
-        <List>
+        <List sx={{px: collapsed ? 0.5 : 1, py: 0.5}}>
 
             {props.title && !collapsed && (
-                <ListItem>
-                    <ListItemText primary={props.title} />
+                <ListItem sx={{px: 1, py: 0.25}}>
+                    <ListItemText
+                        primary={props.title}
+                        primaryTypographyProps={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            letterSpacing: '0.08em',
+                            textTransform: 'uppercase',
+                            color: 'text.secondary',
+                        }}
+                    />
                 </ListItem>
             )}
+            {props.title && collapsed && (
+                <Divider sx={{my: 0.8, borderColor: '#d8dde5'}} />
+            )}
 
-            {props.items.map((item, index) => (
+            {props.items.map((item, index) => {
+                const itemPath = normalizePath(item.target);
+                const isSelected = currentPath === itemPath || currentPath.startsWith(`${itemPath}/`);
+                return (
                 <ListItem
                     key={index}
                     disablePadding
@@ -68,17 +87,40 @@ function MenuList(props: MenuListProps) {
                         <ListItemButton
                             component={Link}
                             to={item.target}
-                            selected={location === item.target}
+                            selected={isSelected}
                             sx={{
-                                opacity: item.nested ? 0.85 : 1,
-                                '&:hover': { opacity: 1 },
+                                minHeight: 38,
                                 display: "flex",
                                 justifyContent: collapsed ? "center" : "space-between",
-                                alignItems: "center"
+                                alignItems: "center",
+                                borderRadius: 2,
+                                mx: collapsed ? 0.5 : 1,
+                                px: collapsed ? 1 : 1.25,
+                                color: 'text.primary',
+                                opacity: isSelected ? 1 : (item.nested ? 0.88 : 1),
+                                '&:hover': {
+                                    opacity: 1,
+                                    bgcolor: '#eef2f7',
+                                },
+                                '&.Mui-selected': {
+                                    bgcolor: '#e7edf6',
+                                    color: '#0f172a',
+                                    fontWeight: 700,
+                                    '& .MuiListItemIcon-root': {
+                                        color: '#0f172a',
+                                    },
+                                    '& .MuiTypography-root': {
+                                        color: '#0f172a',
+                                        fontWeight: 700,
+                                    },
+                                },
+                                '&.Mui-selected:hover': {
+                                    bgcolor: '#dde6f4',
+                                },
                             }}
                         >
                             <Box sx={{ display: "flex", alignItems: "center" }}>
-                                <ListItemIcon sx={{ minWidth: collapsed ? 0 : (item.nested ? 36 : 40), justifyContent: 'center' }}>
+                                <ListItemIcon sx={{ minWidth: collapsed ? 0 : (item.nested ? 36 : 40), justifyContent: 'center', mr: collapsed ? 0 : 0.5 }}>
                                     {item.icon}
                                 </ListItemIcon>
 
@@ -86,7 +128,8 @@ function MenuList(props: MenuListProps) {
                                     <ListItemText
                                         primary={item.text}
                                         primaryTypographyProps={{
-                                            fontSize: item.nested ? 14 : 16,
+                                            fontSize: item.nested ? 13 : 14,
+                                            fontWeight: item.nested ? 500 : 600,
                                         }}
                                     />
                                 )}
@@ -99,7 +142,8 @@ function MenuList(props: MenuListProps) {
                     </Tooltip>
 
                 </ListItem>
-            ))}
+                )
+            })}
 
         </List>
     )
@@ -112,9 +156,46 @@ function MenuList(props: MenuListProps) {
  */
 interface LeftBarProps {
     drawerWidth: number;
+    expandedDrawerWidth?: number;
     collapsed?: boolean;
+    mobileOpen?: boolean;
     onToggle?: () => void;
+    overlayMode?: boolean;
 }
+
+const Drawer = styled(MuiDrawer, {
+    shouldForwardProp: (prop) => prop !== 'drawerwidth',
+})<{ open?: boolean; drawerwidth: number }>(({theme, open, drawerwidth}) => ({
+    width: drawerwidth,
+    flexShrink: 0,
+    whiteSpace: 'nowrap',
+    boxSizing: 'border-box',
+    ...(open
+        ? {
+            [`& .MuiDrawer-paper`]: {
+                width: drawerwidth,
+                backgroundColor: '#f7f7f8',
+                borderRight: '1px solid #e5e7eb',
+                transition: theme.transitions.create('width', {
+                    easing: theme.transitions.easing.sharp,
+                    duration: theme.transitions.duration.enteringScreen,
+                }),
+                overflowX: 'hidden',
+            },
+        }
+        : {
+            [`& .MuiDrawer-paper`]: {
+                width: drawerwidth,
+                backgroundColor: '#f7f7f8',
+                borderRight: '1px solid #e5e7eb',
+                transition: theme.transitions.create('width', {
+                    easing: theme.transitions.easing.sharp,
+                    duration: theme.transitions.duration.leavingScreen,
+                }),
+                overflowX: 'hidden',
+            },
+        }),
+}));
 
 const getProject = async (project_uuid: string) => {
     if (!project_uuid) throw new Error('Invalid uuid');
@@ -152,7 +233,7 @@ const getDisplayIcon = async (plugin_pid: string) => {
  * @param {LeftBarProps} props - Component props
  * @returns {JSX.Element} A permanent drawer with navigation menu
  */
-export default function LeftBar({ drawerWidth, collapsed, onToggle }: LeftBarProps) {
+export default function LeftBar({ drawerWidth, expandedDrawerWidth, collapsed, mobileOpen = false, onToggle, overlayMode = false }: LeftBarProps) {
 
     const { projectName } = useProject()
 
@@ -179,62 +260,155 @@ export default function LeftBar({ drawerWidth, collapsed, onToggle }: LeftBarPro
 
     let pluginsMenu = [pluginMenuHeader].concat(pluginsMenuItems)
 
-    return (
-        <Drawer
-            variant="permanent"
-            sx={{
-                width: drawerWidth,
-                flexShrink: 0,
-                whiteSpace: 'nowrap',
-                [`& .MuiDrawer-paper`]: {
-                    width: drawerWidth,
-                    boxSizing: 'border-box',
-                    borderRight: projectUUID ? undefined : 'none',
-                    overflowX: 'hidden',
-                    transition: theme => theme.transitions.create('width', {
-                        easing: theme.transitions.easing.sharp,
-                        duration: theme.transitions.duration.enteringScreen,
-                    }),
-                },
-            }}
-        >
+    const menuBody = (isCollapsedView: boolean) => (
+        <>
             <Toolbar />
             {projectName &&
                 <Box sx={{ overflow: 'auto' }}>
-                    <Box sx={{ display: 'flex', justifyContent: collapsed ? 'center' : 'flex-end', px: 1, py: 0.5 }}>
-                        <Tooltip title={collapsed ? 'Expand menu' : 'Collapse menu'} placement="right" arrow>
-                            <IconButton size="small" onClick={onToggle} aria-label="toggle menu">
-                                {collapsed ? <MenuIcon /> : <ChevronLeftIcon />}
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'flex-start',
+                            px: 1,
+                            py: 1,
+                            gap: 1,
+                        }}
+                    >
+                        <Tooltip title={isCollapsedView ? 'Expand menu' : 'Collapse menu'} placement="right" arrow>
+                            <IconButton
+                                size="small"
+                                onClick={onToggle}
+                                aria-label="toggle menu"
+                                sx={{
+                                    width: 32,
+                                    height: 32,
+                                    borderRadius: 1.5,
+                                    color: '#4b5563',
+                                    bgcolor: '#eef0f3',
+                                    border: '1px solid #dde2ea',
+                                    transition: 'all 0.18s ease',
+                                    '&:hover': {
+                                        bgcolor: '#e4e9f2',
+                                        borderColor: '#cfd7e5',
+                                        transform: 'translateY(-1px)',
+                                    },
+                                }}
+                            >
+                                {isCollapsedView ? <KeyboardDoubleArrowRightRoundedIcon fontSize="small" /> : <KeyboardDoubleArrowLeftRoundedIcon fontSize="small" />}
                             </IconButton>
                         </Tooltip>
                     </Box>
-                    <Divider />
+                    <Divider sx={{borderColor: '#e6e8ed'}} />
                     <MenuList
                         title="Project"
-                        collapsed={collapsed}
+                        collapsed={isCollapsedView}
                         items={[
                             { text: 'Overview', icon: <DashboardIcon />, target: `/projects/${projectName}/overview` },
                             { text: 'Settings', icon: <SettingsIcon />, target: `/projects/${projectName}/settings` },
                         ]}
                     />
-                    <Divider />
+                    <Divider sx={{borderColor: '#e6e8ed'}} />
                     <MenuList
                         title="Plugin Management"
-                        collapsed={collapsed}
+                        collapsed={isCollapsedView}
                         items={pluginsMenu}
                     />
-                    <Divider />
+                    <Divider sx={{borderColor: '#e6e8ed'}} />
                     <MenuList
                         title="Evaluations"
-                        collapsed={collapsed}
+                        collapsed={isCollapsedView}
                         items={[
                             { text: 'Start Evaluations', icon: <Icon>play_circle</Icon>, target: `/projects/${projectName}/plugins/evaluation` },
-                            { text: 'Evaluations', icon: <Icon>sports_score</Icon>, target: `/projects/${projectName}/plugins/evaluations` },
-                            { text: 'Recommendations', icon: <Icon>reviews</Icon>, target: `/projects/${projectName}/recommendations` }
+                            { text: 'Evaluations', icon: <Icon>sports_score</Icon>, target: `/projects/${projectName}/plugins/evaluations` }
                         ]}
                     />
-                    <Divider />
+                    <Divider sx={{borderColor: '#e6e8ed'}} />
                 </Box>
             }
-        </Drawer >)
+        </>
+    );
+
+    if (overlayMode) {
+        return (
+            <>
+                <Drawer
+                    variant="permanent"
+                    open
+                    drawerwidth={drawerWidth}
+                    sx={{
+                        [`& .MuiDrawer-paper`]: {
+                            borderRight: projectUUID ? undefined : 'none',
+                        },
+                    }}
+                >
+                    {menuBody(true)}
+                </Drawer>
+
+                {mobileOpen && (
+                    <Drawer
+                        variant="temporary"
+                        open={mobileOpen}
+                        onClose={onToggle}
+                        drawerwidth={expandedDrawerWidth ?? 320}
+                        ModalProps={{ keepMounted: true }}
+                        slotProps={{
+                            paper: {
+                                onClick: onToggle,
+                            },
+                        }}
+                        sx={{
+                            [`& .MuiDrawer-paper`]: {
+                                boxShadow: '0 8px 28px rgba(15, 23, 42, 0.18)',
+                            },
+                        }}
+                    >
+                        {menuBody(false)}
+                    </Drawer>
+                )}
+
+                {collapsed && !mobileOpen && projectName && (
+                    <Tooltip title="Open menu" placement="right" arrow>
+                        <IconButton
+                            onClick={onToggle}
+                            aria-label="open menu"
+                            sx={{
+                                position: 'fixed',
+                                left: 12,
+                                top: 12,
+                                zIndex: (theme) => theme.zIndex.appBar + 2,
+                                width: 36,
+                                height: 36,
+                                borderRadius: 1.5,
+                                color: '#4b5563',
+                                bgcolor: '#eef0f3',
+                                border: '1px solid #dde2ea',
+                                '&:hover': {
+                                    bgcolor: '#e4e9f2',
+                                    borderColor: '#cfd7e5',
+                                },
+                            }}
+                        >
+                            <MenuRoundedIcon fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
+                )}
+            </>
+        );
+    }
+
+    return (
+        <Drawer
+            variant="permanent"
+            open={!collapsed}
+            drawerwidth={drawerWidth}
+            sx={{
+                [`& .MuiDrawer-paper`]: {
+                    borderRight: projectUUID ? undefined : 'none',
+                },
+            }}
+        >
+            {menuBody(Boolean(collapsed))}
+        </Drawer>
+    )
 };
