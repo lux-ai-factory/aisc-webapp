@@ -44,6 +44,7 @@ interface FileItem {
     data: string;
     size?: number;
     type: 'dataset' | 'model';
+    uploadProgress?: number;
 }
 
 interface ProjectDetails {
@@ -264,9 +265,9 @@ function FileRow({ file, type, onUploadSuccess }: {
                     variant={uploaded ? 'filled' : 'outlined'}
                     sx={{ height: 22, fontWeight: 600 }}
                 />
-                {uploaded && fileSize != null && (
+                {uploaded && (file.size ?? fileSize) != null && (
                     <Chip
-                        label={formatSize(fileSize)}
+                        label={formatSize(file.size ?? fileSize!)}
                         size="small"
                         variant="filled"
                         sx={{ height: 22, fontWeight: 500, bgcolor: '#fff9c4' }}
@@ -274,8 +275,8 @@ function FileRow({ file, type, onUploadSuccess }: {
                 )}
             </Stack>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 'auto', pt: 1 }}>
-                {uploading ? (
-                    <CircularProgress variant="determinate" value={progress} size={28} />
+                {uploading || file.uploadProgress !== undefined ? (
+                    <CircularProgress variant="determinate" value={file.uploadProgress ?? progress} size={28} />
                 ) : (
                     <Button
                         component="label"
@@ -475,24 +476,38 @@ export default function SettingsPage() {
         });
         if (!response.ok) throw new Error('Failed to add');
         const created = await response.json();
-        let data = created.data || '';
-        let size: number | undefined = undefined;
+        const item: FileItem = { pid: created.pid, name: created.name, data: '', type };
+        if (type === 'dataset') setDatasets(prev => [...prev, item]);
+        else setModels(prev => [...prev, item]);
+
         if (file) {
             const formData = new FormData();
             formData.append('file', file);
-            const uploadResponse = await fetch(`${API_URL}/${type}s/${created.pid}/data`, {
-                method: 'PUT',
-                body: formData,
-            });
-            if (uploadResponse.ok) {
-                const uploadData = await uploadResponse.json();
-                data = uploadData.file_name;
-                size = uploadData.file_size ?? file.size;
-            }
+            const xhr = new XMLHttpRequest();
+            xhr.open("PUT", `${API_URL}/${type}s/${created.pid}/data`, true);
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const updater = (items: FileItem[]) => items.map(i => i.pid === created.pid ? { ...i, uploadProgress: Math.round((e.loaded / e.total) * 100) } : i);
+                    if (type === 'dataset') setDatasets(updater);
+                    else setModels(updater);
+                }
+            };
+            xhr.onloadend = () => {
+                const updater = (items: FileItem[]) => items.map(i => i.pid === created.pid ? { ...i, uploadProgress: undefined } : i);
+                if (type === 'dataset') setDatasets(updater);
+                else setModels(updater);
+            };
+            xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    const responseData = JSON.parse(xhr.responseText);
+                    const size = responseData.file_size ?? file.size;
+                    const updater = (items: FileItem[]) => items.map(i => i.pid === created.pid ? { ...i, data: responseData.file_name as string, size } : i);
+                    if (type === 'dataset') setDatasets(updater);
+                    else setModels(updater);
+                }
+            };
+            xhr.send(formData);
         }
-        const item: FileItem = { pid: created.pid, name: created.name, data, size, type };
-        if (type === 'dataset') setDatasets(prev => [...prev, item]);
-        else setModels(prev => [...prev, item]);
     };
 
     const renderSection = (title: string, items: FileItem[], type: 'dataset' | 'model') => (
