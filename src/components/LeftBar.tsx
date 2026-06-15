@@ -48,7 +48,7 @@ function MenuList(props: MenuListProps) {
 
     const location = useLocation().pathname;
     const normalizePath = (path: string) => path.replace(/\/+$/, '') || '/';
-    const currentPath = normalizePath(location);
+    const currentPath = normalizePath(decodeURIComponent(location));
     const collapsed = props.collapsed;
 
     return (
@@ -74,7 +74,7 @@ function MenuList(props: MenuListProps) {
 
             {props.items.map((item, index) => {
                 const itemPath = normalizePath(item.target);
-                const isSelected = currentPath === itemPath || currentPath.startsWith(`${itemPath}/`);
+                const isSelected = currentPath === itemPath || (item.nested && currentPath.startsWith(`${itemPath}/`));
                 return (
                 <ListItem
                     key={index}
@@ -96,31 +96,33 @@ function MenuList(props: MenuListProps) {
                                 borderRadius: 2,
                                 mx: collapsed ? 0.5 : 1,
                                 px: collapsed ? 1 : 1.25,
-                                color: 'text.primary',
+                                color: isSelected ? '#0a56c7' : 'text.primary',
+                                bgcolor: isSelected ? '#d2e0f5' : 'transparent',
+                                fontWeight: isSelected ? 700 : 400,
                                 opacity: isSelected ? 1 : (item.nested ? 0.88 : 1),
                                 '&:hover': {
                                     opacity: 1,
-                                    bgcolor: '#eef2f7',
+                                    bgcolor: isSelected ? '#c2d5f0' : '#eef2f7',
                                 },
                                 '&.Mui-selected': {
-                                    bgcolor: '#e7edf6',
-                                    color: '#0f172a',
+                                    bgcolor: '#d2e0f5',
+                                    color: '#0a56c7',
                                     fontWeight: 700,
                                     '& .MuiListItemIcon-root': {
-                                        color: '#0f172a',
+                                        color: '#0a56c7',
                                     },
                                     '& .MuiTypography-root': {
-                                        color: '#0f172a',
+                                        color: '#0a56c7',
                                         fontWeight: 700,
                                     },
                                 },
                                 '&.Mui-selected:hover': {
-                                    bgcolor: '#dde6f4',
+                                    bgcolor: '#c2d5f0',
                                 },
                             }}
                         >
                             <Box sx={{ display: "flex", alignItems: "center" }}>
-                                <ListItemIcon sx={{ minWidth: collapsed ? 0 : (item.nested ? 36 : 40), justifyContent: 'center', mr: collapsed ? 0 : 0.5 }}>
+                                <ListItemIcon sx={{ minWidth: collapsed ? 0 : (item.nested ? 36 : 40), justifyContent: 'center', mr: collapsed ? 0 : 0.5, color: isSelected ? '#0a56c7' : undefined }}>
                                     {item.icon}
                                 </ListItemIcon>
 
@@ -129,7 +131,8 @@ function MenuList(props: MenuListProps) {
                                         primary={item.text}
                                         primaryTypographyProps={{
                                             fontSize: item.nested ? 13 : 14,
-                                            fontWeight: item.nested ? 500 : 600,
+                                            fontWeight: item.nested ? (isSelected ? 700 : 500) : (isSelected ? 700 : 600),
+                                            color: isSelected ? '#0a56c7' : undefined,
                                         }}
                                     />
                                 )}
