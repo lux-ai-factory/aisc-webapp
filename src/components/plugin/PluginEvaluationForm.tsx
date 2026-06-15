@@ -160,15 +160,15 @@ export default function PluginEvaluationForm({
                                 }}
                             />
                         </Tooltip>
-                    ) : !isConfigured ? (
-                        <CheckCircleOutlineIcon
-                            sx={{ color: 'action.disabled', alignSelf: 'center', fontSize: 24 }}
-                        />
-                    ) : someMandatoryFilled ? (
+                    ) : isConfigured && someMandatoryFilled ? (
                         <Tooltip title="Missing required fields">
                             <Icon sx={{ color: 'warning.main', alignSelf: 'center', fontSize: 24 }}>warning</Icon>
                         </Tooltip>
-                    ) : null}
+                    ) : (
+                        <CheckCircleOutlineIcon
+                            sx={{ color: 'action.disabled', alignSelf: 'center', fontSize: 24 }}
+                        />
+                    )}
                 </Box>
 
                 {isConfigured && !isActive && selections.length > 0 && (
