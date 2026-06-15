@@ -7,7 +7,7 @@ import {useEffect, useRef, useState} from "react";
 import {DataObject, ProjectPluginConfigState} from "../models/models.tsx";
 import toast from 'react-hot-toast';
 import {getPluginFeatureFlags, getProject} from "../api/api.tsx";
-import {InputLabel, MenuItem, Select, SelectChangeEvent, Typography, Box, Button, Icon} from "@mui/material";
+import {InputLabel, MenuItem, Select, SelectChangeEvent, Typography, Box, Button, Icon, Tooltip} from "@mui/material";
 import InfoBanner from "../components/InfoBanner.tsx";
 import ConfigHistory from "../components/plugin/ConfigHistory.tsx";
 
@@ -123,47 +123,65 @@ function PluginConfig() {
 
         <Box>
             <Box sx={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3}}>
-                <Typography component="h2" variant="h4">
-                    Config for plugin: {plugin?.display_name || plugin_name}
-                </Typography>
+                <Box>
+                    <Typography component="h2" variant="h4" sx={{lineHeight: 1.2}}>
+                        {plugin?.display_name || plugin_name}
+                    </Typography>
+                    <Typography variant="subtitle1" color="text.secondary" sx={{fontWeight: 500, mt: 0.25}}>
+                        Configuration
+                    </Typography>
+                </Box>
 
                 <Box sx={{display: "flex", gap: 1.5}}>
-                    <Button
-                        variant="outlined"
-                        startIcon={<Icon>file_download</Icon>}
-                        sx={{borderRadius: "10px", textTransform: "none", fontSize: "0.9rem", fontWeight: 600}}
-                        onClick={() => formRef.current?.exportJson()}
-                    >
-                        Export
-                    </Button>
-                    <Button
-                        variant="outlined"
-                        startIcon={<Icon>file_upload</Icon>}
-                        sx={{borderRadius: "10px", textTransform: "none", fontSize: "0.9rem", fontWeight: 600}}
-                        onClick={() => formRef.current?.importClick()}
-                    >
-                        Import
-                    </Button>
-                    <Button
-                        variant="contained"
-                        startIcon={<Icon>save</Icon>}
-                        sx={{
-                            borderRadius: "10px",
-                            fontSize: "0.9rem",
-                            fontWeight: 600,
-                            textTransform: "none",
-                            gap: 1,
-                            background: "linear-gradient(135deg, #57a8ff 0%, #2f7df6 48%, #0d47b8 100%)",
-                            boxShadow: "0 8px 18px rgba(18, 84, 188, 0.32)",
-                            "&:hover": {
-                                background: "linear-gradient(135deg, #6ab4ff 0%, #3b88ff 45%, #1554c7 100%)",
-                                boxShadow: "0 10px 20px rgba(14, 75, 173, 0.4)"
-                            }
-                        }}
-                        onClick={() => formRef.current?.submit()}
-                    >
-                        Save Configuration
-                    </Button>
+                    <Tooltip title="Export">
+                        <Button
+                            variant="outlined"
+                            sx={{borderRadius: "10px", textTransform: "none", fontSize: "0.9rem", fontWeight: 600, minWidth: {xs: '44px', md: 'auto'}, px: {xs: 1.5, md: 2}}}
+                            onClick={() => formRef.current?.exportJson()}
+                        >
+                            <Icon sx={{fontSize: '1.25rem'}}>file_download</Icon>
+                            <Box component="span" sx={{display: {xs: 'none', md: 'inline'}, ml: 0.5}}>
+                                Export
+                            </Box>
+                        </Button>
+                    </Tooltip>
+                    <Tooltip title="Import">
+                        <Button
+                            variant="outlined"
+                            sx={{borderRadius: "10px", textTransform: "none", fontSize: "0.9rem", fontWeight: 600, minWidth: {xs: '44px', md: 'auto'}, px: {xs: 1.5, md: 2}}}
+                            onClick={() => formRef.current?.importClick()}
+                        >
+                            <Icon sx={{fontSize: '1.25rem'}}>file_upload</Icon>
+                            <Box component="span" sx={{display: {xs: 'none', md: 'inline'}, ml: 0.5}}>
+                                Import
+                            </Box>
+                        </Button>
+                    </Tooltip>
+                    <Tooltip title="Save Configuration">
+                        <Button
+                            variant="contained"
+                            sx={{
+                                borderRadius: "10px",
+                                fontSize: "0.9rem",
+                                fontWeight: 600,
+                                textTransform: "none",
+                                minWidth: {xs: '44px', md: 'auto'},
+                                px: {xs: 1.5, md: 2},
+                                background: "linear-gradient(135deg, #57a8ff 0%, #2f7df6 48%, #0d47b8 100%)",
+                                boxShadow: "0 8px 18px rgba(18, 84, 188, 0.32)",
+                                "&:hover": {
+                                    background: "linear-gradient(135deg, #6ab4ff 0%, #3b88ff 45%, #1554c7 100%)",
+                                    boxShadow: "0 10px 20px rgba(14, 75, 173, 0.4)"
+                                }
+                            }}
+                            onClick={() => formRef.current?.submit()}
+                        >
+                            <Icon sx={{fontSize: '1.25rem'}}>save</Icon>
+                            <Box component="span" sx={{display: {xs: 'none', md: 'inline'}, ml: 0.5}}>
+                                Save Configuration
+                            </Box>
+                        </Button>
+                    </Tooltip>
                 </Box>
             </Box>
 

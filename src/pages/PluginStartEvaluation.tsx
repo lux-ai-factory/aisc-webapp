@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { API_VERSION_PREFIX } from "../config.tsx";
 import { useProject } from "../context/ProjectContext.tsx";
-import {Button, Typography, Box, Icon} from "@mui/material";
+import {Button, Typography, Box, Icon, Tooltip} from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import { useEffect, useState } from "react";
 import { Plugin, PluginInputValue } from "../models/models.tsx";
@@ -142,31 +142,37 @@ export default function PluginStartEvaluation() {
                     Start an Evaluation
                 </Typography>
 
-                <Button
-                    variant="contained"
-                    onClick={handleOnClick}
-                    disabled={Object.values(validPlugins).filter(Boolean).length === 0}
-                    sx={{
-                        borderRadius: "10px",
-                        fontSize: "1rem",
-                        fontWeight: 600,
-                        textTransform: "none",
-                        gap: 1.2,
-                        background: "linear-gradient(135deg, #57a8ff 0%, #2f7df6 48%, #0d47b8 100%)",
-                        boxShadow: "0 8px 18px rgba(18, 84, 188, 0.32)",
-                        "&:hover": {
-                            background: "linear-gradient(135deg, #6ab4ff 0%, #3b88ff 45%, #1554c7 100%)",
-                            boxShadow: "0 10px 20px rgba(14, 75, 173, 0.4)"
-                        },
-                        "&:disabled": {
-                            background: "#9bbcff",
-                            boxShadow: "none"
-                        }
-                    }}
-                >
-                    <Icon>play_arrow</Icon>
-                    Create Evaluation
-                </Button>
+                <Tooltip title="Create Evaluation">
+                    <Button
+                        variant="contained"
+                        onClick={handleOnClick}
+                        disabled={Object.values(validPlugins).filter(Boolean).length === 0}
+                        sx={{
+                            borderRadius: "10px",
+                            fontSize: "0.95rem",
+                            fontWeight: 600,
+                            textTransform: "none",
+                            gap: 1,
+                            minWidth: {xs: '44px', md: 'auto'},
+                            px: {xs: 1.5, md: 3},
+                            background: "linear-gradient(135deg, #57a8ff 0%, #2f7df6 48%, #0d47b8 100%)",
+                            boxShadow: "0 8px 18px rgba(18, 84, 188, 0.32)",
+                            "&:hover": {
+                                background: "linear-gradient(135deg, #6ab4ff 0%, #3b88ff 45%, #1554c7 100%)",
+                                boxShadow: "0 10px 20px rgba(14, 75, 173, 0.4)"
+                            },
+                            "&:disabled": {
+                                background: "#9bbcff",
+                                boxShadow: "none"
+                            }
+                        }}
+                        startIcon={<Icon sx={{fontSize: '1.25rem'}}>play_circle_filled</Icon>}
+                    >
+                        <Box component="span" sx={{display: {xs: 'none', md: 'inline'}}}>
+                            Create Evaluation
+                        </Box>
+                    </Button>
+                </Tooltip>
             </Box>
 
             <Grid

@@ -10,6 +10,7 @@ import {
     CardContent,
     Chip,
     Divider,
+    Icon,
     IconButton,
     Stack,
     ToggleButton,
@@ -18,7 +19,6 @@ import {
     Typography,
 } from "@mui/material";
 import Grid from "@mui/material/Grid2";
-import SwapVertIcon from '@mui/icons-material/SwapVert';
 import DownloadIcon from '@mui/icons-material/Download';
 import {Plugin} from "../models/models.tsx";
 import EvaluationProgressList from "../components/EvaluationProgressList.tsx";
@@ -269,38 +269,54 @@ function PluginEvaluations() {
                         aria-label="sort order"
                     >
                         <ToggleButton value="newest" aria-label="newest first">
-                            <SwapVertIcon fontSize="small" sx={{mr: 0.5}}/> Newest
+                            <Tooltip title="Newest first">
+                                <Box sx={{display: 'flex', alignItems: 'center'}}>
+                                    <Icon sx={{fontSize: '1.1rem'}}>arrow_downward</Icon>
+                                    <Box component="span" sx={{display: {xs: 'none', md: 'inline'}, ml: 0.5}}>Newest</Box>
+                                </Box>
+                            </Tooltip>
                         </ToggleButton>
                         <ToggleButton value="oldest" aria-label="oldest first">
-                            Oldest
+                            <Tooltip title="Oldest first">
+                                <Box sx={{display: 'flex', alignItems: 'center'}}>
+                                    <Icon sx={{fontSize: '1.1rem'}}>arrow_upward</Icon>
+                                    <Box component="span" sx={{display: {xs: 'none', md: 'inline'}, ml: 0.5}}>Oldest</Box>
+                                </Box>
+                            </Tooltip>
                         </ToggleButton>
                     </ToggleButtonGroup>
                 </Stack>
-                <Button
-                    variant="contained"
-                    startIcon={<DownloadIcon/>}
-                    onClick={handleDownloadReport}
-                    disabled={!projectName || !evaluations || evaluations.length === 0}
-                    sx={{
-                        borderRadius: "10px",
-                        fontSize: "0.95rem",
-                        fontWeight: 600,
-                        textTransform: "none",
-                        gap: 1,
-                        background: "linear-gradient(135deg, #57a8ff 0%, #2f7df6 48%, #0d47b8 100%)",
-                        boxShadow: "0 8px 18px rgba(18, 84, 188, 0.32)",
-                        "&:hover": {
-                            background: "linear-gradient(135deg, #6ab4ff 0%, #3b88ff 45%, #1554c7 100%)",
-                            boxShadow: "0 10px 20px rgba(14, 75, 173, 0.4)"
-                        },
-                        "&:disabled": {
-                            background: "#9bbcff",
-                            boxShadow: "none"
-                        }
-                    }}
-                >
-                    Download Report
-                </Button>
+                <Tooltip title="Download Report">
+                    <Button
+                        variant="contained"
+                        onClick={handleDownloadReport}
+                        disabled={!projectName || !evaluations || evaluations.length === 0}
+                        sx={{
+                            borderRadius: "10px",
+                            fontSize: "0.95rem",
+                            fontWeight: 600,
+                            textTransform: "none",
+                            gap: 1,
+                            minWidth: {xs: '44px', md: 'auto'},
+                            px: {xs: 1.5, md: 3},
+                            background: "linear-gradient(135deg, #57a8ff 0%, #2f7df6 48%, #0d47b8 100%)",
+                            boxShadow: "0 8px 18px rgba(18, 84, 188, 0.32)",
+                            "&:hover": {
+                                background: "linear-gradient(135deg, #6ab4ff 0%, #3b88ff 45%, #1554c7 100%)",
+                                boxShadow: "0 10px 20px rgba(14, 75, 173, 0.4)"
+                            },
+                            "&:disabled": {
+                                background: "#9bbcff",
+                                boxShadow: "none"
+                            }
+                        }}
+                    >
+                        <DownloadIcon />
+                        <Box component="span" sx={{display: {xs: 'none', md: 'inline'}}}>
+                            Download Report
+                        </Box>
+                    </Button>
+                </Tooltip>
             </Box>
             <Grid
                 container
