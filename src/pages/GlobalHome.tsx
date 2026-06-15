@@ -1,7 +1,7 @@
-// src/components/Home.jsx
-
-import { Link, List, ListItem, Typography } from "@mui/material";
+import { Box, Card, CardActionArea, CardContent, Typography } from "@mui/material";
+import Grid from "@mui/material/Grid2";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { API_VERSION_PREFIX } from "../config";
 
 
@@ -17,6 +17,7 @@ const ProjectsList = () => {
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
+    const navigate = useNavigate();
 
     useEffect(() => {
         fetch(`${API_URL}/projects`)
@@ -34,32 +35,53 @@ const ProjectsList = () => {
             });
     }, []);
 
-    if (loading) return <div>Loading...</div>;
-    if (error) return <div>Error: {error}</div>;
+    if (loading) return <Typography sx={{ textAlign: 'center', mt: 4 }}>Loading...</Typography>;
+    if (error) return <Typography color="error" sx={{ textAlign: 'center', mt: 4 }}>Error: {error}</Typography>;
 
     return (
-
-        <>
-            <Typography component="h3" variant="h5" gutterBottom>
+        <Box sx={{ width: 1, maxWidth: 900, mx: 'auto', px: 2 }}>
+            <Typography variant="h3" sx={{ fontWeight: 700, mb: 5 }}>
                 Projects
             </Typography>
-            {/*I would add more information to the project list, like creation date*/}
-            {/*Also I'm not a fan of leaving the empty left bar when on project list, to be thought about later*/}
-            <List className="project-list">
+            <Grid container spacing={3}>
                 {projects.map((project) => (
-                    <ListItem key={project.pid} disablePadding>
-                        <Link
-                            href={`/projects/${project.name}`}
-                            underline="none"
-                            className="project-card"
+                    <Grid key={project.pid} size={{ xs: 12, sm: 6, md: 4 }}>
+                        <Card
+                            variant="outlined"
+                            onClick={() => navigate(`/projects/${project.name}`)}
+                            sx={{
+                                cursor: 'pointer',
+                                border: '2px solid',
+                                borderColor: 'rgba(28, 92, 198, 0.28)',
+                                background: 'linear-gradient(165deg, rgba(247, 251, 255, 0.98), rgba(232, 241, 255, 0.96))',
+                                borderRadius: 2,
+                                transition: 'all 0.22s ease',
+                                height: '100%',
+                                '&:hover': {
+                                    boxShadow: '0 14px 28px rgba(20, 77, 172, 0.22)',
+                                    borderColor: 'rgba(28, 92, 198, 0.62)',
+                                    background: 'linear-gradient(160deg, rgba(227, 241, 255, 0.98), rgba(190, 223, 255, 0.94))',
+                                    transform: 'translateY(-2px)',
+                                },
+                            }}
                         >
-                            {project.name}
-                        </Link>
-                    </ListItem>
+                            <CardActionArea sx={{ height: '100%' }}>
+                                <CardContent>
+                                    <Typography variant="h6" fontWeight={600}>
+                                        {project.name}
+                                    </Typography>
+                                </CardContent>
+                            </CardActionArea>
+                        </Card>
+                    </Grid>
                 ))}
-            </List>
-        </>
-
+            </Grid>
+            {projects.length === 0 && (
+                <Typography variant="body1" color="text.secondary" sx={{ textAlign: 'center', mt: 4 }}>
+                    No projects yet.
+                </Typography>
+            )}
+        </Box>
     );
 };
 
