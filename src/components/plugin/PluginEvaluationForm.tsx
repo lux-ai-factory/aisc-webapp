@@ -82,6 +82,7 @@ export default function PluginEvaluationForm({
     );
 
     const isReady = isConfigured && allMandatoryFilled;
+    const backendConfigured = plugin.config !== null;
 
     if (isDefinitionsPending || isProjectPending) return <span>Loading...</span>;
 
@@ -163,6 +164,10 @@ export default function PluginEvaluationForm({
                     ) : isConfigured && someMandatoryFilled ? (
                         <Tooltip title="Missing required fields">
                             <Icon sx={{ color: 'warning.main', alignSelf: 'center', fontSize: 24 }}>warning</Icon>
+                        </Tooltip>
+                    ) : !backendConfigured ? (
+                        <Tooltip title="Plugin not configured">
+                            <Icon sx={{ color: 'error.main', alignSelf: 'center', fontSize: 24 }}>error</Icon>
                         </Tooltip>
                     ) : (
                         <CheckCircleOutlineIcon
