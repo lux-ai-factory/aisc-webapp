@@ -59,11 +59,13 @@ export default function PluginEvaluationForm({
         enabled: !!plugin.pid && isActive,
     });
 
-    const latestConfig = configs && configs.length > 0
+    const sortedConfigs = configs
         ? [...configs].sort(
-            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        )[0]
-        : null;
+            (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        )
+        : [];
+    const configLocalIndex = new Map(sortedConfigs.map((cfg, i) => [cfg.id, i + 1]));
+    const latestConfig = sortedConfigs.length > 0 ? sortedConfigs[sortedConfigs.length - 1] : null;
     const configValue = selectedConfig ?? latestConfig?.id ?? '';
 
     const allMandatoryFilled = !!inputDefinitions && inputDefinitions.every(
@@ -336,13 +338,13 @@ export default function PluginEvaluationForm({
                                         if (!selected) {
                                             return 'Config';
                                         }
-                                        return `Config #${selected.id} (${new Date(selected.created_at).toLocaleDateString()})`;
+                                        return `Config #${configLocalIndex.get(selected.id) ?? selected.id} (${new Date(selected.created_at).toLocaleDateString()})`;
                                     }}
                                     onChange={(e) => setSelectedConfig(e.target.value ? Number(e.target.value) : null)}
                                 >
                                     {configs.map((cfg: PluginConfig) => (
                                         <MenuItem key={cfg.id} value={cfg.id}>
-                                            Config #{cfg.id} ({new Date(cfg.created_at).toLocaleDateString()})
+                                            Config #{configLocalIndex.get(cfg.id) ?? cfg.id} ({new Date(cfg.created_at).toLocaleDateString()})
                                         </MenuItem>
                                     ))}
                                 </Select>
