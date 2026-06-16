@@ -228,11 +228,20 @@ function EvalProgressRow({
     const plugins: Plugin[] = evaluation.evaluation_plugins ?? [];
     const pluginStatusValues = Object.values(statuses);
     const totalPlugins = plugins.length || pluginStatusValues.length;
-    const completedPlugins = pluginStatusValues.filter((s) => {
-        const status = (s.extra as {status?: string; phase?: string} | undefined)?.status;
-        const phase = (s.extra as {status?: string; phase?: string} | undefined)?.phase;
-        return status === 'Done' || phase === 'done' || (s.progress ?? 0) >= 1;
-    }).length;
+    const completedFromTask = new Set(
+        pluginStatusValues.filter((s) => {
+            const st = (s.extra as {status?: string; phase?: string} | undefined)?.status;
+            const ph = (s.extra as {status?: string; phase?: string} | undefined)?.phase;
+            return st === 'Done' || ph === 'done' || (s.progress ?? 0) >= 1;
+        }).map((s) => (s as {plugin_name?: string}).plugin_name).filter(Boolean),
+    );
+    const completedFromDetailed = new Set(
+        plugins.filter((p) => {
+            const evalStatus = detailedStatuses[p.pid] || detailedStatuses[p.plugin_pid] || detailedStatuses[p.name] || detailedStatuses[p.display_name];
+            return evalStatus === 'Done' && !completedFromTask.has(p.name) && !completedFromTask.has(p.display_name);
+        }).map((p) => p.pid),
+    );
+    const completedPlugins = completedFromTask.size + completedFromDetailed.size;
     const failedPlugins = pluginStatusValues.filter((s) => {
         const status = (s.extra as {status?: string; phase?: string} | undefined)?.status;
         const phase = (s.extra as {status?: string; phase?: string} | undefined)?.phase;
@@ -322,7 +331,10 @@ function EvalProgressRow({
                                 <Table size="small">
                                     <TableBody>
                                         {plugins.length > 0 ? (
-                                            plugins.map((plugin) => {
+                                            plugins.filter((plugin) => {
+                                                const evalStatus = detailedStatuses[plugin.pid] || detailedStatuses[plugin.plugin_pid] || detailedStatuses[plugin.name] || detailedStatuses[plugin.display_name];
+                                                return evalStatus !== 'Done';
+                                            }).map((plugin) => {
                                                 const ps = getTaskStatusForPlugin(statuses, plugin);
                                                 const pct = ps ? Math.round((ps.progress ?? 0) * 100) : 0;
                                                 const description = resolvePluginDescription(plugin, ps, detailedStatuses);
