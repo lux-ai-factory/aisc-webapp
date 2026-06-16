@@ -150,7 +150,7 @@ function PluginEvaluations() {
     const [isPending, setIsPending] = useState(true);
     const [error, setError] = useState<unknown>(null);
 
-    const fetchDoneEvaluations = useCallback(async () => {
+    const fetchDoneEvaluations = useCallback(async (initial = false) => {
         if (!projectUUID) {
             setEvaluations([]);
             setIsPending(false);
@@ -158,7 +158,7 @@ function PluginEvaluations() {
             return;
         }
 
-        setIsPending(true);
+        if (initial) setIsPending(true);
 
         try {
             const data = await getDoneEvaluations(projectUUID);
@@ -198,7 +198,7 @@ function PluginEvaluations() {
     };
 
     useEffect(() => {
-        void fetchDoneEvaluations();
+        void fetchDoneEvaluations(true);
     }, [fetchDoneEvaluations]);
 
     useEffect(() => {
