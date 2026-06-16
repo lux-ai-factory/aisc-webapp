@@ -121,25 +121,29 @@ function MenuList(props: MenuListProps) {
                                 },
                             }}
                         >
-                            <Box sx={{ display: "flex", alignItems: "center" }}>
+                            <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, flex: 1 }}>
                                 <ListItemIcon sx={{ minWidth: collapsed ? 0 : (item.nested ? 36 : 40), justifyContent: 'center', mr: collapsed ? 0 : 0.5, color: isSelected ? '#0a56c7' : undefined }}>
                                     {item.icon}
                                 </ListItemIcon>
 
                                 {!collapsed && (
-                                    <ListItemText
-                                        primary={item.text}
-                                        primaryTypographyProps={{
-                                            fontSize: item.nested ? 13 : 14,
-                                            fontWeight: item.nested ? (isSelected ? 700 : 500) : (isSelected ? 700 : 600),
-                                            color: isSelected ? '#0a56c7' : undefined,
-                                        }}
-                                    />
+                                    <Tooltip title={item.text} placement="right" arrow>
+                                        <ListItemText
+                                            primary={item.text}
+                                            primaryTypographyProps={{
+                                                fontSize: item.nested ? 13 : 14,
+                                                fontWeight: item.nested ? (isSelected ? 700 : 500) : (isSelected ? 700 : 600),
+                                                color: isSelected ? '#0a56c7' : undefined,
+                                                noWrap: true,
+                                                sx: { overflow: 'hidden', textOverflow: 'ellipsis' },
+                                            }}
+                                        />
+                                    </Tooltip>
                                 )}
                             </Box>
 
                             {!collapsed && item.needsConfig && (
-                                <Icon sx={{ color: "red"}}>error</Icon>
+                                <Icon sx={{ color: "red", ml: 0.5, flexShrink: 0 }}>error</Icon>
                             )}
                         </ListItemButton>
                     </Tooltip>
