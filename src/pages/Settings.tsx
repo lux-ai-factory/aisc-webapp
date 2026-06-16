@@ -132,7 +132,7 @@ function ProjectDetailsSection() {
                 }}
             >
                 <CardContent>
-                    <Stack direction="row" spacing={2} alignItems="flex-start">
+                    <Stack direction="row" spacing={2} alignItems="center">
                         <TextField
                             label="Project Name"
                             value={project.name}
@@ -374,6 +374,7 @@ function AddFileDialog({ open, onClose, onAdd }: {
                         onChange={(e) => { setName(e.target.value); setError(''); }}
                         fullWidth
                         required
+                        autoFocus
                         error={!!error}
                         helperText={error || "A descriptive name for your file"}
                         sx={{ flex: 3 }}
