@@ -255,12 +255,12 @@ function Plugins() {
                                                 color={pkg.source === 'local' ? 'info' : 'default'}
                                                 variant={pkg.source === 'local' ? 'filled' : 'outlined'}
                                             />
-                                            {isEnabled && (
+                                            {pkg.plugins.length > 0 && (
                                                 <Chip
-                                                    label={`${pkg.plugins.length} plugin${pkg.plugins.length > 1 ? 's' : ''}`}
+                                                    label={`${pkg.plugins.filter(p => p.enabled).length}/${pkg.plugins.length} enabled`}
                                                     size="small"
-                                                    color="primary"
-                                                    variant="outlined"
+                                                    color={isEnabled ? 'primary' : 'default'}
+                                                    variant={isEnabled ? 'filled' : 'outlined'}
                                                 />
                                             )}
                                         </Box>
@@ -274,7 +274,7 @@ function Plugins() {
                                 </CardContent>
 
                                 <PluginErrorBoundary>
-                                    {isEnabled && pkg.plugins.length > 0 && (
+                                    {pkg.plugins.length > 0 && (
                                         <Box sx={{px: 2, pb: 1.5, mt: -0.5}} onClick={e => e.stopPropagation()}>
                                             <Divider sx={{mb: 1}} />
                                             <Typography variant="caption" color="text.secondary" sx={{mb: 0.5, display: 'block'}}>
