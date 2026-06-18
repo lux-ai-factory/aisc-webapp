@@ -16,13 +16,14 @@ import {
     Typography
 } from "@mui/material";
 import Grid from "@mui/material/Grid2";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { API_VERSION_PREFIX } from "../config";
 import { useProject } from "../context/ProjectContext";
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DownloadIcon from '@mui/icons-material/Download';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
+import toast from 'react-hot-toast';
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -189,6 +190,8 @@ function FileRow({ file, type, onUploadSuccess }: {
     const [uploading, setUploading] = useState(false);
     const [progress, setProgress] = useState(0);
     const [fileSize, setFileSize] = useState<number | undefined>(file.size);
+    const { fileUploadingPids } = useProject();
+    const backgroundUploading = fileUploadingPids.has(file.pid);
 
     const formatSize = (bytes: number) => {
         if (bytes < 1024) return `${bytes} B`;
@@ -259,10 +262,10 @@ function FileRow({ file, type, onUploadSuccess }: {
                     sx={{ height: 22, fontWeight: 600, bgcolor: type === 'dataset' ? '#bbdefb' : '#f3e5f5', color: type === 'dataset' ? '#0d47a1' : '#7b1fa2' }}
                 />
                 <Chip
-                    label={uploaded ? 'Uploaded' : 'Not uploaded'}
+                    label={backgroundUploading ? 'Uploading' : uploaded ? 'Uploaded' : 'Not uploaded'}
                     size="small"
-                    color={uploaded ? 'success' : 'default'}
-                    variant={uploaded ? 'filled' : 'outlined'}
+                    color={backgroundUploading ? 'warning' : uploaded ? 'success' : 'default'}
+                    variant={uploaded || backgroundUploading ? 'filled' : 'outlined'}
                     sx={{ height: 22, fontWeight: 600 }}
                 />
                 {uploaded && (file.size ?? fileSize) != null && (
@@ -443,7 +446,7 @@ export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
     const [addDialogOpen, setAddDialogOpen] = useState(false);
 
-    const fetchFiles = async () => {
+    const fetchFiles = useCallback(async () => {
         if (!projectUUID) return;
         setLoading(true);
         try {
@@ -456,11 +459,17 @@ export default function SettingsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [projectUUID]);
 
     useEffect(() => {
         fetchFiles();
     }, [projectUUID]);
+
+    useEffect(() => {
+        const onFocus = () => { fetchFiles(); };
+        window.addEventListener('focus', onFocus);
+        return () => window.removeEventListener('focus', onFocus);
+    }, [fetchFiles]);
 
     const handleUploadSuccess = (pid: string, data: string, size: number, type: 'dataset' | 'model') => {
         const updater = (items: FileItem[]) => items.map(item => item.pid === pid ? { ...item, data, size } : item);
@@ -505,8 +514,12 @@ export default function SettingsPage() {
                     const updater = (items: FileItem[]) => items.map(i => i.pid === created.pid ? { ...i, data: responseData.file_name as string, size } : i);
                     if (type === 'dataset') setDatasets(updater);
                     else setModels(updater);
+                    toast.success(`${type === 'dataset' ? 'Dataset' : 'Model'} \`${name}\` uploaded`, { position: 'bottom-right' });
+                } else {
+                    toast.error(`Failed to upload ${name}`, { position: 'bottom-right' });
                 }
             };
+            xhr.onerror = () => toast.error(`Failed to upload ${name}`, { position: 'bottom-right' });
             xhr.send(formData);
         }
     };

@@ -13,6 +13,7 @@ import {useProject} from '../context/ProjectContext';
 import {API_VERSION_PREFIX} from '../config';
 import {ThemeProvider} from '@emotion/react';
 import {useNavigate} from 'react-router-dom';
+import toast from 'react-hot-toast';
 import "./addProjectButton.css";
 import AddProjectWizard from "./addProjectWizard.tsx";
 
@@ -120,7 +121,7 @@ const TopBar: React.FC = () => {
 
 
 
-    const {setProjectUUID, projectName, setProjectName} = useProject();
+    const {setProjectUUID, projectName, setProjectName, addFileUploadingPid, removeFileUploadingPid} = useProject();
     const [projects, setProjects] = useState<Project[]>([]);
 
     const navigate = useNavigate();
@@ -139,7 +140,9 @@ const TopBar: React.FC = () => {
 
         setProjects([...projects, newProject]);
 
-        // 2. Create DATASETS (exact same as DatasetSettings)
+        const uploads: Promise<unknown>[] = [];
+
+        // 2. Create DATASETS
         for (const ds of datasets) {
             if (!ds.name || ds.name.trim().length < 1) continue;
 
@@ -155,15 +158,16 @@ const TopBar: React.FC = () => {
 
             ds.pid = created.pid;
 
-            // 2b. Upload dataset file
+            // 2b. Add dataset file to uploads
             if (ds.file) {
+                addFileUploadingPid(ds.pid);
                 const formData = new FormData();
                 formData.append("file", ds.file);
-
-                await fetch(`${API_URL}/datasets/${ds.pid}/data`, {
-                    method: "PUT",
-                    body: formData
-                });
+                uploads.push(
+                    fetch(`${API_URL}/datasets/${ds.pid}/data`, { method: "PUT", body: formData }).then(() => {
+                        toast.success(`Dataset \`${ds.name}\` uploaded`, { position: 'bottom-right' });
+                    }).finally(() => removeFileUploadingPid(ds.pid))
+                );
             }
         }
 
@@ -183,15 +187,16 @@ const TopBar: React.FC = () => {
 
             m.pid = created.pid;
 
-            // 3b. Upload model file
+            // 3b. Add model file to uploads
             if (m.file) {
+                addFileUploadingPid(m.pid);
                 const formData = new FormData();
                 formData.append("file", m.file);
-
-                await fetch(`${API_URL}/models/${m.pid}/data`, {
-                    method: "PUT",
-                    body: formData
-                });
+                uploads.push(
+                    fetch(`${API_URL}/models/${m.pid}/data`, { method: "PUT", body: formData }).then(() => {
+                        toast.success(`Model \`${m.name}\` uploaded`, { position: 'bottom-right' });
+                    }).finally(() => removeFileUploadingPid(m.pid))
+                );
             }
         }
 
@@ -215,6 +220,9 @@ const TopBar: React.FC = () => {
 
         // 5. Navigate
         navigate(`/projects/${newProject.name}/plugins`);
+
+        // 6. Upload files in background
+        await Promise.allSettled(uploads);
     };
 
 
