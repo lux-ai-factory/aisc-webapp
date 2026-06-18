@@ -15,7 +15,6 @@ import {
     IconButton,
     List,
     ListItem,
-    Divider,
     Icon
 } from "@mui/material";
 import Grid from "@mui/material/Grid2";
@@ -222,7 +221,7 @@ export default function AddProjectWizard({
                 Create New Project
             </DialogTitle>
 
-            <DialogContent sx={{ paddingBottom: 4, backgroundColor: "white", borderTopLeftRadius: "12px", borderTopRightRadius: "12px", mx: 1, mb: 1, mt: 1 }}>
+            <DialogContent sx={{ paddingBottom: 4, backgroundColor: "white", borderTopLeftRadius: "12px", borderTopRightRadius: "12px", mx: 1, mb: 1, mt: 1, overflow: 'visible' }}>
                 <Stepper activeStep={activeStep} sx={{ mb: 4, marginTop: 4 }}>
                     {steps.map(label => (
                         <Step key={label}>
@@ -246,11 +245,34 @@ export default function AddProjectWizard({
 
                 {/* Datasets */}
                 {activeStep === 1 && (
-                    <Box>
-                        <Typography variant="h6" sx={{ mb: 2 }}>
-                            Datasets
-                        </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="h6">
+                                Datasets
+                            </Typography>
+                            <Button
+                                variant="contained"
+                                startIcon={<AddIcon />}
+                                onClick={addDatasetRow}
+                                sx={{
+                                    borderRadius: "10px",
+                                    fontSize: "0.95rem",
+                                    fontWeight: 600,
+                                    textTransform: "none",
+                                    gap: 1,
+                                    background: "linear-gradient(135deg, #57a8ff 0%, #2f7df6 48%, #0d47b8 100%)",
+                                    boxShadow: "0 8px 18px rgba(18, 84, 188, 0.32)",
+                                    "&:hover": {
+                                        background: "linear-gradient(135deg, #6ab4ff 0%, #3b88ff 45%, #1554c7 100%)",
+                                        boxShadow: "0 10px 20px rgba(14, 75, 173, 0.4)"
+                                    },
+                                }}
+                            >
+                                Add Dataset
+                            </Button>
+                        </Box>
 
+                        {localDatasets.length > 0 && (
                         <List
                             sx={{
                                 border: 1,
@@ -273,6 +295,7 @@ export default function AddProjectWizard({
                                             <TextField
                                                 label="Dataset Name"
                                                 fullWidth
+                                                autoFocus={index === localDatasets.length - 1}
                                                 value={ds.name}
                                                 onChange={e =>
                                                     updateDatasetName(
@@ -328,28 +351,41 @@ export default function AddProjectWizard({
                                 </ListItem>
                             ))}
 
-                            <Divider sx={{ my: 2 }} />
-
-                            <ListItem>
-                                <Button
-                                    variant="contained"
-                                    startIcon={<AddIcon />}
-                                    onClick={addDatasetRow}
-                                >
-                                    Add Dataset
-                                </Button>
-                            </ListItem>
                         </List>
+                        )}
                     </Box>
                 )}
 
                 {/* Models */}
                 {activeStep === 2 && (
-                    <Box>
-                        <Typography variant="h6" sx={{ mb: 2 }}>
-                            Models
-                        </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="h6">
+                                Models
+                            </Typography>
+                            <Button
+                                variant="contained"
+                                startIcon={<AddIcon />}
+                                onClick={addModelRow}
+                                sx={{
+                                    borderRadius: "10px",
+                                    fontSize: "0.95rem",
+                                    fontWeight: 600,
+                                    textTransform: "none",
+                                    gap: 1,
+                                    background: "linear-gradient(135deg, #57a8ff 0%, #2f7df6 48%, #0d47b8 100%)",
+                                    boxShadow: "0 8px 18px rgba(18, 84, 188, 0.32)",
+                                    "&:hover": {
+                                        background: "linear-gradient(135deg, #6ab4ff 0%, #3b88ff 45%, #1554c7 100%)",
+                                        boxShadow: "0 10px 20px rgba(14, 75, 173, 0.4)"
+                                    },
+                                }}
+                            >
+                                Add Model
+                            </Button>
+                        </Box>
 
+                        {localModels.length > 0 && (
                         <List
                             sx={{
                                 border: 1,
@@ -372,6 +408,7 @@ export default function AddProjectWizard({
                                             <TextField
                                                 label="Model Name"
                                                 fullWidth
+                                                autoFocus={index === localModels.length - 1}
                                                 value={m.name}
                                                 onChange={e =>
                                                     updateModelName(
@@ -427,18 +464,8 @@ export default function AddProjectWizard({
                                 </ListItem>
                             ))}
 
-                            <Divider sx={{ my: 2 }} />
-
-                            <ListItem>
-                                <Button
-                                    variant="contained"
-                                    startIcon={<AddIcon />}
-                                    onClick={addModelRow}
-                                >
-                                    Add Model
-                                </Button>
-                            </ListItem>
                         </List>
+                        )}
                     </Box>
                 )}
 
