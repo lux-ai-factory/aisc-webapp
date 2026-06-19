@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { API_VERSION_PREFIX } from "../config.tsx";
 import { useProject } from "../context/ProjectContext.tsx";
-import {Button, Typography, Box, Icon, Tooltip} from "@mui/material";
+import {Button, Typography, Box, Tooltip} from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import { useEffect, useState } from "react";
 import { Plugin, PluginInputValue } from "../models/models.tsx";
 import toast from "react-hot-toast";
+import PlayCircleIcon from '@mui/icons-material/PlayCircle';
 import { getProject } from "../api/api.tsx";
 import PluginEvaluationForm from "../components/plugin/PluginEvaluationForm.tsx";
 import './PluginStartEvaluation.css';
@@ -154,9 +155,9 @@ export default function PluginStartEvaluation() {
                             minWidth: {xs: '44px', md: 'auto'},
                             px: {xs: 1.5, md: 3},
                         }}
-                        startIcon={<Icon sx={{fontSize: '1.25rem'}}>play_circle_filled</Icon>}
                     >
-                        <Box component="span" sx={{display: {xs: 'none', md: 'inline'}}}>
+                        <PlayCircleIcon sx={{fontSize: '1.5rem'}} />
+                        <Box component="span" sx={{display: {xs: 'none', md: 'inline'}, ml: 0.5}}>
                             Create Evaluation
                         </Box>
                     </Button>

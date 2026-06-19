@@ -14,6 +14,7 @@ import ExtensionIcon from '@mui/icons-material/Extension';
 import KeyboardDoubleArrowLeftRoundedIcon from '@mui/icons-material/KeyboardDoubleArrowLeftRounded';
 import KeyboardDoubleArrowRightRoundedIcon from '@mui/icons-material/KeyboardDoubleArrowRightRounded';
 import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
+import PlayCircleIcon from '@mui/icons-material/PlayCircle';
 import {Box, Icon, IconButton, Tooltip} from '@mui/material';
 import {styled} from '@mui/material/styles';
 import { Link, useLocation } from 'react-router-dom';
@@ -328,7 +329,7 @@ export default function LeftBar({ drawerWidth, expandedDrawerWidth, collapsed, m
                         collapsed={isCollapsedView}
                         onNavigate={onNavigate}
                         items={[
-                            { text: 'Start Evaluations', icon: <Icon>play_circle</Icon>, target: `/projects/${projectName}/plugins/evaluation` },
+                            { text: 'Start Evaluations', icon: <PlayCircleIcon />, target: `/projects/${projectName}/plugins/evaluation` },
                             { text: 'Evaluations', icon: <Icon>sports_score</Icon>, target: `/projects/${projectName}/plugins/evaluations` }
                         ]}
                     />
