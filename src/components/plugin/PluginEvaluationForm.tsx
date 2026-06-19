@@ -3,7 +3,7 @@ import { getPluginInputDefinitions, getProject } from "../../api/api.tsx";
 import { Plugin, PluginConfig, PluginInputDefinition, DataObject, PluginInputValue } from "../../models/models.tsx";
 import { Box, Icon, FormControl, InputLabel, MenuItem, Select, Card, CardContent, Chip, Typography, Tooltip } from "@mui/material";
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
 import { useProject } from "../../context/ProjectContext.tsx";
 import { useState, useEffect, useRef } from "react";
 import './PluginEvaluationForm.css';
@@ -111,30 +111,32 @@ export default function PluginEvaluationForm({
         },
     };
 
-    return (
+    const cardClasses = [
+        className,
+        !backendConfigured && 'plugin-eval-card--unconfigured',
+        isActive && 'plugin-eval-card--active',
+        isReady && 'plugin-eval-card--ready',
+    ].filter(Boolean).join(' ');
+
+    const card = (
         <Card
-            className={className}
+            className={cardClasses}
             data-plugin-card
             onClick={(e: React.MouseEvent) => {
+                if (!backendConfigured) return;
                 e.stopPropagation();
                 if (!isActive) {
                     onToggle();
                 }
             }}
             sx={{
-                cursor: 'pointer',
-                border: isActive ? '2px solid' : isConfigured ? 'none' : '1px solid',
-                borderColor: isActive ? 'primary.main' : isConfigured ? undefined : 'grey.200',
-                background: isActive
-                    ? 'linear-gradient(140deg, rgba(112, 186, 255, 0.45) 0%, rgba(69, 145, 251, 0.34) 45%, rgba(0, 82, 204, 0.28) 100%)'
-                    : isReady
-                    ? '#e8f0fe'
-                    : 'white',
-                transition: 'all 0.2s ease',
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                '&:hover': { boxShadow: 4, borderColor: isActive ? 'primary.main' : isReady ? 'primary.light' : 'grey.300' },
+                ...(isActive && { borderColor: 'primary.main' }),
+                ...(backendConfigured && {
+                    '&:hover': {
+                        boxShadow: 4,
+                        ...(isActive && { borderColor: 'primary.main' }),
+                    },
+                }),
             }}
         >
             <CardContent>
@@ -170,9 +172,9 @@ export default function PluginEvaluationForm({
                             <Icon sx={{ color: 'error.main', alignSelf: 'center', fontSize: 24 }}>error</Icon>
                         </Tooltip>
                     ) : (
-                        <CheckCircleOutlineIcon
-                            sx={{ color: 'action.disabled', alignSelf: 'center', fontSize: 24 }}
-                        />
+                        <Tooltip title="Plugin not selected">
+                            <CircleOutlinedIcon sx={{ color: 'action.disabled', alignSelf: 'center', fontSize: 24 }} />
+                        </Tooltip>
                     )}
                 </Box>
 
@@ -316,5 +318,11 @@ export default function PluginEvaluationForm({
                 )}
             </CardContent>
         </Card>
+    );
+
+    return backendConfigured ? card : (
+        <Tooltip title="Plugin not configured" placement="top">
+            {card}
+        </Tooltip>
     );
 }

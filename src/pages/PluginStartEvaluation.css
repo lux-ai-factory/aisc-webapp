@@ -1,10 +1,11 @@
-.start-eval-grid:hover .start-eval-card {
-  opacity: 0.74;
-  filter: saturate(0.88);
+.start-eval-grid .start-eval-card:hover {
+    opacity: 1;
+    filter: saturate(1.18);
+    transform: translateY(-3px) scale(1.01);
 }
 
-.start-eval-grid .start-eval-card:hover {
-  opacity: 1;
-  filter: saturate(1.18);
-  transform: translateY(-3px) scale(1.01);
+.start-eval-grid .start-eval-card.plugin-eval-card--unconfigured {
+    opacity: 0.65;
+    filter: none;
+    transform: none;
 }
