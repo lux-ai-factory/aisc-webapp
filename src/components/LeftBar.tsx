@@ -33,7 +33,8 @@ const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 interface MenuListProps {
     title: string,
     items: { text: string, icon: React.ReactNode, target: string, nested?: boolean, needsConfig?: boolean }[],
-    collapsed?: boolean
+    collapsed?: boolean,
+    onNavigate?: () => void,
 }
 
 /**
@@ -115,6 +116,7 @@ function MenuList(props: MenuListProps) {
                             to={item.target}
                             selected={isSelected}
                             sx={listItemButtonSx}
+                            onClick={props.onNavigate}
                         >
                             <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, flex: 1 }}>
                                 <ListItemIcon sx={{ minWidth: collapsed ? 0 : (item.nested ? 36 : 40), justifyContent: 'center', mr: collapsed ? 0 : 0.5, color: isSelected ? '#0a56c7' : undefined }}>
@@ -262,48 +264,75 @@ export default function LeftBar({ drawerWidth, expandedDrawerWidth, collapsed, m
 
     let pluginsMenu = [pluginMenuHeader].concat(pluginsMenuItems)
 
-    const menuBody = (isCollapsedView: boolean) => (
+    const menuBody = (isCollapsedView: boolean, onNavigate?: () => void) => (
         <>
             <Toolbar />
             {projectName &&
                 <Box sx={{ overflow: 'auto' }}>
-                    <Box className="toggle-btn-container">
-                        <Tooltip title={isCollapsedView ? 'Expand menu' : 'Collapse menu'} placement="right" arrow>
-                            <IconButton
-                                size="small"
-                                onClick={onToggle}
-                                aria-label="toggle menu"
-                                className="toggle-icon-btn"
+                    {isCollapsedView ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 1 }}>
+                            <Tooltip title="Expand menu" placement="right" arrow>
+                                <IconButton
+                                    size="small"
+                                    onClick={(e) => { e.stopPropagation(); onToggle?.(); }}
+                                    aria-label="expand menu"
+                                    className="toggle-icon-btn"
+                                >
+                                    <KeyboardDoubleArrowRightRoundedIcon fontSize="small" />
+                                </IconButton>
+                            </Tooltip>
+                        </Box>
+                    ) : (
+                        <Box className="project-header">
+                            <Box
+                                component={Link}
+                                to="/"
+                                className="project-list-link"
+                                onClick={onNavigate}
                             >
-                                {isCollapsedView ? <KeyboardDoubleArrowRightRoundedIcon fontSize="small" /> : <KeyboardDoubleArrowLeftRoundedIcon fontSize="small" />}
-                            </IconButton>
-                        </Tooltip>
-                    </Box>
-                    <Divider sx={{borderColor: '#e6e8ed'}} />
+                                <Icon>view_list</Icon>
+                                Project list
+                            </Box>
+                            <Tooltip title="Collapse menu" placement="right" arrow>
+                                <IconButton
+                                    size="small"
+                                    onClick={(e) => { e.stopPropagation(); onToggle?.(); }}
+                                    aria-label="collapse menu"
+                                    className="toggle-icon-btn"
+                                >
+                                    <KeyboardDoubleArrowLeftRoundedIcon fontSize="small" />
+                                </IconButton>
+                            </Tooltip>
+                        </Box>
+                    )}
+                    {!isCollapsedView && <Divider sx={{borderColor: '#e6e8ed'}} />}
                     <MenuList
-                        title="Project"
+                        title={isCollapsedView ? "Project" : "Project"}
                         collapsed={isCollapsedView}
+                        onNavigate={onNavigate}
                         items={[
                             { text: 'Overview', icon: <DashboardIcon />, target: `/projects/${projectName}/overview` },
                             { text: 'Settings', icon: <SettingsIcon />, target: `/projects/${projectName}/settings` },
                         ]}
                     />
-                    <Divider sx={{borderColor: '#e6e8ed'}} />
+                    {!isCollapsedView && <Divider sx={{borderColor: '#e6e8ed'}} />}
                     <MenuList
                         title="Plugin Management"
                         collapsed={isCollapsedView}
+                        onNavigate={onNavigate}
                         items={pluginsMenu}
                     />
-                    <Divider sx={{borderColor: '#e6e8ed'}} />
+                    {!isCollapsedView && <Divider sx={{borderColor: '#e6e8ed'}} />}
                     <MenuList
                         title="Evaluations"
                         collapsed={isCollapsedView}
+                        onNavigate={onNavigate}
                         items={[
                             { text: 'Start Evaluations', icon: <Icon>play_circle</Icon>, target: `/projects/${projectName}/plugins/evaluation` },
                             { text: 'Evaluations', icon: <Icon>sports_score</Icon>, target: `/projects/${projectName}/plugins/evaluations` }
                         ]}
                     />
-                    <Divider sx={{borderColor: '#e6e8ed'}} />
+                    {!isCollapsedView && <Divider sx={{borderColor: '#e6e8ed'}} />}
                 </Box>
             }
         </>
@@ -316,11 +345,7 @@ export default function LeftBar({ drawerWidth, expandedDrawerWidth, collapsed, m
                     variant="permanent"
                     open
                     drawerwidth={drawerWidth}
-                    sx={{
-                        [`& .MuiDrawer-paper`]: {
-                            borderRight: projectUUID ? undefined : 'none',
-                        },
-                    }}
+                    className={!projectUUID ? 'drawer-no-border' : ''}
                 >
                     {menuBody(true)}
                 </Drawer>
@@ -331,19 +356,10 @@ export default function LeftBar({ drawerWidth, expandedDrawerWidth, collapsed, m
                         open={mobileOpen}
                         onClose={onToggle}
                         drawerwidth={expandedDrawerWidth ?? 320}
+                        className="drawer-overlay"
                         ModalProps={{ keepMounted: true }}
-                        slotProps={{
-                            paper: {
-                                onClick: onToggle,
-                            },
-                        }}
-                        sx={{
-                            [`& .MuiDrawer-paper`]: {
-                                boxShadow: '0 8px 28px rgba(15, 23, 42, 0.18)',
-                            },
-                        }}
                     >
-                        {menuBody(false)}
+                        {menuBody(false, onToggle)}
                     </Drawer>
                 )}
 
@@ -368,11 +384,7 @@ export default function LeftBar({ drawerWidth, expandedDrawerWidth, collapsed, m
             variant="permanent"
             open={!collapsed}
             drawerwidth={drawerWidth}
-            sx={{
-                [`& .MuiDrawer-paper`]: {
-                    borderRight: projectUUID ? undefined : 'none',
-                },
-            }}
+            className={!projectUUID ? 'drawer-no-border' : ''}
         >
             {menuBody(Boolean(collapsed))}
         </Drawer>
