@@ -24,6 +24,8 @@ import DownloadIcon from '@mui/icons-material/Download';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import toast from 'react-hot-toast';
+import './Settings.css';
+import '../styles/common.css';
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -119,18 +121,7 @@ function ProjectDetailsSection() {
             </Typography>
             <Card
                 variant="outlined"
-                sx={{
-                    border: '2px solid',
-                    borderColor: 'rgba(28, 92, 198, 0.28)',
-                    background: 'linear-gradient(165deg, rgba(247, 251, 255, 0.98), rgba(232, 241, 255, 0.96))',
-                    borderRadius: 2,
-                    transition: 'all 0.22s ease',
-                    '&:hover': {
-                        boxShadow: '0 14px 28px rgba(20, 77, 172, 0.22)',
-                        borderColor: 'rgba(28, 92, 198, 0.62)',
-                        background: 'linear-gradient(160deg, rgba(227, 241, 255, 0.98), rgba(190, 223, 255, 0.94))',
-                    },
-                }}
+                className="gradient-card"
             >
                 <CardContent>
                     <Stack direction="row" spacing={2} alignItems="center">
@@ -153,24 +144,7 @@ function ProjectDetailsSection() {
                             variant="contained"
                             disabled={!edited || !!errors.name}
                             onClick={handleSave}
-                            sx={{
-                                mt: 0.5,
-                                borderRadius: "10px",
-                                fontSize: "0.95rem",
-                                fontWeight: 600,
-                                textTransform: "none",
-                                whiteSpace: 'nowrap',
-                                background: "linear-gradient(135deg, #57a8ff 0%, #2f7df6 48%, #0d47b8 100%)",
-                                boxShadow: "0 8px 18px rgba(18, 84, 188, 0.32)",
-                                "&:hover": {
-                                    background: "linear-gradient(135deg, #6ab4ff 0%, #3b88ff 45%, #1554c7 100%)",
-                                    boxShadow: "0 10px 20px rgba(14, 75, 173, 0.4)"
-                                },
-                                "&:disabled": {
-                                    background: "#9bbcff",
-                                    boxShadow: "none"
-                                }
-                            }}
+                            className="gradient-btn"
                         >
                             Save Changes
                         </Button>
@@ -349,27 +323,14 @@ function AddFileDialog({ open, onClose, onAdd }: {
             fullWidth
             slotProps={{
                 paper: {
-                    sx: {
-                        backgroundColor: "#0048ff",
-                        backgroundImage: "linear-gradient(135deg, #001075, #0020b5)",
-                        borderRadius: "16px",
-                        boxShadow: "none",
-                    }
+                    className: "dialog-paper-blue",
                 }
             }}
         >
             <DialogTitle sx={{ color: "white", fontWeight: 700 }}>
                 Add File
             </DialogTitle>
-            <DialogContent sx={{
-                paddingBottom: 4,
-                backgroundColor: "white",
-                borderTopLeftRadius: "12px",
-                borderTopRightRadius: "12px",
-                mx: 1,
-                mb: 1,
-                mt: 1,
-            }}>
+            <DialogContent className="dialog-content-white">
                 <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
                     <TextField
                         label="File name"
@@ -538,21 +499,7 @@ export default function SettingsPage() {
                         <Grid key={item.pid} size={{ xs: 12, sm: 12, md: 6, lg: 4 }}>
                             <Card
                                 variant="outlined"
-                                sx={{
-                                    minWidth: 250,
-                                    border: '2px solid',
-                                    borderColor: 'rgba(28, 92, 198, 0.28)',
-                                    background: 'linear-gradient(165deg, rgba(247, 251, 255, 0.98), rgba(232, 241, 255, 0.96))',
-                                    transition: 'all 0.22s ease',
-                                    height: '100%',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    '&:hover': {
-                                        boxShadow: '0 14px 28px rgba(20, 77, 172, 0.22)',
-                                        borderColor: 'rgba(28, 92, 198, 0.62)',
-                                        background: 'linear-gradient(160deg, rgba(227, 241, 255, 0.98), rgba(190, 223, 255, 0.94))',
-                                    },
-                                }}
+                                className="gradient-card"
                             >
                                 <CardContent sx={{ height: '100%' }}>
                                     <FileRow
@@ -590,19 +537,7 @@ export default function SettingsPage() {
                     variant="contained"
                     startIcon={<AddIcon />}
                     onClick={() => setAddDialogOpen(true)}
-                    sx={{
-                        borderRadius: "10px",
-                        fontSize: "0.95rem",
-                        fontWeight: 600,
-                        textTransform: "none",
-                        gap: 1,
-                        background: "linear-gradient(135deg, #57a8ff 0%, #2f7df6 48%, #0d47b8 100%)",
-                        boxShadow: "0 8px 18px rgba(18, 84, 188, 0.32)",
-                        "&:hover": {
-                            background: "linear-gradient(135deg, #6ab4ff 0%, #3b88ff 45%, #1554c7 100%)",
-                            boxShadow: "0 10px 20px rgba(14, 75, 173, 0.4)"
-                        },
-                    }}
+                    className="gradient-btn"
                 >
                     Add File
                 </Button>

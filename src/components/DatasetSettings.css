@@ -1,0 +1,7 @@
+.circular-progress-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    margin-top: -18px;
+    margin-left: -18px;
+}

@@ -1,0 +1,31 @@
+.eval-row {
+    cursor: pointer;
+}
+
+.eval-row .eval-pid {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.eval-row:hover .eval-pid {
+    opacity: 1;
+}
+
+.outer-progress {
+    height: 10px;
+    border-radius: 6px;
+}
+
+.outer-progress .MuiLinearProgress-bar {
+    border-radius: 6px;
+}
+
+.inner-progress {
+    flex: 1;
+    height: 8px;
+    border-radius: 6px;
+}
+
+.inner-progress .MuiLinearProgress-bar {
+    border-radius: 6px;
+}

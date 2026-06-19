@@ -14,6 +14,7 @@ import {API_VERSION_PREFIX} from '../config';
 import {ThemeProvider} from '@emotion/react';
 import {useNavigate} from 'react-router-dom';
 import toast from 'react-hot-toast';
+import "./TopBar.css";
 import "./addProjectButton.css";
 import AddProjectWizard from "./addProjectWizard.tsx";
 
@@ -242,11 +243,8 @@ const TopBar: React.FC = () => {
                         href="/"
                         underline="none"
                         color="inherit"
-                        sx={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            m: 0,
-                        }}
+                        className="topbar-link"
+                        sx={{ m: 0 }}
                     >
                         <Box display="flex" alignItems="center" gap={1}>
                             <img
@@ -268,11 +266,8 @@ const TopBar: React.FC = () => {
                         <Typography
                             variant="h6"
                             component="span"
-                            sx={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 1.5
-                            }}
+                            className="topbar-project-name"
+                            sx={{ gap: 1.5 }}
                         >
                             <span>|</span>
                             <span>{projectName}</span>

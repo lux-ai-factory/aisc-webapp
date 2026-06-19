@@ -1,4 +1,5 @@
 import * as React from 'react';
+import './LeftBar.css';
 import MuiDrawer from '@mui/material/Drawer';
 import Toolbar from '@mui/material/Toolbar';
 import Divider from '@mui/material/Divider';
@@ -75,6 +76,31 @@ function MenuList(props: MenuListProps) {
             {props.items.map((item, index) => {
                 const itemPath = normalizePath(item.target);
                 const isSelected = currentPath === itemPath || (item.nested && currentPath.startsWith(`${itemPath}/`));
+                const listItemButtonSx = {
+                    minHeight: 38,
+                    display: "flex",
+                    justifyContent: collapsed ? "center" : "space-between",
+                    alignItems: "center",
+                    borderRadius: 2,
+                    mx: collapsed ? 0.5 : 1,
+                    px: collapsed ? 1 : 1.25,
+                    color: isSelected ? '#0a56c7' : 'text.primary',
+                    bgcolor: isSelected ? '#d2e0f5' : 'transparent',
+                    fontWeight: isSelected ? 700 : 400,
+                    opacity: isSelected ? 1 : (item.nested ? 0.88 : 1),
+                    '&:hover': {
+                        opacity: 1,
+                        bgcolor: isSelected ? '#c2d5f0' : '#eef2f7',
+                    },
+                    '&.Mui-selected': {
+                        bgcolor: '#d2e0f5',
+                        color: '#0a56c7',
+                        fontWeight: 700,
+                        '& .MuiListItemIcon-root': { color: '#0a56c7' },
+                        '& .MuiTypography-root': { color: '#0a56c7', fontWeight: 700 },
+                    },
+                    '&.Mui-selected:hover': { bgcolor: '#c2d5f0' },
+                };
                 return (
                 <ListItem
                     key={index}
@@ -88,38 +114,7 @@ function MenuList(props: MenuListProps) {
                             component={Link}
                             to={item.target}
                             selected={isSelected}
-                            sx={{
-                                minHeight: 38,
-                                display: "flex",
-                                justifyContent: collapsed ? "center" : "space-between",
-                                alignItems: "center",
-                                borderRadius: 2,
-                                mx: collapsed ? 0.5 : 1,
-                                px: collapsed ? 1 : 1.25,
-                                color: isSelected ? '#0a56c7' : 'text.primary',
-                                bgcolor: isSelected ? '#d2e0f5' : 'transparent',
-                                fontWeight: isSelected ? 700 : 400,
-                                opacity: isSelected ? 1 : (item.nested ? 0.88 : 1),
-                                '&:hover': {
-                                    opacity: 1,
-                                    bgcolor: isSelected ? '#c2d5f0' : '#eef2f7',
-                                },
-                                '&.Mui-selected': {
-                                    bgcolor: '#d2e0f5',
-                                    color: '#0a56c7',
-                                    fontWeight: 700,
-                                    '& .MuiListItemIcon-root': {
-                                        color: '#0a56c7',
-                                    },
-                                    '& .MuiTypography-root': {
-                                        color: '#0a56c7',
-                                        fontWeight: 700,
-                                    },
-                                },
-                                '&.Mui-selected:hover': {
-                                    bgcolor: '#c2d5f0',
-                                },
-                            }}
+                            sx={listItemButtonSx}
                         >
                             <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, flex: 1 }}>
                                 <ListItemIcon sx={{ minWidth: collapsed ? 0 : (item.nested ? 36 : 40), justifyContent: 'center', mr: collapsed ? 0 : 0.5, color: isSelected ? '#0a56c7' : undefined }}>
@@ -272,35 +267,13 @@ export default function LeftBar({ drawerWidth, expandedDrawerWidth, collapsed, m
             <Toolbar />
             {projectName &&
                 <Box sx={{ overflow: 'auto' }}>
-                    <Box
-                        sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'flex-start',
-                            px: 1,
-                            py: 1,
-                            gap: 1,
-                        }}
-                    >
+                    <Box className="toggle-btn-container">
                         <Tooltip title={isCollapsedView ? 'Expand menu' : 'Collapse menu'} placement="right" arrow>
                             <IconButton
                                 size="small"
                                 onClick={onToggle}
                                 aria-label="toggle menu"
-                                sx={{
-                                    width: 32,
-                                    height: 32,
-                                    borderRadius: 1.5,
-                                    color: '#4b5563',
-                                    bgcolor: '#eef0f3',
-                                    border: '1px solid #dde2ea',
-                                    transition: 'all 0.18s ease',
-                                    '&:hover': {
-                                        bgcolor: '#e4e9f2',
-                                        borderColor: '#cfd7e5',
-                                        transform: 'translateY(-1px)',
-                                    },
-                                }}
+                                className="toggle-icon-btn"
                             >
                                 {isCollapsedView ? <KeyboardDoubleArrowRightRoundedIcon fontSize="small" /> : <KeyboardDoubleArrowLeftRoundedIcon fontSize="small" />}
                             </IconButton>
@@ -379,22 +352,8 @@ export default function LeftBar({ drawerWidth, expandedDrawerWidth, collapsed, m
                         <IconButton
                             onClick={onToggle}
                             aria-label="open menu"
-                            sx={{
-                                position: 'fixed',
-                                left: 12,
-                                top: 12,
-                                zIndex: (theme) => theme.zIndex.appBar + 2,
-                                width: 36,
-                                height: 36,
-                                borderRadius: 1.5,
-                                color: '#4b5563',
-                                bgcolor: '#eef0f3',
-                                border: '1px solid #dde2ea',
-                                '&:hover': {
-                                    bgcolor: '#e4e9f2',
-                                    borderColor: '#cfd7e5',
-                                },
-                            }}
+                            className="open-menu-btn"
+                            sx={{ zIndex: (theme) => theme.zIndex.appBar + 2 }}
                         >
                             <MenuRoundedIcon fontSize="small" />
                         </IconButton>

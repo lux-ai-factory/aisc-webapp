@@ -17,6 +17,7 @@ import CloudDoneIcon from '@mui/icons-material/CloudDone';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import CloudUpload from '@mui/icons-material/CloudUpload';
+import './ModelSettngs.css';
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -139,14 +140,7 @@ const UploadModel = ({ model, onUploadSuccess }: UploadModelProps) => {
                     variant="determinate"
                     value={progress}
                     size={36}
-                    sx={{
-                        color: "primary.main",
-                        position: "absolute",
-                        top: "50%",
-                        left: "50%",
-                        marginTop: "-18px",
-                        marginLeft: "-18px",
-                    }}
+                    className="circular-progress-overlay"
                 />
             )}
         </Box>

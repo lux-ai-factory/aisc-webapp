@@ -1,0 +1,39 @@
+.plugin-evaluation-form__select-paper {
+  border: 1px solid rgba(25, 87, 191, 0.24);
+  box-shadow: 0 14px 30px rgba(18, 84, 188, 0.24);
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.plugin-evaluation-form__input-label {
+  color: #111111;
+  font-weight: 700;
+}
+
+.plugin-evaluation-form__input-label.Mui-focused {
+  color: #111111;
+  font-weight: 700;
+}
+
+.plugin-evaluation-form__form-control {
+  align-self: stretch;
+}
+
+.plugin-evaluation-form__form-control .MuiOutlinedInput-root {
+  background-color: rgba(238, 246, 255, 0.95);
+  box-shadow: 0 1px 6px rgba(18, 84, 188, 0.08);
+  min-height: 42px;
+}
+
+.plugin-evaluation-form__form-control .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(25, 87, 191, 0.35);
+  border-width: 1.5px;
+}
+
+.plugin-evaluation-form__form-control .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(25, 87, 191, 0.62);
+}
+
+.plugin-evaluation-form__form-control .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-width: 2px;
+}

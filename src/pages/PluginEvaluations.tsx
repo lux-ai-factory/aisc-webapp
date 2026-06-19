@@ -1,4 +1,6 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
+import './PluginEvaluations.css';
+import '../styles/common.css';
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {Link} from "react-router-dom";
 import {useProject} from "../context/ProjectContext.tsx";
@@ -256,9 +258,9 @@ function PluginEvaluations() {
                     onEvaluationsChanged={handleInProgressChanged}
                 />
             )}
-            <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2}}>
+            <Box className="eval-header">
                 <Stack direction="row" spacing={2} alignItems="center">
-                    <Typography component="h2" variant="h4" gutterBottom sx={{mb: 0}}>
+                    <Typography component="h2" variant="h4" gutterBottom className="eval-header-title">
                         Completed Evaluations:
                     </Typography>
                     <ToggleButtonGroup
@@ -270,16 +272,16 @@ function PluginEvaluations() {
                     >
                         <ToggleButton value="newest" aria-label="newest first">
                             <Tooltip title="Newest first">
-                                <Box sx={{display: 'flex', alignItems: 'center'}}>
-                                    <Icon sx={{fontSize: '1.1rem'}}>arrow_downward</Icon>
+                                <Box className="sort-toggle-row">
+                                    <Icon className="sort-toggle-icon">arrow_downward</Icon>
                                     <Box component="span" sx={{display: {xs: 'none', md: 'inline'}, ml: 0.5}}>Newest</Box>
                                 </Box>
                             </Tooltip>
                         </ToggleButton>
                         <ToggleButton value="oldest" aria-label="oldest first">
                             <Tooltip title="Oldest first">
-                                <Box sx={{display: 'flex', alignItems: 'center'}}>
-                                    <Icon sx={{fontSize: '1.1rem'}}>arrow_upward</Icon>
+                                <Box className="sort-toggle-row">
+                                    <Icon className="sort-toggle-icon">arrow_upward</Icon>
                                     <Box component="span" sx={{display: {xs: 'none', md: 'inline'}, ml: 0.5}}>Oldest</Box>
                                 </Box>
                             </Tooltip>
@@ -291,25 +293,8 @@ function PluginEvaluations() {
                         variant="contained"
                         onClick={handleDownloadReport}
                         disabled={!projectName || !evaluations || evaluations.length === 0}
-                        sx={{
-                            borderRadius: "10px",
-                            fontSize: "0.95rem",
-                            fontWeight: 600,
-                            textTransform: "none",
-                            gap: 1,
-                            minWidth: {xs: '44px', md: 'auto'},
-                            px: {xs: 1.5, md: 3},
-                            background: "linear-gradient(135deg, #57a8ff 0%, #2f7df6 48%, #0d47b8 100%)",
-                            boxShadow: "0 8px 18px rgba(18, 84, 188, 0.32)",
-                            "&:hover": {
-                                background: "linear-gradient(135deg, #6ab4ff 0%, #3b88ff 45%, #1554c7 100%)",
-                                boxShadow: "0 10px 20px rgba(14, 75, 173, 0.4)"
-                            },
-                            "&:disabled": {
-                                background: "#9bbcff",
-                                boxShadow: "none"
-                            }
-                        }}
+                        className="gradient-btn"
+                        sx={{minWidth: {xs: '44px', md: 'auto'}, px: {xs: 1.5, md: 3}}}
                     >
                         <DownloadIcon />
                         <Box component="span" sx={{display: {xs: 'none', md: 'inline'}}}>
@@ -321,36 +306,13 @@ function PluginEvaluations() {
             <Grid
                 container
                 spacing={2}
-                sx={{
-                    '&:hover .results-eval-card': {
-                        opacity: 0.82,
-                    },
-                    '& .results-eval-card:hover': {
-                        opacity: 1,
-                        transform: 'translateY(-2px)',
-                    },
-                }}
+                className="eval-grid"
             >
                 {processedEvaluations.map(({evaluation, createdParts, finishedParts}) => (
                         <Grid key={evaluation.pid} size={{xs: 12, sm: 12, md: 6, lg: 4}}>
                             <Card
-                                className="results-eval-card"
+                                className="results-eval-card eval-card gradient-card"
                                 variant="outlined"
-                                sx={{
-                                    minWidth: 250,
-                                    border: '2px solid',
-                                    borderColor: 'rgba(28, 92, 198, 0.28)',
-                                    background: 'linear-gradient(165deg, rgba(247, 251, 255, 0.98), rgba(232, 241, 255, 0.96))',
-                                    transition: 'all 0.22s ease',
-                                    height: '100%',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    '&:hover': {
-                                        boxShadow: '0 14px 28px rgba(20, 77, 172, 0.22)',
-                                        borderColor: 'rgba(28, 92, 198, 0.62)',
-                                        background: 'linear-gradient(160deg, rgba(227, 241, 255, 0.98), rgba(190, 223, 255, 0.94))',
-                                    },
-                                }}
                             >
                                 <CardContent sx={{display: 'flex', flexDirection: 'column', gap: 1.25, height: '100%'}}>
                                     <CardActionArea
@@ -417,18 +379,7 @@ function PluginEvaluations() {
                                                         handleDownloadEvalReport(evaluation.pid);
                                                     }}
                                                     size="small"
-                                                    sx={{
-                                                        width: 34,
-                                                        height: 34,
-                                                        borderRadius: '999px',
-                                                        color: 'common.white',
-                                                        background: 'linear-gradient(135deg, #57a8ff 0%, #2f7df6 48%, #0d47b8 100%)',
-                                                        boxShadow: '0 6px 14px rgba(18, 84, 188, 0.32)',
-                                                        '&:hover': {
-                                                            background: 'linear-gradient(135deg, #6ab4ff 0%, #3b88ff 45%, #1554c7 100%)',
-                                                            boxShadow: '0 8px 16px rgba(14, 75, 173, 0.4)',
-                                                        },
-                                                    }}
+                                                    className="eval-icon-btn"
                                                 >
                                                     <DownloadIcon fontSize="small" />
                                                 </IconButton>
@@ -466,25 +417,7 @@ function PluginEvaluations() {
                                                             <Box
                                                                 component="button"
                                                                 type="button"
-                                                                sx={{
-                                                                    display: 'inline-flex',
-                                                                    alignItems: 'center',
-                                                                    gap: 0.55,
-                                                                    mb: 0.7,
-                                                                    px: 0.8,
-                                                                    py: 0.35,
-                                                                    borderRadius: 1,
-                                                                    border: 'none',
-                                                                    bgcolor: 'primary.main',
-                                                                    color: 'primary.contrastText',
-                                                                    fontSize: 11,
-                                                                    fontWeight: 700,
-                                                                    letterSpacing: 0.15,
-                                                                    cursor: 'pointer',
-                                                                    '&:hover': {
-                                                                        bgcolor: 'primary.dark',
-                                                                    },
-                                                                }}
+                                                                className="download-config-btn"
                                                                 onClick={(event) => {
                                                                     event.preventDefault();
                                                                     event.stopPropagation();
@@ -496,16 +429,7 @@ function PluginEvaluations() {
                                                             </Box>
                                                             <Box
                                                                 component="pre"
-                                                                sx={{
-                                                                    m: 0,
-                                                                    maxHeight: 220,
-                                                                    overflowY: 'auto',
-                                                                    pr: 0.5,
-                                                                    whiteSpace: 'pre-wrap',
-                                                                    wordBreak: 'break-word',
-                                                                    fontSize: 11,
-                                                                    userSelect: 'text',
-                                                                }}
+                                                                className="config-pre"
                                                             >
                                                                 {redactConfig(plugin.plugin_config) || 'No config'}
                                                             </Box>

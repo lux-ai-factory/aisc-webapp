@@ -28,6 +28,7 @@ import {
     MetricScoreSummary,
     PluginUsageSummary
 } from "../models/models";
+import "./SummaryTable.css";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -57,18 +58,15 @@ const StatCard: React.FC<StatCardProps> = ({ icon, label, value, subtitle, color
     return (
         <Card
             variant="outlined"
+            className="stat-card-paper"
             sx={{
-                height: "100%",
                 borderLeft: `4px solid ${c}`,
-                transition: "box-shadow 0.2s",
                 "&:hover": { boxShadow: theme.shadows[4] },
             }}
         >
             <CardContent sx={{ py: 2, "&:last-child": { pb: 2 } }}>
                 <Stack direction="row" spacing={1.5} alignItems="center">
-                    <Box sx={{
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        width: 44, height: 44, borderRadius: 2,
+                    <Box className="stat-card-icon-box" sx={{
                         bgcolor: alpha(c, 0.1), color: c,
                     }}>
                         {icon}

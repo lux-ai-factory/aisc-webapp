@@ -16,6 +16,7 @@ import {Plugin, Package} from "../models/models.tsx";
 import React, {useState} from "react";
 import {getPlugins, getProject} from "../api/api.tsx";
 import toast from "react-hot-toast";
+import "./Plugins.css";
 
 class PluginErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
     constructor(props: {children: React.ReactNode}) {
@@ -180,17 +181,7 @@ function Plugins() {
             <Grid
                 container
                 spacing={2}
-                sx={{
-                    '&:hover .package-card-focus': {
-                        opacity: 0.74,
-                        filter: 'saturate(0.88)',
-                    },
-                    '& .package-card-focus:hover': {
-                        opacity: 1,
-                        filter: 'saturate(1.18)',
-                        transform: 'translateY(-3px) scale(1.01)',
-                    },
-                }}
+                className="plugins-grid"
             >
                 {projectPackages.map((pkg: ProjectPackage) => {
                     const isEnabled = Boolean(pkg.enabled);

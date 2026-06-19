@@ -21,6 +21,7 @@ import {
 import HourglassTopIcon from '@mui/icons-material/HourglassTop';
 import ExtensionIcon from '@mui/icons-material/Extension';
 import {API_VERSION_PREFIX} from '../config.tsx';
+import './EvaluationProgressList.css';
 import {Evaluation, Plugin, TaskProgress} from '../models/models.tsx';
 import {useEffect, useState} from 'react';
 
@@ -264,10 +265,8 @@ function EvalProgressRow({
                     <TableRow
                         hover
                         onClick={() => setOpen((prev) => !prev)}
+                        className="eval-row"
                         sx={{
-                            cursor: 'pointer',
-                            '& .eval-pid': {opacity: 0, transition: 'opacity 0.2s ease'},
-                            '&:hover .eval-pid': {opacity: 1},
                             bgcolor: alpha(theme.palette.primary.main, 0.05),
                         }}
                     >
@@ -310,13 +309,11 @@ function EvalProgressRow({
                                     <LinearProgress
                                         variant="determinate"
                                         value={progressPercent}
+                                        className="outer-progress"
                                         sx={{
-                                            height: 10,
-                                            borderRadius: 6,
                                             bgcolor: alpha(theme.palette.primary.main, 0.16),
                                             '& .MuiLinearProgress-bar': {
                                                 bgcolor: failedPlugins > 0 ? theme.palette.error.main : theme.palette.primary.main,
-                                                borderRadius: 6,
                                             },
                                         }}
                                     />
@@ -377,14 +374,9 @@ function EvalProgressRow({
                                                                 <LinearProgress
                                                                     variant={ps ? 'determinate' : 'indeterminate'}
                                                                     value={pct}
+                                                                    className="inner-progress"
                                                                     sx={{
-                                                                        flex: 1,
-                                                                        height: 8,
-                                                                        borderRadius: 6,
                                                                         bgcolor: alpha(theme.palette.primary.main, 0.12),
-                                                                        '& .MuiLinearProgress-bar': {
-                                                                            borderRadius: 6,
-                                                                        },
                                                                     }}
                                                                 />
                                                                 <Typography variant="caption" sx={{minWidth: 34, textAlign: 'right'}}>

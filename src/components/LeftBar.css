@@ -1,0 +1,38 @@
+.toggle-btn-container {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 8px;
+    gap: 8px;
+}
+
+.toggle-icon-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 12px;
+    color: #4b5563;
+    background-color: #eef0f3;
+    border: 1px solid #dde2ea;
+    transition: all 0.18s ease;
+}
+.toggle-icon-btn:hover {
+    background-color: #e4e9f2 !important;
+    border-color: #cfd7e5 !important;
+    transform: translateY(-1px);
+}
+
+.open-menu-btn {
+    position: fixed;
+    left: 12px;
+    top: 12px;
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    color: #4b5563;
+    background-color: #eef0f3;
+    border: 1px solid #dde2ea;
+}
+.open-menu-btn:hover {
+    background-color: #e4e9f2 !important;
+    border-color: #cfd7e5 !important;
+}

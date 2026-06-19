@@ -8,6 +8,8 @@ import { Plugin, PluginInputValue } from "../models/models.tsx";
 import toast from "react-hot-toast";
 import { getProject } from "../api/api.tsx";
 import PluginEvaluationForm from "../components/plugin/PluginEvaluationForm.tsx";
+import './PluginStartEvaluation.css';
+import '../styles/common.css';
 
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
@@ -145,26 +147,12 @@ export default function PluginStartEvaluation() {
                 <Tooltip title="Create Evaluation">
                     <Button
                         variant="contained"
+                        className="gradient-btn"
                         onClick={handleOnClick}
                         disabled={Object.values(validPlugins).filter(Boolean).length === 0}
                         sx={{
-                            borderRadius: "10px",
-                            fontSize: "0.95rem",
-                            fontWeight: 600,
-                            textTransform: "none",
-                            gap: 1,
                             minWidth: {xs: '44px', md: 'auto'},
                             px: {xs: 1.5, md: 3},
-                            background: "linear-gradient(135deg, #57a8ff 0%, #2f7df6 48%, #0d47b8 100%)",
-                            boxShadow: "0 8px 18px rgba(18, 84, 188, 0.32)",
-                            "&:hover": {
-                                background: "linear-gradient(135deg, #6ab4ff 0%, #3b88ff 45%, #1554c7 100%)",
-                                boxShadow: "0 10px 20px rgba(14, 75, 173, 0.4)"
-                            },
-                            "&:disabled": {
-                                background: "#9bbcff",
-                                boxShadow: "none"
-                            }
                         }}
                         startIcon={<Icon sx={{fontSize: '1.25rem'}}>play_circle_filled</Icon>}
                     >
@@ -178,17 +166,7 @@ export default function PluginStartEvaluation() {
             <Grid
                 container
                 spacing={2}
-                sx={{
-                    '&:hover .start-eval-card': {
-                        opacity: 0.74,
-                        filter: 'saturate(0.88)',
-                    },
-                    '& .start-eval-card:hover': {
-                        opacity: 1,
-                        filter: 'saturate(1.18)',
-                        transform: 'translateY(-3px) scale(1.01)',
-                    },
-                }}
+                className="start-eval-grid"
             >
                 {project?.plugins.filter(p => p.enabled).map((projectPlugin: Plugin) => (
                     <Grid key={projectPlugin.pid} size={{xs: 12, sm: 12, md: 6, lg: 4}}>

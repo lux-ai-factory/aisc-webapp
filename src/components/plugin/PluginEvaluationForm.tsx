@@ -6,6 +6,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { useProject } from "../../context/ProjectContext.tsx";
 import { useState, useEffect, useRef } from "react";
+import './PluginEvaluationForm.css';
 
 const API_URL = import.meta.env.VITE_API_URL + '/api/v1';
 
@@ -99,19 +100,16 @@ export default function PluginEvaluationForm({
     const selectMenuProps = {
         disablePortal: false,
         PaperProps: {
+            className: 'plugin-evaluation-form__select-paper',
             sx: {
                 mt: 0.5,
                 borderRadius: 1.5,
-                border: '1px solid rgba(25, 87, 191, 0.24)',
-                boxShadow: '0 14px 30px rgba(18, 84, 188, 0.24)',
-                maxHeight: 320,
-                overflowY: 'auto',
             },
         },
         MenuListProps: {
             dense: true,
         },
-    } as const;
+    };
 
     return (
         <Card
@@ -203,23 +201,12 @@ export default function PluginEvaluationForm({
                                     <FormControl
                                         fullWidth
                                         size="small"
+                                        className="plugin-evaluation-form__form-control"
                                         sx={{
-                                            alignSelf: 'stretch',
                                             '& .MuiOutlinedInput-root': {
-                                                bgcolor: 'rgba(238, 246, 255, 0.95)',
                                                 borderRadius: 1.5,
-                                                boxShadow: '0 1px 6px rgba(18, 84, 188, 0.08)',
-                                                minHeight: 42,
-                                                '& .MuiOutlinedInput-notchedOutline': {
-                                                    borderColor: 'rgba(25, 87, 191, 0.35)',
-                                                    borderWidth: 1.5,
-                                                },
-                                                '&:hover .MuiOutlinedInput-notchedOutline': {
-                                                    borderColor: 'rgba(25, 87, 191, 0.62)',
-                                                },
                                                 '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
                                                     borderColor: 'primary.main',
-                                                    borderWidth: 2,
                                                 },
                                             },
                                         }}
@@ -227,14 +214,7 @@ export default function PluginEvaluationForm({
                                         {Boolean(currentSelection?.pid) && (
                                             <InputLabel
                                                 id={`label-${def.name}`}
-                                                sx={{
-                                                    color: '#111111',
-                                                    fontWeight: 700,
-                                                    '&.Mui-focused': {
-                                                        color: '#111111',
-                                                        fontWeight: 700,
-                                                    },
-                                                }}
+                                                className="plugin-evaluation-form__input-label"
                                             >
                                                 {def.label || def.name}
                                             </InputLabel>
@@ -292,23 +272,12 @@ export default function PluginEvaluationForm({
                             <FormControl
                                 fullWidth
                                 size="small"
+                                className="plugin-evaluation-form__form-control"
                                 sx={{
-                                    alignSelf: 'stretch',
                                     '& .MuiOutlinedInput-root': {
-                                        bgcolor: 'rgba(238, 246, 255, 0.95)',
                                         borderRadius: 1.5,
-                                        boxShadow: '0 1px 6px rgba(18, 84, 188, 0.08)',
-                                        minHeight: 42,
-                                        '& .MuiOutlinedInput-notchedOutline': {
-                                            borderColor: 'rgba(25, 87, 191, 0.35)',
-                                            borderWidth: 1.5,
-                                        },
-                                        '&:hover .MuiOutlinedInput-notchedOutline': {
-                                            borderColor: 'rgba(25, 87, 191, 0.62)',
-                                        },
                                         '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
                                             borderColor: 'primary.main',
-                                            borderWidth: 2,
                                         },
                                     },
                                 }}
@@ -316,14 +285,7 @@ export default function PluginEvaluationForm({
                                 {Boolean(configValue) && (
                                     <InputLabel
                                         id="plugin-config-label"
-                                        sx={{
-                                            color: '#111111',
-                                            fontWeight: 700,
-                                            '&.Mui-focused': {
-                                                color: '#111111',
-                                                fontWeight: 700,
-                                            },
-                                        }}
+                                        className="plugin-evaluation-form__input-label"
                                     >
                                         Config
                                     </InputLabel>

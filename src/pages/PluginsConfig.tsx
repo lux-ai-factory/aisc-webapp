@@ -10,6 +10,8 @@ import {getPluginFeatureFlags, getProject} from "../api/api.tsx";
 import {InputLabel, MenuItem, Select, SelectChangeEvent, Typography, Box, Button, Icon, Tooltip} from "@mui/material";
 import InfoBanner from "../components/InfoBanner.tsx";
 import ConfigHistory from "../components/plugin/ConfigHistory.tsx";
+import './PluginsConfig.css';
+import '../styles/common.css';
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -160,19 +162,10 @@ function PluginConfig() {
                     <Tooltip title="Save Configuration">
                         <Button
                             variant="contained"
+                            className="gradient-btn"
                             sx={{
-                                borderRadius: "10px",
-                                fontSize: "0.9rem",
-                                fontWeight: 600,
-                                textTransform: "none",
                                 minWidth: {xs: '44px', md: 'auto'},
                                 px: {xs: 1.5, md: 2},
-                                background: "linear-gradient(135deg, #57a8ff 0%, #2f7df6 48%, #0d47b8 100%)",
-                                boxShadow: "0 8px 18px rgba(18, 84, 188, 0.32)",
-                                "&:hover": {
-                                    background: "linear-gradient(135deg, #6ab4ff 0%, #3b88ff 45%, #1554c7 100%)",
-                                    boxShadow: "0 10px 20px rgba(14, 75, 173, 0.4)"
-                                }
                             }}
                             onClick={() => formRef.current?.submit()}
                         >
@@ -197,31 +190,15 @@ function PluginConfig() {
                     <Select
                         labelId="dataset-select-label"
                         fullWidth
+                        className="plugin-config-select"
                         sx={{
-                            mt: 0.5,
-                            bgcolor: 'rgba(255, 255, 255, 0.96)',
-                            borderRadius: 1.5,
-                            boxShadow: '0 1px 6px rgba(18, 84, 188, 0.08)',
-                            '& .MuiOutlinedInput-notchedOutline': {
-                                borderColor: 'rgba(25, 87, 191, 0.35)',
-                                borderWidth: 1.5,
-                            },
-                            '&:hover .MuiOutlinedInput-notchedOutline': {
-                                borderColor: 'rgba(25, 87, 191, 0.62)',
-                            },
                             '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
                                 borderColor: 'primary.main',
-                                borderWidth: 2,
                             },
                         }}
                         MenuProps={{
                             PaperProps: {
-                                sx: {
-                                    mt: 0.5,
-                                    borderRadius: 1.5,
-                                    border: '1px solid rgba(25, 87, 191, 0.2)',
-                                    boxShadow: '0 10px 24px rgba(18, 84, 188, 0.18)',
-                                },
+                                className: 'plugin-config-menu',
                             },
                         }}
                         onChange={(e) => handleDatasetChange(e)}

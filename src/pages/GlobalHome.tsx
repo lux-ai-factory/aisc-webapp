@@ -3,6 +3,7 @@ import Grid from "@mui/material/Grid2";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_VERSION_PREFIX } from "../config";
+import "../styles/common.css";
 
 
 
@@ -49,21 +50,8 @@ const ProjectsList = () => {
                         <Card
                             variant="outlined"
                             onClick={() => navigate(`/projects/${project.name}`)}
-                            sx={{
-                                cursor: 'pointer',
-                                border: '2px solid',
-                                borderColor: 'rgba(28, 92, 198, 0.28)',
-                                background: 'linear-gradient(165deg, rgba(247, 251, 255, 0.98), rgba(232, 241, 255, 0.96))',
-                                borderRadius: 2,
-                                transition: 'all 0.22s ease',
-                                height: '100%',
-                                '&:hover': {
-                                    boxShadow: '0 14px 28px rgba(20, 77, 172, 0.22)',
-                                    borderColor: 'rgba(28, 92, 198, 0.62)',
-                                    background: 'linear-gradient(160deg, rgba(227, 241, 255, 0.98), rgba(190, 223, 255, 0.94))',
-                                    transform: 'translateY(-2px)',
-                                },
-                            }}
+                            className="gradient-card"
+                            sx={{ height: '100%' }}
                         >
                             <CardActionArea sx={{ height: '100%' }}>
                                 <CardContent>

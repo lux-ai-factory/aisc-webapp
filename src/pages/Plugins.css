@@ -1,0 +1,10 @@
+.plugins-grid:hover .package-card-focus {
+    opacity: 0.74;
+    filter: saturate(0.88);
+}
+
+.plugins-grid .package-card-focus:hover {
+    opacity: 1;
+    filter: saturate(1.18);
+    transform: translateY(-3px) scale(1.01);
+}

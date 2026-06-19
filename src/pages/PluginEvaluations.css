@@ -1,0 +1,75 @@
+.eval-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.eval-header-title {
+    margin-bottom: 0;
+}
+
+.sort-toggle-row {
+    display: flex;
+    align-items: center;
+}
+
+.sort-toggle-icon {
+    font-size: 1.1rem;
+}
+
+.eval-grid:hover .gradient-card {
+    opacity: 0.82;
+}
+.eval-card {
+    min-width: 250px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+.eval-card:hover {
+    transform: translateY(-2px);
+}
+
+.eval-icon-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    color: white;
+    background: linear-gradient(135deg, #57a8ff 0%, #2f7df6 48%, #0d47b8 100%);
+    box-shadow: 0 6px 14px rgba(18, 84, 188, 0.32);
+}
+.eval-icon-btn:hover {
+    background: linear-gradient(135deg, #6ab4ff 0%, #3b88ff 45%, #1554c7 100%) !important;
+    box-shadow: 0 8px 16px rgba(14, 75, 173, 0.4) !important;
+}
+
+.download-config-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4.4px;
+    margin-bottom: 5.6px;
+    padding: 2.8px 6.4px;
+    border-radius: 8px;
+    border: none;
+    background-color: #1976d2;
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.15px;
+    cursor: pointer;
+}
+.download-config-btn:hover {
+    background-color: #1565c0 !important;
+}
+
+.config-pre {
+    margin: 0;
+    max-height: 220px;
+    overflow-y: auto;
+    padding-right: 4px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 11px;
+    user-select: text;
+}
