@@ -251,12 +251,12 @@ function Plugins() {
                                                 color={pkg.source === 'local' ? 'info' : 'default'}
                                                 variant={pkg.source === 'local' ? 'filled' : 'outlined'}
                                             />
-                                            {isEnabled && (
+                                            {isEnabled && pkg.plugins.length > 0 && (
                                                 <Chip
-                                                    label={`${pkg.plugins.length} plugin${pkg.plugins.length > 1 ? 's' : ''}`}
+                                                    label={`${pkg.plugins.filter(p => p.enabled).length}/${pkg.plugins.length} enabled`}
                                                     size="small"
-                                                    color="primary"
-                                                    variant="outlined"
+                                                    color={isEnabled ? 'primary': 'default'}
+                                                    variant={isEnabled ? 'filled': 'outlined'}
                                                 />
                                             )}
                                         </Box>
