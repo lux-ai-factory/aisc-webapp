@@ -171,7 +171,7 @@ function PluginConfig() {
                         >
                             <Icon sx={{fontSize: '1.25rem'}}>save</Icon>
                             <Box component="span" sx={{display: {xs: 'none', md: 'inline'}, ml: 0.5}}>
-                                Save Configuration
+                                Save
                             </Box>
                         </Button>
                     </Tooltip>
