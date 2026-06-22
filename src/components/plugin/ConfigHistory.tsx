@@ -23,9 +23,10 @@ const restoreConfig = async (plugin_pid: string, config_id: number): Promise<Plu
 interface ConfigHistoryProps {
     pluginPID: string;
     plugin_config_id?: number | null;
+    onRestore?: () => void;
 }
 
-export default function ConfigHistory({ pluginPID, plugin_config_id }: ConfigHistoryProps) {
+export default function ConfigHistory({ pluginPID, plugin_config_id, onRestore }: ConfigHistoryProps) {
     const queryClient = useQueryClient();
 
     const { data: history, isPending } = useQuery({
@@ -40,6 +41,7 @@ export default function ConfigHistory({ pluginPID, plugin_config_id }: ConfigHis
             toast.success('Config restored', { position: "bottom-right" });
             // Force query refresh in parent component
             await queryClient.invalidateQueries({ queryKey: ['projectPluginConfig'] });
+            onRestore?.();
         },
         onError: () => {
             toast.error('Failed to restore config', { position: "bottom-right" });

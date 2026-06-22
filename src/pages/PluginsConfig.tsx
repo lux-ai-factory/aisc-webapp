@@ -3,7 +3,7 @@ import {API_VERSION_PREFIX} from "../config.tsx";
 import {useProject} from '../context/ProjectContext';
 import {useParams} from "react-router-dom";
 import PluginConfigForm from "../components/plugin/PluginConfigForm.tsx";
-import {useEffect, useRef, useState} from "react";
+import {useLayoutEffect, useRef, useState} from "react";
 import {DataObject, ProjectPluginConfigState} from "../models/models.tsx";
 import toast from 'react-hot-toast';
 import {getPluginFeatureFlags, getProject} from "../api/api.tsx";
@@ -67,7 +67,9 @@ function PluginConfig() {
     const {projectUUID} = useProject();
     const queryClient = useQueryClient();
 
-    const [configState, setConfigState] = useState<ProjectPluginConfigState | null>(null);
+    const [configOverride, setConfigOverride] = useState<ProjectPluginConfigState | null>(null);
+    const [selectedDataset, setSelectedDataset] = useState('');
+    const lastDatasetPluginPid = useRef<string | undefined>();
 
     const {data: project, isPending: isProjectPending} = useQuery({
         queryKey: ['project', projectUUID],
@@ -81,8 +83,11 @@ function PluginConfig() {
 
     const {data: projectPluginConfigState, isPending: isProjectPluginConfigStatePending, error} = useQuery({
         queryKey: ['projectPluginConfig', projectUUID, plugin_pid],
-        queryFn: () => getProjectPluginConfigState(plugin_pid!!),
-        enabled: !!projectUUID && !!plugin_pid
+        queryFn: async () => {
+            const state = await getProjectPluginConfigState(plugin_pid!!);
+            return { ...state, config: {} };
+        },
+        enabled: !!projectUUID && !!plugin_pid,
     })
 
     const {data: featureFlags} = useQuery({
@@ -91,9 +96,15 @@ function PluginConfig() {
         enabled: !!plugin_pid
     })
 
-    useEffect(() => {
-        if (projectPluginConfigState) setConfigState(projectPluginConfigState);
-    }, [projectPluginConfigState]);
+    const configState = configOverride ?? projectPluginConfigState;
+
+    useLayoutEffect(() => {
+        if (lastDatasetPluginPid.current && lastDatasetPluginPid.current !== plugin_pid) {
+            setSelectedDataset('');
+            setConfigOverride(null);
+        }
+        lastDatasetPluginPid.current = plugin_pid;
+    }, [plugin_pid]);
 
     const isPending = isProjectPending || isProjectPluginConfigStatePending;
 
@@ -105,10 +116,16 @@ function PluginConfig() {
     const handleDatasetChange = async (e: SelectChangeEvent<any>) => {
         const dataset_uuid = e.target.value as string;
         if (!dataset_uuid || !plugin_pid) return;
-        const configState = await parseConfigStateFromDataset(plugin_pid, dataset_uuid);
-        setConfigState(configState);
+        setSelectedDataset(dataset_uuid);
+        const parsed = await parseConfigStateFromDataset(plugin_pid, dataset_uuid);
+        setConfigOverride(parsed);
     };
 
+    const handleRestore = async () => {
+        if (!plugin_pid) return;
+        const state = await getProjectPluginConfigState(plugin_pid!!);
+        setConfigOverride(state);
+    };
 
     const onSubmit = async (data: object) => {
         await postPluginConfig(plugin_pid ?? "", data);
@@ -180,7 +197,8 @@ function PluginConfig() {
 
             <ConfigHistory
                 pluginPID={plugin_pid ?? ""}
-                plugin_config_id={projectPluginConfigState?.plugin_config_id}
+                plugin_config_id={configState?.plugin_config_id}
+                onRestore={handleRestore}
             />
 
             {featureFlags?.can_parse_config_from_dataset &&
@@ -201,10 +219,11 @@ function PluginConfig() {
                                 className: 'plugin-config-menu',
                             },
                         }}
+                        value={selectedDataset}
                         onChange={(e) => handleDatasetChange(e)}
                     >
                         {project?.datasets.map((dataset: DataObject) => (
-                            <MenuItem value={dataset.pid}>{dataset.name}</MenuItem>
+                            <MenuItem key={dataset.pid} value={dataset.pid}>{dataset.name}</MenuItem>
                         ))}
                     </Select>
                 </>
@@ -218,8 +237,8 @@ function PluginConfig() {
                     pluginDisplayName={plugin?.display_name}
                     formSchema={configState.formSchema}
                     uiSchema={configState.uiSchema}
-                    config={configState.config}
-                    onFormUpdate={(state) => setConfigState(state)}
+                    config={configState.config ?? {}}
+                    onFormUpdate={(state) => setConfigOverride(state)}
                     onSubmit={onSubmit}
                 />
             }
