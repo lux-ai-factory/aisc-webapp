@@ -195,14 +195,16 @@ function PluginConfig() {
                 </Box>
             </Box>
 
-            <ConfigHistory
-                pluginPID={plugin_pid ?? ""}
-                plugin_config_id={configState?.plugin_config_id}
-                onRestore={handleRestore}
-            />
+            <Box sx={{ mt: 2 }}>
+                <ConfigHistory
+                    pluginPID={plugin_pid ?? ""}
+                    plugin_config_id={configState?.plugin_config_id}
+                    onRestore={handleRestore}
+                />
+            </Box>
 
             {featureFlags?.can_parse_config_from_dataset &&
-                <>
+                <Box sx={{ mt: 2 }}>
                     <InfoBanner message={"Select a dataset to derive the plugin config from."}/>
                     <InputLabel id="dataset-select-label">Dataset</InputLabel>
                     <Select
@@ -226,21 +228,23 @@ function PluginConfig() {
                             <MenuItem key={dataset.pid} value={dataset.pid}>{dataset.name}</MenuItem>
                         ))}
                     </Select>
-                </>
+                </Box>
             }
 
             {configState && plugin_pid &&
-                <PluginConfigForm
-                    ref={formRef}
-                    key={plugin_pid + projectUUID}
-                    pluginPID={plugin_pid}
-                    pluginDisplayName={plugin?.display_name}
-                    formSchema={configState.formSchema}
-                    uiSchema={configState.uiSchema}
-                    config={configState.config ?? {}}
-                    onFormUpdate={(state) => setConfigOverride(state)}
-                    onSubmit={onSubmit}
-                />
+                <Box sx={{ mt: 2 }}>
+                    <PluginConfigForm
+                        ref={formRef}
+                        key={plugin_pid + projectUUID}
+                        pluginPID={plugin_pid}
+                        pluginDisplayName={plugin?.display_name}
+                        formSchema={configState.formSchema}
+                        uiSchema={configState.uiSchema}
+                        config={configState.config ?? {}}
+                        onFormUpdate={(state) => setConfigOverride(state)}
+                        onSubmit={onSubmit}
+                    />
+                </Box>
             }
         </Box>
     )
