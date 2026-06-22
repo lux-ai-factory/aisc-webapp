@@ -423,6 +423,7 @@ export default function AddProjectWizard({
                                         }
                                         className="plugins-card"
                                         sx={{
+                                            border: '2px solid',
                                             borderColor: selected ? 'primary.main' : 'grey.200',
                                             background: selected
                                                 ? 'linear-gradient(135deg, rgba(69, 145, 251, 0.15), rgba(0, 52, 255, 0.1))'

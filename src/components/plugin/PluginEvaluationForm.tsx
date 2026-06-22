@@ -115,6 +115,7 @@ export default function PluginEvaluationForm({
         className,
         !backendConfigured && 'plugin-eval-card--unconfigured',
         isActive && 'plugin-eval-card--active',
+        isConfigured && !isActive && 'plugin-eval-card--configured',
         isReady && 'plugin-eval-card--ready',
     ].filter(Boolean).join(' ');
 
@@ -130,11 +131,14 @@ export default function PluginEvaluationForm({
                 }
             }}
             sx={{
-                ...(isActive && { borderColor: 'primary.main' }),
+                ...(isReady && {
+                    border: '2px solid',
+                    borderColor: 'rgba(25, 118, 210, 0.55)',
+                }),
                 ...(backendConfigured && {
                     '&:hover': {
                         boxShadow: 4,
-                        ...(isActive && { borderColor: 'primary.main' }),
+                        ...(isReady && { borderColor: 'rgba(25, 118, 210, 0.9)' }),
                     },
                 }),
             }}

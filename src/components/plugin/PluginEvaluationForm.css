@@ -49,7 +49,6 @@
     opacity: 0.65;
 }
 .plugin-eval-card--active {
-    border: 2px solid;
     background: linear-gradient(140deg, rgba(112, 186, 255, 0.45) 0%, rgba(69, 145, 251, 0.34) 45%, rgba(0, 82, 204, 0.28) 100%) !important;
 }
 .plugin-eval-card--ready {

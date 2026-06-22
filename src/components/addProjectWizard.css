@@ -25,7 +25,6 @@
 
 .plugins-card {
     cursor: pointer;
-    border: 2px solid;
     transition: all 0.2s ease;
     height: 100%;
 }

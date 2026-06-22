@@ -46,13 +46,30 @@ const createEvaluation = async (project_uuid: string, selectedPlugins: SelectedP
         throw new Error('Failed to create evaluation');
     }
     toast.success('Evaluation created', { position: "bottom-right" });
+    sessionStorage.removeItem(STORAGE_KEY);
     return await response.json();
 };
 
+const STORAGE_KEY = 'start-eval-state';
+
+function loadState(): { selectedPlugins: SelectedPluginsState; selectionCache: SelectedPluginsState } {
+    try {
+        const saved = sessionStorage.getItem(STORAGE_KEY);
+        if (saved) return JSON.parse(saved);
+    } catch {}
+    return { selectedPlugins: {}, selectionCache: {} };
+}
+
+function saveState(selectedPlugins: SelectedPluginsState, selectionCache: SelectedPluginsState) {
+    try {
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ selectedPlugins, selectionCache }));
+    } catch {}
+}
+
 export default function PluginStartEvaluation() {
     const { projectUUID } = useProject();
-    const [selectedPlugins, setSelectedPlugins] = useState<SelectedPluginsState>({});
-    const [selectionCache, setSelectionCache] = useState<SelectedPluginsState>({});
+    const [selectedPlugins, setSelectedPlugins] = useState<SelectedPluginsState>(loadState().selectedPlugins);
+    const [selectionCache, setSelectionCache] = useState<SelectedPluginsState>(loadState().selectionCache);
     const [activePlugin, setActivePlugin] = useState<string | null>(null);
     const [validPlugins, setValidPlugins] = useState<Record<string, boolean>>({});
 
@@ -115,6 +132,10 @@ export default function PluginStartEvaluation() {
     };
 
     useEffect(() => {
+        saveState(selectedPlugins, selectionCache);
+    }, [selectedPlugins, selectionCache]);
+
+    useEffect(() => {
         const onMouseDown = (event: MouseEvent) => {
             const target = event.target as HTMLElement | null;
             if (!target) return;
@@ -140,7 +161,7 @@ export default function PluginStartEvaluation() {
 
     return (
         <Box>
-            <Box sx={{display: "flex", justifyContent: "space-between", marginBottom: 5}}>
+            <Box sx={{display: "flex", justifyContent: "space-between", alignItems: 'center', marginBottom: 2}}>
                 <Typography component="h2" variant="h4" gutterBottom>
                     Start an Evaluation
                 </Typography>
@@ -156,8 +177,8 @@ export default function PluginStartEvaluation() {
                             px: {xs: 1.5, md: 3},
                         }}
                     >
-                        <PlayCircleIcon sx={{fontSize: '1.5rem'}} />
-                        <Box component="span" sx={{display: {xs: 'none', md: 'inline'}, ml: 0.5}}>
+                        <PlayCircleIcon />
+                        <Box component="span" sx={{display: {xs: 'none', md: 'inline'}}}>
                             Create Evaluation
                         </Box>
                     </Button>
