@@ -7,7 +7,7 @@ import {useLayoutEffect, useRef, useState} from "react";
 import {DataObject, ProjectPluginConfigState} from "../models/models.tsx";
 import toast from 'react-hot-toast';
 import {getPluginFeatureFlags, getProject} from "../api/api.tsx";
-import {InputLabel, MenuItem, Select, SelectChangeEvent, Typography, Box, Button, Icon, Tooltip} from "@mui/material";
+import {InputLabel, MenuItem, Select, SelectChangeEvent, Typography, Box, Button, Icon, Tooltip, Divider} from "@mui/material";
 import InfoBanner from "../components/InfoBanner.tsx";
 import ConfigHistory from "../components/plugin/ConfigHistory.tsx";
 import './PluginsConfig.css';
@@ -195,13 +195,14 @@ function PluginConfig() {
                 </Box>
             </Box>
 
-            <Box sx={{ mt: 2 }}>
+            <Box sx={{ mt: 2, mb: 3 }}>
                 <ConfigHistory
                     pluginPID={plugin_pid ?? ""}
                     plugin_config_id={configState?.plugin_config_id}
                     onRestore={handleRestore}
                 />
             </Box>
+            <Divider sx={{ mb: 3, borderBottomWidth: 2, borderColor: 'rgba(25, 87, 191, 0.25)' }} />
 
             {featureFlags?.can_parse_config_from_dataset &&
                 <Box sx={{ mt: 2 }}>

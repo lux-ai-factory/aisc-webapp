@@ -1,5 +1,4 @@
 import { useMutation } from '@tanstack/react-query';
-import Form from '@rjsf/react-bootstrap';
 import validator from '@rjsf/validator-ajv8';
 import React, {useCallback, useImperativeHandle, useRef} from 'react';
 import { debounce } from 'lodash';
@@ -7,6 +6,8 @@ import { API_VERSION_PREFIX } from "../../config.tsx";
 import toast from "react-hot-toast";
 import { useQueryClient } from '@tanstack/react-query';
 import { useProject } from '../../context/ProjectContext';
+import Form from './CustomFormTemplates.tsx';
+import './PluginConfigForm.css';
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
