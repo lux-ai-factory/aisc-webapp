@@ -12,6 +12,7 @@ import MyApp from './MyApp.tsx'
 import { StyledEngineProvider } from '@mui/material'
 import { BrowserRouter } from 'react-router-dom'
 import { ProjectProvider } from './context/ProjectContext.tsx'
+import { AuthProvider } from './context/AuthContext.tsx'
 import {Toaster} from "react-hot-toast";
 
 const queryClient = new QueryClient()
@@ -22,10 +23,12 @@ createRoot(document.getElementById('root')!).render(
     <StyledEngineProvider injectFirst>
       <BrowserRouter>
           <QueryClientProvider client={queryClient}>
-            <ProjectProvider>
-                <MyApp />
-                <Toaster />
-            </ProjectProvider>
+            <AuthProvider>
+              <ProjectProvider>
+                  <MyApp />
+                  <Toaster />
+              </ProjectProvider>
+            </AuthProvider>
           </QueryClientProvider>
       </BrowserRouter>
     </StyledEngineProvider>
