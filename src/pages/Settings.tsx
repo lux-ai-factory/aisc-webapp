@@ -10,6 +10,7 @@ import {
     DialogTitle,
     Divider,
     IconButton,
+    MenuItem,
     Stack,
     TextField,
     Tooltip,
@@ -349,10 +350,9 @@ function AddFileDialog({ open, onClose, onAdd }: {
                         value={type}
                         onChange={(e) => setType(e.target.value as 'dataset' | 'model')}
                         sx={{ flex: 1 }}
-                        SelectProps={{ native: true }}
                     >
-                        <option value="dataset">Dataset</option>
-                        <option value="model">Model</option>
+                        <MenuItem value="dataset">Dataset</MenuItem>
+                        <MenuItem value="model">Model</MenuItem>
                     </TextField>
                 </Stack>
 
