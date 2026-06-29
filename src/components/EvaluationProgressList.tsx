@@ -306,17 +306,23 @@ function EvalProgressRow({
                                         </Typography>
                                     </Stack>
                                 ) : (
-                                    <LinearProgress
-                                        variant="determinate"
-                                        value={progressPercent}
-                                        className="outer-progress"
-                                        sx={{
-                                            bgcolor: alpha(theme.palette.primary.main, 0.16),
-                                            '& .MuiLinearProgress-bar': {
-                                                bgcolor: failedPlugins > 0 ? theme.palette.error.main : theme.palette.primary.main,
-                                            },
-                                        }}
-                                    />
+                                    <Stack direction="row" alignItems="center" spacing={1}>
+                                        <LinearProgress
+                                            variant="determinate"
+                                            value={progressPercent}
+                                            className="outer-progress"
+                                            sx={{
+                                                flex: 1,
+                                                bgcolor: alpha(theme.palette.primary.main, 0.16),
+                                                '& .MuiLinearProgress-bar': {
+                                                    bgcolor: failedPlugins > 0 ? theme.palette.error.main : theme.palette.primary.main,
+                                                },
+                                            }}
+                                        />
+                                        <Typography variant="caption" className="progress-percentage" color="text.secondary">
+                                            {progressPercent}%
+                                        </Typography>
+                                    </Stack>
                                 )}
                             </Stack>
                         </TableCell>

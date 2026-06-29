@@ -29,3 +29,7 @@
 .inner-progress .MuiLinearProgress-bar {
     border-radius: 6px;
 }
+
+.progress-percentage {
+    font-weight: 600;
+}
