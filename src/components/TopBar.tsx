@@ -10,7 +10,6 @@ import {
 } from '@mui/material';
 import React, {useEffect, useState} from 'react';
 import {useProject} from '../context/ProjectContext';
-import {useAuth} from '../context/AuthContext';
 import {API_VERSION_PREFIX} from '../config';
 import {ThemeProvider} from '@emotion/react';
 import {useNavigate} from 'react-router-dom';
@@ -123,9 +122,6 @@ const TopBar: React.FC = () => {
 
     const {setProjectUUID, projectName, setProjectName} = useProject();
     const [projects, setProjects] = useState<Project[]>([]);
-
-    // Keycloak auth: who is logged in + login/logout actions
-    const {authenticated, username, login, logout} = useAuth();
 
     const navigate = useNavigate();
 
@@ -286,26 +282,6 @@ const TopBar: React.FC = () => {
                     fetchModels={fetchModels}
                     fetchPlugins={fetchPlugins}
                 />
-
-                {/* Keycloak login / logout */}
-                <Box sx={{display: 'flex', alignItems: 'center', gap: 1, ml: 2}}>
-                    {authenticated ? (
-                        <>
-                            <Typography variant="body1" data-testid="auth-username">
-                                {username}
-                            </Typography>
-                            <Button color="inherit" variant="outlined" data-testid="logout-button"
-                                    onClick={() => logout()}>
-                                Logout
-                            </Button>
-                        </>
-                    ) : (
-                        <Button color="inherit" variant="outlined" data-testid="login-button"
-                                onClick={() => login()}>
-                            Login
-                        </Button>
-                    )}
-                </Box>
             </Toolbar>
         </AppBar>
     );
