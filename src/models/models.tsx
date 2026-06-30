@@ -84,6 +84,7 @@ export interface Measurement {
     description?: string | null;
     unit?: string | null;
     score: number;
+    direction?: string | null;
     time: string;
     error?: string | null;
     dimensions?: Record<string, string | number | boolean>;

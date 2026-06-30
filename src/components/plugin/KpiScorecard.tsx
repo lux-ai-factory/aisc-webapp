@@ -17,7 +17,9 @@ const HIGHER_BETTER = [
 
 type Direction = "higher" | "lower" | "neutral";
 
-function direction(name: string, unit?: string | null): Direction {
+function direction(name: string, unit?: string | null, metricDirection?: string | null): Direction {
+    if (metricDirection) return metricDirection as Direction;
+    // Infer direction if not explicitly provided.
     const u = (unit || "").toLowerCase();
     if (u.includes("higher")) return "higher";
     if (u.includes("lower")) return "lower";
@@ -28,8 +30,9 @@ function direction(name: string, unit?: string | null): Direction {
 }
 
 // Direction-aware colour band for a 0..1 rate. Neutral or out-of-range -> grey.
-function toneColor(theme: Theme, score: number, dir: Direction): string {
+function toneColor(theme: Theme, score: number, dir: Direction, unit?: string | null): string {
     const grey = theme.palette.text.secondary;
+    if (!unit || !unit.includes("%")) return grey; // only colour % metrics
     if (dir === "neutral" || score < 0 || score > 1) return grey;
     const good = theme.palette.success.main;
     const warn = theme.palette.warning.main;
@@ -80,8 +83,8 @@ export default function KpiScorecard({ measurements }: Props) {
     return (
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, mb: 1 }}>
             {kpis.map((m) => {
-                const dir = direction(m.name, m.unit);
-                const color = toneColor(theme, m.score, dir);
+                const dir = direction(m.name, m.unit, m.direction);
+                const color = toneColor(theme, m.score, dir, m.unit);
                 return (
                     <Card
                         key={m.name}
