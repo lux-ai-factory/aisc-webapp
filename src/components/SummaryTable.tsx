@@ -29,6 +29,7 @@ import {
     PluginUsageSummary,
     Evaluation,
     TaskProgress,
+    Plugin
 } from "../models/models";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
@@ -240,7 +241,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                             const evalRes = await fetch(`${API_URL}/evaluations/${evaluation.pid}?include=plugin`);
                             if (evalRes.ok) {
                                 const detailedEval = await evalRes.json();
-                                const pluginStatuses: EvaluationPluginStatus[] = (detailedEval.evaluation_plugins || []).map((ep: any) => ({
+                                const pluginStatuses: EvaluationPluginStatus[] = (detailedEval.evaluation_plugins || []).map((ep: Plugin) => ({
                                     pid: ep.pid,
                                     status: ep.status || 'Pending'
                                 }));
@@ -306,10 +307,12 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
 
     if (!overview) return null;
 
+    // ── Derived data for charts ──
+
     return (
-        <Box sx={{ width: "100%" }}>
-            {/* ── KPI Cards ── */}
-            <Grid container spacing={2}>
+        <Box sx={{ width: "100%", display: "flex", flexDirection: "column", gap: 4 }}>
+            {/* ── Overview boxes (KPI Cards) ── */}
+            <Grid container spacing={2} sx={{ order: 3 }}>
                 <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
                     <StatCard icon={<DatasetIcon />} label="Total Datasets" value={overview.total_datasets} color="#5c6bc0" />
                 </Grid>
@@ -362,56 +365,53 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                 </Grid>
             </Grid>
 
-            {/* ── Plugin Usage ── */}
-            <Grid container spacing={3} sx={{ mt: 4 }}>
-                {/* Plugin Usage */}
-                {plugins.length > 0 && (
-                    <Grid size={{ xs: 12, xl: 6 }}>
-                        <SectionCard title="Plugin Usage">
-                            <Box sx={{ maxHeight: 280, overflowY: "auto" }}>
-                            <Stack spacing={1.5}>
-                                {plugins.map((p) => (
-                                    <Paper
-                                        key={p.plugin_name}
-                                        variant="outlined"
-                                        sx={{ p: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}
-                                    >
-                                        <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 0, flex: "1 1 auto" }}>
-                                            {pluginIcons[p.plugin_name] && fontLoaded
-                                                ? <Icon sx={{ color: theme.palette.primary.main, fontSize: 20, flexShrink: 0 }}>{pluginIcons[p.plugin_name]}</Icon>
-                                                : <ExtensionIcon sx={{ color: theme.palette.primary.main, fontSize: 20, flexShrink: 0 }} />
-                                            }
-                            <Typography variant="body2" fontWeight={600} noWrap title={pluginDisplayNames[p.plugin_name] || p.plugin_name}>{pluginDisplayNames[p.plugin_name] || p.plugin_name}</Typography>
-                                        </Stack>
-                                        <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
-                                            <Tooltip title="Total executions">
-                                                <Chip label={`${p.usage_count}`} size="small" variant="outlined" icon={<PlayArrowIcon />} />
-                                            </Tooltip>
-                                            <Tooltip title="Successful runs">
-                                                <Chip label={`${p.successful_runs}`} size="small" color="success" variant="outlined" icon={<CheckCircleIcon />} />
-                                            </Tooltip>
-                                            <Tooltip title="Failed runs">
-                                                <Chip label={`${p.failed_runs}`} size="small" color="error" variant="outlined" icon={<CancelIcon />} />
-                                            </Tooltip>
-                                            <Tooltip title="Artifacts produced">
-                                                <Chip label={`${p.artifact_count}`} size="small" color="primary" variant="outlined" icon={<InsertDriveFileIcon />} />
-                                            </Tooltip>
-                                            <Tooltip title="Avg execution time">
-                                                <Chip label={p.avg_duration_seconds !== null ? formatDuration(p.avg_duration_seconds) : 'N/A'} size="small" color="secondary" variant="outlined" icon={<TimerIcon />} />
-                                            </Tooltip>
-                                        </Stack>
-                                    </Paper>
-                                ))}
-                            </Stack>
-                            </Box>
-                        </SectionCard>
-                    </Grid>
-                )}
-            </Grid>
+            {/* ── All runs (plugin usage) ── */}
+            {plugins.length > 0 && (
+                <Box sx={{ order: 1 }}>
+                    <SectionCard title="All runs">
+                        <Box sx={{ maxHeight: 280, overflowY: "auto" }}>
+                        <Stack spacing={1.5}>
+                            {plugins.map((p) => (
+                                <Paper
+                                    key={p.plugin_name}
+                                    variant="outlined"
+                                    sx={{ p: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}
+                                >
+                                    <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 0, flex: "1 1 auto" }}>
+                                        {pluginIcons[p.plugin_name] && fontLoaded
+                                            ? <Icon sx={{ color: theme.palette.primary.main, fontSize: 20, flexShrink: 0 }}>{pluginIcons[p.plugin_name]}</Icon>
+                                            : <ExtensionIcon sx={{ color: theme.palette.primary.main, fontSize: 20, flexShrink: 0 }} />
+                                        }
+                                        <Typography variant="body2" fontWeight={600} noWrap title={pluginDisplayNames[p.plugin_name] || p.plugin_name}>{pluginDisplayNames[p.plugin_name] || p.plugin_name}</Typography>
+                                    </Stack>
+                                    <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
+                                        <Tooltip title="Total executions">
+                                            <Chip label={`${p.usage_count}`} size="small" variant="outlined" icon={<PlayArrowIcon />} />
+                                        </Tooltip>
+                                        <Tooltip title="Successful runs">
+                                            <Chip label={`${p.successful_runs}`} size="small" color="success" variant="outlined" icon={<CheckCircleIcon />} />
+                                        </Tooltip>
+                                        <Tooltip title="Failed runs">
+                                            <Chip label={`${p.failed_runs}`} size="small" color="error" variant="outlined" icon={<CancelIcon />} />
+                                        </Tooltip>
+                                        <Tooltip title="Artifacts produced">
+                                            <Chip label={`${p.artifact_count}`} size="small" color="primary" variant="outlined" icon={<InsertDriveFileIcon />} />
+                                        </Tooltip>
+                                        <Tooltip title="Avg execution time">
+                                            <Chip label={p.avg_duration_seconds !== null ? formatDuration(p.avg_duration_seconds) : 'N/A'} size="small" color="secondary" variant="outlined" icon={<TimerIcon />} />
+                                        </Tooltip>
+                                    </Stack>
+                                </Paper>
+                            ))}
+                        </Stack>
+                        </Box>
+                    </SectionCard>
+                </Box>
+            )}
 
             {/* ── Progress Report ── */}
             {runningEvaluations.length > 0 && (
-                <Box sx={{ mt: 4 }}>
+                <Box sx={{ order: 5 }}>
                     <SectionCard title="Progress Report">
                         <Stack spacing={3}>
                             {runningEvaluations.map((evaluation) => {
@@ -481,10 +481,6 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                                                 <Stack spacing={1} sx={{ flex: 1 }}>
                                                     {Object.entries(progress).map(([pluginName, taskProgress]) => {
                                                         const progressValue = (taskProgress.progress || 0) * 100;
-                                                        const extra = taskProgress.extra as any;
-                                                        const description = extra?.desc || extra?.message || null;
-                                                        const iteration = extra?.iteration || extra?.current || null;
-                                                        const total = extra?.total || null;
 
                                                         return (
                                                             <Paper
@@ -504,10 +500,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                                                                             </Typography>
                                                                         </Stack>
                                                                         <Typography variant="caption" color="text.secondary">
-                                                                            {iteration !== null && total !== null
-                                                                                ? `${iteration} / ${total}`
-                                                                                : `${Math.round(progressValue)}%`
-                                                                            }
+                                                                            {`${Math.round(progressValue)}%`}
                                                                         </Typography>
                                                                     </Stack>
                                                                     <LinearProgress
@@ -515,11 +508,6 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                                                                         value={progressValue}
                                                                         sx={{ height: 8, borderRadius: 1 }}
                                                                     />
-                                                                    {description && (
-                                                                        <Typography variant="caption" color="text.secondary">
-                                                                            {description}
-                                                                        </Typography>
-                                                                    )}
                                                                 </Stack>
                                                             </Paper>
                                                         );
@@ -538,7 +526,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
 
             {/* ── Metric Details ── */}
             {metrics.length > 0 && (
-                <Box sx={{ mt: 4 }}>
+                <Box sx={{ order: 2 }}>
                     <SectionCard title="Metric Details">
                         <Box sx={{ maxHeight: 280, overflowY: "auto", overflowX: "auto" }}>
                             <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -588,7 +576,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
 
             {/* Empty state */}
             {overview.total_evaluations === 0 && (
-                <Box sx={{ textAlign: "center", py: 8, mt: 4 }}>
+                <Box sx={{ textAlign: "center", py: 8, order: 6 }}>
                     <AssessmentIcon sx={{ fontSize: 64, color: theme.palette.grey[300], mb: 2 }} />
                     <Typography variant="h6" color="text.secondary">
                         No evaluations yet

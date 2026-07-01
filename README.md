@@ -70,6 +70,16 @@ This frontend is part of the [AISC](https://github.com/lux-ai-factory/aisc) mono
 - **shared/plugin-interface** — Plugin interface specification
 - **shared/plugin-manager** — Plugin discovery and loading library
 
-## License
+##  Contributing
 
-This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE) for details.
+We welcome community contributions! Please read our [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+
+By submitting contributions, you agree to the [CLA](CLA/CLA_VERA.md) and license your work under [Apache 2.0](LICENSE).
+
+---
+
+##  License
+
+This project is licensed under the [Apache License 2.0](LICENSE).  
+© 2024–2026 Université du Luxembourg and Luxembourg Institute of Science and Technology (LIST). Originally developed within the SerVal Research Group and the Interdisciplinary Centre for Security, Reliability and Trust (SnT).
+
