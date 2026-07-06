@@ -1,5 +1,6 @@
 import React from "react";
 import { Box, Typography, Grid, Container, Card, CardHeader, CardContent, Stack, Button } from "@mui/material";
+import "./Recommendations.css";
 import { green, orange, red } from "@mui/material/colors";
 import NorthIcon from '@mui/icons-material/North';
 import SouthIcon from '@mui/icons-material/South';
@@ -123,15 +124,7 @@ const MetricCard: React.FC<MetricCardProps> = ({
     recommendation,
     changeColor,
 }) => (
-        <Card
-            sx={{
-                height: "100%",
-                display: "flex",
-                flexDirection: "column",
-                width: "100%",
-                boxSizing: "border-box",
-            }}
-        >
+        <Card className="metricCard">
             <CardHeader
                 title={
                     <Typography
@@ -173,12 +166,10 @@ const MetricCard: React.FC<MetricCardProps> = ({
                 <Button
                     variant="contained"
                     fullWidth
+                    className="recommendationBtn"
                     sx={{
                         backgroundColor: changeColor,
-                        color: "#fff",
-                        fontWeight: "bold",
-                        mt: "auto",
-                        ":hover": { backgroundColor: changeColor, opacity: 0.9 },
+                        ":hover": { backgroundColor: changeColor },
                     }}
                     disableElevation
                 >

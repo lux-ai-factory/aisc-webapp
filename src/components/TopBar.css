@@ -1,0 +1,9 @@
+.topbar-link {
+    display: inline-flex !important;
+    align-items: center !important;
+}
+
+.topbar-project-name {
+    display: inline-flex !important;
+    align-items: center !important;
+}

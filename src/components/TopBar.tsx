@@ -14,6 +14,8 @@ import {useAuth} from '../context/AuthContext';
 import {API_VERSION_PREFIX} from '../config';
 import {ThemeProvider} from '@emotion/react';
 import {useNavigate} from 'react-router-dom';
+import toast from 'react-hot-toast';
+import "./TopBar.css";
 import "./addProjectButton.css";
 import AddProjectWizard from "./addProjectWizard.tsx";
 
@@ -121,7 +123,7 @@ const TopBar: React.FC = () => {
 
 
 
-    const {setProjectUUID, projectName, setProjectName} = useProject();
+    const {setProjectUUID, projectName, setProjectName, addFileUploadingPid, removeFileUploadingPid} = useProject();
     const [projects, setProjects] = useState<Project[]>([]);
 
     // Keycloak auth: who is logged in + login/logout actions
@@ -143,7 +145,9 @@ const TopBar: React.FC = () => {
 
         setProjects([...projects, newProject]);
 
-        // 2. Create DATASETS (exact same as DatasetSettings)
+        const uploads: Promise<unknown>[] = [];
+
+        // 2. Create DATASETS
         for (const ds of datasets) {
             if (!ds.name || ds.name.trim().length < 1) continue;
 
@@ -159,15 +163,16 @@ const TopBar: React.FC = () => {
 
             ds.pid = created.pid;
 
-            // 2b. Upload dataset file
+            // 2b. Add dataset file to uploads
             if (ds.file) {
+                addFileUploadingPid(ds.pid);
                 const formData = new FormData();
                 formData.append("file", ds.file);
-
-                await fetch(`${API_URL}/datasets/${ds.pid}/data`, {
-                    method: "PUT",
-                    body: formData
-                });
+                uploads.push(
+                    fetch(`${API_URL}/datasets/${ds.pid}/data`, { method: "PUT", body: formData }).then(() => {
+                        toast.success(`Dataset \`${ds.name}\` uploaded`, { position: 'bottom-right' });
+                    }).finally(() => removeFileUploadingPid(ds.pid))
+                );
             }
         }
 
@@ -187,15 +192,16 @@ const TopBar: React.FC = () => {
 
             m.pid = created.pid;
 
-            // 3b. Upload model file
+            // 3b. Add model file to uploads
             if (m.file) {
+                addFileUploadingPid(m.pid);
                 const formData = new FormData();
                 formData.append("file", m.file);
-
-                await fetch(`${API_URL}/models/${m.pid}/data`, {
-                    method: "PUT",
-                    body: formData
-                });
+                uploads.push(
+                    fetch(`${API_URL}/models/${m.pid}/data`, { method: "PUT", body: formData }).then(() => {
+                        toast.success(`Model \`${m.name}\` uploaded`, { position: 'bottom-right' });
+                    }).finally(() => removeFileUploadingPid(m.pid))
+                );
             }
         }
 
@@ -219,6 +225,9 @@ const TopBar: React.FC = () => {
 
         // 5. Navigate
         navigate(`/projects/${newProject.name}/plugins`);
+
+        // 6. Upload files in background
+        await Promise.allSettled(uploads);
     };
 
 
@@ -238,11 +247,8 @@ const TopBar: React.FC = () => {
                         href="/"
                         underline="none"
                         color="inherit"
-                        sx={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            m: 0,
-                        }}
+                        className="topbar-link"
+                        sx={{ m: 0 }}
                     >
                         <Box display="flex" alignItems="center" gap={1}>
                             <img
@@ -264,11 +270,8 @@ const TopBar: React.FC = () => {
                         <Typography
                             variant="h6"
                             component="span"
-                            sx={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 1.5
-                            }}
+                            className="topbar-project-name"
+                            sx={{ gap: 1.5 }}
                         >
                             <span>|</span>
                             <span>{projectName}</span>

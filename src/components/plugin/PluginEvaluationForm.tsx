@@ -2,8 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import { getPluginInputDefinitions, getProject } from "../../api/api.tsx";
 import { Plugin, PluginConfig, PluginInputDefinition, DataObject, PluginInputValue } from "../../models/models.tsx";
 import { Box, Icon, FormControl, InputLabel, MenuItem, Select, Card, CardContent, Chip, Typography, Tooltip } from "@mui/material";
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
 import { useProject } from "../../context/ProjectContext.tsx";
 import { useState, useEffect, useRef } from "react";
+import './PluginEvaluationForm.css';
 
 const API_URL = import.meta.env.VITE_API_URL + '/api/v1';
 
@@ -11,8 +14,10 @@ interface PluginEvaluationFormProps {
     plugin: Plugin;
     isConfigured: boolean;
     isActive: boolean;
+    className?: string;
     selections: PluginInputValue[];
     onToggle: () => void;
+    onUnselect?: () => void;
     onSelectionChange: (item: PluginInputValue | null, inputName: string) => void;
     onValidationChange?: (valid: boolean) => void;
 }
@@ -21,8 +26,10 @@ export default function PluginEvaluationForm({
     plugin,
     isConfigured,
     isActive,
+    className,
     selections,
     onToggle,
+    onUnselect,
     onSelectionChange,
     onValidationChange
 }: PluginEvaluationFormProps) {
@@ -53,6 +60,15 @@ export default function PluginEvaluationForm({
         enabled: !!plugin.pid && isActive,
     });
 
+    const sortedConfigs = configs
+        ? [...configs].sort(
+            (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        )
+        : [];
+    const configLocalIndex = new Map(sortedConfigs.map((cfg, i) => [cfg.id, i + 1]));
+    const latestConfig = sortedConfigs.length > 0 ? sortedConfigs[sortedConfigs.length - 1] : null;
+    const configValue = selectedConfig ?? latestConfig?.id ?? '';
+
     const allMandatoryFilled = !!inputDefinitions && inputDefinitions.every(
         def => !def.required || selections.some(s => s.name === def.name)
     );
@@ -69,6 +85,7 @@ export default function PluginEvaluationForm({
     );
 
     const isReady = isConfigured && allMandatoryFilled;
+    const backendConfigured = plugin.config !== null;
 
     if (isDefinitionsPending || isProjectPending) return <span>Loading...</span>;
 
@@ -80,24 +97,50 @@ export default function PluginEvaluationForm({
         return obj?.name ?? sel.pid.slice(0, 8);
     };
 
-    return (
+    const selectMenuProps = {
+        disablePortal: false,
+        PaperProps: {
+            className: 'plugin-evaluation-form__select-paper',
+            sx: {
+                mt: 0.5,
+                borderRadius: 1.5,
+            },
+        },
+        MenuListProps: {
+            dense: true,
+        },
+    };
+
+    const cardClasses = [
+        className,
+        !backendConfigured && 'plugin-eval-card--unconfigured',
+        isActive && 'plugin-eval-card--active',
+        isConfigured && !isActive && 'plugin-eval-card--configured',
+        isReady && 'plugin-eval-card--ready',
+    ].filter(Boolean).join(' ');
+
+    const card = (
         <Card
+            className={cardClasses}
             data-plugin-card
-            onClick={(e: React.MouseEvent) => { e.stopPropagation(); onToggle(); }}
+            onClick={(e: React.MouseEvent) => {
+                if (!backendConfigured) return;
+                e.stopPropagation();
+                if (!isActive) {
+                    onToggle();
+                }
+            }}
             sx={{
-                cursor: 'pointer',
-                border: isActive ? '2px solid' : isConfigured ? 'none' : '1px solid',
-                borderColor: isActive ? 'primary.main' : isConfigured ? undefined : 'grey.200',
-                background: isActive
-                    ? 'linear-gradient(135deg, rgba(69, 145, 251, 0.3), rgba(0, 52, 255, 0.2))'
-                    : isReady
-                    ? '#e8f0fe'
-                    : 'white',
-                transition: 'all 0.2s ease',
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                '&:hover': { boxShadow: 4, borderColor: isActive ? 'primary.main' : isReady ? 'primary.light' : 'grey.300' },
+                ...(isReady && {
+                    border: '2px solid',
+                    borderColor: 'rgba(25, 118, 210, 0.55)',
+                }),
+                ...(backendConfigured && {
+                    '&:hover': {
+                        boxShadow: 4,
+                        ...(isReady && { borderColor: 'rgba(25, 118, 210, 0.9)' }),
+                    },
+                }),
             }}
         >
             <CardContent>
@@ -115,12 +158,28 @@ export default function PluginEvaluationForm({
                         </Box>
                     </Box>
                     {isReady ? (
-                        <Icon sx={{ color: 'success.main', alignSelf: 'center', fontSize: 24 }}>check_circle</Icon>
-                    ) : someMandatoryFilled ? (
+                        <Tooltip title="Unselect plugin">
+                            <CheckCircleIcon
+                                sx={{ color: 'success.main', alignSelf: 'center', fontSize: 24, cursor: 'pointer' }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onUnselect?.();
+                                }}
+                            />
+                        </Tooltip>
+                    ) : isConfigured && someMandatoryFilled ? (
                         <Tooltip title="Missing required fields">
                             <Icon sx={{ color: 'warning.main', alignSelf: 'center', fontSize: 24 }}>warning</Icon>
                         </Tooltip>
-                    ) : null}
+                    ) : !backendConfigured ? (
+                        <Tooltip title="Plugin not configured">
+                            <Icon sx={{ color: 'error.main', alignSelf: 'center', fontSize: 24 }}>error</Icon>
+                        </Tooltip>
+                    ) : (
+                        <Tooltip title="Plugin not selected">
+                            <CircleOutlinedIcon sx={{ color: 'action.disabled', alignSelf: 'center', fontSize: 24 }} />
+                        </Tooltip>
+                    )}
                 </Box>
 
                 {isConfigured && !isActive && selections.length > 0 && (
@@ -145,15 +204,45 @@ export default function PluginEvaluationForm({
 
                             return (
                                 <Box key={def.name}>
-                                    <FormControl fullWidth size="small">
-                                        <InputLabel id={`label-${def.name}`}>
-                                            {def.label || def.name}
-                                        </InputLabel>
+                                    <FormControl
+                                        fullWidth
+                                        size="small"
+                                        className="plugin-evaluation-form__form-control"
+                                        sx={{
+                                            '& .MuiOutlinedInput-root': {
+                                                borderRadius: 1.5,
+                                                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                                    borderColor: 'primary.main',
+                                                },
+                                            },
+                                        }}
+                                    >
+                                        {Boolean(currentSelection?.pid) && (
+                                            <InputLabel
+                                                id={`label-${def.name}`}
+                                                className="plugin-evaluation-form__input-label"
+                                            >
+                                                {def.label || def.name}
+                                            </InputLabel>
+                                        )}
                                         <Select
-                                            labelId={`label-${def.name}`}
-                                            label={def.label || def.name}
+                                            labelId={currentSelection?.pid ? `label-${def.name}` : undefined}
+                                            label={currentSelection?.pid ? (def.label || def.name) : undefined}
                                             required={def.required}
+                                            MenuProps={selectMenuProps}
                                             value={currentSelection?.pid || ""}
+                                            displayEmpty
+                                            renderValue={(value) => {
+                                                if (!value) {
+                                                    return (
+                                                        <Typography component="span" sx={{color: 'text.secondary'}}>
+                                                            {def.label || def.name}
+                                                        </Typography>
+                                                    );
+                                                }
+                                                const selectedObj = options?.find((o: DataObject) => o.pid === value);
+                                                return selectedObj?.name || String(value);
+                                            }}
                                             onChange={(e) => {
                                                 const val = e.target.value;
                                                 if (val === "") {
@@ -186,16 +275,44 @@ export default function PluginEvaluationForm({
                         })}
 
                         {configs && configs.length > 0 && (
-                            <FormControl fullWidth size="small">
-                                <InputLabel>Config</InputLabel>
+                            <FormControl
+                                fullWidth
+                                size="small"
+                                className="plugin-evaluation-form__form-control"
+                                sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                        borderRadius: 1.5,
+                                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                            borderColor: 'primary.main',
+                                        },
+                                    },
+                                }}
+                            >
+                                {Boolean(configValue) && (
+                                    <InputLabel
+                                        id="plugin-config-label"
+                                        className="plugin-evaluation-form__input-label"
+                                    >
+                                        Config
+                                    </InputLabel>
+                                )}
                                 <Select
-                                    label="Config"
-                                    value={selectedConfig ?? configs[configs.length - 1].id}
+                                    labelId={configValue ? 'plugin-config-label' : undefined}
+                                    label={configValue ? 'Config' : undefined}
+                                    MenuProps={selectMenuProps}
+                                    value={configValue}
+                                    renderValue={(value) => {
+                                        const selected = configs.find((cfg: PluginConfig) => cfg.id === Number(value));
+                                        if (!selected) {
+                                            return 'Config';
+                                        }
+                                        return `Config #${configLocalIndex.get(selected.id) ?? selected.id} (${new Date(selected.created_at).toLocaleDateString()})`;
+                                    }}
                                     onChange={(e) => setSelectedConfig(e.target.value ? Number(e.target.value) : null)}
                                 >
                                     {configs.map((cfg: PluginConfig) => (
                                         <MenuItem key={cfg.id} value={cfg.id}>
-                                            Config #{cfg.id} ({new Date(cfg.created_at).toLocaleDateString()})
+                                            Config #{configLocalIndex.get(cfg.id) ?? cfg.id} ({new Date(cfg.created_at).toLocaleDateString()})
                                         </MenuItem>
                                     ))}
                                 </Select>
@@ -205,5 +322,11 @@ export default function PluginEvaluationForm({
                 )}
             </CardContent>
         </Card>
+    );
+
+    return backendConfigured ? card : (
+        <Tooltip title="Plugin not configured" placement="top">
+            {card}
+        </Tooltip>
     );
 }
