@@ -6,9 +6,12 @@ import {
     Card,
     CardContent,
     Chip,
+    CircularProgress,
     Divider,
     Icon,
+    IconButton,
     Switch,
+    Tooltip,
     Typography,
 } from "@mui/material";
 import Grid from "@mui/material/Grid2";
@@ -93,12 +96,22 @@ const updatePluginEnabled = async (plugin_pid: string, enabled: boolean) => {
     return await res.json();
 };
 
+const refreshPackage = async (project_uuid: string, package_name: string, version: string) => {
+    const res = await fetch(`${API_URL}/plugins/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({package_name, project_uuid, version}),
+    });
+    return await res.json() as Plugin[];
+};
+
 function Plugins() {
     const queryClient = useQueryClient();
     const {projectUUID} = useProject();
     // Pending states to prevent multiple simultaneous requests for the same package or plugin
     const [pendingPackages, setPendingPackages] = useState<Record<string, boolean>>({});
     const [pendingPlugins, setPendingPlugins] = useState<Record<string, boolean>>({});
+    const [refreshingPackages, setRefreshingPackages] = useState<Record<string, boolean>>({});
 
     const {data: packages, isPending, error} = useQuery({
         queryKey: ['packages', projectUUID],
@@ -173,6 +186,22 @@ function Plugins() {
             toast.error(message, { position: 'bottom-right' });
         } finally {
             setPendingPlugins(prev => ({...prev, [plugin.pid]: false}));
+            await refreshProjectQueries();
+        }
+    };
+
+    const handleRefresh = async (package_name: string, version: string) => {
+        if (!projectUUID) return;
+        const packageKey = `${package_name}::${version}`;
+        if (refreshingPackages[packageKey]) return;
+        setRefreshingPackages(prev => ({...prev, [packageKey]: true}));
+        try {
+            await refreshPackage(projectUUID, package_name, version);
+            toast.success('Package refreshed.', { position: 'bottom-right' });
+        } catch {
+            toast.error('Could not refresh package.', { position: 'bottom-right' });
+        } finally {
+            setRefreshingPackages(prev => ({...prev, [packageKey]: false}));
             await refreshProjectQueries();
         }
     };
@@ -267,9 +296,29 @@ function Plugins() {
                                     </Box>
 
                                     {isEnabled && (
-                                        <Icon sx={{color: 'success.main', alignSelf: 'center', fontSize: 24}}>
-                                            check_circle
-                                        </Icon>
+                                        <Box sx={{display: 'flex', alignItems: 'center', gap: 0.25}}>
+                                            {refreshingPackages[packageKey] ? (
+                                                <CircularProgress size={18} />
+                                            ) : (
+                                                <Tooltip title="Refresh package">
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleRefresh(pkg.package_name, pkg.version);
+                                                        }}
+                                                        sx={{p: 0.25}}
+                                                    >
+                                                        <Icon sx={{fontSize: 20}}>refresh</Icon>
+                                                    </IconButton>
+                                                </Tooltip>
+                                            )}
+                                            <Tooltip title="Click to disable">
+                                                <Icon sx={{color: 'success.main', alignSelf: 'center', fontSize: 24}}>
+                                                    check_circle
+                                                </Icon>
+                                            </Tooltip>
+                                        </Box>
                                     )}
                                 </CardContent>
 
@@ -305,7 +354,7 @@ function Plugins() {
                                                             {pluginDisplayName ?? pluginName ?? 'Unknown'}
                                                         </Typography>
 
-                                                        <Box sx={{display: 'flex', alignItems: 'center', gap: 0.25}}>
+                                                        <Box sx={{display: 'flex', alignItems: 'center', gap: 0.3}}>
                                                             <Switch
                                                                 size="small"
                                                                 checked={plugin.enabled}
