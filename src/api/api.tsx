@@ -115,6 +115,16 @@ export const getEvaluationMetricNames = async (
     return await res.json();
 }
 
+export const patchDatasetLabelMappings = async (datasetPid: string, label_mappings: object) => {
+    const res = await fetch(`${API_URL}/datasets/${datasetPid}/label-mappings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label_mappings }),
+    });
+    if (!res.ok) throw new Error('Failed to update dataset label mappings');
+    return await res.json();
+};
+
 export const aggregateEvaluationMeasurements = async (evaluationPid: string, aggregationRequest: {
     evaluation_plugin_pid?: string,
     plugin_name?: string,

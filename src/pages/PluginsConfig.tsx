@@ -185,6 +185,11 @@ function PluginConfig() {
                             <MenuItem value={dataset.pid}>{dataset.name}</MenuItem>
                         ))}
                     </Select>
+                    <InfoBanner message={
+                        "Dataset-level label mappings can be set in Project Settings > Datasets. " +
+                        "These are applied automatically during evaluation, and plugin-level values override them."
+                        }
+                    />
                 </>
             }
 

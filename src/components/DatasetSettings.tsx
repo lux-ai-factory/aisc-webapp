@@ -5,6 +5,7 @@ import {
     Box,
     Button,
     CircularProgress,
+    Collapse,
     Divider,
     IconButton,
     List,
@@ -19,6 +20,9 @@ const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import CloudUpload from '@mui/icons-material/CloudUpload';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import {patchDatasetLabelMappings} from "../api/api.tsx";
 
 interface ProjectResponse {
     pid: string;
@@ -28,6 +32,7 @@ interface ProjectResponse {
         pid: string;
         name: string;
         data: string;
+        label_mappings: object;
     }>;
     models: Array<{
         pid: string;
@@ -37,6 +42,7 @@ interface ProjectResponse {
             pid: string;
             name: string;
             data: string;
+            label_mappings: object;
         }>
     }>;
 }
@@ -46,6 +52,7 @@ interface Dataset {
     pid: string;
     name: string;
     data: string;
+    label_mappings: object;
 }
 
 
@@ -178,6 +185,8 @@ const DatasetSettings = () => {
         }
     };
 
+    const [expandedMappings, setExpandedMappings] = useState<string | null>(null);
+    const [editMappings, setEditMappings] = useState<Record<string, string>>({});
 
     const handleUploadSuccess = (pid: string, data: string) => {
         setDatasetList((prevList) =>
@@ -185,6 +194,36 @@ const DatasetSettings = () => {
                 ds.pid === pid ? {...ds, data: data} : ds
             )
         );
+    };
+
+    const handleToggleMappings = (pid: string) => {
+        if (expandedMappings === pid) {
+            setExpandedMappings(null);
+        } else {
+            const dataset = datasetList.find(ds => ds.pid === pid);
+            setEditMappings(prev => ({...prev, [pid]: JSON.stringify(dataset?.label_mappings || {}, null, 2)}));
+            setExpandedMappings(pid);
+        }
+    };
+
+    const handleMappingsChange = (pid: string, value: string) => {
+        setEditMappings(prev => ({...prev, [pid]: value}));
+    };
+
+    const handleSaveMappings = async (pid: string) => {
+        const raw = editMappings[pid];
+        try {
+            const parsed = JSON.parse(raw);
+            await patchDatasetLabelMappings(pid, parsed);
+            setDatasetList((prevList) =>
+                prevList.map((ds) =>
+                    ds.pid === pid ? {...ds, label_mappings: parsed} : ds
+                )
+            );
+            setExpandedMappings(null);
+        } catch {
+            alert("Invalid JSON. Please fix and try again.");
+        }
     };
 
     const handleAdd = async () => {
@@ -228,7 +267,8 @@ const DatasetSettings = () => {
                 const datasets = data.datasets.map(ds => ({
                     pid: ds.pid,
                     name: ds.name,
-                    data: ds.data
+                    data: ds.data,
+                    label_mappings: ds.label_mappings || {},
                 }));
                 setDatasetList(datasets);
 
@@ -256,21 +296,45 @@ const DatasetSettings = () => {
             </Typography>
             <List sx={{border: 1, borderColor: 'divider', borderRadius: 1, mb: 1, p: 2}}>
                 {datasetList.map((dataset) => (
-                    <ListItem key={dataset.pid}>
+                    <ListItem key={dataset.pid} sx={{flexDirection: 'column', alignItems: 'stretch'}}>
                         <Box sx={{display: 'flex', alignItems: 'center', width: '100%'}}>
                             <Box sx={{flexGrow: 1}}>
                                 <Typography variant="subtitle1" sx={{fontWeight: 'medium'}}>{dataset.name}</Typography>
                                 <Typography variant="body2" color="text.secondary">{dataset.pid}</Typography>
                             </Box>
                             <Box sx={{display: 'flex', alignItems: 'center'}}>
-                                {/* <CloudDoneIcon color="success" sx={{ mr: 2 }} /> */}
+                                <IconButton onClick={() => handleToggleMappings(dataset.pid)} size="small" sx={{mr: 1}}>
+                                    {expandedMappings === dataset.pid ? <ExpandLessIcon/> : <ExpandMoreIcon/>}
+                                </IconButton>
                                 <UploadDataset dataset={dataset} onUploadSuccess={handleUploadSuccess}/>
                                 <IconButton edge="end" aria-label="delete" color="error">
                                     <DeleteIcon/>
                                 </IconButton>
                             </Box>
                         </Box>
-
+                        <Collapse in={expandedMappings === dataset.pid}>
+                            <Box sx={{p: 2, mt: 1, bgcolor: 'grey.50', borderRadius: 1}}>
+                                <Typography variant="body2" sx={{mb: 1, fontWeight: 500}}>
+                                    Label Mappings
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{mb: 1, display: 'block'}}>
+                                    Map categorical values to display labels.
+                                </Typography>
+                                <TextField
+                                    multiline
+                                    fullWidth
+                                    minRows={4}
+                                    maxRows={12}
+                                    value={editMappings[dataset.pid] || ''}
+                                    onChange={(e) => handleMappingsChange(dataset.pid, e.target.value)}
+                                    sx={{mb: 1}}
+                                    placeholder='{"home_ownership": {"0": "Rent", "1": "Own", "2": "Mortgage"}}'
+                                />
+                                <Button variant="contained" size="small" onClick={() => handleSaveMappings(dataset.pid)}>
+                                    Save Mappings
+                                </Button>
+                            </Box>
+                        </Collapse>
                     </ListItem>
                 ))}
 
