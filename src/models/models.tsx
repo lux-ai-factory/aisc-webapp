@@ -45,6 +45,7 @@ export interface DataObject {
     pid: string;
     name: string;
     data: string;
+    label_mappings?: object;
 }
 
 export interface ProjectPluginConfigState {
