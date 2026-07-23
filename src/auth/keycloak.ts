@@ -19,7 +19,7 @@ export function initKeycloak(): Promise<boolean> {
       pkceMethod: "S256",
     });
   }
-  return initPromise;
+  return initPromise!;
 }
 
 // Wrap window.fetch so every request to the API gets the Bearer token (and a fresh one if it's
