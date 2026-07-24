@@ -6,10 +6,13 @@ import {
   Button,
   Dialog,
   DialogContent,
+  IconButton,
+  InputAdornment,
   TextField,
   Typography,
   CircularProgress,
 } from "@mui/material";
+import { Visibility, VisibilityOff } from "@mui/icons-material";
 import "./LoginDialog.css";
 
 interface LoginDialogProps {
@@ -21,6 +24,7 @@ interface LoginDialogProps {
 export default function LoginDialog({ open, onLogin, onClose }: LoginDialogProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -78,12 +82,23 @@ export default function LoginDialog({ open, onLogin, onClose }: LoginDialogProps
           />
           <TextField
             label="Password"
-            type="password"
+            type={showPassword ? "text" : "password"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             fullWidth
             autoComplete="current-password"
             disabled={loading}
+            slotProps={{
+              input: {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton onClick={() => setShowPassword((s) => !s)} edge="end" size="small">
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              },
+            }}
           />
           <Button type="submit" variant="contained" fullWidth size="large" disabled={loading} className="login-dialog-submit">
             {loading ? <CircularProgress size={24} color="inherit" /> : "Sign In"}
