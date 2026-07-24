@@ -1,1 +1,6 @@
 /* Uses shared gradient-card from styles/common.css */
+
+.auth-message {
+    text-align: center;
+    margin-top: 64px;
+}
