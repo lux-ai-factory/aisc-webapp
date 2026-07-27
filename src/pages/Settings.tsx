@@ -20,6 +20,7 @@ import Grid from "@mui/material/Grid2";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API_VERSION_PREFIX } from "../config";
 import { useProject } from "../context/ProjectContext";
+import keycloak from '../auth/keycloak';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DownloadIcon from '@mui/icons-material/Download';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -174,7 +175,7 @@ function FileRow({ file, type, onUploadSuccess }: {
         return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
     };
 
-    const handleUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const f = event.target.files?.[0];
         if (!f) return;
         if (type === 'model' && !f.name.toLowerCase().endsWith('.onnx')) {
@@ -184,9 +185,11 @@ function FileRow({ file, type, onUploadSuccess }: {
 
         const formData = new FormData();
         formData.append('file', f);
+        await keycloak.updateToken(30);
         // Re-upload: overwrites the stored file reference but does NOT delete the old blob from storage
         const xhr = new XMLHttpRequest();
         xhr.open("PUT", `${API_URL}/${type}s/${file.pid}/data`, true);
+        xhr.setRequestHeader('Authorization', `Bearer ${keycloak.token}`);
         xhr.upload.onprogress = (e) => {
             if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100));
         };
@@ -454,8 +457,10 @@ export default function SettingsPage() {
         if (file) {
             const formData = new FormData();
             formData.append('file', file);
+            await keycloak.updateToken(30);
             const xhr = new XMLHttpRequest();
             xhr.open("PUT", `${API_URL}/${type}s/${created.pid}/data`, true);
+            xhr.setRequestHeader('Authorization', `Bearer ${keycloak.token}`);
             xhr.upload.onprogress = (e) => {
                 if (e.lengthComputable) {
                     const updater = (items: FileItem[]) => items.map(i => i.pid === created.pid ? { ...i, uploadProgress: Math.round((e.loaded / e.total) * 100) } : i);

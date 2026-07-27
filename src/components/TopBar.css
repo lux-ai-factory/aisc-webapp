@@ -1,9 +1,30 @@
 .topbar-link {
     display: inline-flex !important;
     align-items: center !important;
+    text-decoration: none !important;
+    color: inherit !important;
 }
 
 .topbar-project-name {
     display: inline-flex !important;
     align-items: center !important;
+}
+
+.auth-box {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+
+.auth-user-btn {
+    font-weight: 500 !important;
+}
+
+.auth-username-item {
+    padding: 8px 16px !important;
+    font-weight: 600 !important;
+}
+
+.auth-dialog-actions {
+    justify-content: flex-end !important;
 }

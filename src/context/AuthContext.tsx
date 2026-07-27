@@ -1,15 +1,14 @@
-// Auth context: initializes Keycloak once, tracks login state, and exposes login()/logout()
-// plus the current user's identity + roles to the whole app.
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import keycloak, { initKeycloak, installAuthFetch } from "../auth/keycloak";
+import { API_VERSION_PREFIX } from "../config";
+import keycloak, { initKeycloak, installAuthFetch, loginWithCredentials as kcLogin, logout as kcLogout } from "../auth/keycloak";
 
 type AuthState = {
-  ready: boolean;            // Keycloak finished initializing
-  authenticated: boolean;    // is there a logged-in user
+  ready: boolean;
+  authenticated: boolean;
   username?: string;
   roles: string[];
   token?: string;
-  login: () => void;
+  login: (username: string, password: string) => Promise<void>;
   logout: () => void;
 };
 
@@ -18,33 +17,59 @@ const AuthContext = createContext<AuthState | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
+  const [username, setUsername] = useState<string | undefined>();
+  const [roles, setRoles] = useState<string[]>([]);
+  const [token, setToken] = useState<string | undefined>();
 
   useEffect(() => {
-    // make every API call carry the Bearer token once Keycloak is set up
-    installAuthFetch(import.meta.env.VITE_API_URL as string);
+    installAuthFetch(`${import.meta.env.VITE_API_URL}${API_VERSION_PREFIX}`);
 
     initKeycloak()
-      .then((auth) => setAuthenticated(auth))
+      .then((auth) => {
+        setAuthenticated(auth);
+        if (auth) {
+          setUsername(keycloak.tokenParsed?.preferred_username as string | undefined);
+          setRoles((keycloak.tokenParsed?.realm_access?.roles as string[]) ?? []);
+          setToken(keycloak.token);
+        }
+      })
       .catch(() => setAuthenticated(false))
       .finally(() => setReady(true));
 
-    // keep the access token fresh; if refresh fails, drop to logged-out state
     keycloak.onTokenExpired = () => {
-      keycloak.updateToken(30).catch(() => setAuthenticated(false));
+      keycloak.updateToken(30).catch(() => {
+        setAuthenticated(false);
+        setUsername(undefined);
+        setRoles([]);
+        setToken(undefined);
+      });
     };
   }, []);
+
+  const handleLogin = async (uname: string, pw: string) => {
+    const result = await kcLogin(uname, pw);
+    setAuthenticated(true);
+    setUsername(result.tokenParsed.preferred_username as string);
+    const roles = (result.tokenParsed as { realm_access?: { roles?: string[] } }).realm_access?.roles ?? [];
+    setRoles(roles);
+    setToken(result.access_token);
+  };
+
+  const handleLogout = () => {
+    kcLogout();
+  };
 
   const value: AuthState = {
     ready,
     authenticated,
-    username: keycloak.tokenParsed?.preferred_username as string | undefined,
-    roles: (keycloak.tokenParsed?.realm_access?.roles as string[]) ?? [],
-    token: keycloak.token,
-    login: () => keycloak.login(),                                   // redirect to Keycloak login
-    logout: () => keycloak.logout({ redirectUri: window.location.origin }), // back to the app (login page)
+    username,
+    roles,
+    token,
+    login: handleLogin,
+    logout: handleLogout,
   };
 
-  if (!ready) return null; // wait for Keycloak init before rendering the app
+  if (!ready) return null;
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -3,7 +3,9 @@ import Grid from "@mui/material/Grid2";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_VERSION_PREFIX } from "../config";
+import { useAuth } from "../context/AuthContext";
 import "../styles/common.css";
+import "./GlobalHome.css";
 
 
 
@@ -82,15 +84,24 @@ const ProjectsList = () => {
  * @returns {JSX.Element} The home page with dashboard title and summary table
  */
 const GlobalHome = () => {
+    const { authenticated } = useAuth();
+
+    if (!authenticated) {
+        return (
+            <Box className="auth-message">
+                <Typography variant="h4" fontWeight={700} gutterBottom>
+                    AI Assessment Sandbox
+                </Typography>
+                <Typography variant="body1" color="text.secondary">
+                    Please sign in to get started.
+                </Typography>
+            </Box>
+        );
+    }
+
     return (
         <>
-            {/*I remove this for now because we already have the same title in top toolbar*/}
-            {/*<Typography component="h2" variant="h4" gutterBottom>*/}
-            {/*    AI Assessment Sandbox*/}
-            {/*</Typography>*/}
-
             <ProjectsList/>
-
         </>);
 };
 

@@ -3,8 +3,13 @@ import {
     Box,
     Button,
     createTheme,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
     Icon,
-    Link,
+    Menu,
+    MenuItem,
     Toolbar,
     Typography
 } from '@mui/material';
@@ -12,12 +17,14 @@ import React, {useEffect, useState} from 'react';
 import {useProject} from '../context/ProjectContext';
 import {useAuth} from '../context/AuthContext';
 import {API_VERSION_PREFIX} from '../config';
+import {NavLink} from 'react-router-dom';
 import {ThemeProvider} from '@emotion/react';
 import {useNavigate} from 'react-router-dom';
 import toast from 'react-hot-toast';
 import "./TopBar.css";
 import "./addProjectButton.css";
 import AddProjectWizard from "./addProjectWizard.tsx";
+import LoginDialog from "./LoginDialog.tsx";
 
 
 interface Project {
@@ -59,8 +66,11 @@ const ProjectSelector: React.FC<{
     fetchDatasets: () => void;
     fetchModels: () => void;
     fetchPlugins: () => void;
-}> = ({ onAddProject, datasets, models, plugins, fetchDatasets, fetchModels, fetchPlugins }) => {
+    authenticated: boolean;
+}> = ({ onAddProject, datasets, models, plugins, fetchDatasets, fetchModels, fetchPlugins, authenticated }) => {
     const [wizardOpen, setWizardOpen] = useState(false);
+
+    if (!authenticated) return null;
 
     return (
         <>
@@ -125,6 +135,9 @@ const TopBar: React.FC = () => {
 
     const {setProjectUUID, projectName, setProjectName, addFileUploadingPid, removeFileUploadingPid} = useProject();
     const [projects, setProjects] = useState<Project[]>([]);
+    const [loginOpen, setLoginOpen] = useState(false);
+    const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+    const [confirmOpen, setConfirmOpen] = useState(false);
 
     // Keycloak auth: who is logged in + login/logout actions
     const {authenticated, username, login, logout} = useAuth();
@@ -243,12 +256,9 @@ const TopBar: React.FC = () => {
             <Toolbar>
                 <Box style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
 
-                    <Link
-                        href="/"
-                        underline="none"
-                        color="inherit"
+                    <NavLink
+                        to="/"
                         className="topbar-link"
-                        sx={{ m: 0 }}
                     >
                         <Box display="flex" alignItems="center" gap={1}>
                             <img
@@ -265,7 +275,7 @@ const TopBar: React.FC = () => {
                                 AI Assessment Sandbox
                             </Typography>
                         </Box>
-                    </Link>
+                    </NavLink>
                     {projectName && (
                         <Typography
                             variant="h6"
@@ -280,35 +290,76 @@ const TopBar: React.FC = () => {
                 </Box>
 
                 <div style={{flexGrow: 1}}/>
-                <ProjectSelector
-                    onAddProject={addProject}
-                    datasets={datasets}
-                    models={models}
-                    plugins={plugins}
-                    fetchDatasets={fetchDatasets}
-                    fetchModels={fetchModels}
-                    fetchPlugins={fetchPlugins}
-                />
-
-                {/* Keycloak login / logout */}
-                <Box sx={{display: 'flex', alignItems: 'center', gap: 1, ml: 2}}>
+                <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
+                    <ProjectSelector
+                        onAddProject={addProject}
+                        datasets={datasets}
+                        models={models}
+                        plugins={plugins}
+                        fetchDatasets={fetchDatasets}
+                        fetchModels={fetchModels}
+                        fetchPlugins={fetchPlugins}
+                        authenticated={authenticated}
+                    />
                     {authenticated ? (
-                        <>
-                            <Typography variant="body1" data-testid="auth-username">
+                        <Box className="auth-box">
+                            <Button
+                                color="inherit"
+                                variant="text"
+                                size="small"
+                                onClick={(e) => setMenuAnchor(e.currentTarget)}
+                                className="auth-user-btn"
+                            >
                                 {username}
-                            </Typography>
-                            <Button color="inherit" variant="outlined" data-testid="logout-button"
-                                    onClick={() => logout()}>
-                                Logout
                             </Button>
-                        </>
+                            <Menu
+                                anchorEl={menuAnchor}
+                                open={Boolean(menuAnchor)}
+                                onClose={() => setMenuAnchor(null)}
+                                transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                                anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+                            >
+                                <MenuItem disabled className="auth-username-item">
+                                    {username}
+                                </MenuItem>
+                                <MenuItem onClick={() => { setMenuAnchor(null); setConfirmOpen(true); }}>
+                                    Disconnect
+                                </MenuItem>
+                            </Menu>
+                        </Box>
                     ) : (
                         <Button color="inherit" variant="outlined" data-testid="login-button"
-                                onClick={() => login()}>
-                            Login
+                                onClick={() => setLoginOpen(true)}>
+                            Connect
                         </Button>
                     )}
                 </Box>
+                <LoginDialog
+                    open={loginOpen}
+                    onLogin={async (u, p) => {
+                        await login(u, p);
+                        setLoginOpen(false);
+                    }}
+                    onClose={() => setLoginOpen(false)}
+                />
+                {confirmOpen && (
+                    <Dialog
+                        open={confirmOpen}
+                        onClose={() => setConfirmOpen(false)}
+                        maxWidth="xs"
+                    >
+                        <DialogTitle>Disconnect?</DialogTitle>
+                        <DialogContent>
+                            <Typography>Are you sure you want to disconnect?</Typography>
+                        </DialogContent>
+                        <DialogActions className="auth-dialog-actions">
+                            <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
+                            <Button color="error" onClick={() => { setConfirmOpen(false); logout(); }}>
+                                Disconnect
+                            </Button>
+                        </DialogActions>
+                    </Dialog>
+                )}
             </Toolbar>
         </AppBar>
     );

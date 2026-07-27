@@ -1,6 +1,7 @@
 import React, {ChangeEvent, useEffect, useState} from 'react';
 import {API_VERSION_PREFIX} from '../config';
 import {useProject} from '../context/ProjectContext';
+import keycloak from '../auth/keycloak';
 import {
     Box,
     Button,
@@ -81,8 +82,11 @@ const UploadDataset = ({dataset, onUploadSuccess}: UploadDatasetProps) => {
         const formData = new FormData();
         formData.append('file', file);
 
+        await keycloak.updateToken(30);
+
         const xhr = new XMLHttpRequest();
         xhr.open("PUT", `${API_URL}/datasets/${dataset.pid}/data`, true);
+        xhr.setRequestHeader('Authorization', `Bearer ${keycloak.token}`);
 
         xhr.upload.onprogress = (e) => {
             if (e.lengthComputable) {
