@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { API_VERSION_PREFIX } from "../config";
-import keycloak, { initKeycloak, installAuthFetch, loginWithCredentials as kcLogin, logout as kcLogout } from "../auth/keycloak";
+import keycloak, { initKeycloak, installAuthFetch, login as kcLogin, logout as kcLogout } from "../auth/keycloak";
 
 type AuthState = {
   ready: boolean;
@@ -8,7 +8,7 @@ type AuthState = {
   username?: string;
   roles: string[];
   token?: string;
-  login: (username: string, password: string) => Promise<void>;
+  login: () => void;
   logout: () => void;
 };
 
@@ -25,13 +25,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     installAuthFetch(`${import.meta.env.VITE_API_URL}${API_VERSION_PREFIX}`);
 
     initKeycloak()
-      .then((auth) => {
-        setAuthenticated(auth);
-        if (auth) {
-          setUsername(keycloak.tokenParsed?.preferred_username as string | undefined);
-          setRoles((keycloak.tokenParsed?.realm_access?.roles as string[]) ?? []);
-          setToken(keycloak.token);
-        }
+      .then(() => {
+        setAuthenticated(keycloak.authenticated ?? false);
+        setUsername(keycloak.tokenParsed?.preferred_username as string | undefined);
+        setRoles((keycloak.tokenParsed?.realm_access?.roles as string[]) ?? []);
+        setToken(keycloak.token);
       })
       .catch(() => setAuthenticated(false))
       .finally(() => setReady(true));
@@ -46,27 +44,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const handleLogin = async (uname: string, pw: string) => {
-    const result = await kcLogin(uname, pw);
-    setAuthenticated(true);
-    setUsername(result.tokenParsed.preferred_username as string);
-    const roles = (result.tokenParsed as { realm_access?: { roles?: string[] } }).realm_access?.roles ?? [];
-    setRoles(roles);
-    setToken(result.access_token);
-  };
-
-  const handleLogout = () => {
-    kcLogout();
-  };
-
   const value: AuthState = {
     ready,
     authenticated,
     username,
     roles,
     token,
-    login: handleLogin,
-    logout: handleLogout,
+    login: () => kcLogin(),
+    logout: () => kcLogout(),
   };
 
   if (!ready) return null;

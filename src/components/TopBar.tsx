@@ -17,14 +17,13 @@ import React, {useEffect, useState} from 'react';
 import {useProject} from '../context/ProjectContext';
 import {useAuth} from '../context/AuthContext';
 import {API_VERSION_PREFIX} from '../config';
-import {NavLink} from 'react-router-dom';
+import {NavLink, useLocation} from 'react-router-dom';
 import {ThemeProvider} from '@emotion/react';
 import {useNavigate} from 'react-router-dom';
 import toast from 'react-hot-toast';
 import "./TopBar.css";
 import "./addProjectButton.css";
 import AddProjectWizard from "./addProjectWizard.tsx";
-import LoginDialog from "./LoginDialog.tsx";
 
 
 interface Project {
@@ -135,7 +134,6 @@ const TopBar: React.FC = () => {
 
     const {setProjectUUID, projectName, setProjectName, addFileUploadingPid, removeFileUploadingPid} = useProject();
     const [projects, setProjects] = useState<Project[]>([]);
-    const [loginOpen, setLoginOpen] = useState(false);
     const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
     const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -143,6 +141,8 @@ const TopBar: React.FC = () => {
     const {authenticated, username, login, logout} = useAuth();
 
     const navigate = useNavigate();
+    const location = useLocation();
+    const isRootPage = location.pathname === '/';
 
     const fetchProjects = async () => {
         const data = await apiCall('/projects');
@@ -259,6 +259,10 @@ const TopBar: React.FC = () => {
                     <NavLink
                         to="/"
                         className="topbar-link"
+                        onClick={() => {
+                            setProjectUUID(null);
+                            setProjectName(null);
+                        }}
                     >
                         <Box display="flex" alignItems="center" gap={1}>
                             <img
@@ -276,7 +280,7 @@ const TopBar: React.FC = () => {
                             </Typography>
                         </Box>
                     </NavLink>
-                    {projectName && (
+                    {projectName && !isRootPage && (
                         <Typography
                             variant="h6"
                             component="span"
@@ -329,19 +333,11 @@ const TopBar: React.FC = () => {
                         </Box>
                     ) : (
                         <Button color="inherit" variant="outlined" data-testid="login-button"
-                                onClick={() => setLoginOpen(true)}>
+                                onClick={login}>
                             Connect
                         </Button>
                     )}
                 </Box>
-                <LoginDialog
-                    open={loginOpen}
-                    onLogin={async (u, p) => {
-                        await login(u, p);
-                        setLoginOpen(false);
-                    }}
-                    onClose={() => setLoginOpen(false)}
-                />
                 {confirmOpen && (
                     <Dialog
                         open={confirmOpen}

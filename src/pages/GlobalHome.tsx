@@ -99,10 +99,7 @@ const GlobalHome = () => {
         );
     }
 
-    return (
-        <>
-            <ProjectsList/>
-        </>);
+    return <ProjectsList />;
 };
 
 export default GlobalHome;
