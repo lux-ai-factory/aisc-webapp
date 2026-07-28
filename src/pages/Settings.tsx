@@ -208,6 +208,7 @@ function FileRow({ file, type, onUploadSuccess }: {
         xhr.send(formData);
     };
 
+    // TODO: buffers entire file in memory - use streaming (service worker or backend ?token=) for large artifacts
     const handleDownload = async () => {
         try {
             const response = await fetch(`${API_URL}/${type}s/${file.pid}/data`);
