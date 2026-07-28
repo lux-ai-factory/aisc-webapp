@@ -14,10 +14,11 @@ import {
 
 interface MeasurementsLineChartProps {
     title?: string;
+    description?: string;
     data: Measurement[];
 }
 
-export const MeasurementsLineChart = ({ title: _title, data }: MeasurementsLineChartProps) => {
+export const MeasurementsLineChart = ({ title: _title, description: _description, data }: MeasurementsLineChartProps) => {
     // Fixed x-domain
     const times = useMemo(() => buildDistinctTimes(data), [data]);
     // Distinct (name, description) keys

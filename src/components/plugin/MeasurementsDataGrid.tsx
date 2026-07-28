@@ -75,10 +75,11 @@ const columns: GridColDef[] = [
 
 interface MeasurementsDataGridProps {
     title?: string;
+    description?: string;
     data: Measurement[];
 }
 
-export const MeasurementsDataGrid = ({ title: _title, data }: MeasurementsDataGridProps) => {
+export const MeasurementsDataGrid = ({ title: _title, description: _description, data }: MeasurementsDataGridProps) => {
     const rows = data.map((row, index) => ({ ...row, id: index }));
 
     return (

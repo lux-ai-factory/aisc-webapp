@@ -15,12 +15,13 @@ import {
 
 interface MeasurementsBarChartProps {
     title?: string;
+    description?: string;
     data: Measurement[];
     /** If true, stack the series instead of grouping them side-by-side */
     stacked?: boolean;
 }
 
-export const MeasurementsBarChart = ({title: _title, data, stacked = false}: MeasurementsBarChartProps) => {
+export const MeasurementsBarChart = ({title: _title, description: _description, data, stacked = false}: MeasurementsBarChartProps) => {
     // Distinct times and keys (keys are measure names)
     const times = useMemo(() => buildDistinctTimes(data), [data]);
     const keys = useMemo(() => buildDistinctCompositeKeys(data), [data]);

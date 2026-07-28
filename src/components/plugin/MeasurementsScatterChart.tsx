@@ -4,10 +4,11 @@ import { getColorFromIndex } from "../../util/util.ts";
 
 interface MeasurementsScatterChartProps {
     title?: string;
+    description?: string;
     data: Measurement[];
 }
 
-export const MeasurementsScatterChart = ({ title: _title, data }: MeasurementsScatterChartProps) => {
+export const MeasurementsScatterChart = ({ title: _title, description: _description, data }: MeasurementsScatterChartProps) => {
     const distinctNames = [...new Set(data.map(m => m.name))];
 
     const series = distinctNames.map((name, index) => {

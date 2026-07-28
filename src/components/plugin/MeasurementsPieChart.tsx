@@ -12,10 +12,11 @@ import { getColorFromIndex } from "../../util/util";
 
 interface MeasurementsPieChartProps {
     title?: string;
+    description?: string;
     data: Measurement[];
 }
 
-export const MeasurementsPieChart = ({ title: _title, data }: MeasurementsPieChartProps) => {
+export const MeasurementsPieChart = ({ title: _title, description: _description, data }: MeasurementsPieChartProps) => {
     const times = useMemo(() => buildDistinctTimes(data), [data]);
     const keys = useMemo(() => buildDistinctCompositeKeys(data), [data]);
     const byKeyAndTime = useMemo(() => buildLookupByKeyAndTime(data), [data]);

@@ -139,23 +139,33 @@ function PluginEvaluationMeasurements() {
     }, {} as PluginResultsMap);
 
     const renderVisualization = (pluginResult: PluginQueryResult, visualization: any) => {
-        const filteredMeasurements = pluginResult.measurements!!.filter(
+        let filteredMeasurements = pluginResult.measurements!!.filter(
             (m: Measurement) => visualization.metrics.includes(m.name)
         );
+
+        if (visualization.filter_dimensions) {
+            filteredMeasurements = filteredMeasurements.filter((m: Measurement) =>
+                Object.entries(visualization.filter_dimensions).every(
+                    ([key, value]) => m.dimensions?.[key] === value
+                )
+            );
+        }
 
         if (filteredMeasurements.length === 0) return null;
 
         const name = pluginDisplayNames[pluginResult.name] || pluginResult.name;
         const data = filteredMeasurements;
+        const title = visualization.title || `${name} - ${visualization.chart_type}`;
+        const description = visualization.description || undefined;
 
         switch (visualization.chart_type) {
-            case 'table': return <MeasurementsDataGrid title={`${name} - Table`} data={data} />;
-            case 'line': return <MeasurementsLineChart title={`${name} - Line Chart`} data={data} />;
-            case 'scatter': return <MeasurementsScatterChart title={`${name} - Scatter Chart`} data={data} />;
-            case 'kde': return <MeasurementsKDEChart title={`${name} - KDE Histogram Chart`} data={data} />;
-            case 'bars': return <MeasurementsBarsChart title={`${name} - Bars Chart`} data={data} />;
-            case 'radar': return <MeasurementsRadarChart title={`${name} - Radar Chart`} data={data} />;
-            case 'pie': return <MeasurementsPieChart title={`${name} - Pie Chart`} data={data} />;
+            case 'table': return <MeasurementsDataGrid title={title} description={description} data={data} />;
+            case 'line': return <MeasurementsLineChart title={title} description={description} data={data} />;
+            case 'scatter': return <MeasurementsScatterChart title={title} description={description} data={data} />;
+            case 'kde': return <MeasurementsKDEChart title={title} description={description} data={data} />;
+            case 'bars': return <MeasurementsBarsChart title={title} description={description} data={data} />;
+            case 'radar': return <MeasurementsRadarChart title={title} description={description} data={data} />;
+            case 'pie': return <MeasurementsPieChart title={title} description={description} data={data} />;
             default: return null;
         }
     };

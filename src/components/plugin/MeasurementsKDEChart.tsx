@@ -15,6 +15,7 @@ import { getColorFromIndex } from '../../util/util.ts';
 
 interface MeasurementsKDEChartProps {
     title?: string;
+    description?: string;
     data: Measurement[];
     bins?: number;
 }
@@ -45,7 +46,7 @@ function makeXFormatter(range: number) {
         });
 }
 
-export const MeasurementsKDEChart = ({title: _title, data, bins = 20}: MeasurementsKDEChartProps) => {
+export const MeasurementsKDEChart = ({title: _title, description: _description, data, bins = 20}: MeasurementsKDEChartProps) => {
     if (!data?.length) return null;
 
     // --- Grouping
