@@ -24,7 +24,7 @@ export default function LoginDialog() {
           onClick={login}
           className="login-dialog-submit"
         >
-          Connect
+          Sign in
         </Button>
       </DialogContent>
     </Dialog>

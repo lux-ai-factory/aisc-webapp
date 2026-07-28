@@ -327,14 +327,14 @@ const TopBar: React.FC = () => {
                                     {username}
                                 </MenuItem>
                                 <MenuItem onClick={() => { setMenuAnchor(null); setConfirmOpen(true); }}>
-                                    Disconnect
+                                    Sign out
                                 </MenuItem>
                             </Menu>
                         </Box>
                     ) : (
                         <Button color="inherit" variant="outlined" data-testid="login-button"
                                 onClick={login}>
-                            Connect
+                            Sign in
                         </Button>
                     )}
                 </Box>
@@ -344,14 +344,14 @@ const TopBar: React.FC = () => {
                         onClose={() => setConfirmOpen(false)}
                         maxWidth="xs"
                     >
-                        <DialogTitle>Disconnect?</DialogTitle>
+                        <DialogTitle>Sign out?</DialogTitle>
                         <DialogContent>
-                            <Typography>Are you sure you want to disconnect?</Typography>
+                            <Typography>Are you sure you want to sign out?</Typography>
                         </DialogContent>
                         <DialogActions className="auth-dialog-actions">
                             <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
                             <Button color="error" onClick={() => { setConfirmOpen(false); logout(); }}>
-                                Disconnect
+                                Sign out
                             </Button>
                         </DialogActions>
                     </Dialog>
