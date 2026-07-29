@@ -15,6 +15,7 @@ import ProjectHome from './pages/ProjectHome';
 import React, { useEffect, useState } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
 import { useProject } from './context/ProjectContext';
+import { useAuth } from './context/AuthContext';
 import { API_VERSION_PREFIX } from './config';
 import Plugins from "./pages/Plugins.tsx";
 import PluginConfig from "./pages/PluginsConfig.tsx";
@@ -39,6 +40,9 @@ type ProjectContextWrapperProps = {
 const ProjectContextWrapper: React.FC<ProjectContextWrapperProps> = ({ children }) => {
     const { setProjectUUID, setProjectName } = useProject();
     const { project_name } = useParams();
+    const { authenticated } = useAuth();
+
+    if (!authenticated) return <Navigate to="/" replace />;
 
     useEffect(() => {
         if (!project_name) return;
