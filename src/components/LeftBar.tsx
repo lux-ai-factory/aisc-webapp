@@ -1,5 +1,6 @@
 import * as React from 'react';
-import Drawer from '@mui/material/Drawer';
+import './LeftBar.css';
+import MuiDrawer from '@mui/material/Drawer';
 import Toolbar from '@mui/material/Toolbar';
 import Divider from '@mui/material/Divider';
 import List from '@mui/material/List';
@@ -10,9 +11,12 @@ import ListItemText from '@mui/material/ListItemText';
 import SettingsIcon from '@mui/icons-material/Settings';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import ExtensionIcon from '@mui/icons-material/Extension';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import MenuIcon from '@mui/icons-material/Menu';
+import KeyboardDoubleArrowLeftRoundedIcon from '@mui/icons-material/KeyboardDoubleArrowLeftRounded';
+import KeyboardDoubleArrowRightRoundedIcon from '@mui/icons-material/KeyboardDoubleArrowRightRounded';
+import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
+import PlayCircleIcon from '@mui/icons-material/PlayCircle';
 import {Box, Icon, IconButton, Tooltip} from '@mui/material';
+import {styled} from '@mui/material/styles';
 import { Link, useLocation } from 'react-router-dom';
 import { useProject } from '../context/ProjectContext';
 import {useQuery} from "@tanstack/react-query";
@@ -30,7 +34,8 @@ const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 interface MenuListProps {
     title: string,
     items: { text: string, icon: React.ReactNode, target: string, nested?: boolean, needsConfig?: boolean }[],
-    collapsed?: boolean
+    collapsed?: boolean,
+    onNavigate?: () => void,
 }
 
 /**
@@ -45,18 +50,60 @@ interface MenuListProps {
 function MenuList(props: MenuListProps) {
 
     const location = useLocation().pathname;
+    const normalizePath = (path: string) => path.replace(/\/+$/, '') || '/';
+    const currentPath = normalizePath(decodeURIComponent(location));
     const collapsed = props.collapsed;
 
     return (
-        <List>
+        <List sx={{px: collapsed ? 0.5 : 1, py: 0.5}}>
 
             {props.title && !collapsed && (
-                <ListItem>
-                    <ListItemText primary={props.title} />
+                <ListItem sx={{px: 1, py: 0.25}}>
+                    <ListItemText
+                        primary={props.title}
+                        primaryTypographyProps={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            letterSpacing: '0.08em',
+                            textTransform: 'uppercase',
+                            color: 'text.secondary',
+                        }}
+                    />
                 </ListItem>
             )}
+            {props.title && collapsed && (
+                <Divider sx={{my: 0.8, borderColor: '#d8dde5'}} />
+            )}
 
-            {props.items.map((item, index) => (
+            {props.items.map((item, index) => {
+                const itemPath = normalizePath(item.target);
+                const isSelected = currentPath === itemPath || (item.nested && currentPath.startsWith(`${itemPath}/`));
+                const listItemButtonSx = {
+                    minHeight: 38,
+                    display: "flex",
+                    justifyContent: collapsed ? "center" : "space-between",
+                    alignItems: "center",
+                    borderRadius: 2,
+                    mx: collapsed ? 0.5 : 1,
+                    px: collapsed ? 1 : 1.25,
+                    color: isSelected ? '#0a56c7' : 'text.primary',
+                    bgcolor: isSelected ? '#d2e0f5' : 'transparent',
+                    fontWeight: isSelected ? 700 : 400,
+                    opacity: isSelected ? 1 : (item.nested ? 0.88 : 1),
+                    '&:hover': {
+                        opacity: 1,
+                        bgcolor: isSelected ? '#c2d5f0' : '#eef2f7',
+                    },
+                    '&.Mui-selected': {
+                        bgcolor: '#d2e0f5',
+                        color: '#0a56c7',
+                        fontWeight: 700,
+                        '& .MuiListItemIcon-root': { color: '#0a56c7' },
+                        '& .MuiTypography-root': { color: '#0a56c7', fontWeight: 700 },
+                    },
+                    '&.Mui-selected:hover': { bgcolor: '#c2d5f0' },
+                };
+                return (
                 <ListItem
                     key={index}
                     disablePadding
@@ -68,38 +115,40 @@ function MenuList(props: MenuListProps) {
                         <ListItemButton
                             component={Link}
                             to={item.target}
-                            selected={location === item.target}
-                            sx={{
-                                opacity: item.nested ? 0.85 : 1,
-                                '&:hover': { opacity: 1 },
-                                display: "flex",
-                                justifyContent: collapsed ? "center" : "space-between",
-                                alignItems: "center"
-                            }}
+                            selected={isSelected}
+                            sx={listItemButtonSx}
+                            onClick={props.onNavigate}
                         >
-                            <Box sx={{ display: "flex", alignItems: "center" }}>
-                                <ListItemIcon sx={{ minWidth: collapsed ? 0 : (item.nested ? 36 : 40), justifyContent: 'center' }}>
+                            <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, flex: 1 }}>
+                                <ListItemIcon sx={{ minWidth: collapsed ? 0 : (item.nested ? 36 : 40), justifyContent: 'center', mr: collapsed ? 0 : 0.5, color: isSelected ? '#0a56c7' : undefined }}>
                                     {item.icon}
                                 </ListItemIcon>
 
                                 {!collapsed && (
-                                    <ListItemText
-                                        primary={item.text}
-                                        primaryTypographyProps={{
-                                            fontSize: item.nested ? 14 : 16,
-                                        }}
-                                    />
+                                    <Tooltip title={item.text} placement="right" arrow>
+                                        <ListItemText
+                                            primary={item.text}
+                                            primaryTypographyProps={{
+                                                fontSize: item.nested ? 13 : 14,
+                                                fontWeight: item.nested ? (isSelected ? 700 : 500) : (isSelected ? 700 : 600),
+                                                color: isSelected ? '#0a56c7' : undefined,
+                                                noWrap: true,
+                                                sx: { overflow: 'hidden', textOverflow: 'ellipsis' },
+                                            }}
+                                        />
+                                    </Tooltip>
                                 )}
                             </Box>
 
                             {!collapsed && item.needsConfig && (
-                                <Icon sx={{ color: "red"}}>error</Icon>
+                                <Icon sx={{ color: "red", ml: 0.5, flexShrink: 0 }}>error</Icon>
                             )}
                         </ListItemButton>
                     </Tooltip>
 
                 </ListItem>
-            ))}
+                )
+            })}
 
         </List>
     )
@@ -112,9 +161,46 @@ function MenuList(props: MenuListProps) {
  */
 interface LeftBarProps {
     drawerWidth: number;
+    expandedDrawerWidth?: number;
     collapsed?: boolean;
+    mobileOpen?: boolean;
     onToggle?: () => void;
+    overlayMode?: boolean;
 }
+
+const Drawer = styled(MuiDrawer, {
+    shouldForwardProp: (prop) => prop !== 'drawerwidth',
+})<{ open?: boolean; drawerwidth: number }>(({theme, open, drawerwidth}) => ({
+    width: drawerwidth,
+    flexShrink: 0,
+    whiteSpace: 'nowrap',
+    boxSizing: 'border-box',
+    ...(open
+        ? {
+            [`& .MuiDrawer-paper`]: {
+                width: drawerwidth,
+                backgroundColor: '#f7f7f8',
+                borderRight: '1px solid #e5e7eb',
+                transition: theme.transitions.create('width', {
+                    easing: theme.transitions.easing.sharp,
+                    duration: theme.transitions.duration.enteringScreen,
+                }),
+                overflowX: 'hidden',
+            },
+        }
+        : {
+            [`& .MuiDrawer-paper`]: {
+                width: drawerwidth,
+                backgroundColor: '#f7f7f8',
+                borderRight: '1px solid #e5e7eb',
+                transition: theme.transitions.create('width', {
+                    easing: theme.transitions.easing.sharp,
+                    duration: theme.transitions.duration.leavingScreen,
+                }),
+                overflowX: 'hidden',
+            },
+        }),
+}));
 
 const getProject = async (project_uuid: string) => {
     if (!project_uuid) throw new Error('Invalid uuid');
@@ -152,7 +238,7 @@ const getDisplayIcon = async (plugin_pid: string) => {
  * @param {LeftBarProps} props - Component props
  * @returns {JSX.Element} A permanent drawer with navigation menu
  */
-export default function LeftBar({ drawerWidth, collapsed, onToggle }: LeftBarProps) {
+export default function LeftBar({ drawerWidth, expandedDrawerWidth, collapsed, mobileOpen = false, onToggle, overlayMode = false }: LeftBarProps) {
 
     const { projectName } = useProject()
 
@@ -179,62 +265,129 @@ export default function LeftBar({ drawerWidth, collapsed, onToggle }: LeftBarPro
 
     let pluginsMenu = [pluginMenuHeader].concat(pluginsMenuItems)
 
-    return (
-        <Drawer
-            variant="permanent"
-            sx={{
-                width: drawerWidth,
-                flexShrink: 0,
-                whiteSpace: 'nowrap',
-                [`& .MuiDrawer-paper`]: {
-                    width: drawerWidth,
-                    boxSizing: 'border-box',
-                    borderRight: projectUUID ? undefined : 'none',
-                    overflowX: 'hidden',
-                    transition: theme => theme.transitions.create('width', {
-                        easing: theme.transitions.easing.sharp,
-                        duration: theme.transitions.duration.enteringScreen,
-                    }),
-                },
-            }}
-        >
+    const menuBody = (isCollapsedView: boolean, onNavigate?: () => void) => (
+        <>
             <Toolbar />
             {projectName &&
                 <Box sx={{ overflow: 'auto' }}>
-                    <Box sx={{ display: 'flex', justifyContent: collapsed ? 'center' : 'flex-end', px: 1, py: 0.5 }}>
-                        <Tooltip title={collapsed ? 'Expand menu' : 'Collapse menu'} placement="right" arrow>
-                            <IconButton size="small" onClick={onToggle} aria-label="toggle menu">
-                                {collapsed ? <MenuIcon /> : <ChevronLeftIcon />}
-                            </IconButton>
-                        </Tooltip>
-                    </Box>
-                    <Divider />
+                    {isCollapsedView ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 1 }}>
+                            <Tooltip title="Expand menu" placement="right" arrow>
+                                <IconButton
+                                    size="small"
+                                    onClick={(e) => { e.stopPropagation(); onToggle?.(); }}
+                                    aria-label="expand menu"
+                                    className="toggle-icon-btn"
+                                >
+                                    <KeyboardDoubleArrowRightRoundedIcon fontSize="small" />
+                                </IconButton>
+                            </Tooltip>
+                        </Box>
+                    ) : (
+                        <Box className="project-header">
+                            <Box
+                                component={Link}
+                                to="/"
+                                className="project-list-link"
+                                onClick={onNavigate}
+                            >
+                                <Icon>view_list</Icon>
+                                Project list
+                            </Box>
+                            <Tooltip title="Collapse menu" placement="right" arrow>
+                                <IconButton
+                                    size="small"
+                                    onClick={(e) => { e.stopPropagation(); onToggle?.(); }}
+                                    aria-label="collapse menu"
+                                    className="toggle-icon-btn"
+                                >
+                                    <KeyboardDoubleArrowLeftRoundedIcon fontSize="small" />
+                                </IconButton>
+                            </Tooltip>
+                        </Box>
+                    )}
+                    {!isCollapsedView && <Divider sx={{borderColor: '#e6e8ed'}} />}
                     <MenuList
-                        title="Project"
-                        collapsed={collapsed}
+                        title={isCollapsedView ? "Project" : "Project"}
+                        collapsed={isCollapsedView}
+                        onNavigate={onNavigate}
                         items={[
                             { text: 'Overview', icon: <DashboardIcon />, target: `/projects/${projectName}/overview` },
                             { text: 'Settings', icon: <SettingsIcon />, target: `/projects/${projectName}/settings` },
                         ]}
                     />
-                    <Divider />
+                    {!isCollapsedView && <Divider sx={{borderColor: '#e6e8ed'}} />}
                     <MenuList
                         title="Plugin Management"
-                        collapsed={collapsed}
+                        collapsed={isCollapsedView}
+                        onNavigate={onNavigate}
                         items={pluginsMenu}
                     />
-                    <Divider />
+                    {!isCollapsedView && <Divider sx={{borderColor: '#e6e8ed'}} />}
                     <MenuList
                         title="Evaluations"
-                        collapsed={collapsed}
+                        collapsed={isCollapsedView}
+                        onNavigate={onNavigate}
                         items={[
-                            { text: 'Start Evaluations', icon: <Icon>play_circle</Icon>, target: `/projects/${projectName}/plugins/evaluation` },
-                            { text: 'Evaluations', icon: <Icon>sports_score</Icon>, target: `/projects/${projectName}/plugins/evaluations` },
-                            { text: 'Recommendations', icon: <Icon>reviews</Icon>, target: `/projects/${projectName}/recommendations` }
+                            { text: 'Start Evaluations', icon: <PlayCircleIcon />, target: `/projects/${projectName}/plugins/evaluation` },
+                            { text: 'Evaluations', icon: <Icon>sports_score</Icon>, target: `/projects/${projectName}/plugins/evaluations` }
                         ]}
                     />
-                    <Divider />
+                    {!isCollapsedView && <Divider sx={{borderColor: '#e6e8ed'}} />}
                 </Box>
             }
-        </Drawer >)
+        </>
+    );
+
+    if (overlayMode) {
+        return (
+            <>
+                <Drawer
+                    variant="permanent"
+                    open
+                    drawerwidth={drawerWidth}
+                    className={!projectUUID ? 'drawer-no-border' : ''}
+                >
+                    {menuBody(true)}
+                </Drawer>
+
+                {mobileOpen && (
+                    <Drawer
+                        variant="temporary"
+                        open={mobileOpen}
+                        onClose={onToggle}
+                        drawerwidth={expandedDrawerWidth ?? 320}
+                        className="drawer-overlay"
+                        ModalProps={{ keepMounted: true }}
+                    >
+                        {menuBody(false, onToggle)}
+                    </Drawer>
+                )}
+
+                {collapsed && !mobileOpen && projectName && (
+                    <Tooltip title="Open menu" placement="right" arrow>
+                        <IconButton
+                            onClick={onToggle}
+                            aria-label="open menu"
+                            className="open-menu-btn"
+                            sx={{ zIndex: (theme) => theme.zIndex.appBar + 2 }}
+                        >
+                            <MenuRoundedIcon fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
+                )}
+            </>
+        );
+    }
+
+    return (
+        <Drawer
+            variant="permanent"
+            open={!collapsed}
+            drawerwidth={drawerWidth}
+            className={!projectUUID ? 'drawer-no-border' : ''}
+        >
+            {menuBody(Boolean(collapsed))}
+        </Drawer>
+    )
 };

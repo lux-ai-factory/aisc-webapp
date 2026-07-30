@@ -1,0 +1,29 @@
+.login-dialog-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 24px 16px;
+}
+
+.login-dialog-logo {
+    height: 80px;
+    background-color: #001075;
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.login-dialog-title {
+    font-weight: 600;
+}
+
+.login-dialog-error {
+    width: 100%;
+    margin-bottom: 8px;
+}
+
+.login-dialog-submit {
+    margin-top: 8px;
+    padding: 12px 0;
+    font-weight: 600;
+}

@@ -3,16 +3,25 @@ import {
     Box,
     Button,
     createTheme,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
     Icon,
-    Link,
+    Menu,
+    MenuItem,
     Toolbar,
     Typography
 } from '@mui/material';
 import React, {useEffect, useState} from 'react';
 import {useProject} from '../context/ProjectContext';
+import {useAuth} from '../context/AuthContext';
 import {API_VERSION_PREFIX} from '../config';
+import {NavLink, useLocation} from 'react-router-dom';
 import {ThemeProvider} from '@emotion/react';
 import {useNavigate} from 'react-router-dom';
+import toast from 'react-hot-toast';
+import "./TopBar.css";
 import "./addProjectButton.css";
 import AddProjectWizard from "./addProjectWizard.tsx";
 
@@ -56,8 +65,11 @@ const ProjectSelector: React.FC<{
     fetchDatasets: () => void;
     fetchModels: () => void;
     fetchPlugins: () => void;
-}> = ({ onAddProject, datasets, models, plugins, fetchDatasets, fetchModels, fetchPlugins }) => {
+    authenticated: boolean;
+}> = ({ onAddProject, datasets, models, plugins, fetchDatasets, fetchModels, fetchPlugins, authenticated }) => {
     const [wizardOpen, setWizardOpen] = useState(false);
+
+    if (!authenticated) return null;
 
     return (
         <>
@@ -120,10 +132,17 @@ const TopBar: React.FC = () => {
 
 
 
-    const {setProjectUUID, projectName, setProjectName} = useProject();
+    const {setProjectUUID, projectName, setProjectName, addFileUploadingPid, removeFileUploadingPid} = useProject();
     const [projects, setProjects] = useState<Project[]>([]);
+    const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+    const [confirmOpen, setConfirmOpen] = useState(false);
+
+    // Keycloak auth: who is logged in + login/logout actions
+    const {authenticated, username, login, logout} = useAuth();
 
     const navigate = useNavigate();
+    const location = useLocation();
+    const isRootPage = location.pathname === '/';
 
     const fetchProjects = async () => {
         const data = await apiCall('/projects');
@@ -139,7 +158,9 @@ const TopBar: React.FC = () => {
 
         setProjects([...projects, newProject]);
 
-        // 2. Create DATASETS (exact same as DatasetSettings)
+        const uploads: Promise<unknown>[] = [];
+
+        // 2. Create DATASETS
         for (const ds of datasets) {
             if (!ds.name || ds.name.trim().length < 1) continue;
 
@@ -155,15 +176,16 @@ const TopBar: React.FC = () => {
 
             ds.pid = created.pid;
 
-            // 2b. Upload dataset file
+            // 2b. Add dataset file to uploads
             if (ds.file) {
+                addFileUploadingPid(ds.pid);
                 const formData = new FormData();
                 formData.append("file", ds.file);
-
-                await fetch(`${API_URL}/datasets/${ds.pid}/data`, {
-                    method: "PUT",
-                    body: formData
-                });
+                uploads.push(
+                    fetch(`${API_URL}/datasets/${ds.pid}/data`, { method: "PUT", body: formData }).then(() => {
+                        toast.success(`Dataset \`${ds.name}\` uploaded`, { position: 'bottom-right' });
+                    }).finally(() => removeFileUploadingPid(ds.pid))
+                );
             }
         }
 
@@ -183,15 +205,16 @@ const TopBar: React.FC = () => {
 
             m.pid = created.pid;
 
-            // 3b. Upload model file
+            // 3b. Add model file to uploads
             if (m.file) {
+                addFileUploadingPid(m.pid);
                 const formData = new FormData();
                 formData.append("file", m.file);
-
-                await fetch(`${API_URL}/models/${m.pid}/data`, {
-                    method: "PUT",
-                    body: formData
-                });
+                uploads.push(
+                    fetch(`${API_URL}/models/${m.pid}/data`, { method: "PUT", body: formData }).then(() => {
+                        toast.success(`Model \`${m.name}\` uploaded`, { position: 'bottom-right' });
+                    }).finally(() => removeFileUploadingPid(m.pid))
+                );
             }
         }
 
@@ -215,6 +238,9 @@ const TopBar: React.FC = () => {
 
         // 5. Navigate
         navigate(`/projects/${newProject.name}/plugins`);
+
+        // 6. Upload files in background
+        await Promise.allSettled(uploads);
     };
 
 
@@ -230,14 +256,12 @@ const TopBar: React.FC = () => {
             <Toolbar>
                 <Box style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
 
-                    <Link
-                        href="/"
-                        underline="none"
-                        color="inherit"
-                        sx={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            m: 0,
+                    <NavLink
+                        to="/"
+                        className="topbar-link"
+                        onClick={() => {
+                            setProjectUUID(null);
+                            setProjectName(null);
                         }}
                     >
                         <Box display="flex" alignItems="center" gap={1}>
@@ -255,16 +279,13 @@ const TopBar: React.FC = () => {
                                 AI Assessment Sandbox
                             </Typography>
                         </Box>
-                    </Link>
-                    {projectName && (
+                    </NavLink>
+                    {projectName && !isRootPage && (
                         <Typography
                             variant="h6"
                             component="span"
-                            sx={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 1.5
-                            }}
+                            className="topbar-project-name"
+                            sx={{ gap: 1.5 }}
                         >
                             <span>|</span>
                             <span>{projectName}</span>
@@ -273,15 +294,68 @@ const TopBar: React.FC = () => {
                 </Box>
 
                 <div style={{flexGrow: 1}}/>
-                <ProjectSelector
-                    onAddProject={addProject}
-                    datasets={datasets}
-                    models={models}
-                    plugins={plugins}
-                    fetchDatasets={fetchDatasets}
-                    fetchModels={fetchModels}
-                    fetchPlugins={fetchPlugins}
-                />
+                <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
+                    <ProjectSelector
+                        onAddProject={addProject}
+                        datasets={datasets}
+                        models={models}
+                        plugins={plugins}
+                        fetchDatasets={fetchDatasets}
+                        fetchModels={fetchModels}
+                        fetchPlugins={fetchPlugins}
+                        authenticated={authenticated}
+                    />
+                    {authenticated ? (
+                        <Box className="auth-box">
+                            <Button
+                                color="inherit"
+                                variant="text"
+                                size="small"
+                                onClick={(e) => setMenuAnchor(e.currentTarget)}
+                                className="auth-user-btn"
+                            >
+                                {username}
+                            </Button>
+                            <Menu
+                                anchorEl={menuAnchor}
+                                open={Boolean(menuAnchor)}
+                                onClose={() => setMenuAnchor(null)}
+                                transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                                anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+                            >
+                                <MenuItem disabled className="auth-username-item">
+                                    {username}
+                                </MenuItem>
+                                <MenuItem onClick={() => { setMenuAnchor(null); setConfirmOpen(true); }}>
+                                    Sign out
+                                </MenuItem>
+                            </Menu>
+                        </Box>
+                    ) : (
+                        <Button color="inherit" variant="outlined" data-testid="login-button"
+                                onClick={login}>
+                            Sign in
+                        </Button>
+                    )}
+                </Box>
+                {confirmOpen && (
+                    <Dialog
+                        open={confirmOpen}
+                        onClose={() => setConfirmOpen(false)}
+                        maxWidth="xs"
+                    >
+                        <DialogTitle>Sign out?</DialogTitle>
+                        <DialogContent>
+                            <Typography>Are you sure you want to sign out?</Typography>
+                        </DialogContent>
+                        <DialogActions className="auth-dialog-actions">
+                            <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
+                            <Button color="error" onClick={() => { setConfirmOpen(false); logout(); }}>
+                                Sign out
+                            </Button>
+                        </DialogActions>
+                    </Dialog>
+                )}
             </Toolbar>
         </AppBar>
     );

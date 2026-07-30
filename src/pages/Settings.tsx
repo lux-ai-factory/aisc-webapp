@@ -1,16 +1,35 @@
 import {
     Box,
     Button,
+    Card,
+    CardContent,
+    Chip,
     CircularProgress,
+    Dialog,
+    DialogContent,
+    DialogTitle,
+    Divider,
+    IconButton,
+    MenuItem,
     Stack,
     TextField,
+    Tooltip,
     Typography
 } from "@mui/material";
-import { useEffect, useState } from "react";
+import Grid from "@mui/material/Grid2";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { API_VERSION_PREFIX } from "../config";
 import { useProject } from "../context/ProjectContext";
-import DatasetSettings from "../components/DatasetSettings";
-import ModelSettings from "../components/ModelSettngs";
+import keycloak from '../auth/keycloak';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import DownloadIcon from '@mui/icons-material/Download';
+import DeleteIcon from '@mui/icons-material/Delete';
+import AddIcon from '@mui/icons-material/Add';
+import toast from 'react-hot-toast';
+import './Settings.css';
+import '../styles/common.css';
+
+const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
 const validators = {
     projectName: (name: string) => {
@@ -24,135 +43,66 @@ const validators = {
     }
 };
 
-interface MinimalProject {
+interface FileItem {
     pid: string;
     name: string;
+    data: string;
+    size?: number;
+    type: 'dataset' | 'model';
+    uploadProgress?: number;
 }
 
-
-
-interface ProjectResponse {
+interface ProjectDetails {
     pid: string;
     name: string;
-    status: string;
-    dataset: Array<{
-        id: number;
-        dataset_pid: string;
-        name: string;
-        data: string;
-        project_id: number;
-        datashape_id: number;
-    }>;
-    model: Array<{
-        model_pid: string;
-        name: string;
-        data: string;
-        project_id: number;
-        dataset_id: number;
-    }>;
+    datasets: FileItem[];
+    models: FileItem[];
 }
 
-const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
-
-function ProjectDetails() {
-    const [project, setProject] = useState<MinimalProject | null>(null);
-    const [fetchedProject, setFetchedProject] = useState<MinimalProject | null>(null);
-
+function ProjectDetailsSection() {
+    const [project, setProject] = useState<ProjectDetails | null>(null);
+    const [fetchedProject, setFetchedProject] = useState<ProjectDetails | null>(null);
     const [loading, setLoading] = useState(true);
     const [edited, setEdited] = useState(false);
-
     const { projectUUID } = useProject();
-    const [errors, setErrors] = useState<{
-        name?: string;
-    }>({});
+    const [errors, setErrors] = useState<{ name?: string }>({});
 
     useEffect(() => {
         async function fetchProject() {
             try {
-                const response = await fetch(
-                    `${API_URL}/projects/${projectUUID}`
-                );
-                const data: ProjectResponse = await response.json();
-
-
-                const minimal: MinimalProject = {
-                    pid: data.pid,
-                    name: data.name ?? ''
-                };
-                setProject(minimal);
-                setFetchedProject(minimal);
+                const response = await fetch(`${API_URL}/projects/${projectUUID}`);
+                const data = await response.json();
+                setProject({ pid: data.pid, name: data.name ?? '', datasets: [], models: [] });
+                setFetchedProject({ pid: data.pid, name: data.name ?? '', datasets: [], models: [] });
             } catch (error) {
                 console.error("Error fetching project:", error);
             } finally {
                 setLoading(false);
             }
         }
-
-        if (projectUUID) {
-            fetchProject();
-        }
+        if (projectUUID) fetchProject();
     }, [projectUUID]);
 
-
     useEffect(() => {
-        // compare if fetchedProject and project are the same
         if (fetchedProject && project) {
-            const isSame =
-                fetchedProject.name.trim() === project.name.trim()
-            setEdited(!isSame);
+            setEdited(fetchedProject.name.trim() !== project.name.trim());
         }
     }, [fetchedProject, project]);
 
-    if (loading || !project) {
-        return <CircularProgress />;
-    }
-
-    const handleChange = (field: keyof MinimalProject, value: string) => {
-        // update field in project state
-        setProject((prev) => (prev ? { ...prev, [field]: value } : prev));
-
-        // run validation
-        let validation: { isValid: boolean; error?: string } | undefined;
-        if (field === "name") {
-            validation = validators.projectName(value);
-        }
-
-        setErrors((prev) => ({
-            ...prev,
-            [field]: validation?.error
-        }));
-
-
-    };
+    if (loading || !project) return <CircularProgress />;
 
     const handleSave = async () => {
         if (!project || !projectUUID) return;
-
         setLoading(true);
-
         try {
             const response = await fetch(`${API_URL}/projects/${projectUUID}`, {
                 method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    name: project.name
-                }),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: project.name }),
             });
-
-            if (!response.ok) {
-                throw new Error('Failed to update project');
-            }
-
-            const updatedProject: ProjectResponse = await response.json();
-            const minimal: MinimalProject = {
-                pid: updatedProject.pid,
-                name: updatedProject.name ?? ''
-            };
-
-            setProject(minimal);
-            setFetchedProject(minimal);
+            const updated = await response.json();
+            setProject(prev => prev ? { ...prev, name: updated.name ?? '' } : prev);
+            setFetchedProject(prev => prev ? { ...prev, name: updated.name ?? '' } : prev);
             setEdited(false);
         } catch (error) {
             console.error('Error updating project:', error);
@@ -163,58 +113,453 @@ function ProjectDetails() {
 
     return (
         <Box>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Project id: {project?.pid}
+            <Tooltip title={project.pid} placement="right" arrow>
+                <Typography component="h3" variant="h5" gutterBottom sx={{ mt: 4, cursor: 'help', display: 'inline-block' }}>
+                    Project Details
+                </Typography>
+            </Tooltip>
+            <Typography variant="body1" sx={{ mb: 2 }}>
+                Configure your project's basic information and settings.
             </Typography>
-            <Stack spacing={3}>
-                <TextField
-                    label="Project Name"
-                    value={project?.name ?? ''}
-                    onChange={(e) => handleChange('name', e.target.value)}
-                    fullWidth
-                    required
-                    error={!!errors.name}
-                    helperText={errors.name || "A descriptive name for your AI project"}
-                />
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+            <Card
+                variant="outlined"
+                className="gradient-card"
+            >
+                <CardContent>
+                    <Stack direction="row" spacing={2} alignItems="center">
+                        <TextField
+                            label="Project Name"
+                            value={project.name}
+                            onChange={(e) => {
+                                const value = e.target.value;
+                                setProject(prev => prev ? { ...prev, name: value } : prev);
+                                const validation = validators.projectName(value);
+                                setErrors(prev => ({ ...prev, name: validation.error }));
+                            }}
+                            fullWidth
+                            required
+                            error={!!errors.name}
+                            helperText={errors.name || ""}
+                            sx={{ flex: 1 }}
+                        />
                         <Button
                             variant="contained"
-                            color="primary"
-                            disabled={!edited || Object.values(errors).some(error => !!error)}
+                            disabled={!edited || !!errors.name}
                             onClick={handleSave}
+                            className="gradient-btn"
                         >
                             Save Changes
                         </Button>
-                    </Box>
-            </Stack>
+                    </Stack>
+                </CardContent>
+            </Card>
         </Box>
     );
 }
 
+function FileRow({ file, type, onUploadSuccess }: {
+    file: FileItem;
+    type: 'dataset' | 'model';
+    onUploadSuccess: (pid: string, data: string, size: number) => void;
+}) {
+    const uploaded = Boolean(file.data);
+    const [uploading, setUploading] = useState(false);
+    const [progress, setProgress] = useState(0);
+    const [fileSize, setFileSize] = useState<number | undefined>(file.size);
+    const { fileUploadingPids } = useProject();
+    const backgroundUploading = fileUploadingPids.has(file.pid);
+
+    const formatSize = (bytes: number) => {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    };
+
+    const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const f = event.target.files?.[0];
+        if (!f) return;
+        if (type === 'model' && !f.name.toLowerCase().endsWith('.onnx')) {
+            alert('Only .onnx files are allowed.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', f);
+        await keycloak.updateToken(30);
+        // Re-upload: overwrites the stored file reference but does NOT delete the old blob from storage
+        const xhr = new XMLHttpRequest();
+        xhr.open("PUT", `${API_URL}/${type}s/${file.pid}/data`, true);
+        xhr.setRequestHeader('Authorization', `Bearer ${keycloak.token}`);
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100));
+        };
+        xhr.onloadstart = () => { setUploading(true); setProgress(0); };
+        xhr.onloadend = () => setUploading(false);
+        xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                const responseData = JSON.parse(xhr.responseText);
+                const size = responseData.file_size ?? f.size;
+                onUploadSuccess(file.pid, responseData.file_name as string, size);
+                setFileSize(size);
+                setProgress(100);
+            }
+        };
+        xhr.onerror = () => setUploading(false);
+        xhr.send(formData);
+    };
+
+    // TODO: buffers entire file in memory - use streaming (service worker or backend ?token=) for large artifacts
+    const handleDownload = async () => {
+        try {
+            const response = await fetch(`${API_URL}/${type}s/${file.pid}/data`);
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = file.name;
+            document.body.append(anchor);
+            anchor.click();
+            anchor.remove();
+            window.URL.revokeObjectURL(url);
+        } catch {
+            console.error('Download failed');
+        }
+    };
+
+    return (
+        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 0.5 }}>
+            <Tooltip title={file.pid} placement="top">
+                <Typography variant="subtitle1" fontWeight={600} noWrap>
+                    {file.name}
+                </Typography>
+            </Tooltip>
+            <Stack direction="row" spacing={0.5} sx={{ alignSelf: 'flex-start' }}>
+                <Chip
+                    label={type === 'dataset' ? 'Dataset' : 'Model'}
+                    size="small"
+                    variant="filled"
+                    sx={{ height: 22, fontWeight: 600, bgcolor: type === 'dataset' ? '#bbdefb' : '#f3e5f5', color: type === 'dataset' ? '#0d47a1' : '#7b1fa2' }}
+                />
+                <Chip
+                    label={backgroundUploading ? 'Uploading' : uploaded ? 'Uploaded' : 'Not uploaded'}
+                    size="small"
+                    color={backgroundUploading ? 'warning' : uploaded ? 'success' : 'default'}
+                    variant={uploaded || backgroundUploading ? 'filled' : 'outlined'}
+                    sx={{ height: 22, fontWeight: 600 }}
+                />
+                {uploaded && (file.size ?? fileSize) != null && (
+                    <Chip
+                        label={formatSize(file.size ?? fileSize!)}
+                        size="small"
+                        variant="filled"
+                        sx={{ height: 22, fontWeight: 500, bgcolor: '#fff9c4' }}
+                    />
+                )}
+            </Stack>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 'auto', pt: 1 }}>
+                {uploading || file.uploadProgress !== undefined ? (
+                    <CircularProgress variant="determinate" value={file.uploadProgress ?? progress} size={28} />
+                ) : (
+                    <Button
+                        component="label"
+                        variant="outlined"
+                        size="small"
+                        startIcon={<CloudUploadIcon />}
+                        sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                    >
+                        {uploaded ? 'Re-upload' : 'Upload'}
+                        <input type="file" hidden accept={type === 'model' ? '.onnx' : '*/*'} onChange={handleUpload} />
+                    </Button>
+                )}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    {uploaded && (
+                        <Tooltip title="Download file" placement="top">
+                            <IconButton size="small" color="primary" onClick={handleDownload}>
+                                <DownloadIcon />
+                            </IconButton>
+                        </Tooltip>
+                    )}
+                    <IconButton size="small" color="error">
+                        <DeleteIcon />
+                    </IconButton>
+                </Box>
+            </Box>
+        </Box>
+    );
+}
+
+function AddFileDialog({ open, onClose, onAdd }: {
+    open: boolean;
+    onClose: () => void;
+    onAdd: (name: string, type: 'dataset' | 'model', file?: File) => Promise<void>;
+}) {
+    const [name, setName] = useState('');
+    const [type, setType] = useState<'dataset' | 'model'>('dataset');
+    const [file, setFile] = useState<File | undefined>();
+    const [error, setError] = useState('');
+    const [adding, setAdding] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleAdd = async () => {
+        if (name.trim().length < 3) {
+            setError('Name must be at least 3 characters');
+            return;
+        }
+        setAdding(true);
+        try {
+            await onAdd(name.trim(), type, file);
+            setName('');
+            setType('dataset');
+            setFile(undefined);
+            setError('');
+            onClose();
+        } catch {
+            setError('Failed to add file');
+        } finally {
+            setAdding(false);
+        }
+    };
+
+    return (
+        <Dialog
+            open={open}
+            onClose={onClose}
+            maxWidth="sm"
+            fullWidth
+            slotProps={{
+                paper: {
+                    className: "dialog-paper-blue",
+                }
+            }}
+        >
+            <DialogTitle sx={{ color: "white", fontWeight: 700 }}>
+                Add File
+            </DialogTitle>
+            <DialogContent className="dialog-content-white">
+                <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
+                    <TextField
+                        label="File name"
+                        value={name}
+                        onChange={(e) => { setName(e.target.value); setError(''); }}
+                        fullWidth
+                        required
+                        autoFocus
+                        error={!!error}
+                        helperText={error || "A descriptive name for your file"}
+                        sx={{ flex: 3 }}
+                    />
+                    <TextField
+                        select
+                        label="File Type"
+                        value={type}
+                        onChange={(e) => setType(e.target.value as 'dataset' | 'model')}
+                        sx={{ flex: 1 }}
+                    >
+                        <MenuItem value="dataset">Dataset</MenuItem>
+                        <MenuItem value="model">Model</MenuItem>
+                    </TextField>
+                </Stack>
+
+                <Box sx={{ mt: 2 }}>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        hidden
+                        accept={type === 'model' ? '.onnx' : '*/*'}
+                        onChange={(e) => setFile(e.target.files?.[0] || undefined)}
+                    />
+                    <Button
+                        variant="outlined"
+                        component="span"
+                        onClick={() => fileInputRef.current?.click()}
+                        sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                    >
+                        {file ? file.name : 'Choose file (optional)'}
+                    </Button>
+                    {file && (
+                        <Button
+                            size="small"
+                            sx={{ ml: 1, textTransform: 'none', color: 'error.main' }}
+                            onClick={() => { setFile(undefined); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                        >
+                            Remove
+                        </Button>
+                    )}
+                </Box>
+
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
+                    <Button disabled={adding} onClick={onClose}>
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="contained"
+                        disabled={adding}
+                        onClick={handleAdd}
+                    >
+                        {adding ? 'Adding...' : 'Add'}
+                    </Button>
+                </Box>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 export default function SettingsPage() {
+    const { projectUUID } = useProject();
+    const [datasets, setDatasets] = useState<FileItem[]>([]);
+    const [models, setModels] = useState<FileItem[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [addDialogOpen, setAddDialogOpen] = useState(false);
+
+    const fetchFiles = useCallback(async () => {
+        if (!projectUUID) return;
+        setLoading(true);
+        try {
+            const response = await fetch(`${API_URL}/projects/${projectUUID}`);
+            const data = await response.json();
+            setDatasets((data.datasets || []).map((ds: any) => ({ pid: ds.pid, name: ds.name, data: ds.data, size: ds.file_size, type: 'dataset' as const })));
+            setModels((data.models || []).map((m: any) => ({ pid: m.pid, name: m.name, data: m.data, size: m.file_size, type: 'model' as const })));
+        } catch (error) {
+            console.error("Error fetching project:", error);
+        } finally {
+            setLoading(false);
+        }
+    }, [projectUUID]);
+
+    useEffect(() => {
+        fetchFiles();
+    }, [projectUUID]);
+
+    useEffect(() => {
+        const onFocus = () => { fetchFiles(); };
+        window.addEventListener('focus', onFocus);
+        return () => window.removeEventListener('focus', onFocus);
+    }, [fetchFiles]);
+
+    const handleUploadSuccess = (pid: string, data: string, size: number, type: 'dataset' | 'model') => {
+        const updater = (items: FileItem[]) => items.map(item => item.pid === pid ? { ...item, data, size } : item);
+        if (type === 'dataset') setDatasets(updater);
+        else setModels(updater);
+    };
+
+    const handleAdd = async (name: string, type: 'dataset' | 'model', file?: File) => {
+        if (!projectUUID) throw new Error('No project');
+        const response = await fetch(`${API_URL}/projects/${projectUUID}/${type}s`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name }),
+        });
+        if (!response.ok) throw new Error('Failed to add');
+        const created = await response.json();
+        const item: FileItem = { pid: created.pid, name: created.name, data: '', type };
+        if (type === 'dataset') setDatasets(prev => [...prev, item]);
+        else setModels(prev => [...prev, item]);
+
+        if (file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            await keycloak.updateToken(30);
+            const xhr = new XMLHttpRequest();
+            xhr.open("PUT", `${API_URL}/${type}s/${created.pid}/data`, true);
+            xhr.setRequestHeader('Authorization', `Bearer ${keycloak.token}`);
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const updater = (items: FileItem[]) => items.map(i => i.pid === created.pid ? { ...i, uploadProgress: Math.round((e.loaded / e.total) * 100) } : i);
+                    if (type === 'dataset') setDatasets(updater);
+                    else setModels(updater);
+                }
+            };
+            xhr.onloadend = () => {
+                const updater = (items: FileItem[]) => items.map(i => i.pid === created.pid ? { ...i, uploadProgress: undefined } : i);
+                if (type === 'dataset') setDatasets(updater);
+                else setModels(updater);
+            };
+            xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    const responseData = JSON.parse(xhr.responseText);
+                    const size = responseData.file_size ?? file.size;
+                    const updater = (items: FileItem[]) => items.map(i => i.pid === created.pid ? { ...i, data: responseData.file_name as string, size } : i);
+                    if (type === 'dataset') setDatasets(updater);
+                    else setModels(updater);
+                    toast.success(`${type === 'dataset' ? 'Dataset' : 'Model'} \`${name}\` uploaded`, { position: 'bottom-right' });
+                } else {
+                    toast.error(`Failed to upload ${name}`, { position: 'bottom-right' });
+                }
+            };
+            xhr.onerror = () => toast.error(`Failed to upload ${name}`, { position: 'bottom-right' });
+            xhr.send(formData);
+        }
+    };
+
+    const renderSection = (title: string, items: FileItem[], type: 'dataset' | 'model') => (
+        <Box>
+            {loading ? (
+                <CircularProgress />
+            ) : items.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">
+                    No {title.toLowerCase()} yet.
+                </Typography>
+            ) : (
+                <Grid container spacing={2}>
+                    {items.map(item => (
+                        <Grid key={item.pid} size={{ xs: 12, sm: 12, md: 6, lg: 4 }}>
+                            <Card
+                                variant="outlined"
+                                className="gradient-card"
+                            >
+                                <CardContent sx={{ height: '100%' }}>
+                                    <FileRow
+                                        file={item}
+                                        type={type}
+                                        onUploadSuccess={(pid, data, size) => handleUploadSuccess(pid, data, size, type)}
+                                    />
+                                </CardContent>
+                            </Card>
+                        </Grid>
+                    ))}
+                </Grid>
+            )}
+        </Box>
+    );
+
     return (
         <Box sx={{ width: 1 }}>
             <Typography component="h2" variant="h4" gutterBottom>
                 Project settings
             </Typography>
 
-            <Typography component="h3" variant="h5" gutterBottom sx={{ mt: 4 }}>
-                Project Details
-            </Typography>
-            <Typography variant="body1" sx={{ mb: 2 }}>
-                Configure your project's basic information and settings.
-            </Typography>
-            <ProjectDetails />
+            <ProjectDetailsSection />
 
-            <Typography component="h3" variant="h5" gutterBottom sx={{ mt: 4 }}>
-                Datasets & Models
-            </Typography>
-            <Typography variant="body1" sx={{ mb: 2 }}>
-                Set up the datasets and models.
-            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 6, mb: 1 }}>
+                <Box>
+                    <Typography component="h3" variant="h5" gutterBottom sx={{ mb: 0 }}>
+                        Datasets & Models
+                    </Typography>
+                    <Typography variant="body1" sx={{ mt: 1 }}>
+                        Set up the datasets and models for your project.
+                    </Typography>
+                </Box>
+                <Button
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    onClick={() => setAddDialogOpen(true)}
+                    className="gradient-btn"
+                >
+                    Add File
+                </Button>
+            </Box>
 
-            <DatasetSettings/>
-            <ModelSettings />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {renderSection('Datasets', datasets, 'dataset')}
+                {datasets.length > 0 && models.length > 0 && <Divider />}
+                {renderSection('Models', models, 'model')}
+            </Box>
+
+            <AddFileDialog
+                open={addDialogOpen}
+                onClose={() => setAddDialogOpen(false)}
+                onAdd={handleAdd}
+            />
         </Box>
     );
 }

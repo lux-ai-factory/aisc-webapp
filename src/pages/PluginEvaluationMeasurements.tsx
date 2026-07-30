@@ -83,8 +83,18 @@ const getEvaluationArtifacts = async (evaluation_plugin_uuid: string, plugin_nam
     }
 };
 
-const handleDownload = (file_name: string) => {
-    window.location.href = `${API_URL}/files/artifact/${file_name}`;
+// TODO: buffers entire file in memory - use streaming (service worker or backend ?token=) for large artifacts
+const handleDownload = async (file_name: string) => {
+    const response = await fetch(`${API_URL}/files/artifact/${file_name}`);
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = file_name;
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    window.URL.revokeObjectURL(url);
 };
 
 

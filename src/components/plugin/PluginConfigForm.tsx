@@ -1,5 +1,4 @@
 import { useMutation } from '@tanstack/react-query';
-import Form from '@rjsf/react-bootstrap';
 import validator from '@rjsf/validator-ajv8';
 import React, {useCallback, useImperativeHandle, useRef} from 'react';
 import { debounce } from 'lodash';
@@ -7,11 +6,14 @@ import { API_VERSION_PREFIX } from "../../config.tsx";
 import toast from "react-hot-toast";
 import { useQueryClient } from '@tanstack/react-query';
 import { useProject } from '../../context/ProjectContext';
+import Form from './CustomFormTemplates.tsx';
+import './PluginConfigForm.css';
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
 interface PluginConfigFormProps {
     pluginPID: string;
+    pluginDisplayName?: string;
     formSchema: object;
     uiSchema: any;
     config?: object | null;
@@ -33,6 +35,7 @@ const updateConfigDynamics = async ({ pluginPID, config }: { pluginPID: string; 
 
 const PluginConfigForm = React.forwardRef<any, PluginConfigFormProps>(function PluginConfigForm({
     pluginPID,
+    pluginDisplayName,
     formSchema,
     uiSchema,
     config,
@@ -71,6 +74,24 @@ const PluginConfigForm = React.forwardRef<any, PluginConfigFormProps>(function P
         debouncedUpdate(newData);
     };
 
+    const toSnakeCase = (value: string) =>
+        value
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '_')
+            .replace(/^_+|_+$/g, '')
+            .replace(/_+/g, '_');
+
+    const toTimestamp = (date: Date) => {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        const h = String(date.getHours()).padStart(2, '0');
+        const min = String(date.getMinutes()).padStart(2, '0');
+        const s = String(date.getSeconds()).padStart(2, '0');
+        return `${y}${m}${d}_${h}${min}${s}`;
+    };
+
     const handleExportJson = () => {
         const payload = config ?? {};
         const json = JSON.stringify(payload, null, 2);
@@ -78,8 +99,8 @@ const PluginConfigForm = React.forwardRef<any, PluginConfigFormProps>(function P
         const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
         const url = URL.createObjectURL(blob);
 
-        const safeName = (pluginPID || 'plugin').replace(/[^a-z0-9_-]+/gi, '_');
-        const filename = `${safeName}-config.json`;
+        const safeName = toSnakeCase(pluginDisplayName || pluginPID || 'plugin') || 'plugin';
+        const filename = `${safeName}_${toTimestamp(new Date())}.json`;
 
         const a = document.createElement('a');
         a.href = url;

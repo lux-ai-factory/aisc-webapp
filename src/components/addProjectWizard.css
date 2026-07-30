@@ -1,0 +1,39 @@
+.wizard-step-column {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.step-list-container {
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 4px;
+    margin-bottom: 8px;
+    padding: 16px;
+}
+
+.step-row {
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.step-actions {
+    display: flex;
+    align-items: center;
+    margin-left: 16px;
+}
+
+.plugins-card {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    height: 100%;
+}
+.plugins-card:hover {
+    box-shadow: 0 2px 4px -1px rgba(0,0,0,0.2), 0 4px 5px 0 rgba(0,0,0,0.14), 0 1px 10px 0 rgba(0,0,0,0.12);
+}
+
+.wizard-nav {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 32px;
+}

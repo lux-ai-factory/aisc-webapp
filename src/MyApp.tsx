@@ -1,9 +1,11 @@
 import Box from '@mui/material/Box';
 import CssBaseline from '@mui/material/CssBaseline';
 import Toolbar from '@mui/material/Toolbar';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { createTheme, ThemeProvider, useTheme } from '@mui/material/styles';
 
 import LeftBar from './components/LeftBar';
-import { Route, Routes } from 'react-router-dom';
+import { Route, Routes, useLocation } from 'react-router-dom';
 import NotFound from './pages/NotFound';
 import TopBar from './components/TopBar';
 import StartEvaluation from './pages/StartEvaluation';
@@ -13,6 +15,7 @@ import ProjectHome from './pages/ProjectHome';
 import React, { useEffect, useState } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
 import { useProject } from './context/ProjectContext';
+import { useAuth } from './context/AuthContext';
 import { API_VERSION_PREFIX } from './config';
 import Plugins from "./pages/Plugins.tsx";
 import PluginConfig from "./pages/PluginsConfig.tsx";
@@ -20,7 +23,6 @@ import PluginStartEvaluation from "./pages/PluginStartEvaluation.tsx";
 import PluginEvaluations from "./pages/PluginEvaluations.tsx";
 import PluginEvaluationMeasurements from "./pages/PluginEvaluationMeasurements.tsx";
 import PluginEvaluationsTasks from "./pages/PluginEvaluationsTasks.tsx";
-import RecommendationsPage from "./pages/Recommendations.tsx";
 import './App.css';
 // I must add this for files to take it into consideration
 
@@ -38,6 +40,9 @@ type ProjectContextWrapperProps = {
 const ProjectContextWrapper: React.FC<ProjectContextWrapperProps> = ({ children }) => {
     const { setProjectUUID, setProjectName } = useProject();
     const { project_name } = useParams();
+    const { authenticated } = useAuth();
+
+    if (!authenticated) return <Navigate to="/" replace />;
 
     useEffect(() => {
         if (!project_name) return;
@@ -66,6 +71,7 @@ const ProjectContextWrapper: React.FC<ProjectContextWrapperProps> = ({ children 
  * @returns {JSX.Element} The main application layout with navigation and content area
  */
 export default function PermanentDrawerLeft() {
+    const location = useLocation();
 
     /**
      * Navigation configuration array
@@ -89,48 +95,100 @@ export default function PermanentDrawerLeft() {
         { id: 7, name: 'Plugin Start Evaluation', path: '/projects/:project_name/plugins/evaluation', element: <ProjectContextWrapper><PluginStartEvaluation /></ProjectContextWrapper> },
         { id: 8, name: 'Plugin Evaluations', path: '/projects/:project_name/plugins/evaluations', element: <ProjectContextWrapper><PluginEvaluations /></ProjectContextWrapper> },
         { id: 9, name: 'Plugin Evaluation Measurements', path: '/projects/:project_name/plugins/evaluations/:evaluation_uuid', element: <ProjectContextWrapper><PluginEvaluationMeasurements /></ProjectContextWrapper> },
-        { id: 12, name: 'Recommendations', path: '/projects/:project_name/recommendations', element: <ProjectContextWrapper><RecommendationsPage /></ProjectContextWrapper> },
         { id: 10, name: 'Plugin Evaluations Tasks', path: '/projects/:project_name/plugins/evaluations/tasks', element: <ProjectContextWrapper><PluginEvaluationsTasks /></ProjectContextWrapper> }
     ];
-    const [collapsed, setCollapsed] = useState(false);
-    const effectiveWidth = collapsed ? collapsedWidth : drawerWidth;
+    const theme = useTheme();
+    const autoCollapse = useMediaQuery(theme.breakpoints.down('lg'));
+    const overlayMode = useMediaQuery('(max-width:899px)');
+    const [collapsed, setCollapsed] = useState(autoCollapse);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    useEffect(() => {
+        if (overlayMode) {
+            setCollapsed(true);
+            setMobileMenuOpen(false);
+            return;
+        }
+        setCollapsed(autoCollapse);
+        setMobileMenuOpen(false);
+    }, [autoCollapse, overlayMode]);
+    const effectiveWidth = overlayMode ? collapsedWidth : (collapsed ? collapsedWidth : drawerWidth);
+    const isRootPage = location.pathname === '/';
+    const showSidebar = !isRootPage;
+    const layoutSidebarWidth = showSidebar && !overlayMode ? effectiveWidth : 0;
+
+    const contentTheme = React.useMemo(() => {
+        const values = theme.breakpoints.values;
+        return createTheme({
+            ...theme,
+            breakpoints: {
+                unit: theme.breakpoints.unit,
+                values: {
+                    xs: values.xs,
+                    sm: values.sm + layoutSidebarWidth,
+                    md: values.md + layoutSidebarWidth,
+                    lg: values.lg + layoutSidebarWidth,
+                    xl: values.xl + layoutSidebarWidth,
+                },
+            },
+        });
+    }, [theme, layoutSidebarWidth]);
+
+    const handleSidebarToggle = () => {
+        if (overlayMode) {
+            setMobileMenuOpen((open) => !open);
+            return;
+        }
+        setCollapsed((c) => !c);
+    };
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'row' }}>
             <CssBaseline />
             <TopBar />
-            <LeftBar drawerWidth={effectiveWidth} collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} />
-            <Box
-                component="main"
-                sx={{
-                    flexGrow: 1,
-                    bgcolor: 'background.default',
-                    p: 3,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'flex-start',
-                    alignItems: 'left',
-                    maxWidth: 'lg',
-                    margin: '0 auto',
-                    width: `calc(100% - ${effectiveWidth}px)`,
-                    minWidth: 0,
-                    overflow: 'hidden',
-                }}
-            >
-                <Toolbar />
+            {showSidebar && (
+                <LeftBar
+                    drawerWidth={effectiveWidth}
+                    expandedDrawerWidth={drawerWidth}
+                    collapsed={overlayMode ? true : collapsed}
+                    mobileOpen={mobileMenuOpen}
+                    onToggle={handleSidebarToggle}
+                    overlayMode={overlayMode}
+                />
+            )}
+            <ThemeProvider key={`content-theme-${layoutSidebarWidth}`} theme={contentTheme}>
+                <Box
+                    component="main"
+                    sx={{
+                        flexGrow: 1,
+                        bgcolor: 'background.default',
+                        p: 3,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'flex-start',
+                        alignItems: isRootPage ? 'center' : 'flex-start',
+                        margin: '0 auto',
+                        width: '100%',
+                        minWidth: 0,
+                        overflow: 'hidden',
+                    }}
+                >
+                    <Toolbar />
 
-                <Routes>
-                    {
-                        navs.map((nav) => {
-                            return (
-                                <Route key={nav.id} path={nav.path} element={nav.element} />
-                            );
-                        })
-                    }
-                    <Route path='*' element={<NotFound />} />
-                </Routes>
+                    <Box sx={{width: '100%', maxWidth: isRootPage ? 980 : 'none', mx: isRootPage ? 'auto' : 0}}>
+                        <Routes>
+                            {
+                                navs.map((nav) => {
+                                    return (
+                                        <Route key={nav.id} path={nav.path} element={nav.element} />
+                                    );
+                                })
+                            }
+                            <Route path='*' element={<NotFound />} />
+                        </Routes>
+                    </Box>
 
-            </Box>
+                </Box>
+            </ThemeProvider>
         </Box>
     );
 }
