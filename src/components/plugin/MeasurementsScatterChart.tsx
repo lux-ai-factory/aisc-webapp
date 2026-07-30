@@ -6,6 +6,7 @@ interface MeasurementsScatterChartProps {
     title?: string;
     description?: string;
     data: Measurement[];
+    groupByDimensions?: string[];
 }
 
 export const MeasurementsScatterChart = ({ title: _title, description: _description, data }: MeasurementsScatterChartProps) => {

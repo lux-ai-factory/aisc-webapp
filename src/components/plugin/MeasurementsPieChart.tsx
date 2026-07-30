@@ -14,6 +14,7 @@ interface MeasurementsPieChartProps {
     title?: string;
     description?: string;
     data: Measurement[];
+    groupByDimensions?: string[];
 }
 
 export const MeasurementsPieChart = ({ title: _title, description: _description, data }: MeasurementsPieChartProps) => {

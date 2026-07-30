@@ -17,6 +17,7 @@ interface MeasurementsBarChartProps {
     title?: string;
     description?: string;
     data: Measurement[];
+    groupByDimensions?: string[];
     /** If true, stack the series instead of grouping them side-by-side */
     stacked?: boolean;
 }

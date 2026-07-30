@@ -96,7 +96,8 @@ export interface MetricVisualization {
     metrics: string[];
     title?: string | null;
     description?: string | null;
-    filter_dimensions?: Record<string, string> | null;
+    filter_dimensions?: Record<string, (string | number | boolean)[]> | null;
+    group_by_dimensions?: string[] | null;
 }
 
 export interface ZippedFile {

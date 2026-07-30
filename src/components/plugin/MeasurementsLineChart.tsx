@@ -16,6 +16,7 @@ interface MeasurementsLineChartProps {
     title?: string;
     description?: string;
     data: Measurement[];
+    groupByDimensions?: string[];
 }
 
 export const MeasurementsLineChart = ({ title: _title, description: _description, data }: MeasurementsLineChartProps) => {

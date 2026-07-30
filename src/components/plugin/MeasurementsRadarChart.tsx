@@ -9,31 +9,39 @@ interface MeasurementsRadarChartProps {
     title?: string;
     description?: string;
     data: Measurement[];
+    groupByDimensions?: string[];
 }
 
-export const MeasurementsRadarChart = ({title, description, data}: MeasurementsRadarChartProps) => {
+export const MeasurementsRadarChart = ({title, description, data, groupByDimensions}: MeasurementsRadarChartProps) => {
     const metricNames: string[] = [];
     data.forEach(m => {
         if (!metricNames.includes(m.name)) metricNames.push(m.name);
     });
 
-    const groups: string[] = Array.from(new Set(data.map(m => String(m.dimensions?.group ?? ''))));
+    const getGroupLabel = (m: Measurement): string => {
+        if (!groupByDimensions || groupByDimensions.length === 0) {
+            return '';
+        }
+        return groupByDimensions
+            .map(key => m.dimensions && m.dimensions[key] !== undefined ? String(m.dimensions[key]) : 'N/A')
+            .join(' - ');
+    };
 
-    const series = groups.map((group, index) => {
+    const groupLabels: string[] = Array.from(new Set(data.map(getGroupLabel)));
+
+    const series = groupLabels.map((groupLabel, index) => {
         const color = getColorFromIndex ? getColorFromIndex(index) : undefined;
         const base = {
             data: metricNames.map(metric => {
-                const measurement = data.find(m => String(m.dimensions?.group ?? '') === String(group) && m.name === metric);
+                const measurement = data.find(m => getGroupLabel(m) === groupLabel && m.name === metric);
                 return measurement ? measurement.score : 0;
             }),
             color,
             strokeWidth: 3,
             fillArea: true,
         };
-        const shouldLabel = groups.length > 1 || !!group;
-        return shouldLabel
-            ? { ...base, label: group }
-            : base;
+        const shouldLabel = groupLabels.length > 1 || !!groupLabel;
+        return shouldLabel ? { ...base, label: groupLabel } : base;
     });
 
     return (

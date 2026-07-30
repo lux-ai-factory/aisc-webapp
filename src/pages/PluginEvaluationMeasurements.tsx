@@ -148,18 +148,21 @@ function PluginEvaluationMeasurements() {
         return acc;
     }, {} as PluginResultsMap);
 
-    const renderVisualization = (pluginResult: PluginQueryResult, visualization: any) => {
-        let filteredMeasurements = pluginResult.measurements!!.filter(
-            (m: Measurement) => visualization.metrics.includes(m.name)
-        );
+    const renderVisualization = (pluginResult: PluginQueryResult, visualization: MetricVisualization) => {
+        const filteredMeasurements = pluginResult.measurements!!.filter((m: Measurement) => {
+            // Filter by metric names
+            if (!visualization.metrics.includes(m.name)) return false;
 
-        if (visualization.filter_dimensions) {
-            filteredMeasurements = filteredMeasurements.filter((m: Measurement) =>
-                Object.entries(visualization.filter_dimensions).every(
-                    ([key, value]) => m.dimensions?.[key] === value
-                )
-            );
-        }
+            // Filter by dimensions if filter_dimensions is provided
+            if (visualization.filter_dimensions && Object.keys(visualization.filter_dimensions).length > 0) {
+                return Object.entries(visualization.filter_dimensions).every(([dimKey, allowedValues]) => {
+                    const itemValue = m.dimensions?.[dimKey];
+                    return allowedValues.includes(itemValue as string | number | boolean);
+                });
+            }
+
+            return true;
+        });
 
         if (filteredMeasurements.length === 0) return null;
 
@@ -167,15 +170,16 @@ function PluginEvaluationMeasurements() {
         const data = filteredMeasurements;
         const title = visualization.title || `${name} - ${visualization.chart_type}`;
         const description = visualization.description || undefined;
+        const groupByDimensions = visualization.group_by_dimensions || undefined;
 
         switch (visualization.chart_type) {
             case 'table': return <MeasurementsDataGrid title={title} description={description} data={data} />;
-            case 'line': return <MeasurementsLineChart title={title} description={description} data={data} />;
-            case 'scatter': return <MeasurementsScatterChart title={title} description={description} data={data} />;
-            case 'kde': return <MeasurementsKDEChart title={title} description={description} data={data} />;
-            case 'bars': return <MeasurementsBarsChart title={title} description={description} data={data} />;
-            case 'radar': return <MeasurementsRadarChart title={title} description={description} data={data} />;
-            case 'pie': return <MeasurementsPieChart title={title} description={description} data={data} />;
+            case 'line': return <MeasurementsLineChart title={title} description={description} data={data} groupByDimensions={groupByDimensions} />;
+            case 'scatter': return <MeasurementsScatterChart title={title} description={description} data={data} groupByDimensions={groupByDimensions} />;
+            case 'kde': return <MeasurementsKDEChart title={title} description={description} data={data} groupByDimensions={groupByDimensions} />;
+            case 'bars': return <MeasurementsBarsChart title={title} description={description} data={data} groupByDimensions={groupByDimensions} />;
+            case 'radar': return <MeasurementsRadarChart title={title} description={description} data={data} groupByDimensions={groupByDimensions} />;
+            case 'pie': return <MeasurementsPieChart title={title} description={description} data={data} groupByDimensions={groupByDimensions} />;
             default: return null;
         }
     };

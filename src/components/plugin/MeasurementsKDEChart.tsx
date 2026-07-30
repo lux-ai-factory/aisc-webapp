@@ -18,6 +18,7 @@ interface MeasurementsKDEChartProps {
     description?: string;
     data: Measurement[];
     bins?: number;
+    groupByDimensions?: string[];
 }
 
 /** Helper: convert #RRGGBB to rgba(r,g,b,a) for semi‑transparent bars */
