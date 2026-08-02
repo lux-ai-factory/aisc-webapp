@@ -166,20 +166,21 @@ function PluginEvaluationMeasurements() {
 
         if (filteredMeasurements.length === 0) return null;
 
-        const name = pluginDisplayNames[pluginResult.name] || pluginResult.name;
+        // const name = pluginDisplayNames[pluginResult.name] || pluginResult.name;
         const data = filteredMeasurements;
-        const title = visualization.title || `${name} - ${visualization.chart_type}`;
+        const title = visualization.title || undefined;
         const description = visualization.description || undefined;
+        const metricLabelDimension = visualization.metric_label_dimension || undefined;
         const groupByDimensions = visualization.group_by_dimensions || undefined;
 
         switch (visualization.chart_type) {
-            case 'table': return <MeasurementsDataGrid title={title} description={description} data={data} />;
-            case 'line': return <MeasurementsLineChart title={title} description={description} data={data} groupByDimensions={groupByDimensions} />;
-            case 'scatter': return <MeasurementsScatterChart title={title} description={description} data={data} groupByDimensions={groupByDimensions} />;
-            case 'kde': return <MeasurementsKDEChart title={title} description={description} data={data} groupByDimensions={groupByDimensions} />;
-            case 'bars': return <MeasurementsBarsChart title={title} description={description} data={data} groupByDimensions={groupByDimensions} />;
-            case 'radar': return <MeasurementsRadarChart title={title} description={description} data={data} groupByDimensions={groupByDimensions} />;
-            case 'pie': return <MeasurementsPieChart title={title} description={description} data={data} groupByDimensions={groupByDimensions} />;
+            case 'table': return <MeasurementsDataGrid title={title} description={description} data={data}/>;
+            case 'line': return <MeasurementsLineChart title={title} description={description} data={data} metricLabelDimension={metricLabelDimension} groupByDimensions={groupByDimensions} />;
+            case 'scatter': return <MeasurementsScatterChart title={title} description={description} data={data} metricLabelDimension={metricLabelDimension} groupByDimensions={groupByDimensions} />;
+            case 'kde': return <MeasurementsKDEChart title={title} description={description} data={data} metricLabelDimension={metricLabelDimension} groupByDimensions={groupByDimensions} />;
+            case 'bars': return <MeasurementsBarsChart title={title} description={description} data={data} metricLabelDimension={metricLabelDimension} groupByDimensions={groupByDimensions} />;
+            case 'radar': return <MeasurementsRadarChart title={title} description={description} data={data} metricLabelDimension={metricLabelDimension} groupByDimensions={groupByDimensions} />;
+            case 'pie': return <MeasurementsPieChart title={title} description={description} data={data} metricLabelDimension={metricLabelDimension} groupByDimensions={groupByDimensions} />;
             default: return null;
         }
     };

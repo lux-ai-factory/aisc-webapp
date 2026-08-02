@@ -2,38 +2,33 @@ import {RadarChart} from '@mui/x-charts/RadarChart';
 import {Measurement} from "../../models/models.tsx";
 import {RadarAxis} from "@mui/x-charts";
 import { getColorFromIndex } from "../../util/util";
-import {Box, Typography} from "@mui/material";
+import { Box, Typography } from "@mui/material";
+import { getMetricLabel, getGroupLabel } from "./ChartUtils.tsx";
 
 
 interface MeasurementsRadarChartProps {
     title?: string;
     description?: string;
     data: Measurement[];
+    metricLabelDimension?: string;
     groupByDimensions?: string[];
 }
 
-export const MeasurementsRadarChart = ({title, description, data, groupByDimensions}: MeasurementsRadarChartProps) => {
-    const metricNames: string[] = [];
-    data.forEach(m => {
-        if (!metricNames.includes(m.name)) metricNames.push(m.name);
-    });
+export const MeasurementsRadarChart = ({title, description, data, metricLabelDimension, groupByDimensions}: MeasurementsRadarChartProps) => {
+    // Distinct axis labels: one radar axis per label
+    const axisLabels: string[] = Array.from(new Set(data.map(m => getMetricLabel(m, metricLabelDimension))));
 
-    const getGroupLabel = (m: Measurement): string => {
-        if (!groupByDimensions || groupByDimensions.length === 0) {
-            return '';
-        }
-        return groupByDimensions
-            .map(key => m.dimensions && m.dimensions[key] !== undefined ? String(m.dimensions[key]) : 'N/A')
-            .join(' - ');
-    };
-
-    const groupLabels: string[] = Array.from(new Set(data.map(getGroupLabel)));
+    // Distinct group labels: one radar series (polygon) per group
+    const groupLabels: string[] = Array.from(new Set(data.map(m => getGroupLabel(m, groupByDimensions))));
 
     const series = groupLabels.map((groupLabel, index) => {
         const color = getColorFromIndex ? getColorFromIndex(index) : undefined;
         const base = {
-            data: metricNames.map(metric => {
-                const measurement = data.find(m => getGroupLabel(m) === groupLabel && m.name === metric);
+            data: axisLabels.map(axisLabel => {
+                const measurement = data.find(m =>
+                    getGroupLabel(m, groupByDimensions) === groupLabel &&
+                    getMetricLabel(m, metricLabelDimension) === axisLabel
+                );
                 return measurement ? measurement.score : 0;
             }),
             color,
@@ -61,7 +56,7 @@ export const MeasurementsRadarChart = ({title, description, data, groupByDimensi
                 series={series}
                 radar={{
                     max: 1,
-                    metrics: metricNames,
+                    metrics: axisLabels,
                 }}
                 slotProps={{
                     legend: {
@@ -69,10 +64,10 @@ export const MeasurementsRadarChart = ({title, description, data, groupByDimensi
                     },
                 }}
             >
-                {metricNames.map((metric) => (
+                {axisLabels.map((axisLabel) => (
                     <RadarAxis
-                        key={metric}
-                        metric={metric}
+                        key={axisLabel}
+                        metric={axisLabel}
                         divisions={5}
                         labelOrientation="rotated"
                         angle={0}

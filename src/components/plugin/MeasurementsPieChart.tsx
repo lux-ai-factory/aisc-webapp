@@ -3,32 +3,36 @@ import { PieChart } from "@mui/x-charts";
 import { Measurement } from "../../models/models";
 import {
     buildDistinctTimes,
-    buildDistinctCompositeKeys,
+    buildDistinctSeriesKeys,
     buildAlignedSeries,
     toggleHidden,
-    buildLookupByKeyAndTime,
+    buildLookupBySeriesKeyAndTime,
+    labelFromSeriesKey,
 } from "./ChartUtils";
 import { getColorFromIndex } from "../../util/util";
+import { Box, Typography } from "@mui/material";
 
 interface MeasurementsPieChartProps {
     title?: string;
     description?: string;
     data: Measurement[];
+    metricLabelDimension?: string;
     groupByDimensions?: string[];
 }
 
-export const MeasurementsPieChart = ({ title: _title, description: _description, data }: MeasurementsPieChartProps) => {
+export const MeasurementsPieChart = ({title: title, description: description, data, metricLabelDimension, groupByDimensions}: MeasurementsPieChartProps) => {
     const times = useMemo(() => buildDistinctTimes(data), [data]);
-    const keys = useMemo(() => buildDistinctCompositeKeys(data), [data]);
-    const byKeyAndTime = useMemo(() => buildLookupByKeyAndTime(data), [data]);
+    const keys = useMemo(() => buildDistinctSeriesKeys(data, groupByDimensions, metricLabelDimension), [data, groupByDimensions, metricLabelDimension]);
+    const labels = useMemo(() => new Map(keys.map(key => [key, labelFromSeriesKey(key)])), [keys]);
+    const byKeyAndTime = useMemo(() => buildLookupBySeriesKeyAndTime(data, groupByDimensions, metricLabelDimension), [data, groupByDimensions, metricLabelDimension]);
 
     const baseSeries = useMemo(
         () =>
             buildAlignedSeries(keys, times, byKeyAndTime, getColorFromIndex, {
                 showMark: false,
                 curve: "linear",
-            }),
-        [keys, times, byKeyAndTime]
+            }, labels),
+        [keys, times, byKeyAndTime, labels]
     );
 
     const pieData = useMemo(
@@ -78,7 +82,17 @@ export const MeasurementsPieChart = ({ title: _title, description: _description,
 
     // PieChart with legend interactivity
     return (
-        <div>
+        <Box>
+            {title && (
+                <Typography variant="h6" gutterBottom>
+                    {title}
+                </Typography>
+            )}
+            {description && (
+                <Typography variant="body2" color="text.secondary" sx={{mb: 1}}>
+                    {description}
+                </Typography>
+            )}
             <PieChart
                 height={400}
                 series={[
@@ -95,7 +109,7 @@ export const MeasurementsPieChart = ({ title: _title, description: _description,
                     },
                 }}
             />
-        </div>
+        </Box>
     );
 };
 
