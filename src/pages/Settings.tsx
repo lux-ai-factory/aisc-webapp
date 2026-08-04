@@ -25,7 +25,20 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DownloadIcon from '@mui/icons-material/Download';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
+import KeyIcon from '@mui/icons-material/Key';
+import TuneIcon from '@mui/icons-material/Tune';
+import DataObjectIcon from '@mui/icons-material/DataObject';
 import toast from 'react-hot-toast';
+import {
+    createProjectSetting,
+    deleteProjectSetting,
+    deriveFeaturesFromDataset,
+    getProjectSettings,
+    updateProjectSetting,
+    validateDatasetAgainstDatashape,
+} from '../api/api';
+import { ProjectSetting, ValidationReport } from '../models/models';
 import './Settings.css';
 import '../styles/common.css';
 
@@ -404,6 +417,323 @@ function AddFileDialog({ open, onClose, onAdd }: {
     );
 }
 
+type FeatureDraft = {
+    name: string;
+    dtype: string;
+    semantic_type: string;
+    role: string;
+    null_count: number;
+    unique_count: number;
+    min?: number | null;
+    max?: number | null;
+    mean?: number | null;
+    std?: number | null;
+    categories?: unknown[];
+    category_mapping?: Record<string, string>;
+};
+
+type DataShapeDraft = {
+    version: number;
+    source_dataset_pid: string;
+    source_format: string;
+    derived_at: string;
+    row_count: number;
+    features: FeatureDraft[];
+};
+
+const blankGeneralValue = (type: string): unknown => {
+    if (type === 'number') return 0;
+    if (type === 'boolean') return false;
+    if (type === 'json') return {};
+    return '';
+};
+
+function SettingDialog({
+    open,
+    setting,
+    initialCategory = 'general',
+    onClose,
+    onSaved,
+}: {
+    open: boolean;
+    setting?: ProjectSetting;
+    initialCategory?: 'api_key' | 'general';
+    onClose: () => void;
+    onSaved: (setting: ProjectSetting) => void;
+}) {
+    const { projectUUID } = useProject();
+    const [category, setCategory] = useState<'api_key' | 'general'>(setting?.category === 'api_key' ? 'api_key' : initialCategory);
+    const [key, setKey] = useState(setting?.key ?? '');
+    const [name, setName] = useState(setting?.name ?? '');
+    const [serviceType, setServiceType] = useState(setting?.service_type ?? '');
+    const [value, setValue] = useState(setting?.masked_value ?? '');
+    const [valueType, setValueType] = useState(String(setting?.json_value?.type ?? 'string'));
+    const [generalValue, setGeneralValue] = useState<unknown>(setting?.json_value?.value ?? '');
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        if (!open) return;
+        setCategory(setting?.category === 'api_key' ? 'api_key' : initialCategory);
+        setKey(setting?.key ?? '');
+        setName(setting?.name ?? '');
+        setServiceType(setting?.service_type ?? '');
+        setValue('');
+        setValueType(String(setting?.json_value?.type ?? 'string'));
+        setGeneralValue(setting?.json_value?.value ?? blankGeneralValue(String(setting?.json_value?.type ?? 'string')));
+    }, [open, setting, initialCategory]);
+
+    const save = async () => {
+        if (!projectUUID || !key.trim() || !name.trim()) return;
+        setSaving(true);
+        try {
+            const payload = category === 'api_key'
+                ? { key: key.trim(), name: name.trim(), service_type: serviceType.trim(), ...(value ? { value } : {}) }
+                : { key: key.trim(), name: name.trim(), json_value: { type: valueType, value: generalValue } };
+            const saved = setting
+                ? await updateProjectSetting(projectUUID, setting.pid, payload)
+                : await createProjectSetting(projectUUID, { category, ...payload });
+            onSaved(saved);
+            onClose();
+            toast.success(setting ? 'Setting updated' : 'Setting created');
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Could not save setting');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+            <DialogTitle>{setting ? 'Edit project setting' : 'Add project setting'}</DialogTitle>
+            <DialogContent>
+                <Stack spacing={2} sx={{ mt: 1 }}>
+                    {!setting && (
+                        <TextField select label="Category" value={category} onChange={e => setCategory(e.target.value as 'api_key' | 'general')}>
+                            <MenuItem value="api_key">API key</MenuItem>
+                            <MenuItem value="general">General setting</MenuItem>
+                        </TextField>
+                    )}
+                    <TextField label="Key" value={key} onChange={e => setKey(e.target.value)} helperText="Letters, numbers, and underscores" disabled={!!setting} />
+                    <TextField label="Display name" value={name} onChange={e => setName(e.target.value)} />
+                    {category === 'api_key' ? (
+                        <>
+                            <TextField label="Service type" value={serviceType} onChange={e => setServiceType(e.target.value)} placeholder="openai" />
+                            <TextField label={setting ? 'New value (leave blank to keep current)' : 'API key'} type="password" value={value} onChange={e => setValue(e.target.value)} />
+                        </>
+                    ) : (
+                        <>
+                            <TextField select label="Value type" value={valueType} onChange={e => { const next = e.target.value; setValueType(next); setGeneralValue(blankGeneralValue(next)); }}>
+                                <MenuItem value="string">String</MenuItem>
+                                <MenuItem value="number">Number</MenuItem>
+                                <MenuItem value="boolean">Boolean</MenuItem>
+                                <MenuItem value="json">JSON</MenuItem>
+                            </TextField>
+                            {valueType === 'boolean' ? (
+                                <TextField select label="Value" value={String(generalValue)} onChange={e => setGeneralValue(e.target.value === 'true')}>
+                                    <MenuItem value="true">True</MenuItem><MenuItem value="false">False</MenuItem>
+                                </TextField>
+                            ) : valueType === 'json' ? (
+                                <TextField multiline minRows={5} label="JSON value" value={JSON.stringify(generalValue, null, 2)} onChange={e => { try { setGeneralValue(JSON.parse(e.target.value)); } catch { /* keep editing invalid JSON */ } }} />
+                            ) : (
+                                <TextField label="Value" type={valueType === 'number' ? 'number' : 'text'} value={String(generalValue ?? '')} onChange={e => setGeneralValue(valueType === 'number' ? Number(e.target.value) : e.target.value)} />
+                            )}
+                        </>
+                    )}
+                    <Stack direction="row" justifyContent="flex-end" spacing={1}>
+                        <Button onClick={onClose}>Cancel</Button>
+                        <Button variant="contained" onClick={save} disabled={saving || !key.trim() || !name.trim()}>{saving ? 'Saving...' : 'Save'}</Button>
+                    </Stack>
+                </Stack>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function DataShapeDialog({
+    open,
+    setting,
+    datasets,
+    onClose,
+    onSaved,
+}: {
+    open: boolean;
+    setting?: ProjectSetting;
+    datasets: FileItem[];
+    onClose: () => void;
+    onSaved: (setting: ProjectSetting) => void;
+}) {
+    const { projectUUID } = useProject();
+    const [key, setKey] = useState('');
+    const [name, setName] = useState('');
+    const [datasetPid, setDatasetPid] = useState('');
+    const [document, setDocument] = useState<DataShapeDraft | null>(null);
+    const [createdSetting, setCreatedSetting] = useState<ProjectSetting | undefined>();
+    const [saving, setSaving] = useState(false);
+    const [report, setReport] = useState<ValidationReport | null>(null);
+
+    useEffect(() => {
+        if (!open) return;
+        setKey(setting?.key ?? '');
+        setName(setting?.name ?? '');
+        setDatasetPid(String(setting?.json_value?.source_dataset_pid ?? ''));
+        setDocument(setting?.json_value as unknown as DataShapeDraft ?? null);
+        setCreatedSetting(undefined);
+        setReport(null);
+    }, [open, setting]);
+
+    const updateFeature = (index: number, patch: Partial<FeatureDraft>) => {
+        setDocument(previous => previous ? { ...previous, features: previous.features.map((feature, i) => i === index ? { ...feature, ...patch } : feature) } : previous);
+    };
+
+    const derive = async () => {
+        if (!projectUUID || !datasetPid || !key.trim() || !name.trim()) return;
+        setSaving(true);
+        try {
+            const saved = await deriveFeaturesFromDataset(projectUUID, { dataset_pid: datasetPid, key: key.trim(), name: name.trim() });
+            setDocument(saved.json_value as unknown as DataShapeDraft);
+            setDatasetPid(String(saved.json_value.source_dataset_pid ?? datasetPid));
+            setCreatedSetting(saved);
+            onSaved(saved);
+            toast.success('Features derived from training dataset');
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Could not derive features');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const save = async () => {
+        const currentSetting = setting ?? createdSetting;
+        if (!projectUUID || !currentSetting || !document) return;
+        setSaving(true);
+        try {
+            const saved = await updateProjectSetting(projectUUID, currentSetting.pid, { name: name.trim(), json_value: document });
+            onSaved(saved);
+            onClose();
+            toast.success('Datashape saved');
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Could not save datashape');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const validate = async () => {
+        const currentSetting = setting ?? createdSetting;
+        if (!projectUUID || !currentSetting || !datasetPid) return;
+        try {
+            setReport(await validateDatasetAgainstDatashape(projectUUID, currentSetting.pid, datasetPid));
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Could not validate dataset');
+        }
+    };
+
+    return (
+        <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
+            <DialogTitle>{setting ? `Edit DataShape: ${setting.name}` : 'Create DataShape'}</DialogTitle>
+            <DialogContent>
+                <Stack spacing={2} sx={{ mt: 1 }}>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                        <TextField fullWidth label="Key" value={key} onChange={e => setKey(e.target.value)} disabled={!!setting} />
+                        <TextField fullWidth label="Name" value={name} onChange={e => setName(e.target.value)} />
+                    </Stack>
+                    <TextField select fullWidth label="Training dataset" value={datasetPid} onChange={e => setDatasetPid(e.target.value)}>
+                        {datasets.map(dataset => <MenuItem key={dataset.pid} value={dataset.pid}>{dataset.name}</MenuItem>)}
+                    </TextField>
+                    <Stack direction="row" spacing={1}>
+                        <Button variant="outlined" onClick={derive} disabled={saving || !datasetPid || !key.trim() || !name.trim()}>Derive features</Button>
+                        {(setting || createdSetting) && <Button variant="outlined" onClick={validate} disabled={!datasetPid}>Validate dataset</Button>}
+                    </Stack>
+                    {report && (
+                        <Card variant="outlined"><CardContent>
+                            <Typography variant="subtitle1" fontWeight={700}>Validation report</Typography>
+                            {report.errors.map(error => <Typography key={error} color="error">Error: {error}</Typography>)}
+                            {report.warnings.map(warning => <Typography key={warning} color="warning.main">Warning: {warning}</Typography>)}
+                            {!report.errors.length && !report.warnings.length && <Typography color="success.main">No mismatches found.</Typography>}
+                        </CardContent></Card>
+                    )}
+                    {document && (
+                        <Box sx={{ overflowX: 'auto' }}>
+                            <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1 }}>Features ({document.features.length})</Typography>
+                            <Stack spacing={1}>
+                                {document.features.map((feature, index) => (
+                                    <Card key={`${feature.name}-${index}`} variant="outlined"><CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
+                                        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} alignItems={{ md: 'center' }}>
+                                            <TextField size="small" label="Name" value={feature.name} onChange={e => updateFeature(index, { name: e.target.value })} sx={{ minWidth: 180 }} />
+                                            <TextField size="small" select label="Semantic type" value={feature.semantic_type} onChange={e => updateFeature(index, { semantic_type: e.target.value })} sx={{ minWidth: 150 }}>
+                                                {['numeric', 'categorical', 'datetime', 'text', 'boolean'].map(type => <MenuItem key={type} value={type}>{type}</MenuItem>)}
+                                            </TextField>
+                                            <TextField size="small" select label="Role" value={feature.role} onChange={e => updateFeature(index, { role: e.target.value })} sx={{ minWidth: 130 }}>
+                                                {['feature', 'target', 'date', 'ignore'].map(role => <MenuItem key={role} value={role}>{role}</MenuItem>)}
+                                            </TextField>
+                                            <TextField size="small" type="number" label="Min" value={feature.min ?? ''} onChange={e => updateFeature(index, { min: e.target.value === '' ? null : Number(e.target.value) })} sx={{ width: 110 }} />
+                                            <TextField size="small" type="number" label="Max" value={feature.max ?? ''} onChange={e => updateFeature(index, { max: e.target.value === '' ? null : Number(e.target.value) })} sx={{ width: 110 }} />
+                                        </Stack>
+                                        {feature.semantic_type === 'categorical' && (
+                                            <TextField fullWidth size="small" label="Category mapping (JSON)" sx={{ mt: 1 }} value={JSON.stringify(feature.category_mapping ?? {}, null, 2)} onChange={e => { try { updateFeature(index, { category_mapping: JSON.parse(e.target.value) }); } catch { /* allow in-progress JSON */ } }} />
+                                        )}
+                                        <Typography variant="caption" color="text.secondary">dtype: {feature.dtype} · nulls: {feature.null_count} · unique: {feature.unique_count}</Typography>
+                                    </CardContent></Card>
+                                ))}
+                            </Stack>
+                        </Box>
+                    )}
+                    <Stack direction="row" justifyContent="flex-end" spacing={1}>
+                        <Button onClick={onClose}>Cancel</Button>
+                        <Button variant="contained" onClick={save} disabled={saving || !(setting || createdSetting) || !document}>Save changes</Button>
+                    </Stack>
+                </Stack>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function ProjectSettingsSection({ datasets }: { datasets: FileItem[] }) {
+    const { projectUUID } = useProject();
+    const [settings, setSettings] = useState<ProjectSetting[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [settingDialog, setSettingDialog] = useState<{ open: boolean; setting?: ProjectSetting; initialCategory?: 'api_key' | 'general' }>({ open: false });
+    const [shapeDialog, setShapeDialog] = useState<{ open: boolean; setting?: ProjectSetting }>({ open: false });
+
+    const refresh = useCallback(async () => {
+        if (!projectUUID) return;
+        setLoading(true);
+        try { setSettings(await getProjectSettings(projectUUID)); }
+        catch { toast.error('Could not load project settings'); }
+        finally { setLoading(false); }
+    }, [projectUUID]);
+
+    useEffect(() => { refresh(); }, [refresh]);
+
+    const remove = async (setting: ProjectSetting) => {
+        if (!projectUUID || !window.confirm(`Delete ${setting.name}?`)) return;
+        try { await deleteProjectSetting(projectUUID, setting.pid); setSettings(previous => previous.filter(item => item.pid !== setting.pid)); toast.success('Setting deleted'); }
+        catch { toast.error('Could not delete setting'); }
+    };
+
+    const cards = (category: ProjectSetting['category']) => settings.filter(setting => setting.category === category);
+    const renderSetting = (setting: ProjectSetting) => (
+        <Card key={setting.pid} variant="outlined" sx={{ height: '100%' }}>
+            <CardContent>
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                    <Box><Typography fontWeight={700}>{setting.name}</Typography><Typography variant="caption" color="text.secondary">{setting.key}</Typography></Box>
+                    <Stack direction="row"><IconButton size="small" onClick={() => setting.category === 'datashape' ? setShapeDialog({ open: true, setting }) : setSettingDialog({ open: true, setting })}><EditIcon fontSize="small" /></IconButton><IconButton size="small" color="error" onClick={() => remove(setting)}><DeleteIcon fontSize="small" /></IconButton></Stack>
+                </Stack>
+                {setting.category === 'api_key' && <Typography sx={{ mt: 1 }} color="text.secondary">{setting.service_type || 'Unspecified service'} · {setting.masked_value || 'No value'}</Typography>}
+                {setting.category === 'general' && <Typography sx={{ mt: 1 }} color="text.secondary">{String(setting.json_value?.type)} · {JSON.stringify(setting.json_value?.value)}</Typography>}
+                {setting.category === 'datashape' && <Typography sx={{ mt: 1 }} color="text.secondary">{Array.isArray(setting.json_value?.features) ? `${setting.json_value.features.length} features` : 'No features'} · {String(setting.json_value?.source_format || 'unknown format')}</Typography>}
+            </CardContent>
+        </Card>
+    );
+
+    const section = (title: string, category: ProjectSetting['category'], icon: React.ReactNode, onAdd: () => void) => (
+        <Box sx={{ mt: 4 }}><Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}><Stack direction="row" spacing={1} alignItems="center"><Box sx={{ color: 'primary.main', display: 'flex' }}>{icon}</Box><Typography component="h3" variant="h5">{title}</Typography></Stack><Button startIcon={<AddIcon />} variant="outlined" onClick={onAdd}>{category === 'datashape' ? 'Add DataShape' : 'Add setting'}</Button></Stack>{loading ? <CircularProgress /> : cards(category).length ? <Grid container spacing={2}>{cards(category).map(setting => <Grid key={setting.pid} size={{ xs: 12, md: 6, lg: 4 }}>{renderSetting(setting)}</Grid>)}</Grid> : <Typography color="text.secondary">No {title.toLowerCase()} configured.</Typography>}</Box>
+    );
+
+    const upsert = (saved: ProjectSetting) => setSettings(previous => previous.some(item => item.pid === saved.pid) ? previous.map(item => item.pid === saved.pid ? saved : item) : [...previous, saved]);
+    return <Box sx={{ mt: 6 }}><Typography component="h2" variant="h4" gutterBottom>Project settings</Typography><Typography variant="body1" color="text.secondary">Values declared by plugins are managed here and resolved when evaluations run.</Typography>{section('API keys', 'api_key', <KeyIcon />, () => setSettingDialog({ open: true, initialCategory: 'api_key' }))}{section('General settings', 'general', <TuneIcon />, () => setSettingDialog({ open: true, initialCategory: 'general' }))}{section('DataShapes', 'datashape', <DataObjectIcon />, () => setShapeDialog({ open: true }))}<SettingDialog open={settingDialog.open} setting={settingDialog.setting} initialCategory={settingDialog.setting?.category === 'api_key' ? 'api_key' : settingDialog.initialCategory ?? 'general'} onClose={() => setSettingDialog({ open: false })} onSaved={upsert} /><DataShapeDialog open={shapeDialog.open} setting={shapeDialog.setting} datasets={datasets} onClose={() => setShapeDialog({ open: false })} onSaved={upsert} /></Box>;
+}
+
 export default function SettingsPage() {
     const { projectUUID } = useProject();
     const [datasets, setDatasets] = useState<FileItem[]>([]);
@@ -554,6 +884,8 @@ export default function SettingsPage() {
                 {datasets.length > 0 && models.length > 0 && <Divider />}
                 {renderSection('Models', models, 'model')}
             </Box>
+
+            <ProjectSettingsSection datasets={datasets} />
 
             <AddFileDialog
                 open={addDialogOpen}

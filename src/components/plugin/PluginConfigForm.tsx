@@ -8,6 +8,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useProject } from '../../context/ProjectContext';
 import Form from './CustomFormTemplates.tsx';
 import './PluginConfigForm.css';
+import { MenuItem, TextField } from '@mui/material';
+import { getProjectSettings } from '../../api/api';
+import { ProjectSetting, SettingDefinition } from '../../models/models';
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -19,6 +22,7 @@ interface PluginConfigFormProps {
     config?: object | null;
     onFormUpdate: (updatedState: { config: object; formSchema: object; uiSchema: object }) => void;
     onSubmit: (config: object) => void;
+    settingDefinitions?: SettingDefinition[];
 }
 
 const updateConfigDynamics = async ({ pluginPID, config }: { pluginPID: string; config: object }) => {
@@ -41,10 +45,18 @@ const PluginConfigForm = React.forwardRef<any, PluginConfigFormProps>(function P
     config,
     onFormUpdate,
     onSubmit,
+    settingDefinitions = [],
 }: PluginConfigFormProps, ref) {
 
     const queryClient = useQueryClient();
     const { projectUUID } = useProject();
+    const [settings, setSettings] = React.useState<ProjectSetting[]>([]);
+
+    React.useEffect(() => {
+        if (projectUUID) getProjectSettings(projectUUID).then(setSettings).catch(() => undefined);
+    }, [projectUUID]);
+
+    const declaredSettings = settingDefinitions.filter(definition => definition.category !== 'datashape');
 
     // Mutation to handle background schema/data synchronization
     const mutation = useMutation({
@@ -169,6 +181,23 @@ const PluginConfigForm = React.forwardRef<any, PluginConfigFormProps>(function P
     }));
 
     return (
+        <>
+        {declaredSettings.map(definition => {
+            const candidates = settings.filter(setting => setting.category === definition.category &&
+                (definition.category !== 'api_key' || setting.service_type === definition.service_type) &&
+                (definition.category !== 'general' || setting.json_value.type === definition.value_type));
+            return <TextField key={definition.name} select fullWidth size="small" label={definition.label}
+                value={typeof (config as Record<string, unknown> | undefined)?.[definition.name] === 'string'
+                    ? (config as Record<string, string>)[definition.name] : ''}
+                onChange={event => {
+                    const next = {...(config ?? {}), [definition.name]: event.target.value};
+                    onFormUpdate({config: next, formSchema, uiSchema});
+                    debouncedUpdate(next);
+                }} sx={{mb: 2}}>
+                {!definition.required && <MenuItem value="">None</MenuItem>}
+                {candidates.map(setting => <MenuItem key={setting.pid} value={`{{ project_settings.${setting.key} }}`}>{setting.name}</MenuItem>)}
+            </TextField>;
+        })}
         <Form
             ref={formRefInternal}
             key={pluginPID}
@@ -188,6 +217,7 @@ const PluginConfigForm = React.forwardRef<any, PluginConfigFormProps>(function P
             />
             <button type="submit" style={{ display: 'none' }}>Save</button>
         </Form>
+        </>
     );
 });
 

@@ -52,6 +52,36 @@ export interface ProjectPluginConfigState {
     config?: object | null;
     formSchema: object;
     uiSchema: object
+    setting_definitions?: SettingDefinition[];
+}
+
+export type SettingCategory = 'api_key' | 'datashape' | 'general';
+export type SettingValueType = 'string' | 'number' | 'boolean' | 'json';
+
+export interface SettingDefinition {
+    name: string;
+    label: string;
+    category: SettingCategory;
+    service_type: string;
+    value_type?: SettingValueType | null;
+    required: boolean;
+}
+
+export interface ProjectSetting {
+    pid: string;
+    category: SettingCategory;
+    key: string;
+    name: string;
+    service_type: string;
+    masked_value: string;
+    json_value: Record<string, unknown>;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface ValidationReport {
+    errors: string[];
+    warnings: string[];
 }
 
 export interface PluginConfig {
@@ -77,6 +107,7 @@ export interface PluginInputValue {
     pid: string;
     name: string;
     input_type: string;
+    datashape_pid?: string;
 }
 
 export interface Measurement {
@@ -166,4 +197,3 @@ export interface PluginRunDuration {
     run_index: number;
     duration_seconds: number;
 }
-

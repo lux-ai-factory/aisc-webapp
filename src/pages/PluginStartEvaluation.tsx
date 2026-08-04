@@ -4,10 +4,10 @@ import { useProject } from "../context/ProjectContext.tsx";
 import {Button, Typography, Box, Tooltip} from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import { useEffect, useState } from "react";
-import { Plugin, PluginInputValue } from "../models/models.tsx";
+import { Plugin, PluginInputValue, ProjectSetting, SettingDefinition } from "../models/models.tsx";
 import toast from "react-hot-toast";
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
-import { getProject } from "../api/api.tsx";
+import { getPluginSettingDefinitions, getProject, getProjectSettings } from "../api/api.tsx";
 import PluginEvaluationForm from "../components/plugin/PluginEvaluationForm.tsx";
 import './PluginStartEvaluation.css';
 import '../styles/common.css';
@@ -15,14 +15,20 @@ import '../styles/common.css';
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
+type PluginSelection = PluginInputValue;
+
 type SelectedPluginsState = {
-    [pluginName: string]: PluginInputValue[];
+    [pluginName: string]: PluginSelection[];
 }
 
 const createEvaluation = async (project_uuid: string, selectedPlugins: SelectedPluginsState) => {
     if (!project_uuid) throw new Error('Invalid uuid');
 
-    const plugins_to_run = Object.entries(selectedPlugins).map(([name, inputs]) => ({name, inputs}));
+    const plugins_to_run = Object.entries(selectedPlugins).map(([name, inputs]) => ({
+        name,
+        inputs: inputs.filter(input => input.input_type !== 'datashape'),
+        datashape_pid: inputs.find(input => input.input_type === 'datashape')?.pid ?? null,
+    }));
 
     const data = {
         project_pid: project_uuid,
@@ -72,12 +78,27 @@ export default function PluginStartEvaluation() {
     const [selectionCache, setSelectionCache] = useState<SelectedPluginsState>(loadState().selectionCache);
     const [activePlugin, setActivePlugin] = useState<string | null>(null);
     const [validPlugins, setValidPlugins] = useState<Record<string, boolean>>({});
+    const [settings, setSettings] = useState<ProjectSetting[]>([]);
+    const [settingDefinitions, setSettingDefinitions] = useState<Record<string, SettingDefinition[]>>({});
 
     const { data: project, isPending, error } = useQuery({
         queryKey: ['project', projectUUID],
         queryFn: () => getProject(projectUUID ?? ""),
         enabled: !!projectUUID
     });
+
+    useEffect(() => {
+        if (!projectUUID) return;
+        getProjectSettings(projectUUID).then(setSettings).catch(() => undefined);
+    }, [projectUUID]);
+
+    useEffect(() => {
+        project?.plugins.filter(plugin => plugin.enabled).forEach(plugin => {
+            getPluginSettingDefinitions(plugin.pid).then(data =>
+                setSettingDefinitions(previous => ({...previous, [plugin.name]: data}))
+            ).catch(() => undefined);
+        });
+    }, [project]);
 
     const handleTogglePlugin = (pluginName: string) => {
         if (activePlugin === pluginName && selectedPlugins[pluginName]) {
@@ -204,6 +225,8 @@ export default function PluginStartEvaluation() {
                                     handleUpdateSetting(projectPlugin.name, item, inputName)
                                 }
                                 onValidationChange={(valid) => setValidPlugins(prev => ({ ...prev, [projectPlugin.name]: valid }))}
+                                datashapeSettings={settings.filter(setting => setting.category === 'datashape')}
+                                settingDefinitions={settingDefinitions[projectPlugin.name] ?? []}
                             />
                         </Grid>
                     ))}

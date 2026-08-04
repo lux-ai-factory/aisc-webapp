@@ -242,6 +242,7 @@ function PluginConfig() {
                         formSchema={configState.formSchema}
                         uiSchema={configState.uiSchema}
                         config={configState.config ?? {}}
+                        settingDefinitions={configState.setting_definitions ?? []}
                         onFormUpdate={(state) => setConfigOverride(state)}
                         onSubmit={onSubmit}
                     />
