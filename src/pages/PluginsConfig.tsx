@@ -16,11 +16,12 @@ import '../styles/common.css';
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
 
-const postPluginConfig = async (plugin_pid: string, formData: object) => {
+const postPluginConfig = async (plugin_pid: string, formData: object, projectSettingSelections: object[]) => {
     if (!plugin_pid) throw new Error("Plugin name is required");
 
     const data = {
         config: formData,
+        project_setting_selections: projectSettingSelections,
     }
     const response = await fetch(`${API_URL}/plugins/${plugin_pid}/config`, {
         method: 'POST',
@@ -127,8 +128,8 @@ function PluginConfig() {
         setConfigOverride(state);
     };
 
-    const onSubmit = async (data: object) => {
-        await postPluginConfig(plugin_pid ?? "", data);
+    const onSubmit = async (data: object, projectSettingSelections: object[]) => {
+        await postPluginConfig(plugin_pid ?? "", data, projectSettingSelections);
 
         // Refresh config history
         await queryClient.invalidateQueries({ queryKey: ['pluginConfigHistory', plugin_pid] });
@@ -243,6 +244,8 @@ function PluginConfig() {
                         uiSchema={configState.uiSchema}
                         config={configState.config ?? {}}
                         settingDefinitions={configState.setting_definitions ?? []}
+                        projectSettings={configState.project_settings ?? []}
+                        projectSettingSelections={configState.project_setting_selections ?? []}
                         onFormUpdate={(state) => setConfigOverride(state)}
                         onSubmit={onSubmit}
                     />

@@ -17,7 +17,7 @@ import {
     Typography
 } from "@mui/material";
 import Grid from "@mui/material/Grid2";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { API_VERSION_PREFIX } from "../config";
 import { useProject } from "../context/ProjectContext";
 import keycloak from '../auth/keycloak';
@@ -43,6 +43,14 @@ import './Settings.css';
 import '../styles/common.css';
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
+
+const normalizeSettingKey = (name: string): string => {
+    if (!name.trim()) return '';
+    let key = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+    if (!key) key = 'unnamed';
+    else if (/^\d/.test(key)) key = `setting_${key}`;
+    return key;
+};
 
 const validators = {
     projectName: (name: string) => {
@@ -457,38 +465,36 @@ function SettingDialog({
 }: {
     open: boolean;
     setting?: ProjectSetting;
-    initialCategory?: 'api_key' | 'general';
+    initialCategory?: 'secrets' | 'general';
     onClose: () => void;
     onSaved: (setting: ProjectSetting) => void;
 }) {
     const { projectUUID } = useProject();
-    const [category, setCategory] = useState<'api_key' | 'general'>(setting?.category === 'api_key' ? 'api_key' : initialCategory);
-    const [key, setKey] = useState(setting?.key ?? '');
+    const [category, setCategory] = useState<'secrets' | 'general'>(setting?.category === 'secrets' ? 'secrets' : initialCategory);
     const [name, setName] = useState(setting?.name ?? '');
-    const [serviceType, setServiceType] = useState(setting?.service_type ?? '');
     const [value, setValue] = useState(setting?.masked_value ?? '');
     const [valueType, setValueType] = useState(String(setting?.json_value?.type ?? 'string'));
     const [generalValue, setGeneralValue] = useState<unknown>(setting?.json_value?.value ?? '');
     const [saving, setSaving] = useState(false);
 
+    const generatedKey = useMemo(() => normalizeSettingKey(name), [name]);
+
     useEffect(() => {
         if (!open) return;
-        setCategory(setting?.category === 'api_key' ? 'api_key' : initialCategory);
-        setKey(setting?.key ?? '');
+        setCategory(setting?.category === 'secrets' ? 'secrets' : initialCategory);
         setName(setting?.name ?? '');
-        setServiceType(setting?.service_type ?? '');
         setValue('');
         setValueType(String(setting?.json_value?.type ?? 'string'));
         setGeneralValue(setting?.json_value?.value ?? blankGeneralValue(String(setting?.json_value?.type ?? 'string')));
     }, [open, setting, initialCategory]);
 
     const save = async () => {
-        if (!projectUUID || !key.trim() || !name.trim()) return;
+        if (!projectUUID || !name.trim()) return;
         setSaving(true);
         try {
-            const payload = category === 'api_key'
-                ? { key: key.trim(), name: name.trim(), service_type: serviceType.trim(), ...(value ? { value } : {}) }
-                : { key: key.trim(), name: name.trim(), json_value: { type: valueType, value: generalValue } };
+            const payload = category === 'secrets'
+                ? { key: generatedKey, name: name.trim(), ...(value ? { value } : {}) }
+                : { key: generatedKey, name: name.trim(), json_value: { type: valueType, value: generalValue } };
             const saved = setting
                 ? await updateProjectSetting(projectUUID, setting.pid, payload)
                 : await createProjectSetting(projectUUID, { category, ...payload });
@@ -507,18 +513,10 @@ function SettingDialog({
             <DialogTitle>{setting ? 'Edit project setting' : 'Add project setting'}</DialogTitle>
             <DialogContent>
                 <Stack spacing={2} sx={{ mt: 1 }}>
-                    {!setting && (
-                        <TextField select label="Category" value={category} onChange={e => setCategory(e.target.value as 'api_key' | 'general')}>
-                            <MenuItem value="api_key">API key</MenuItem>
-                            <MenuItem value="general">General setting</MenuItem>
-                        </TextField>
-                    )}
-                    <TextField label="Key" value={key} onChange={e => setKey(e.target.value)} helperText="Letters, numbers, and underscores" disabled={!!setting} />
-                    <TextField label="Display name" value={name} onChange={e => setName(e.target.value)} />
-                    {category === 'api_key' ? (
+                    <TextField label="Setting name" value={name} onChange={e => setName(e.target.value)} helperText={setting ? `Internal key: ${setting.key}` : `Internal key: ${generatedKey}`} />
+                    {category === 'secrets' ? (
                         <>
-                            <TextField label="Service type" value={serviceType} onChange={e => setServiceType(e.target.value)} placeholder="openai" />
-                            <TextField label={setting ? 'New value (leave blank to keep current)' : 'API key'} type="password" value={value} onChange={e => setValue(e.target.value)} />
+                            <TextField label={setting ? 'New value (leave blank to keep current)' : 'Secret value'} type="password" value={value} onChange={e => setValue(e.target.value)} />
                         </>
                     ) : (
                         <>
@@ -541,7 +539,7 @@ function SettingDialog({
                     )}
                     <Stack direction="row" justifyContent="flex-end" spacing={1}>
                         <Button onClick={onClose}>Cancel</Button>
-                        <Button variant="contained" onClick={save} disabled={saving || !key.trim() || !name.trim()}>{saving ? 'Saving...' : 'Save'}</Button>
+                        <Button variant="contained" onClick={save} disabled={saving || !name.trim()}>{saving ? 'Saving...' : 'Save'}</Button>
                     </Stack>
                 </Stack>
             </DialogContent>
@@ -563,7 +561,6 @@ function DataShapeDialog({
     onSaved: (setting: ProjectSetting) => void;
 }) {
     const { projectUUID } = useProject();
-    const [key, setKey] = useState('');
     const [name, setName] = useState('');
     const [datasetPid, setDatasetPid] = useState('');
     const [document, setDocument] = useState<DataShapeDraft | null>(null);
@@ -573,7 +570,6 @@ function DataShapeDialog({
 
     useEffect(() => {
         if (!open) return;
-        setKey(setting?.key ?? '');
         setName(setting?.name ?? '');
         setDatasetPid(String(setting?.json_value?.source_dataset_pid ?? ''));
         setDocument(setting?.json_value as unknown as DataShapeDraft ?? null);
@@ -586,10 +582,10 @@ function DataShapeDialog({
     };
 
     const derive = async () => {
-        if (!projectUUID || !datasetPid || !key.trim() || !name.trim()) return;
+        if (!projectUUID || !datasetPid || !name.trim()) return;
         setSaving(true);
         try {
-            const saved = await deriveFeaturesFromDataset(projectUUID, { dataset_pid: datasetPid, key: key.trim(), name: name.trim() });
+            const saved = await deriveFeaturesFromDataset(projectUUID, { dataset_pid: datasetPid, name: name.trim() });
             setDocument(saved.json_value as unknown as DataShapeDraft);
             setDatasetPid(String(saved.json_value.source_dataset_pid ?? datasetPid));
             setCreatedSetting(saved);
@@ -634,14 +630,13 @@ function DataShapeDialog({
             <DialogContent>
                 <Stack spacing={2} sx={{ mt: 1 }}>
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                        <TextField fullWidth label="Key" value={key} onChange={e => setKey(e.target.value)} disabled={!!setting} />
-                        <TextField fullWidth label="Name" value={name} onChange={e => setName(e.target.value)} />
+                        <TextField fullWidth label="DataShape name" value={name} onChange={e => setName(e.target.value)} helperText={setting ? `Internal key: ${setting.key}` : `Internal key: ${normalizeSettingKey(name)}`} />
                     </Stack>
                     <TextField select fullWidth label="Training dataset" value={datasetPid} onChange={e => setDatasetPid(e.target.value)}>
                         {datasets.map(dataset => <MenuItem key={dataset.pid} value={dataset.pid}>{dataset.name}</MenuItem>)}
                     </TextField>
                     <Stack direction="row" spacing={1}>
-                        <Button variant="outlined" onClick={derive} disabled={saving || !datasetPid || !key.trim() || !name.trim()}>Derive features</Button>
+                        <Button variant="outlined" onClick={derive} disabled={saving || !datasetPid || !name.trim()}>Derive features</Button>
                         {(setting || createdSetting) && <Button variant="outlined" onClick={validate} disabled={!datasetPid}>Validate dataset</Button>}
                     </Stack>
                     {report && (
@@ -692,7 +687,7 @@ function ProjectSettingsSection({ datasets }: { datasets: FileItem[] }) {
     const { projectUUID } = useProject();
     const [settings, setSettings] = useState<ProjectSetting[]>([]);
     const [loading, setLoading] = useState(true);
-    const [settingDialog, setSettingDialog] = useState<{ open: boolean; setting?: ProjectSetting; initialCategory?: 'api_key' | 'general' }>({ open: false });
+    const [settingDialog, setSettingDialog] = useState<{ open: boolean; setting?: ProjectSetting; initialCategory?: 'secrets' | 'general' }>({ open: false });
     const [shapeDialog, setShapeDialog] = useState<{ open: boolean; setting?: ProjectSetting }>({ open: false });
 
     const refresh = useCallback(async () => {
@@ -719,7 +714,7 @@ function ProjectSettingsSection({ datasets }: { datasets: FileItem[] }) {
                     <Box><Typography fontWeight={700}>{setting.name}</Typography><Typography variant="caption" color="text.secondary">{setting.key}</Typography></Box>
                     <Stack direction="row"><IconButton size="small" onClick={() => setting.category === 'datashape' ? setShapeDialog({ open: true, setting }) : setSettingDialog({ open: true, setting })}><EditIcon fontSize="small" /></IconButton><IconButton size="small" color="error" onClick={() => remove(setting)}><DeleteIcon fontSize="small" /></IconButton></Stack>
                 </Stack>
-                {setting.category === 'api_key' && <Typography sx={{ mt: 1 }} color="text.secondary">{setting.service_type || 'Unspecified service'} · {setting.masked_value || 'No value'}</Typography>}
+                 {setting.category === 'secrets' && <Typography sx={{ mt: 1 }} color="text.secondary">{setting.masked_value || 'No value'}</Typography>}
                 {setting.category === 'general' && <Typography sx={{ mt: 1 }} color="text.secondary">{String(setting.json_value?.type)} · {JSON.stringify(setting.json_value?.value)}</Typography>}
                 {setting.category === 'datashape' && <Typography sx={{ mt: 1 }} color="text.secondary">{Array.isArray(setting.json_value?.features) ? `${setting.json_value.features.length} features` : 'No features'} · {String(setting.json_value?.source_format || 'unknown format')}</Typography>}
             </CardContent>
@@ -731,7 +726,7 @@ function ProjectSettingsSection({ datasets }: { datasets: FileItem[] }) {
     );
 
     const upsert = (saved: ProjectSetting) => setSettings(previous => previous.some(item => item.pid === saved.pid) ? previous.map(item => item.pid === saved.pid ? saved : item) : [...previous, saved]);
-    return <Box sx={{ mt: 6 }}><Typography component="h2" variant="h4" gutterBottom>Project settings</Typography><Typography variant="body1" color="text.secondary">Values declared by plugins are managed here and resolved when evaluations run.</Typography>{section('API keys', 'api_key', <KeyIcon />, () => setSettingDialog({ open: true, initialCategory: 'api_key' }))}{section('General settings', 'general', <TuneIcon />, () => setSettingDialog({ open: true, initialCategory: 'general' }))}{section('DataShapes', 'datashape', <DataObjectIcon />, () => setShapeDialog({ open: true }))}<SettingDialog open={settingDialog.open} setting={settingDialog.setting} initialCategory={settingDialog.setting?.category === 'api_key' ? 'api_key' : settingDialog.initialCategory ?? 'general'} onClose={() => setSettingDialog({ open: false })} onSaved={upsert} /><DataShapeDialog open={shapeDialog.open} setting={shapeDialog.setting} datasets={datasets} onClose={() => setShapeDialog({ open: false })} onSaved={upsert} /></Box>;
+     return <Box sx={{ mt: 6 }}><Typography component="h2" variant="h4" gutterBottom>Project settings</Typography><Typography variant="body1" color="text.secondary">Values declared by plugins are managed here and resolved when evaluations run.</Typography>{section('Secrets', 'secrets', <KeyIcon />, () => setSettingDialog({ open: true, initialCategory: 'secrets' }))}{section('General settings', 'general', <TuneIcon />, () => setSettingDialog({ open: true, initialCategory: 'general' }))}{section('DataShapes', 'datashape', <DataObjectIcon />, () => setShapeDialog({ open: true }))}<SettingDialog open={settingDialog.open} setting={settingDialog.setting} initialCategory={settingDialog.setting?.category === 'secrets' ? 'secrets' : settingDialog.initialCategory ?? 'general'} onClose={() => setSettingDialog({ open: false })} onSaved={upsert} /><DataShapeDialog open={shapeDialog.open} setting={shapeDialog.setting} datasets={datasets} onClose={() => setShapeDialog({ open: false })} onSaved={upsert} /></Box>;
 }
 
 export default function SettingsPage() {

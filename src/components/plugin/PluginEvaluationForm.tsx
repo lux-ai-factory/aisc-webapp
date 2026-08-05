@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { getPluginInputDefinitions, getProject } from "../../api/api.tsx";
-import { Plugin, PluginConfig, PluginInputDefinition, DataObject, PluginInputValue, ProjectSetting, SettingDefinition } from "../../models/models.tsx";
+import { Plugin, PluginConfig, PluginInputDefinition, DataObject, PluginInputValue } from "../../models/models.tsx";
 import { Box, Icon, FormControl, InputLabel, MenuItem, Select, Card, CardContent, Chip, Typography, Tooltip } from "@mui/material";
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
@@ -20,8 +20,6 @@ interface PluginEvaluationFormProps {
     onUnselect?: () => void;
     onSelectionChange: (item: PluginInputValue | null, inputName: string) => void;
     onValidationChange?: (valid: boolean) => void;
-    datashapeSettings?: ProjectSetting[];
-    settingDefinitions?: SettingDefinition[];
 }
 
 export default function PluginEvaluationForm({
@@ -34,8 +32,6 @@ export default function PluginEvaluationForm({
     onUnselect,
     onSelectionChange,
     onValidationChange,
-    datashapeSettings = [],
-    settingDefinitions = []
 }: PluginEvaluationFormProps) {
     const { projectUUID } = useProject();
     const [selectedConfig, setSelectedConfig] = useState<number | null>(null);
@@ -76,9 +72,6 @@ export default function PluginEvaluationForm({
     const allMandatoryFilled = !!inputDefinitions && inputDefinitions.every(
         def => !def.required || selections.some(s => s.name === def.name)
     );
-    const datashapeDefinition = settingDefinitions.find(definition => definition.category === 'datashape');
-    const selectedDatashape = selections.find(selection => selection.name === datashapeDefinition?.name);
-
     const onValidationChangeRef = useRef(onValidationChange);
     onValidationChangeRef.current = onValidationChange;
 
@@ -90,7 +83,7 @@ export default function PluginEvaluationForm({
         def => def.required && selections.some(s => s.name === def.name)
     );
 
-    const isReady = isConfigured && allMandatoryFilled && (!datashapeDefinition?.required || !!selectedDatashape);
+    const isReady = isConfigured && allMandatoryFilled;
     const backendConfigured = plugin.config !== null;
 
     if (isDefinitionsPending || isProjectPending) return <span>Loading...</span>;
@@ -192,6 +185,7 @@ export default function PluginEvaluationForm({
                     <Box sx={{ mt: 1.5, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                         {selections.map(sel => {
                             const def = inputDefinitions?.find(d => d.name === sel.name);
+                            if (!def) return null;
                             const label = findLabel(def!);
                             return (
                                 <Typography key={sel.name} variant="caption" color="text.secondary">
@@ -204,6 +198,7 @@ export default function PluginEvaluationForm({
 
                 {isActive && (
                     <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }} onClick={e => e.stopPropagation()}>
+                        {/* Input definitions: dataset / model selectors — use name + label */}
                         {inputDefinitions?.map((def: PluginInputDefinition) => {
                             const options = def.input_type === 'dataset' ? project?.datasets : project?.models;
                             const currentSelection = selections.find(s => s.name === def.name);
@@ -279,24 +274,6 @@ export default function PluginEvaluationForm({
                                 </Box>
                             );
                         })}
-
-                        {datashapeDefinition && (
-                            <FormControl fullWidth size="small">
-                                <InputLabel>{datashapeDefinition.label}</InputLabel>
-                                <Select label={datashapeDefinition.label} value={selectedDatashape?.pid ?? ''}
-                                    onChange={event => onSelectionChange(
-                                        event.target.value
-                                            ? {pid: event.target.value, name: datashapeDefinition.name, input_type: 'datashape'}
-                                            : null,
-                                        datashapeDefinition.name,
-                                    )}>
-                                    {!datashapeDefinition.required && <MenuItem value="">None</MenuItem>}
-                                    {datashapeSettings.map(setting => (
-                                        <MenuItem key={setting.pid} value={setting.pid}>{setting.name}</MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        )}
 
                         {configs && configs.length > 0 && (
                             <FormControl

@@ -53,16 +53,17 @@ export interface ProjectPluginConfigState {
     formSchema: object;
     uiSchema: object
     setting_definitions?: SettingDefinition[];
+    project_setting_selections?: ProjectSettingSelection[];
+    project_settings?: ProjectSetting[];
 }
 
-export type SettingCategory = 'api_key' | 'datashape' | 'general';
+export type SettingCategory = 'secrets' | 'datashape' | 'general';
 export type SettingValueType = 'string' | 'number' | 'boolean' | 'json';
 
 export interface SettingDefinition {
+    key: string;
     name: string;
-    label: string;
     category: SettingCategory;
-    service_type: string;
     value_type?: SettingValueType | null;
     required: boolean;
 }
@@ -72,11 +73,15 @@ export interface ProjectSetting {
     category: SettingCategory;
     key: string;
     name: string;
-    service_type: string;
     masked_value: string;
     json_value: Record<string, unknown>;
     created_at: string;
     updated_at: string;
+}
+
+export interface ProjectSettingSelection {
+    plugin_setting_key: string;
+    project_setting_pid: string;
 }
 
 export interface ValidationReport {

@@ -1,16 +1,14 @@
 import { useMutation } from '@tanstack/react-query';
 import validator from '@rjsf/validator-ajv8';
-import React, {useCallback, useImperativeHandle, useRef} from 'react';
+import React, {useCallback, useEffect, useImperativeHandle, useRef, useState} from 'react';
 import { debounce } from 'lodash';
 import { API_VERSION_PREFIX } from "../../config.tsx";
 import toast from "react-hot-toast";
 import { useQueryClient } from '@tanstack/react-query';
-import { useProject } from '../../context/ProjectContext';
 import Form from './CustomFormTemplates.tsx';
+import { FormControl, InputLabel, MenuItem, Select, Typography, Box } from '@mui/material';
+import { ProjectSetting, ProjectSettingSelection, SettingDefinition } from '../../models/models';
 import './PluginConfigForm.css';
-import { MenuItem, TextField } from '@mui/material';
-import { getProjectSettings } from '../../api/api';
-import { ProjectSetting, SettingDefinition } from '../../models/models';
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -21,12 +19,14 @@ interface PluginConfigFormProps {
     uiSchema: any;
     config?: object | null;
     onFormUpdate: (updatedState: { config: object; formSchema: object; uiSchema: object }) => void;
-    onSubmit: (config: object) => void;
+    onSubmit: (config: object, projectSettingSelections: ProjectSettingSelection[]) => void;
     settingDefinitions?: SettingDefinition[];
+    projectSettings?: ProjectSetting[];
+    projectSettingSelections?: ProjectSettingSelection[];
 }
 
-const updateConfigDynamics = async ({ pluginPID, config }: { pluginPID: string; config: object }) => {
-    const data = { config: config }
+const updateConfigDynamics = async ({ pluginPID, config, projectSettingSelections }: { pluginPID: string; config: object; projectSettingSelections: ProjectSettingSelection[] }) => {
+    const data = { config, project_setting_selections: projectSettingSelections };
 
     const response = await fetch(`${API_URL}/plugins/${pluginPID}/config/state`, {
         method: 'POST',
@@ -46,36 +46,48 @@ const PluginConfigForm = React.forwardRef<any, PluginConfigFormProps>(function P
     onFormUpdate,
     onSubmit,
     settingDefinitions = [],
+    projectSettings = [],
+    projectSettingSelections = [],
 }: PluginConfigFormProps, ref) {
+    const [settingSelections, setSettingSelections] = useState<Record<string, string>>({});
+
+    const settingSelectionsToPayload = (selections: Record<string, string>): ProjectSettingSelection[] =>
+        Object.entries(selections).map(([plugin_setting_key, project_setting_pid]) => ({ plugin_setting_key, project_setting_pid }));
+
+    useEffect(() => {
+        const selections: Record<string, string> = {};
+        for (const definition of settingDefinitions) {
+            const compatible = projectSettings.find(setting =>
+                projectSettingSelections.some(selection => selection.project_setting_pid === setting.pid) &&
+                setting.category === definition.category &&
+                (definition.category !== 'general' || !definition.value_type || setting.json_value?.type === definition.value_type)
+            );
+            const selected = compatible ?? projectSettings.find(setting =>
+                setting.category === definition.category && setting.key === definition.key &&
+                (definition.category !== 'general' || !definition.value_type || setting.json_value?.type === definition.value_type)
+            );
+            if (selected) selections[definition.key] = selected.pid;
+        }
+        setSettingSelections(selections);
+    }, [projectSettingSelections, projectSettings, settingDefinitions]);
 
     const queryClient = useQueryClient();
-    const { projectUUID } = useProject();
-    const [settings, setSettings] = React.useState<ProjectSetting[]>([]);
-
-    React.useEffect(() => {
-        if (projectUUID) getProjectSettings(projectUUID).then(setSettings).catch(() => undefined);
-    }, [projectUUID]);
-
-    const declaredSettings = settingDefinitions.filter(definition => definition.category !== 'datashape');
-
     // Mutation to handle background schema/data synchronization
     const mutation = useMutation({
         mutationFn: updateConfigDynamics,
         onSuccess: (data) => {
             onFormUpdate(data);
             // I added this to remove the warning icon on the plugin on the left bar, but it takes like 10s
-            queryClient.invalidateQueries({
-                queryKey: ['project', projectUUID, 'withIcons']
-            });
+            queryClient.invalidateQueries({ queryKey: ['project'] });
         },
     });
 
     // Debounced function to avoid hammering the server on every keystroke
     const debouncedUpdate = useCallback(
         debounce((data: any) => {
-            mutation.mutate({ pluginPID, config: data });
+            mutation.mutate({ pluginPID, config: data, projectSettingSelections: settingSelectionsToPayload(settingSelections) });
         }, 500),
-        [pluginPID, mutation.mutate]
+        [pluginPID, mutation.mutate, settingSelections]
     );
 
     const handleChange = (e: any) => {
@@ -182,22 +194,54 @@ const PluginConfigForm = React.forwardRef<any, PluginConfigFormProps>(function P
 
     return (
         <>
-        {declaredSettings.map(definition => {
-            const candidates = settings.filter(setting => setting.category === definition.category &&
-                (definition.category !== 'api_key' || setting.service_type === definition.service_type) &&
-                (definition.category !== 'general' || setting.json_value.type === definition.value_type));
-            return <TextField key={definition.name} select fullWidth size="small" label={definition.label}
-                value={typeof (config as Record<string, unknown> | undefined)?.[definition.name] === 'string'
-                    ? (config as Record<string, string>)[definition.name] : ''}
-                onChange={event => {
-                    const next = {...(config ?? {}), [definition.name]: event.target.value};
-                    onFormUpdate({config: next, formSchema, uiSchema});
-                    debouncedUpdate(next);
-                }} sx={{mb: 2}}>
-                {!definition.required && <MenuItem value="">None</MenuItem>}
-                {candidates.map(setting => <MenuItem key={setting.pid} value={`{{ project_settings.${setting.key} }}`}>{setting.name}</MenuItem>)}
-            </TextField>;
-        })}
+        <>
+        <Typography variant="h6" sx={{ mb: 2 }}>Project Settings</Typography>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 3 }}>
+            {settingDefinitions.map(definition => {
+                const candidates = projectSettings.filter(setting =>
+                    setting.category === definition.category &&
+                    (definition.category !== 'general' || !definition.value_type || setting.json_value?.type === definition.value_type)
+                );
+                const selected = settingSelections[definition.key] ?? '';
+                return (
+                    <FormControl key={definition.key} fullWidth size="small">
+                        <InputLabel>{definition.name} ({definition.key})</InputLabel>
+                        <Select
+                            label={`${definition.name} (${definition.key})`}
+                            value={selected}
+                            required={definition.required}
+                            onChange={event => {
+                                const pid = event.target.value;
+                                const next = {
+                                    ...settingSelections,
+                                    ...(pid ? { [definition.key]: pid } : {}),
+                                };
+                                if (!pid) delete next[definition.key];
+                                setSettingSelections(next);
+                                mutation.mutate({
+                                    pluginPID,
+                                    config: config ?? {},
+                                    projectSettingSelections: settingSelectionsToPayload(next),
+                                });
+                            }}
+                        >
+                            {!definition.required && <MenuItem value="">None</MenuItem>}
+                            {candidates.map(setting => {
+                                const preview = setting.category === 'secrets'
+                                    ? (setting.masked_value || 'Secret')
+                                    : setting.category === 'datashape'
+                                        ? `${Array.isArray(setting.json_value?.features) ? setting.json_value.features.length : 0} features`
+                                        : JSON.stringify(setting.json_value?.value);
+                                return <MenuItem key={setting.pid} value={setting.pid}>
+                                    <Box><Typography variant="body2">{setting.name} <Typography component="span" variant="caption" color="text.secondary">(project key: {setting.key})</Typography></Typography><Typography variant="caption" color="text.secondary">{preview}</Typography></Box>
+                                </MenuItem>;
+                            })}
+                        </Select>
+                    </FormControl>
+                );
+            })}
+        </Box>
+        <Typography variant="h6" sx={{ mb: 2 }}>Plugin Configuration</Typography>
         <Form
             ref={formRefInternal}
             key={pluginPID}
@@ -206,7 +250,7 @@ const PluginConfigForm = React.forwardRef<any, PluginConfigFormProps>(function P
             validator={validator}
             formData={config}
             onChange={handleChange}
-            onSubmit={({ formData }) => onSubmit(formData)}
+            onSubmit={({ formData }) => onSubmit(formData, settingSelectionsToPayload(settingSelections))}
         >
             <input
                 ref={fileInputRef}
@@ -217,6 +261,7 @@ const PluginConfigForm = React.forwardRef<any, PluginConfigFormProps>(function P
             />
             <button type="submit" style={{ display: 'none' }}>Save</button>
         </Form>
+        </>
         </>
     );
 });
