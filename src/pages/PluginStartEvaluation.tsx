@@ -1,13 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { API_VERSION_PREFIX } from "../config.tsx";
 import { useProject } from "../context/ProjectContext.tsx";
-import {Button, Typography, Box, Tooltip} from "@mui/material";
+import {Button, Typography, Box, Tooltip, Alert, Stack} from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import { useEffect, useState } from "react";
 import { Plugin, PluginInputValue } from "../models/models.tsx";
 import toast from "react-hot-toast";
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
 import { getProject } from "../api/api.tsx";
+import { useNavigate } from "react-router-dom";
 import PluginEvaluationForm from "../components/plugin/PluginEvaluationForm.tsx";
 import './PluginStartEvaluation.css';
 import '../styles/common.css';
@@ -15,14 +16,19 @@ import '../styles/common.css';
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
+type PluginSelection = PluginInputValue;
+
 type SelectedPluginsState = {
-    [pluginName: string]: PluginInputValue[];
+    [pluginName: string]: PluginSelection[];
 }
 
 const createEvaluation = async (project_uuid: string, selectedPlugins: SelectedPluginsState) => {
     if (!project_uuid) throw new Error('Invalid uuid');
 
-    const plugins_to_run = Object.entries(selectedPlugins).map(([name, inputs]) => ({name, inputs}));
+    const plugins_to_run = Object.entries(selectedPlugins).map(([name, inputs]) => ({
+        name,
+        inputs: inputs.filter(input => input.input_type !== 'datashape'),
+    }));
 
     const data = {
         project_pid: project_uuid,
@@ -38,9 +44,7 @@ const createEvaluation = async (project_uuid: string, selectedPlugins: SelectedP
     if (!response.ok) {
         if (response.status === 400) {
             const errorData = await response.json();
-            const errorMessage = errorData.detail;
-            toast.error('Failed to create evaluation\n' + errorMessage, { position: "bottom-right" });
-            return;
+            throw new Error(JSON.stringify(errorData.detail));
         }
         toast.error('Failed to create evaluation', { position: "bottom-right" });
         throw new Error('Failed to create evaluation');
@@ -72,6 +76,8 @@ export default function PluginStartEvaluation() {
     const [selectionCache, setSelectionCache] = useState<SelectedPluginsState>(loadState().selectionCache);
     const [activePlugin, setActivePlugin] = useState<string | null>(null);
     const [validPlugins, setValidPlugins] = useState<Record<string, boolean>>({});
+    const [dispatchError, setDispatchError] = useState<{ message: string; missing: Array<Record<string, string>>; invalid: Array<Record<string, string>>; ambiguous: Array<Record<string, string>> } | null>(null);
+    const navigate = useNavigate();
 
     const { data: project, isPending, error } = useQuery({
         queryKey: ['project', projectUUID],
@@ -128,7 +134,19 @@ export default function PluginStartEvaluation() {
         if (!projectUUID) return;
         const validEntries = Object.entries(selectedPlugins).filter(([name]) => validPlugins[name]);
         if (validEntries.length === 0) return;
-        await createEvaluation(projectUUID, Object.fromEntries(validEntries));
+        setDispatchError(null);
+        try {
+            await createEvaluation(projectUUID, Object.fromEntries(validEntries));
+        } catch (error) {
+            try {
+                const detail = JSON.parse(error instanceof Error ? error.message : '');
+                if (detail && typeof detail === 'object') {
+                    setDispatchError({ message: detail.message ?? 'Required project settings are missing or invalid', missing: detail.missing ?? [], invalid: detail.invalid ?? [], ambiguous: detail.ambiguous ?? [] });
+                    return;
+                }
+            } catch { /* display the generic error below */ }
+            toast.error(error instanceof Error ? error.message : 'Failed to create evaluation', { position: 'bottom-right' });
+        }
     };
 
     useEffect(() => {
@@ -184,6 +202,22 @@ export default function PluginStartEvaluation() {
                     </Button>
                 </Tooltip>
             </Box>
+
+            {dispatchError && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                    <Typography fontWeight={700}>{dispatchError.message}</Typography>
+                    <Stack spacing={0.25} sx={{ mt: 1 }}>
+                        {[...dispatchError.missing, ...dispatchError.invalid, ...dispatchError.ambiguous].map((item, index) => (
+                            <Typography key={`${item.plugin}-${item.setting}-${index}`} variant="body2">
+                                {item.plugin}: {item.setting}{item.reason ? ` - ${item.reason}` : ''}
+                            </Typography>
+                        ))}
+                    </Stack>
+                    <Button size="small" sx={{ mt: 1 }} onClick={() => navigate(`/projects/${project?.name}/settings`)}>
+                        Go to Project Settings
+                    </Button>
+                </Alert>
+            )}
 
             <Grid
                 container

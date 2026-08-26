@@ -32,7 +32,7 @@ const SHOW_PLUGIN_VISUALIZATION =
 
 const SENSITIVE_KEYS = new Set([
     'model_credential',
-    'api_key',
+    'secrets',
     'apiKey',
     'password',
     'secret',

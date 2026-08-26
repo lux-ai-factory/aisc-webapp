@@ -4,6 +4,7 @@ ProjectStatsOverview,
     MetricScoreSummary,
     PluginUsageSummary,
     PluginRunDuration,} from "../models/models.tsx";
+import { ProjectSetting, ValidationReport } from "../models/models.tsx";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -35,6 +36,47 @@ export const getPluginInputDefinitions = async (plugin_pid: string) => {
     if (!res.ok) throw new Error('Network response was not ok');
 
     return await res.json() as PluginInputDefinition[];
+};
+
+export const getPluginSettingDefinitions = async (plugin_pid: string) => {
+    const res = await fetch(`${API_URL}/plugins/${plugin_pid}/setting_definitions`);
+    if (!res.ok) throw new Error('Failed to fetch plugin setting definitions');
+    return await res.json();
+};
+
+export const getProjectSettings = async (projectPid: string): Promise<ProjectSetting[]> => {
+    const res = await fetch(`${API_URL}/project/settings/${projectPid}`);
+    if (!res.ok) throw new Error('Failed to fetch project settings');
+    return await res.json();
+};
+
+export const createProjectSetting = async (projectPid: string, data: object): Promise<ProjectSetting> => {
+    const res = await fetch(`${API_URL}/project/settings/${projectPid}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+    if (!res.ok) throw new Error('Failed to create project setting');
+    return await res.json();
+};
+
+export const updateProjectSetting = async (projectPid: string, settingPid: string, data: object): Promise<ProjectSetting> => {
+    const res = await fetch(`${API_URL}/project/settings/${projectPid}/${settingPid}`, { method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+    if (!res.ok) throw new Error('Failed to update project setting');
+    return await res.json();
+};
+
+export const deleteProjectSetting = async (projectPid: string, settingPid: string) => {
+    const res = await fetch(`${API_URL}/project/settings/${projectPid}/${settingPid}`, {method: 'DELETE'});
+    if (!res.ok) throw new Error('Failed to delete project setting');
+};
+
+export const deriveFeaturesFromDataset = async (projectPid: string, data: object): Promise<ProjectSetting> => {
+    const res = await fetch(`${API_URL}/project/settings/${projectPid}/derive-features`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)});
+    if (!res.ok) throw new Error('Failed to derive datashape');
+    return await res.json();
+};
+
+export const validateDatasetAgainstDatashape = async (projectPid: string, settingPid: string, datasetPid: string): Promise<ValidationReport> => {
+    const res = await fetch(`${API_URL}/project/settings/${projectPid}/${settingPid}/validate`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({dataset_pid: datasetPid})});
+    if (!res.ok) throw new Error('Failed to validate dataset');
+    return await res.json();
 };
 
 // Stats API
@@ -133,4 +175,3 @@ export const aggregateEvaluationMeasurements = async (evaluationPid: string, agg
     if (!res.ok) throw new Error('Failed to aggregate measurements');
     return await res.json();
 };
-
