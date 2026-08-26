@@ -94,6 +94,11 @@ export interface Measurement {
 export interface MetricVisualization {
     chart_type: string;
     metrics: string[];
+    title?: string | null;
+    description?: string | null;
+    filter_dimensions?: Record<string, (string | number | boolean)[]> | null;
+    metric_label_dimension?: string | null;
+    group_by_dimensions?: string[] | null;
 }
 
 export interface ZippedFile {

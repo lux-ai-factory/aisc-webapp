@@ -2,7 +2,7 @@ import Box from '@mui/material/Box';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import {Measurement} from "../../models/models.tsx";
 import {formatDate, formatFloatTo3Decimals, getColorFromString} from "../../util/util.ts";
-import {Chip, Stack, Tooltip} from "@mui/material";
+import { Chip, Stack, Tooltip, Typography } from "@mui/material";
 
 const columns: GridColDef[] = [
     {
@@ -75,19 +75,32 @@ const columns: GridColDef[] = [
 
 interface MeasurementsDataGridProps {
     title?: string;
+    description?: string;
     data: Measurement[];
 }
 
-export const MeasurementsDataGrid = ({ title: _title, data }: MeasurementsDataGridProps) => {
+export const MeasurementsDataGrid = ({ title, description, data }: MeasurementsDataGridProps) => {
     const rows = data.map((row, index) => ({ ...row, id: index }));
 
     return (
-        <Box sx={{ height: 500, width: '100%' }}>
-            <DataGrid
-                rows={rows}
-                columns={columns}
-                showToolbar={true}
-            />
+        <Box>
+            {title && (
+                <Typography variant="h6" gutterBottom>
+                    {title}
+                </Typography>
+            )}
+            {description && (
+                <Typography variant="body2" color="text.secondary" sx={{mb: 1}}>
+                    {description}
+                </Typography>
+            )}
+            <Box sx={{ height: 500, width: '100%' }}>
+                <DataGrid
+                    rows={rows}
+                    columns={columns}
+                    showToolbar={true}
+                />
+            </Box>
         </Box>
     );
 }
