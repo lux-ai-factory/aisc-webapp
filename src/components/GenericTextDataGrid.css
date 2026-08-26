@@ -1,0 +1,11 @@
+.markdown-preview-box {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    border: 1px solid;
+    border-radius: 8px;
+    padding: 16px;
+    max-height: 400px;
+    overflow-y: auto;
+    width: 100%;
+}

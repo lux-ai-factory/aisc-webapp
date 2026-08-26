@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
     Box, Typography, Card, CardContent, Stack, Skeleton, Chip,
-    alpha, useTheme, Divider, Tooltip, Paper, Icon, LinearProgress, CircularProgress,
+    alpha, useTheme, Divider, Tooltip, Paper, Icon,
 } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import AssessmentIcon from "@mui/icons-material/Assessment";
@@ -26,11 +26,9 @@ import { API_VERSION_PREFIX } from "../config";
 import {
     ProjectStatsOverview,
     MetricScoreSummary,
-    PluginUsageSummary,
-    Evaluation,
-    TaskProgress,
-    Plugin
+    PluginUsageSummary
 } from "../models/models";
+import "./SummaryTable.css";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -60,18 +58,15 @@ const StatCard: React.FC<StatCardProps> = ({ icon, label, value, subtitle, color
     return (
         <Card
             variant="outlined"
+            className="stat-card-paper"
             sx={{
-                height: "100%",
                 borderLeft: `4px solid ${c}`,
-                transition: "box-shadow 0.2s",
                 "&:hover": { boxShadow: theme.shadows[4] },
             }}
         >
             <CardContent sx={{ py: 2, "&:last-child": { pb: 2 } }}>
                 <Stack direction="row" spacing={1.5} alignItems="center">
-                    <Box sx={{
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        width: 44, height: 44, borderRadius: 2,
+                    <Box className="stat-card-icon-box" sx={{
                         bgcolor: alpha(c, 0.1), color: c,
                     }}>
                         {icon}
@@ -115,11 +110,6 @@ interface SummaryTableProps {
     projectPid: string | null;
 }
 
-interface EvaluationPluginStatus {
-    pid: string;
-    status: string;
-}
-
 const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
     const theme = useTheme();
     const [overview, setOverview] = useState<ProjectStatsOverview | null>(null);
@@ -133,10 +123,6 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
     useEffect(() => {
         document.fonts.ready.then(() => setFontLoaded(true));
     }, []);
-
-    const [runningEvaluations, setRunningEvaluations] = useState<Evaluation[]>([]);
-    const [taskProgress, setTaskProgress] = useState<Record<string, Record<string, TaskProgress>>>({});
-    const [evaluationPluginStatuses, setEvaluationPluginStatuses] = useState<Record<string, EvaluationPluginStatus[]>>({});
 
     useEffect(() => {
         if (!projectPid) return;
@@ -223,65 +209,6 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
             .catch(() => setLoading(false));
     }, [projectPid]);
 
-    // Fetch running evaluations and poll for task progress
-    useEffect(() => {
-        if (!projectPid || loading) return;
-
-        const fetchRunningEvaluations = async () => {
-            try {
-                const res = await fetch(`${API_URL}/projects/${projectPid}/evaluations?exclude_status=Done&exclude_status=Failed&exclude_status=Archived`);
-                if (res.ok) {
-                    const evaluations = await res.json() as Evaluation[];
-                    setRunningEvaluations(evaluations);
-
-                    // Fetch task progress and plugin statuses for each evaluation
-                    for (const evaluation of evaluations) {
-                        // Fetch detailed evaluation with plugin statuses
-                        try {
-                            const evalRes = await fetch(`${API_URL}/evaluations/${evaluation.pid}?include=plugin`);
-                            if (evalRes.ok) {
-                                const detailedEval = await evalRes.json();
-                                const pluginStatuses: EvaluationPluginStatus[] = (detailedEval.evaluation_plugins || []).map((ep: Plugin) => ({
-                                    pid: ep.pid,
-                                    status: ep.status || 'Pending'
-                                }));
-                                setEvaluationPluginStatuses(prev => ({
-                                    ...prev,
-                                    [evaluation.pid]: pluginStatuses
-                                }));
-                            }
-                        } catch {
-                            // ignore
-                        }
-
-                        // Fetch task progress
-                        if (evaluation.task) {
-                            try {
-                                const taskRes = await fetch(`${API_URL}/tasks/${evaluation.task}/status`);
-                                if (taskRes.ok) {
-                                    const progress = await taskRes.json() as Record<string, TaskProgress>;
-                                    setTaskProgress(prev => ({
-                                        ...prev,
-                                        [evaluation.pid]: progress
-                                    }));
-                                }
-                            } catch {
-                                // ignore
-                            }
-                        }
-                    }
-                }
-            } catch {
-                // ignore
-            }
-        };
-
-        fetchRunningEvaluations();
-        const interval = setInterval(fetchRunningEvaluations, 2000); // Poll every 2 seconds
-
-        return () => clearInterval(interval);
-    }, [projectPid, loading]);
-
     if (!projectPid) {
         return (
             <Box sx={{ p: 4, textAlign: "center" }}>
@@ -312,7 +239,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
     return (
         <Box sx={{ width: "100%", display: "flex", flexDirection: "column", gap: 4 }}>
             {/* ── Overview boxes (KPI Cards) ── */}
-            <Grid container spacing={2} sx={{ order: 3 }}>
+            <Grid container spacing={2} sx={{ order: 1 }}>
                 <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
                     <StatCard icon={<DatasetIcon />} label="Total Datasets" value={overview.total_datasets} color="#5c6bc0" />
                 </Grid>
@@ -367,7 +294,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
 
             {/* ── All runs (plugin usage) ── */}
             {plugins.length > 0 && (
-                <Box sx={{ order: 1 }}>
+                <Box sx={{ order: 2 }}>
                     <SectionCard title="All runs">
                         <Box sx={{ maxHeight: 280, overflowY: "auto" }}>
                         <Stack spacing={1.5}>
@@ -409,124 +336,9 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                 </Box>
             )}
 
-            {/* ── Progress Report ── */}
-            {runningEvaluations.length > 0 && (
-                <Box sx={{ order: 5 }}>
-                    <SectionCard title="Progress Report">
-                        <Stack spacing={3}>
-                            {runningEvaluations.map((evaluation) => {
-                                const progress = taskProgress[evaluation.pid] || {};
-                                const pluginStatuses = evaluationPluginStatuses[evaluation.pid];
-
-                                // Ignore evaluations with no plugins (e.g. stuck from a failed create)
-                                if (pluginStatuses !== undefined && pluginStatuses.length === 0) return null;
-
-                                // Calculate main progress based on actual plugin statuses
-                                const statuses = pluginStatuses || [];
-                                const totalPlugins = statuses.length;
-                                const completedPlugins = statuses.filter(ps => ps.status === "Done").length;
-                                const failedPlugins = statuses.filter(ps => ps.status === "Failed").length;
-                                const mainProgressValue = totalPlugins > 0 ? (completedPlugins / totalPlugins) * 100 : 0;
-
-                                return (
-                                    <Box key={evaluation.pid}>
-                                        {/* Evaluation Progress Bar */}
-                                        <Paper variant="outlined" sx={{ p: 2 }}>
-                                            <Stack spacing={1}>
-                                                <Stack direction="row" alignItems="center" justifyContent="space-between">
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                        <Typography variant="body2" fontWeight={600}>
-                                                            Evaluation Progress
-                                                        </Typography>
-                                                        <Typography variant="caption" color="text.secondary">
-                                                            {evaluation.pid}
-                                                        </Typography>
-                                                    </Box>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        {completedPlugins} / {totalPlugins} plugins complete
-                                                        {failedPlugins > 0 && <> • {failedPlugins} failed</>}
-                                                    </Typography>
-                                                </Stack>
-                                                {Object.keys(progress).length === 0 && completedPlugins === 0 ? (
-                                                    <Stack direction="row" alignItems="center" spacing={1}>
-                                                        <CircularProgress size={16} thickness={5} />
-                                                        <Typography variant="caption" color="text.secondary">
-                                                            Installing dependencies...
-                                                        </Typography>
-                                                    </Stack>
-                                                ) : (
-                                                    <LinearProgress
-                                                        variant="determinate"
-                                                        value={mainProgressValue}
-                                                        sx={{
-                                                            height: 8,
-                                                            borderRadius: 1,
-                                                            bgcolor: alpha(theme.palette.primary.main, 0.1),
-                                                            '& .MuiLinearProgress-bar': {
-                                                                bgcolor: failedPlugins > 0 ? theme.palette.error.main : theme.palette.primary.main,
-                                                            }
-                                                        }}
-                                                    />
-                                                )}
-                                            </Stack>
-                                        </Paper>
-
-                                        {/* Individual Plugin Progress Bars — nested under evaluation */}
-                                        {Object.keys(progress).length > 0 && (
-                                            <Box sx={{ display: 'flex', mt: 0.5 }}>
-                                                {/* Tree connector line */}
-                                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 24, flexShrink: 0, pt: 1, pb: 1 }}>
-                                                    <Box sx={{ width: 2, flex: 1, bgcolor: theme.palette.divider, borderRadius: 1 }} />
-                                                </Box>
-                                                <Stack spacing={1} sx={{ flex: 1 }}>
-                                                    {Object.entries(progress).map(([pluginName, taskProgress]) => {
-                                                        const progressValue = (taskProgress.progress || 0) * 100;
-
-                                                        return (
-                                                            <Paper
-                                                                key={pluginName}
-                                                                variant="outlined"
-                                                                sx={{ p: 2 }}
-                                                            >
-                                                                <Stack spacing={1}>
-                                                                    <Stack direction="row" alignItems="center" justifyContent="space-between">
-                                                                        <Stack direction="row" alignItems="center" spacing={1}>
-                                                                             {pluginIcons[pluginName] && fontLoaded
-                                                                                 ? <Icon sx={{ color: theme.palette.primary.main, fontSize: 18 }}>{pluginIcons[pluginName]}</Icon>
-                                                                                 : <ExtensionIcon sx={{ color: theme.palette.primary.main, fontSize: 18 }} />
-                                                                             }
-                                                                            <Typography variant="body2" fontWeight={600}>
-                                                                                {pluginDisplayNames[pluginName] || pluginName}
-                                                                            </Typography>
-                                                                        </Stack>
-                                                                        <Typography variant="caption" color="text.secondary">
-                                                                            {`${Math.round(progressValue)}%`}
-                                                                        </Typography>
-                                                                    </Stack>
-                                                                    <LinearProgress
-                                                                        variant="determinate"
-                                                                        value={progressValue}
-                                                                        sx={{ height: 8, borderRadius: 1 }}
-                                                                    />
-                                                                </Stack>
-                                                            </Paper>
-                                                        );
-                                                     })}
-                                                </Stack>
-                                            </Box>
-                                        )}
-                                    </Box>
-                                );
-
-                            })}
-                        </Stack>
-                    </SectionCard>
-                </Box>
-            )}
-
             {/* ── Metric Details ── */}
             {metrics.length > 0 && (
-                <Box sx={{ order: 2 }}>
+                <Box sx={{ order: 3 }}>
                     <SectionCard title="Metric Details">
                         <Box sx={{ maxHeight: 280, overflowY: "auto", overflowX: "auto" }}>
                             <table style={{ width: "100%", borderCollapse: "collapse" }}>

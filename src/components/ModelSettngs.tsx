@@ -1,6 +1,7 @@
 import React, { ChangeEvent, useEffect, useState } from 'react';
 import { API_VERSION_PREFIX } from '../config';
 import { useProject } from '../context/ProjectContext';
+import keycloak from '../auth/keycloak';
 import {
     Box,
     Button,
@@ -17,6 +18,7 @@ import CloudDoneIcon from '@mui/icons-material/CloudDone';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import CloudUpload from '@mui/icons-material/CloudUpload';
+import './ModelSettngs.css';
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -75,8 +77,11 @@ const UploadModel = ({ model, onUploadSuccess }: UploadModelProps) => {
         const formData = new FormData();
         formData.append('file', file);
 
+        await keycloak.updateToken(30);
+
         const xhr = new XMLHttpRequest();
         xhr.open("PUT", `${API_URL}/models/${model.pid}/data`, true);
+        xhr.setRequestHeader('Authorization', `Bearer ${keycloak.token}`);
 
         xhr.upload.onprogress = (e) => {
             if (e.lengthComputable) {
@@ -139,14 +144,7 @@ const UploadModel = ({ model, onUploadSuccess }: UploadModelProps) => {
                     variant="determinate"
                     value={progress}
                     size={36}
-                    sx={{
-                        color: "primary.main",
-                        position: "absolute",
-                        top: "50%",
-                        left: "50%",
-                        marginTop: "-18px",
-                        marginLeft: "-18px",
-                    }}
+                    className="circular-progress-overlay"
                 />
             )}
         </Box>

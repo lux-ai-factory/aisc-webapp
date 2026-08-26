@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSanitize from 'rehype-sanitize';
 import { Box, CircularProgress } from '@mui/material';
+import './GenericTextDataGrid.css';
 
 interface GenericMarkdownPreviewProps {
     title?: string;
@@ -53,18 +54,10 @@ export const GenericTextDataGrid: React.FC<GenericMarkdownPreviewProps> = ({ tit
 
     return (
         <Box
+            className="markdown-preview-box"
             sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 2,
-                border: 1,
                 borderColor: 'grey.300',
-                borderRadius: 2,
-                p: 2,
                 bgcolor: 'background.paper',
-                maxHeight: 400,
-                overflowY: 'auto',
-                width: '100%',
             }}
         >
             {title && <h3>{title}</h3>}
