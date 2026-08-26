@@ -3,7 +3,7 @@ import {API_VERSION_PREFIX} from "../config.tsx";
 import {useProject} from '../context/ProjectContext';
 import {useParams} from "react-router-dom";
 import PluginConfigForm from "../components/plugin/PluginConfigForm.tsx";
-import {useLayoutEffect, useRef, useState} from "react";
+import {useEffect, useLayoutEffect, useRef, useState} from "react";
 import {DataObject, ProjectPluginConfigState} from "../models/models.tsx";
 import toast from 'react-hot-toast';
 import {getPluginFeatureFlags, getProject} from "../api/api.tsx";
@@ -80,6 +80,14 @@ function PluginConfig() {
     // Find plugin PID from name
     const plugin = project?.plugins.find(p => p.name === plugin_name);
     const plugin_pid = plugin?.pid;
+    const [headerScrolled, setHeaderScrolled] = useState(false);
+
+    useEffect(() => {
+        const onScroll = () => setHeaderScrolled(window.scrollY > 12);
+        window.addEventListener('scroll', onScroll, {passive: true});
+        onScroll();
+        return () => window.removeEventListener('scroll', onScroll);
+    }, []);
 
     const {data: projectPluginConfigState, isPending: isProjectPluginConfigStatePending, error} = useQuery({
         queryKey: ['projectPluginConfig', projectUUID, plugin_pid],
@@ -141,7 +149,7 @@ function PluginConfig() {
     return (
 
         <Box>
-            <Box sx={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3}}>
+            <Box className={`plugin-config-header${headerScrolled ? ' scrolled' : ''}`}>
                 <Box>
                     <Typography component="h2" variant="h4" sx={{lineHeight: 1.2}}>
                         {plugin?.display_name || plugin_name}

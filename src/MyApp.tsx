@@ -169,7 +169,7 @@ export default function PermanentDrawerLeft() {
                         margin: '0 auto',
                         width: '100%',
                         minWidth: 0,
-                        overflow: 'hidden',
+                        overflow: 'clip',
                     }}
                 >
                     <Toolbar />
