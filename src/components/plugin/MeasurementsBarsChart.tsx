@@ -1,13 +1,11 @@
 import { useMemo, useState } from "react";
 import { BarChart } from "@mui/x-charts/BarChart";
 import { Measurement } from "../../models/models.tsx";
-import { formatDate, getColorFromIndex } from "../../util/util.ts";
+import { getColorFromIndex } from "../../util/util.ts";
+import { Box, Typography } from "@mui/material";
 import {
-    AlignedLineSeries,
-    buildDistinctTimes,
-    buildDistinctCompositeKeys,
-    buildLookupByKeyAndTime,
-    buildAlignedSeries,
+    getMetricLabel,
+    getGroupLabel,
     applyHiddenToSeries,
     computeYDomainFromVisible,
     toggleHidden,
@@ -15,141 +13,92 @@ import {
 
 interface MeasurementsBarChartProps {
     title?: string;
+    description?: string;
     data: Measurement[];
+    metricLabelDimension?: string;
+    groupByDimensions?: string[];
     /** If true, stack the series instead of grouping them side-by-side */
     stacked?: boolean;
 }
 
-export const MeasurementsBarChart = ({title: _title, data, stacked = false}: MeasurementsBarChartProps) => {
-    // Distinct times and keys (keys are measure names)
-    const times = useMemo(() => buildDistinctTimes(data), [data]);
-    const keys = useMemo(() => buildDistinctCompositeKeys(data), [data]);
-    const byKeyAndTime = useMemo(() => buildLookupByKeyAndTime(data), [data]);
+export const MeasurementsBarChart = ({title: title, description: description, data, metricLabelDimension, groupByDimensions, stacked = false}: MeasurementsBarChartProps) => {
+    const [hidden, setHidden] = useState<string[]>([]);
 
-    // Find all descriptions for the (possibly single) measure
-    const descriptions = Array.from(new Set(data.map(m => m.description ?? '')));
+    const metricLabels: string[] = Array.from(new Set(data.map(m => getMetricLabel(m, metricLabelDimension))));
+    const groupLabels: string[] = Array.from(new Set(data.map(m => getGroupLabel(m, groupByDimensions))));
 
-    // Determine cardinality
-    const singleTime = times.length === 1;
-    const singleMeasure = new Set(data.map(m => m.name)).size === 1;
-    const singleTimeAndSingleMeasure = singleTime && singleMeasure;
-
-    // Base: group by (key = measure name), each series is a measure
     const baseSeries = useMemo(
         () =>
-            buildAlignedSeries(keys, times, byKeyAndTime, getColorFromIndex, {
-                showMark: false,
-                curve: "linear",
-            }),
-        [keys, times, byKeyAndTime],
-    );
-    const [hidden, setHidden] = useState<string[]>([]);
-    const series = useMemo(
-        () =>
-            baseSeries.map((s: AlignedLineSeries) => ({
-                id: s.id,
-                label: s.label,
-                color: s.color,
-                data: s.data,
+            groupLabels.map((groupLabel, index) => ({
+                id: groupLabel || "__ungrouped__",
+                label: groupLabel || "All measurements",
+                color: getColorFromIndex(index),
+                data: metricLabels.map(metricLabel =>
+                    data.find(m => getGroupLabel(m, groupByDimensions) === groupLabel && getMetricLabel(m, metricLabelDimension) === metricLabel)?.score ?? null,
+                ),
                 ...(stacked ? { stack: "total" as const } : {}),
             })),
-        [baseSeries, stacked],
+        [data, groupLabels, metricLabels, groupByDimensions, metricLabelDimension, stacked],
     );
     const seriesForChart = useMemo(
-        () => applyHiddenToSeries(series, hidden),
-        [series, hidden]
+        () => applyHiddenToSeries(baseSeries, hidden),
+        [baseSeries, hidden],
     );
     const { yMin, yMax } = useMemo(
-        () => computeYDomainFromVisible(series, hidden),
-        [series, hidden]
+        () => computeYDomainFromVisible(baseSeries, hidden),
+        [baseSeries, hidden]
     );
 
-    // --- Dynamic axes and title ---
-    let xAxisData: string[] = times;
-    let xAxisFormatter: (v: string) => string = formatDate;
-    let adjustedSeriesForChart = seriesForChart;
-    let xAxisTick: any = {}; // To hold possible label rotation
-    let chartHeight: number = 400;
-    let xAxisHeight: number = 50;
-
-    if (singleTimeAndSingleMeasure) {
-        // CASE: Single time and single measure
-        const measureName = data[0]?.name ?? (keys[0] ?? "");
-        xAxisData = descriptions;
-        xAxisFormatter = v => v;
-        xAxisTick = {
-            angle: -60,
-            textAnchor: 'end',
-            dominantBaseline: 'end',
-            fontSize: 10,
-        };
-        chartHeight = 600;
-        xAxisHeight = 200;
-
-        // Only one series; its data is value at single time for each description
-        adjustedSeriesForChart = [{
-            id: measureName,
-            label: measureName,
-            color: getColorFromIndex(0),
-            data: descriptions.map(desc =>
-                data.find(m => (m.name === measureName) && (m.description === desc))?.score ?? null
-            ),
-            ...(stacked ? { stack: "total" as const } : {})
-        }];
-    }
-    else if (singleTime) {
-        // CASE: Only a single time; x-axis = measure names
-        xAxisData = keys;
-        xAxisFormatter = v => v;
-        xAxisTick = {
-            angle: -60,
-            textAnchor: 'end',
-            dominantBaseline: 'end',
-            fontSize: 10,
-        };
-        chartHeight = 600;
-        xAxisHeight = 200;
-
-        adjustedSeriesForChart = [{
-            id: 'singleTime',
-            label: times[0],
-            color: getColorFromIndex(0),
-            data: keys.map(k => byKeyAndTime.get(k)?.get(times[0]) ?? null),
-            ...(stacked ? { stack: "total" as const } : {})
-        }];
-    }
+    const xAxisTick: any = {
+        angle: -60,
+        textAnchor: 'end',
+        dominantBaseline: 'end',
+        fontSize: 10,
+    };
 
     return (
-        <BarChart
-            height={chartHeight}
-            series={adjustedSeriesForChart}
-            xAxis={[
-                {
-                    data: xAxisData,
-                    scaleType: "band",
-                    valueFormatter: xAxisFormatter,
-                    height: xAxisHeight,
-                    tickLabelStyle: xAxisTick,
-                },
-            ]}
-            yAxis={[
-                {
-                    width: 50,
-                    min: yMin,
-                    max: yMax,
-                },
-            ]}
-            grid={{ vertical: true, horizontal: true }}
-            slotProps={{
-                legend: {
-                    toggleVisibilityOnClick: true,
-                    onItemClick: (_evt: any, item: { seriesId: string | number }) => {
-                        setHidden((prev) => toggleHidden(prev, String(item.seriesId)));
+        <Box>
+            {title && (
+                <Typography variant="h6" gutterBottom>
+                    {title}
+                </Typography>
+            )}
+            {description && (
+                <Typography variant="body2" color="text.secondary" sx={{mb: 1}}>
+                    {description}
+                </Typography>
+            )}
+            <BarChart
+                height={600}
+                series={seriesForChart}
+                xAxis={[
+                    {
+                        data: metricLabels,
+                        scaleType: "band",
+                        valueFormatter: (value: string) => value,
+                        height: 200,
+                        tickLabelStyle: xAxisTick,
                     },
-                },
-            }}
-            showToolbar
-        />
+                ]}
+                yAxis={[
+                    {
+                        width: 50,
+                        min: yMin,
+                        max: yMax,
+                    },
+                ]}
+                grid={{ vertical: true, horizontal: true }}
+                slotProps={{
+                    legend: {
+                        toggleVisibilityOnClick: true,
+                        onItemClick: (_evt: any, item: { seriesId: string | number }) => {
+                            setHidden((prev) => toggleHidden(prev, String(item.seriesId)));
+                        },
+                    },
+                }}
+                showToolbar
+            />
+        </Box>
     );
 };
 

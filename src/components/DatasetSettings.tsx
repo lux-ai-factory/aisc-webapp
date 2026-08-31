@@ -1,6 +1,7 @@
 import React, {ChangeEvent, useEffect, useState} from 'react';
 import {API_VERSION_PREFIX} from '../config';
 import {useProject} from '../context/ProjectContext';
+import keycloak from '../auth/keycloak';
 import {
     Box,
     Button,
@@ -14,6 +15,7 @@ import {
     Typography
 } from '@mui/material';
 import CloudDoneIcon from '@mui/icons-material/CloudDone';
+import './DatasetSettings.css';
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -80,8 +82,11 @@ const UploadDataset = ({dataset, onUploadSuccess}: UploadDatasetProps) => {
         const formData = new FormData();
         formData.append('file', file);
 
+        await keycloak.updateToken(30);
+
         const xhr = new XMLHttpRequest();
         xhr.open("PUT", `${API_URL}/datasets/${dataset.pid}/data`, true);
+        xhr.setRequestHeader('Authorization', `Bearer ${keycloak.token}`);
 
         xhr.upload.onprogress = (e) => {
             if (e.lengthComputable) {
@@ -144,14 +149,7 @@ const UploadDataset = ({dataset, onUploadSuccess}: UploadDatasetProps) => {
                     variant="determinate"
                     value={progress}
                     size={36}
-                    sx={{
-                        color: "primary.main",
-                        position: "absolute",
-                        top: "50%",
-                        left: "50%",
-                        marginTop: "-18px",
-                        marginLeft: "-18px",
-                    }}
+                    className="circular-progress-overlay"
                 />
             )}
         </Box>

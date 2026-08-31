@@ -15,7 +15,6 @@ import {
     IconButton,
     List,
     ListItem,
-    Divider,
     Icon
 } from "@mui/material";
 import Grid from "@mui/material/Grid2";
@@ -25,6 +24,8 @@ import CloudDoneIcon from "@mui/icons-material/CloudDone";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { styled } from "@mui/material/styles";
 import { useEffect, useMemo, useState } from "react";
+import "./addProjectWizard.css";
+import "../styles/common.css";
 
 const HiddenInput = styled("input")({
     clip: "rect(0 0 0 0)",
@@ -209,12 +210,7 @@ export default function AddProjectWizard({
             fullWidth
             slotProps={{
                 paper: {
-                    sx: {
-                        backgroundColor: "#0048ff",
-                        backgroundImage: "linear-gradient(135deg, #001075, #0020b5)",
-                        borderRadius: "16px",
-                        boxShadow: "none",
-                    }
+                    className: "dialog-paper-blue",
                 }
             }}
         >
@@ -222,7 +218,7 @@ export default function AddProjectWizard({
                 Create New Project
             </DialogTitle>
 
-            <DialogContent sx={{ paddingBottom: 4, backgroundColor: "white", borderTopLeftRadius: "12px", borderTopRightRadius: "12px", mx: 1, mb: 1, mt: 1 }}>
+            <DialogContent className="dialog-content-white">
                 <Stepper activeStep={activeStep} sx={{ mb: 4, marginTop: 4 }}>
                     {steps.map(label => (
                         <Step key={label}>
@@ -233,7 +229,7 @@ export default function AddProjectWizard({
 
                 {/* Project Name */}
                 {activeStep === 0 && (
-                    <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                    <Box className="wizard-step-column">
                         <TextField
                             label="Project Name *"
                             fullWidth
@@ -246,33 +242,34 @@ export default function AddProjectWizard({
 
                 {/* Datasets */}
                 {activeStep === 1 && (
-                    <Box>
-                        <Typography variant="h6" sx={{ mb: 2 }}>
-                            Datasets
-                        </Typography>
+                    <Box className="wizard-step-column">
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="h6">
+                                Datasets
+                            </Typography>
+                            <Button
+                                variant="contained"
+                                startIcon={<AddIcon />}
+                                onClick={addDatasetRow}
+                                className="gradient-btn"
+                            >
+                                Add Dataset
+                            </Button>
+                        </Box>
 
+                        {localDatasets.length > 0 && (
                         <List
-                            sx={{
-                                border: 1,
-                                borderColor: "divider",
-                                borderRadius: 1,
-                                mb: 1,
-                                p: 2,
-                            }}
+                            className="step-list-container"
                         >
                             {localDatasets.map((ds, index) => (
                                 <ListItem key={index}>
-                                    <Box
-                                        sx={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            width: "100%"
-                                        }}
+                                    <Box className="step-row"
                                     >
                                         <Box sx={{ flexGrow: 1 }}>
                                             <TextField
                                                 label="Dataset Name"
                                                 fullWidth
+                                                autoFocus={index === localDatasets.length - 1}
                                                 value={ds.name}
                                                 onChange={e =>
                                                     updateDatasetName(
@@ -283,12 +280,7 @@ export default function AddProjectWizard({
                                             />
                                         </Box>
 
-                                        <Box
-                                            sx={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                ml: 2
-                                            }}
+                                        <Box className="step-actions"
                                         >
                                             {ds.uploaded ? (
                                                 <CloudDoneIcon
@@ -328,50 +320,38 @@ export default function AddProjectWizard({
                                 </ListItem>
                             ))}
 
-                            <Divider sx={{ my: 2 }} />
-
-                            <ListItem>
-                                <Button
-                                    variant="contained"
-                                    startIcon={<AddIcon />}
-                                    onClick={addDatasetRow}
-                                >
-                                    Add Dataset
-                                </Button>
-                            </ListItem>
                         </List>
+                        )}
                     </Box>
                 )}
 
                 {/* Models */}
                 {activeStep === 2 && (
-                    <Box>
-                        <Typography variant="h6" sx={{ mb: 2 }}>
-                            Models
-                        </Typography>
+                    <Box className="wizard-step-column">
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="h6">
+                                Models
+                            </Typography>
+                            <Button
+                                variant="contained"
+                                startIcon={<AddIcon />}
+                                onClick={addModelRow}
+                                className="gradient-btn"
+                            >
+                                Add Model
+                            </Button>
+                        </Box>
 
-                        <List
-                            sx={{
-                                border: 1,
-                                borderColor: "divider",
-                                borderRadius: 1,
-                                mb: 1,
-                                p: 2,
-                            }}
-                        >
+                        {localModels.length > 0 && (
+                        <List className="step-list-container">
                             {localModels.map((m, index) => (
                                 <ListItem key={index}>
-                                    <Box
-                                        sx={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            width: "100%"
-                                        }}
-                                    >
+                                    <Box className="step-row">
                                         <Box sx={{ flexGrow: 1 }}>
                                             <TextField
                                                 label="Model Name"
                                                 fullWidth
+                                                autoFocus={index === localModels.length - 1}
                                                 value={m.name}
                                                 onChange={e =>
                                                     updateModelName(
@@ -382,13 +362,7 @@ export default function AddProjectWizard({
                                             />
                                         </Box>
 
-                                        <Box
-                                            sx={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                ml: 2
-                                            }}
-                                        >
+                                        <Box className="step-actions">
                                             {m.uploaded ? (
                                                 <CloudDoneIcon
                                                     color="success"
@@ -427,18 +401,8 @@ export default function AddProjectWizard({
                                 </ListItem>
                             ))}
 
-                            <Divider sx={{ my: 2 }} />
-
-                            <ListItem>
-                                <Button
-                                    variant="contained"
-                                    startIcon={<AddIcon />}
-                                    onClick={addModelRow}
-                                >
-                                    Add Model
-                                </Button>
-                            </ListItem>
                         </List>
+                        )}
                     </Box>
                 )}
 
@@ -457,19 +421,13 @@ export default function AddProjectWizard({
                                                 [pkg.name]: !prev[pkg.name]
                                             }))
                                         }
+                                        className="plugins-card"
                                         sx={{
-                                            cursor: 'pointer',
                                             border: '2px solid',
                                             borderColor: selected ? 'primary.main' : 'grey.200',
                                             background: selected
                                                 ? 'linear-gradient(135deg, rgba(69, 145, 251, 0.15), rgba(0, 52, 255, 0.1))'
                                                 : 'white',
-                                            transition: 'all 0.2s ease',
-                                            height: '100%',
-                                            '&:hover': {
-                                                boxShadow: 4,
-                                                borderColor: selected ? 'primary.main' : 'grey.300',
-                                            },
                                         }}
                                     >
                                         <CardContent sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
@@ -510,13 +468,7 @@ export default function AddProjectWizard({
                 )}
 
                 {/* NAVIGATION */}
-                <Box
-                    sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        mt: 4
-                    }}
-                >
+                <Box className="wizard-nav">
                     <Button disabled={activeStep === 0} onClick={handleBack}>
                         Back
                     </Button>

@@ -3,22 +3,25 @@ import {API_VERSION_PREFIX} from "../config.tsx";
 import {useProject} from '../context/ProjectContext';
 import {useParams} from "react-router-dom";
 import PluginConfigForm from "../components/plugin/PluginConfigForm.tsx";
-import {useEffect, useRef, useState} from "react";
+import {useEffect, useLayoutEffect, useRef, useState} from "react";
 import {DataObject, ProjectPluginConfigState} from "../models/models.tsx";
 import toast from 'react-hot-toast';
 import {getPluginFeatureFlags, getProject} from "../api/api.tsx";
-import {InputLabel, MenuItem, Select, SelectChangeEvent, Typography, Box, Button, Icon} from "@mui/material";
+import {InputLabel, MenuItem, Select, SelectChangeEvent, Typography, Box, Button, Icon, Tooltip, Divider} from "@mui/material";
 import InfoBanner from "../components/InfoBanner.tsx";
 import ConfigHistory from "../components/plugin/ConfigHistory.tsx";
+import './PluginsConfig.css';
+import '../styles/common.css';
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
 
-const postPluginConfig = async (plugin_pid: string, formData: object) => {
+const postPluginConfig = async (plugin_pid: string, formData: object, projectSettingSelections: object[]) => {
     if (!plugin_pid) throw new Error("Plugin name is required");
 
     const data = {
         config: formData,
+        project_setting_selections: projectSettingSelections,
     }
     const response = await fetch(`${API_URL}/plugins/${plugin_pid}/config`, {
         method: 'POST',
@@ -65,7 +68,9 @@ function PluginConfig() {
     const {projectUUID} = useProject();
     const queryClient = useQueryClient();
 
-    const [configState, setConfigState] = useState<ProjectPluginConfigState | null>(null);
+    const [configOverride, setConfigOverride] = useState<ProjectPluginConfigState | null>(null);
+    const [selectedDataset, setSelectedDataset] = useState('');
+    const lastDatasetPluginPid = useRef<string | undefined>();
 
     const {data: project, isPending: isProjectPending} = useQuery({
         queryKey: ['project', projectUUID],
@@ -76,11 +81,22 @@ function PluginConfig() {
     // Find plugin PID from name
     const plugin = project?.plugins.find(p => p.name === plugin_name);
     const plugin_pid = plugin?.pid;
+    const [headerScrolled, setHeaderScrolled] = useState(false);
+
+    useEffect(() => {
+        const onScroll = () => setHeaderScrolled(window.scrollY > 12);
+        window.addEventListener('scroll', onScroll, {passive: true});
+        onScroll();
+        return () => window.removeEventListener('scroll', onScroll);
+    }, []);
 
     const {data: projectPluginConfigState, isPending: isProjectPluginConfigStatePending, error} = useQuery({
         queryKey: ['projectPluginConfig', projectUUID, plugin_pid],
-        queryFn: () => getProjectPluginConfigState(plugin_pid!!),
-        enabled: !!projectUUID && !!plugin_pid
+        queryFn: async () => {
+            const state = await getProjectPluginConfigState(plugin_pid!!);
+            return { ...state, config: {} };
+        },
+        enabled: !!projectUUID && !!plugin_pid,
     })
 
     const {data: featureFlags} = useQuery({
@@ -89,9 +105,15 @@ function PluginConfig() {
         enabled: !!plugin_pid
     })
 
-    useEffect(() => {
-        if (projectPluginConfigState) setConfigState(projectPluginConfigState);
-    }, [projectPluginConfigState]);
+    const configState = configOverride ?? projectPluginConfigState;
+
+    useLayoutEffect(() => {
+        if (lastDatasetPluginPid.current && lastDatasetPluginPid.current !== plugin_pid) {
+            setSelectedDataset('');
+            setConfigOverride(null);
+        }
+        lastDatasetPluginPid.current = plugin_pid;
+    }, [plugin_pid]);
 
     const isPending = isProjectPending || isProjectPluginConfigStatePending;
 
@@ -103,13 +125,19 @@ function PluginConfig() {
     const handleDatasetChange = async (e: SelectChangeEvent<any>) => {
         const dataset_uuid = e.target.value as string;
         if (!dataset_uuid || !plugin_pid) return;
-        const configState = await parseConfigStateFromDataset(plugin_pid, dataset_uuid);
-        setConfigState(configState);
+        setSelectedDataset(dataset_uuid);
+        const parsed = await parseConfigStateFromDataset(plugin_pid, dataset_uuid);
+        setConfigOverride(parsed);
     };
 
+    const handleRestore = async () => {
+        if (!plugin_pid) return;
+        const state = await getProjectPluginConfigState(plugin_pid!!);
+        setConfigOverride(state);
+    };
 
-    const onSubmit = async (data: object) => {
-        await postPluginConfig(plugin_pid ?? "", data);
+    const onSubmit = async (data: object, projectSettingSelections: object[]) => {
+        await postPluginConfig(plugin_pid ?? "", data, projectSettingSelections);
 
         // Refresh config history
         await queryClient.invalidateQueries({ queryKey: ['pluginConfigHistory', plugin_pid] });
@@ -122,83 +150,114 @@ function PluginConfig() {
     return (
 
         <Box>
-            <Box sx={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3}}>
-                <Typography component="h2" variant="h4">
-                    Config for plugin: {plugin?.display_name || plugin_name}
-                </Typography>
+            <Box className={`plugin-config-header${headerScrolled ? ' scrolled' : ''}`}>
+                <Box>
+                    <Typography component="h2" variant="h4" sx={{lineHeight: 1.2}}>
+                        {plugin?.display_name || plugin_name}
+                    </Typography>
+                    <Typography variant="subtitle1" color="text.secondary" sx={{fontWeight: 500, mt: 0.25}}>
+                        Configuration
+                    </Typography>
+                </Box>
 
                 <Box sx={{display: "flex", gap: 1.5}}>
-                    <Button
-                        variant="outlined"
-                        startIcon={<Icon>file_download</Icon>}
-                        sx={{borderRadius: "10px", textTransform: "none", fontSize: "0.9rem", fontWeight: 600}}
-                        onClick={() => formRef.current?.exportJson()}
-                    >
-                        Export
-                    </Button>
-                    <Button
-                        variant="outlined"
-                        startIcon={<Icon>file_upload</Icon>}
-                        sx={{borderRadius: "10px", textTransform: "none", fontSize: "0.9rem", fontWeight: 600}}
-                        onClick={() => formRef.current?.importClick()}
-                    >
-                        Import
-                    </Button>
-                    <Button
-                        variant="contained"
-                        startIcon={<Icon>save</Icon>}
-                        sx={{
-                            borderRadius: "10px",
-                            fontSize: "0.9rem",
-                            fontWeight: 600,
-                            textTransform: "none",
-                            gap: 1,
-                            background: "linear-gradient(135deg, #4A8CFF, #00e676)",
-                            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                            "&:hover": {
-                                background: "linear-gradient(135deg, #5A9CFF, #00e676)",
-                                boxShadow: "0 6px 16px rgba(0,0,0,0.25)"
-                            }
-                        }}
-                        onClick={() => formRef.current?.submit()}
-                    >
-                        Save Configuration
-                    </Button>
+                    <Tooltip title="Export">
+                        <Button
+                            variant="outlined"
+                            sx={{borderRadius: "10px", textTransform: "none", fontSize: "0.9rem", fontWeight: 600, minWidth: {xs: '44px', md: 'auto'}, px: {xs: 1.5, md: 2}}}
+                            onClick={() => formRef.current?.exportJson()}
+                        >
+                            <Icon sx={{fontSize: '1.25rem'}}>file_download</Icon>
+                            <Box component="span" sx={{display: {xs: 'none', md: 'inline'}, ml: 0.5}}>
+                                Export
+                            </Box>
+                        </Button>
+                    </Tooltip>
+                    <Tooltip title="Import">
+                        <Button
+                            variant="outlined"
+                            sx={{borderRadius: "10px", textTransform: "none", fontSize: "0.9rem", fontWeight: 600, minWidth: {xs: '44px', md: 'auto'}, px: {xs: 1.5, md: 2}}}
+                            onClick={() => formRef.current?.importClick()}
+                        >
+                            <Icon sx={{fontSize: '1.25rem'}}>file_upload</Icon>
+                            <Box component="span" sx={{display: {xs: 'none', md: 'inline'}, ml: 0.5}}>
+                                Import
+                            </Box>
+                        </Button>
+                    </Tooltip>
+                    <Tooltip title="Save Configuration">
+                        <Button
+                            variant="contained"
+                            className="gradient-btn"
+                            sx={{
+                                minWidth: {xs: '44px', md: 'auto'},
+                                px: {xs: 1.5, md: 2},
+                            }}
+                            onClick={() => formRef.current?.submit()}
+                        >
+                            <Icon sx={{fontSize: '1.25rem'}}>save</Icon>
+                            <Box component="span" sx={{display: {xs: 'none', md: 'inline'}, ml: 0.5}}>
+                                Save
+                            </Box>
+                        </Button>
+                    </Tooltip>
                 </Box>
             </Box>
 
-            <ConfigHistory
-                pluginPID={plugin_pid ?? ""}
-                plugin_config_id={projectPluginConfigState?.plugin_config_id}
-            />
+            <Box sx={{ mt: 2, mb: 3 }}>
+                <ConfigHistory
+                    pluginPID={plugin_pid ?? ""}
+                    plugin_config_id={configState?.plugin_config_id}
+                    onRestore={handleRestore}
+                />
+            </Box>
+            <Divider sx={{ mb: 3, borderBottomWidth: 2, borderColor: 'rgba(25, 87, 191, 0.25)' }} />
 
             {featureFlags?.can_parse_config_from_dataset &&
-                <>
+                <Box sx={{ mt: 2 }}>
                     <InfoBanner message={"Select a dataset to derive the plugin config from."}/>
                     <InputLabel id="dataset-select-label">Dataset</InputLabel>
                     <Select
                         labelId="dataset-select-label"
                         fullWidth
+                        className="plugin-config-select"
+                        sx={{
+                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                borderColor: 'primary.main',
+                            },
+                        }}
+                        MenuProps={{
+                            PaperProps: {
+                                className: 'plugin-config-menu',
+                            },
+                        }}
+                        value={selectedDataset}
                         onChange={(e) => handleDatasetChange(e)}
                     >
                         {project?.datasets.map((dataset: DataObject) => (
-                            <MenuItem value={dataset.pid}>{dataset.name}</MenuItem>
+                            <MenuItem key={dataset.pid} value={dataset.pid}>{dataset.name}</MenuItem>
                         ))}
                     </Select>
-                </>
+                </Box>
             }
 
             {configState && plugin_pid &&
-                <PluginConfigForm
-                    ref={formRef}
-                    key={plugin_pid + projectUUID}
-                    pluginPID={plugin_pid}
-                    formSchema={configState.formSchema}
-                    uiSchema={configState.uiSchema}
-                    config={configState.config}
-                    onFormUpdate={(state) => setConfigState(state)}
-                    onSubmit={onSubmit}
-                />
+                <Box sx={{ mt: 2 }}>
+                    <PluginConfigForm
+                        ref={formRef}
+                        key={plugin_pid + projectUUID}
+                        pluginPID={plugin_pid}
+                        pluginDisplayName={plugin?.display_name}
+                        formSchema={configState.formSchema}
+                        uiSchema={configState.uiSchema}
+                        config={configState.config ?? {}}
+                        settingDefinitions={configState.setting_definitions ?? []}
+                        projectSettings={configState.project_settings ?? []}
+                        projectSettingSelections={configState.project_setting_selections ?? []}
+                        onFormUpdate={(state) => setConfigOverride(state)}
+                        onSubmit={onSubmit}
+                    />
+                </Box>
             }
         </Box>
     )

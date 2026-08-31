@@ -6,9 +6,12 @@ import {
     Card,
     CardContent,
     Chip,
+    CircularProgress,
     Divider,
     Icon,
+    IconButton,
     Switch,
+    Tooltip,
     Typography,
 } from "@mui/material";
 import Grid from "@mui/material/Grid2";
@@ -16,6 +19,7 @@ import {Plugin, Package} from "../models/models.tsx";
 import React, {useState} from "react";
 import {getPlugins, getProject} from "../api/api.tsx";
 import toast from "react-hot-toast";
+import "./Plugins.css";
 
 class PluginErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
     constructor(props: {children: React.ReactNode}) {
@@ -45,18 +49,12 @@ const createProjectPlugins = async (project_uuid: string, package_name: string, 
     if (!package_name) throw new Error('Invalid package name')
     if (!version) throw new Error('Invalid version')
 
-    const data = {
-        package_name: package_name,
-        project_uuid: project_uuid,
-        version: version,
-        config: null
-    }
     const res = await fetch(`${API_URL}/plugins`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({package_name, project_uuid, version, config: null}),
     });
     return await res.json() as Plugin;
 };
@@ -67,16 +65,10 @@ const deleteProjectPlugins = async (project_uuid: string, package_name: string, 
     if (!package_name) throw new Error('Invalid package name')
     if (!version) throw new Error('Invalid version')
 
-    const data = {
-        package_name: package_name,
-        project_uuid: project_uuid,
-        version: version,
-    }
-
     await fetch(`${API_URL}/plugins`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify({package_name, project_uuid, version}),
     });
 };
 
@@ -93,12 +85,22 @@ const updatePluginEnabled = async (plugin_pid: string, enabled: boolean) => {
     return await res.json();
 };
 
+const refreshPackage = async (project_uuid: string, package_name: string, version: string) => {
+    const res = await fetch(`${API_URL}/plugins/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({package_name, project_uuid, version}),
+    });
+    return await res.json() as Plugin[];
+};
+
 function Plugins() {
     const queryClient = useQueryClient();
     const {projectUUID} = useProject();
     // Pending states to prevent multiple simultaneous requests for the same package or plugin
     const [pendingPackages, setPendingPackages] = useState<Record<string, boolean>>({});
     const [pendingPlugins, setPendingPlugins] = useState<Record<string, boolean>>({});
+    const [refreshingPackages, setRefreshingPackages] = useState<Record<string, boolean>>({});
 
     const {data: packages, isPending, error} = useQuery({
         queryKey: ['packages', projectUUID],
@@ -107,7 +109,8 @@ function Plugins() {
 
     const {data: project} = useQuery({
         queryKey: ['project', projectUUID],
-        queryFn: () => getProject(projectUUID ?? "")
+        queryFn: () => getProject(projectUUID ?? ""),
+        enabled: !!projectUUID,
     })
 
     if (isPending) return <span>Loading...</span>
@@ -133,24 +136,29 @@ function Plugins() {
 
     const refreshProjectQueries = async () => {
         await queryClient.invalidateQueries({queryKey: ['project']});
+        await queryClient.invalidateQueries({queryKey: ['project', projectUUID, 'withIcons']});
     };
 
     // Handler for toggling package state
     const handleChange = async (
         event: React.ChangeEvent<HTMLInputElement>,
-        pid: string,
         package_name: string,
         version: string,
     ) => {
+        if (!projectUUID) {
+            toast.error('Project is still loading. Please wait a second.', { position: 'bottom-right' });
+            return;
+        }
+
         const packageKey = `${package_name}::${version}`;
         if (pendingPackages[packageKey]) return;
         setPendingPackages(prev => ({...prev, [packageKey]: true}));
 
         try {
             if (event.target.checked) {
-                await createProjectPlugins(pid, package_name, version)
+                await createProjectPlugins(projectUUID, package_name, version)
             } else {
-                await deleteProjectPlugins(pid, package_name, version)
+                await deleteProjectPlugins(projectUUID, package_name, version)
             }
         } catch (err) {
             const message = 'Could not update package state.';
@@ -177,13 +185,33 @@ function Plugins() {
         }
     };
 
+    const handleRefresh = async (package_name: string, version: string) => {
+        if (!projectUUID) return;
+        const packageKey = `${package_name}::${version}`;
+        if (refreshingPackages[packageKey]) return;
+        setRefreshingPackages(prev => ({...prev, [packageKey]: true}));
+        try {
+            await refreshPackage(projectUUID, package_name, version);
+            toast.success('Package refreshed.', { position: 'bottom-right' });
+        } catch {
+            toast.error('Could not refresh package.', { position: 'bottom-right' });
+        } finally {
+            setRefreshingPackages(prev => ({...prev, [packageKey]: false}));
+            await refreshProjectQueries();
+        }
+    };
+
     return (
         <>
             <Typography component="h2" variant="h4" gutterBottom>
                 Available Packages
             </Typography>
 
-            <Grid container spacing={2}>
+            <Grid
+                container
+                spacing={2}
+                className="plugins-grid"
+            >
                 {projectPackages.map((pkg: ProjectPackage) => {
                     const isEnabled = Boolean(pkg.enabled);
                     const inputId = `pkg-${pkg.package_name}-${pkg.version}`;
@@ -191,11 +219,9 @@ function Plugins() {
                     const isPackagePending = Boolean(pendingPackages[packageKey]);
 
                     return (
-                        <Grid
-                            size={{xs: 12, sm: 12, md: 6, lg: 4, xl: 3}}
-                            key={`${pkg.package_name}-${pkg.version}-${pkg.source}`}
-                        >
+                        <Grid key={`${pkg.package_name}-${pkg.version}-${pkg.source}`} size={{xs: 12, sm: 12, md: 6, lg: 4}}>
                             <Card
+                                className="package-card-focus"
                                 sx={{
                                     position: 'relative',
                                     cursor: 'pointer',
@@ -215,7 +241,7 @@ function Plugins() {
                                     },
                                 }}
                                 onClick={() => {
-                                    if (isPackagePending) return;
+                                    if (isPackagePending || !projectUUID) return;
                                     const input = document.getElementById(inputId) as HTMLInputElement;
                                     input?.click();
                                 }}
@@ -224,11 +250,10 @@ function Plugins() {
                                     id={inputId}
                                     type="checkbox"
                                     checked={isEnabled}
-                                    disabled={isPackagePending}
+                                    disabled={isPackagePending || !projectUUID}
                                     onChange={(e) =>
                                         handleChange(
                                             e,
-                                            projectUUID ?? "",
                                             pkg.package_name,
                                             pkg.version
                                         )
@@ -255,21 +280,41 @@ function Plugins() {
                                                 color={pkg.source === 'local' ? 'info' : 'default'}
                                                 variant={pkg.source === 'local' ? 'filled' : 'outlined'}
                                             />
-                                            {isEnabled && (
+                                            {isEnabled && pkg.plugins.length > 0 && (
                                                 <Chip
-                                                    label={`${pkg.plugins.length} plugin${pkg.plugins.length > 1 ? 's' : ''}`}
+                                                    label={`${pkg.plugins.filter(p => p.enabled).length}/${pkg.plugins.length} enabled`}
                                                     size="small"
-                                                    color="primary"
-                                                    variant="outlined"
+                                                    color={isEnabled ? 'primary': 'default'}
+                                                    variant={isEnabled ? 'filled': 'outlined'}
                                                 />
                                             )}
                                         </Box>
                                     </Box>
 
                                     {isEnabled && (
-                                        <Icon sx={{color: 'success.main', alignSelf: 'center', fontSize: 24}}>
-                                            check_circle
-                                        </Icon>
+                                        <Box sx={{display: 'flex', alignItems: 'center', gap: 0.25}}>
+                                            {refreshingPackages[packageKey] ? (
+                                                <CircularProgress size={18} />
+                                            ) : (
+                                                <Tooltip title="Refresh package">
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleRefresh(pkg.package_name, pkg.version);
+                                                        }}
+                                                        sx={{p: 0.25}}
+                                                    >
+                                                        <Icon sx={{fontSize: 20}}>refresh</Icon>
+                                                    </IconButton>
+                                                </Tooltip>
+                                            )}
+                                            <Tooltip title="Click to disable">
+                                                <Icon sx={{color: 'success.main', alignSelf: 'center', fontSize: 24}}>
+                                                    check_circle
+                                                </Icon>
+                                            </Tooltip>
+                                        </Box>
                                     )}
                                 </CardContent>
 
@@ -305,7 +350,7 @@ function Plugins() {
                                                             {pluginDisplayName ?? pluginName ?? 'Unknown'}
                                                         </Typography>
 
-                                                        <Box sx={{display: 'flex', alignItems: 'center', gap: 0.25}}>
+                                                        <Box sx={{display: 'flex', alignItems: 'center', gap: 0.3}}>
                                                             <Switch
                                                                 size="small"
                                                                 checked={plugin.enabled}
