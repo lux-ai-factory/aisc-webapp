@@ -24,3 +24,39 @@
     border: 1px solid rgba(25, 87, 191, 0.2);
     box-shadow: 0 10px 24px rgba(18, 84, 188, 0.18);
 }
+
+.plugin-config-header {
+    position: sticky;
+    top: 64px;
+    z-index: 1099;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0 -16px 24px;
+    padding: 10px 16px;
+    border-radius: 12px;
+    border-bottom: 1px solid rgba(25, 118, 210, 0.15);
+    background-color: rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(10px) saturate(140%);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.10);
+    transition:
+        padding 0.3s ease,
+        top 0.3s ease;
+}
+
+.plugin-config-header.scrolled {
+    top: 78px;
+    padding-top: 22px;
+}
+
+@media (max-width: 599.98px) {
+    .plugin-config-header {
+        top: 56px;
+        margin-inline: -8px;
+        padding-inline: 8px;
+    }
+
+    .plugin-config-header.scrolled {
+        top: 70px;
+    }
+}

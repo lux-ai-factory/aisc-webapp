@@ -58,6 +58,67 @@ export function buildDistinctCompositeKeys<T extends Measurement>(data: T[]): st
     return out;
 }
 
+/**
+ * Build a metric label for a measurement, given the metricLabelDimension.
+ */
+export const getMetricLabel = (m: Measurement, metricLabelDimension?: string): string => {
+    if (!metricLabelDimension || m.dimensions?.[metricLabelDimension] === undefined) return m.name;
+    return String(m.dimensions[metricLabelDimension]);
+};
+
+
+/**
+ * Build a group label for a measurement, given the groupByDimensions.
+ */
+export const getGroupLabel = (m: Measurement, groupByDimensions?: string[]): string => {
+    if (!groupByDimensions || groupByDimensions.length === 0) return '';
+    return groupByDimensions
+        .map(key => m.dimensions && m.dimensions[key] !== undefined ? String(m.dimensions[key]) : 'N/A')
+        .join(' - ');
+};
+
+/**
+ * Series identity for grouping: metric name, display label, and group label.
+ */
+export const getSeriesKey = (m: Measurement, groupByDimensions?: string[], metricLabelDimension?: string): string =>
+    `${m.name}:::${getMetricLabel(m, metricLabelDimension)}:::${getGroupLabel(m, groupByDimensions)}`;
+
+/**
+ * Build distinct series keys in order of first appearance.
+ */
+export function buildDistinctSeriesKeys<T extends Measurement>(
+    data: T[],
+    groupByDimensions?: string[],
+    metricLabelDimension?: string,
+): string[] {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const m of data) {
+        const key = getSeriesKey(m, groupByDimensions, metricLabelDimension);
+        if (!seen.has(key)) {
+            seen.add(key);
+            out.push(key);
+        }
+    }
+    return out;
+}
+
+/**
+ * Decode a series key into [name, metricLabel, groupLabel].
+ */
+export function fromSeriesKey(key: string): { name: string; metricLabel: string; groupLabel: string } {
+    const [name, metricLabel, groupLabel] = key.split(":::");
+    return { name, metricLabel: metricLabel ?? "", groupLabel: groupLabel ?? "" };
+}
+
+/**
+ * Display label for a series key: the metric label, plus " (groupLabel)" when grouped.
+ */
+export const labelFromSeriesKey = (key: string): string => {
+    const { metricLabel, groupLabel } = fromSeriesKey(key);
+    return groupLabel ? `${metricLabel} (${groupLabel})` : metricLabel;
+};
+
 // ---- Lookup builders ----
 /**
  * Build sparse lookup: key -> Map(time -> score)
@@ -74,10 +135,28 @@ export function buildLookupByKeyAndTime<T extends Measurement>(
     return map;
 }
 
+/**
+ * Build sparse lookup by series key: seriesKey -> Map(time -> score).
+ */
+export function buildLookupBySeriesKeyAndTime<T extends Measurement>(
+    data: T[],
+    groupByDimensions?: string[],
+    metricLabelDimension?: string,
+): Map<string, Map<string, number>> {
+    const map = new Map<string, Map<string, number>>();
+    for (const m of data) {
+        const key = getSeriesKey(m, groupByDimensions, metricLabelDimension);
+        if (!map.has(key)) map.set(key, new Map());
+        map.get(key)!.set(m.time, m.score);
+    }
+    return map;
+}
+
 // ---- Series builders ----
 /**
  * Build aligned series for MUI X LineChart (aligned mode), given keys and times.
  * Missing values become null.
+ * When a labels map is provided it wins over the (name, description) decoding.
  */
 export function buildAlignedSeries(
     distinctKeys: string[],
@@ -85,11 +164,12 @@ export function buildAlignedSeries(
     byKeyAndTime: Map<string, Map<string, number>>,
     getColorFromIndex?: (i: number) => string,
     opts?: { showMark?: boolean; curve?: AlignedLineSeries["curve"] },
+    labels?: Map<string, string>,
 ): AlignedLineSeries[] {
     const { showMark = true, curve = "linear" as const } = opts ?? {};
     return distinctKeys.map((key, index) => {
         const { name, description } = fromCompositeKey(key);
-        const label = description ? `${name} — ${description}` : name;
+        const label = labels?.get(key) ?? (description ? `${name} — ${description}` : name);
 
         const aligned = distinctTimes.map((t) => byKeyAndTime.get(key)?.get(t) ?? null);
 

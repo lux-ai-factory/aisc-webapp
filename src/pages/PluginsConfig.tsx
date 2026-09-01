@@ -3,7 +3,7 @@ import {API_VERSION_PREFIX} from "../config.tsx";
 import {useProject} from '../context/ProjectContext';
 import {useParams} from "react-router-dom";
 import PluginConfigForm from "../components/plugin/PluginConfigForm.tsx";
-import {useLayoutEffect, useRef, useState} from "react";
+import {useEffect, useLayoutEffect, useRef, useState} from "react";
 import {DataObject, ProjectPluginConfigState} from "../models/models.tsx";
 import toast from 'react-hot-toast';
 import {getPluginFeatureFlags, getProject} from "../api/api.tsx";
@@ -16,11 +16,12 @@ import '../styles/common.css';
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
 
-const postPluginConfig = async (plugin_pid: string, formData: object) => {
+const postPluginConfig = async (plugin_pid: string, formData: object, projectSettingSelections: object[]) => {
     if (!plugin_pid) throw new Error("Plugin name is required");
 
     const data = {
         config: formData,
+        project_setting_selections: projectSettingSelections,
     }
     const response = await fetch(`${API_URL}/plugins/${plugin_pid}/config`, {
         method: 'POST',
@@ -80,6 +81,14 @@ function PluginConfig() {
     // Find plugin PID from name
     const plugin = project?.plugins.find(p => p.name === plugin_name);
     const plugin_pid = plugin?.pid;
+    const [headerScrolled, setHeaderScrolled] = useState(false);
+
+    useEffect(() => {
+        const onScroll = () => setHeaderScrolled(window.scrollY > 12);
+        window.addEventListener('scroll', onScroll, {passive: true});
+        onScroll();
+        return () => window.removeEventListener('scroll', onScroll);
+    }, []);
 
     const {data: projectPluginConfigState, isPending: isProjectPluginConfigStatePending, error} = useQuery({
         queryKey: ['projectPluginConfig', projectUUID, plugin_pid],
@@ -127,8 +136,8 @@ function PluginConfig() {
         setConfigOverride(state);
     };
 
-    const onSubmit = async (data: object) => {
-        await postPluginConfig(plugin_pid ?? "", data);
+    const onSubmit = async (data: object, projectSettingSelections: object[]) => {
+        await postPluginConfig(plugin_pid ?? "", data, projectSettingSelections);
 
         // Refresh config history
         await queryClient.invalidateQueries({ queryKey: ['pluginConfigHistory', plugin_pid] });
@@ -141,7 +150,7 @@ function PluginConfig() {
     return (
 
         <Box>
-            <Box sx={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3}}>
+            <Box className={`plugin-config-header${headerScrolled ? ' scrolled' : ''}`}>
                 <Box>
                     <Typography component="h2" variant="h4" sx={{lineHeight: 1.2}}>
                         {plugin?.display_name || plugin_name}
@@ -242,6 +251,9 @@ function PluginConfig() {
                         formSchema={configState.formSchema}
                         uiSchema={configState.uiSchema}
                         config={configState.config ?? {}}
+                        settingDefinitions={configState.setting_definitions ?? []}
+                        projectSettings={configState.project_settings ?? []}
+                        projectSettingSelections={configState.project_setting_selections ?? []}
                         onFormUpdate={(state) => setConfigOverride(state)}
                         onSubmit={onSubmit}
                     />

@@ -31,7 +31,7 @@ export default function PluginEvaluationForm({
     onToggle,
     onUnselect,
     onSelectionChange,
-    onValidationChange
+    onValidationChange,
 }: PluginEvaluationFormProps) {
     const { projectUUID } = useProject();
     const [selectedConfig, setSelectedConfig] = useState<number | null>(null);
@@ -72,7 +72,6 @@ export default function PluginEvaluationForm({
     const allMandatoryFilled = !!inputDefinitions && inputDefinitions.every(
         def => !def.required || selections.some(s => s.name === def.name)
     );
-
     const onValidationChangeRef = useRef(onValidationChange);
     onValidationChangeRef.current = onValidationChange;
 
@@ -186,6 +185,7 @@ export default function PluginEvaluationForm({
                     <Box sx={{ mt: 1.5, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                         {selections.map(sel => {
                             const def = inputDefinitions?.find(d => d.name === sel.name);
+                            if (!def) return null;
                             const label = findLabel(def!);
                             return (
                                 <Typography key={sel.name} variant="caption" color="text.secondary">
@@ -198,6 +198,7 @@ export default function PluginEvaluationForm({
 
                 {isActive && (
                     <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }} onClick={e => e.stopPropagation()}>
+                        {/* Input definitions: dataset / model selectors — use name + label */}
                         {inputDefinitions?.map((def: PluginInputDefinition) => {
                             const options = def.input_type === 'dataset' ? project?.datasets : project?.models;
                             const currentSelection = selections.find(s => s.name === def.name);

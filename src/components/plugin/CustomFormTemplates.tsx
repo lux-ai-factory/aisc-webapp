@@ -66,11 +66,24 @@ function CustomAddButton(props: any) {
     );
 }
 
-// Compact button column when array has no Add button: smaller width + left padding
+// Compact button column when array has no Add button: smaller width + left padding.
+// Record-style rows: titles only on the first row, descriptions only on the
+// last row — everything in between is a bare input line with the delete
+// button centered on it. A per-item `ui:layoutGrid` lays properties out
+// horizontally so the array reads like a table.
 function CustomArrayFieldItemTemplate(props: any) {
-    const { children, buttonsProps, hasToolbar, uiSchema, registry } = props;
+    const { children, buttonsProps, hasToolbar, uiSchema, registry, index, totalItems } = props;
     const hasAdd = useContext(ArrayAddableContext);
+    const hasLayoutGrid = !!uiSchema?.['ui:layoutGrid'];
     const ArrayFieldItemButtonsTemplate = getTemplate<'ArrayFieldItemButtonsTemplate'>('ArrayFieldItemButtonsTemplate', registry, getUiOptions(uiSchema));
+    const isFirst = index === 0;
+    const isLast = index === totalItems - 1;
+    const classNames = ['array-item-row', 'mb-2', 'd-flex', 'align-items-start'];
+    if (!isFirst) classNames.push('hide-title');
+    if (!isLast) classNames.push('hide-desc');
+    if (isFirst) classNames.push('first-row');
+    if (isLast) classNames.push('last-row');
+    if (hasLayoutGrid) classNames.push('has-layout-grid');
     const btnStyle: CSSProperties = {
         flex: 1,
         paddingLeft: 6,
@@ -78,11 +91,11 @@ function CustomArrayFieldItemTemplate(props: any) {
         fontWeight: 'bold',
     };
     return (
-        <Row className='mb-2 d-flex align-items-end' style={{ marginLeft: 0, marginRight: 0 }}>
+        <Row className={classNames.join(' ')} style={{ marginLeft: 0, marginRight: 0 }}>
             <Col style={{ paddingLeft: 0, paddingRight: 0, minWidth: 0, flex: '1 1 0%' }}>
                 {children}
             </Col>
-            <Col xs='auto' className='d-flex justify-content-end py-2' style={{ paddingLeft: hasAdd ? 0 : 12, paddingRight: 0, flex: '0 0 auto', width: hasAdd ? 120 : 52, minWidth: 0 }}>
+            <Col xs='auto' className='d-flex justify-content-end' style={{ paddingLeft: hasAdd ? 0 : 12, paddingRight: 0, flex: '0 0 auto', width: hasAdd ? 120 : 52, minWidth: 0 }}>
                 {hasToolbar && (
                     <ArrayFieldItemButtonsTemplate {...buttonsProps} style={btnStyle} />
                 )}

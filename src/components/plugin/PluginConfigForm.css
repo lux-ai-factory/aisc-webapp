@@ -170,3 +170,62 @@ select {
 .field span[class*="glyphicon"] {
     display: none;
 }
+
+/* Array item rows: keep field labels to a single ellipsized line.
+   The delete button's fixed top offset (39px) assumes a one-line label
+   (24px text + 8px gap); a wrapped title would push the input down and
+   misalign the button. Truncated titles are safe — full text stays in
+   the DOM for native tooltip/accessibility. */
+.rjsf .array-item-row > .col .form-label {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ------------------------------------------------------------------ */
+/* Array item rows (see CustomArrayFieldItemTemplate)                  */
+/* Row 1 keeps titles/descriptions; later rows are bare input lines.   */
+/* ------------------------------------------------------------------ */
+
+/* First row: offset clears the field label so the sm button centers on
+   the 47px input. Compact rows have no label, so a small offset centers
+   the button on the bare control. */
+/* Bare input line by default; only the first row carries a title and
+   clears it. Later rows keep the button centered on the bare control. */
+.rjsf .array-item-row > .col-auto {
+    margin-top: 8px;
+}
+
+.rjsf .array-item-row.first-row > .col-auto {
+    margin-top: 39px;
+}
+
+.rjsf .array-item-row.hide-title .form-label,
+.rjsf .array-item-row.hide-desc .form-text {
+    display: none;
+}
+
+/* Plugins declaring ui:layoutGrid get record-style rows: the item's
+   properties sit horizontally, evenly splitting the row width. */
+.rjsf .array-item-row.has-layout-grid .container-fluid {
+    display: flex;
+    width: 100%;
+    column-gap: 10px;
+    padding: 0;
+}
+
+.rjsf .array-item-row.has-layout-grid .container-fluid > .row {
+    flex: 1 1 0%;
+    min-width: 0;
+    margin-bottom: 0 !important;
+}
+
+.rjsf .array-item-row.has-layout-grid .container-fluid > .row > .col-12 > div {
+    margin-bottom: 0 !important;
+}
+
+/* Last row carries the descriptions, once per column, under its value. */
+.rjsf .array-item-row.has-layout-grid.last-row .form-text {
+    margin-top: 4px;
+}

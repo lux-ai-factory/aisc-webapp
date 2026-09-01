@@ -52,6 +52,41 @@ export interface ProjectPluginConfigState {
     config?: object | null;
     formSchema: object;
     uiSchema: object
+    setting_definitions?: SettingDefinition[];
+    project_setting_selections?: ProjectSettingSelection[];
+    project_settings?: ProjectSetting[];
+}
+
+export type SettingCategory = 'secrets' | 'datashape' | 'general';
+export type SettingValueType = 'string' | 'number' | 'boolean' | 'json';
+
+export interface SettingDefinition {
+    key: string;
+    name: string;
+    category: SettingCategory;
+    value_type?: SettingValueType | null;
+    required: boolean;
+}
+
+export interface ProjectSetting {
+    pid: string;
+    category: SettingCategory;
+    key: string;
+    name: string;
+    masked_value: string;
+    json_value: Record<string, unknown>;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface ProjectSettingSelection {
+    plugin_setting_key: string;
+    project_setting_pid: string;
+}
+
+export interface ValidationReport {
+    errors: string[];
+    warnings: string[];
 }
 
 export interface PluginConfig {
@@ -77,6 +112,7 @@ export interface PluginInputValue {
     pid: string;
     name: string;
     input_type: string;
+    datashape_pid?: string;
 }
 
 export interface Measurement {
@@ -94,6 +130,11 @@ export interface Measurement {
 export interface MetricVisualization {
     chart_type: string;
     metrics: string[];
+    title?: string | null;
+    description?: string | null;
+    filter_dimensions?: Record<string, (string | number | boolean)[]> | null;
+    metric_label_dimension?: string | null;
+    group_by_dimensions?: string[] | null;
 }
 
 export interface ZippedFile {
@@ -166,4 +207,3 @@ export interface PluginRunDuration {
     run_index: number;
     duration_seconds: number;
 }
-
