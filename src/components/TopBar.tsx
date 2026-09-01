@@ -25,7 +25,7 @@ import toast from 'react-hot-toast';
 import "./TopBar.css";
 import "./addProjectButton.css";
 import AddProjectWizard from "./addProjectWizard.tsx";
-import { openPublicCatalogue } from "../pluginCatalogue/installUri.ts";
+import { openPublicCatalogue, isProtocolHandlerSupported } from "../pluginCatalogue/installUri.ts";
 import { usePluginInstall } from "../pluginCatalogue/PluginInstallContext.tsx";
 
 
@@ -142,8 +142,9 @@ const TopBar: React.FC = () => {
 
     // Keycloak auth: who is logged in + login/logout actions
     const {authenticated, username, login, logout} = useAuth();
-    const {protocolStatus, registerProtocol} = usePluginInstall();
+    const {registerProtocol} = usePluginInstall();
     const [registering, setRegistering] = useState(false);
+    const supportsProtocolHandler = isProtocolHandlerSupported();
 
     const navigate = useNavigate();
     const location = useLocation();
@@ -327,28 +328,22 @@ const TopBar: React.FC = () => {
                         <Icon sx={{fontSize: 18, mr: 0.5}}>storefront</Icon>
                         Public Catalogue
                     </Button>
-                    <Tooltip
-                        title={
-                            protocolStatus === 'registered'
-                                ? 'Deep-link installs enabled'
-                                : 'Enable deep-link installs from the catalogue'
-                        }
-                    >
-                        <span>
-                            <Button
-                                color="inherit"
-                                variant="outlined"
-                                size="small"
-                                disabled={registering}
-                                onClick={handleRegisterProtocol}
-                                sx={{textTransform: 'none', minWidth: 0}}
-                            >
-                                <Icon sx={{fontSize: 18}}>
-                                    {protocolStatus === 'registered' ? 'link' : 'link_off'}
-                                </Icon>
-                            </Button>
-                        </span>
-                    </Tooltip>
+                    {supportsProtocolHandler && (
+                        <Tooltip title="Register this app to handle one-click installs from the public catalogue">
+                            <span>
+                                <Button
+                                    color="inherit"
+                                    variant="outlined"
+                                    size="small"
+                                    disabled={registering}
+                                    onClick={handleRegisterProtocol}
+                                    sx={{textTransform: 'none', minWidth: 0}}
+                                >
+                                    <Icon sx={{fontSize: 18}}>link</Icon>
+                                </Button>
+                            </span>
+                        </Tooltip>
+                    )}
                     <ProjectSelector
                         onAddProject={addProject}
                         datasets={datasets}

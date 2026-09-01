@@ -11,7 +11,7 @@ import {
   Select,
   Typography,
 } from '@mui/material';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -26,36 +26,27 @@ interface Project {
   name: string;
 }
 
-interface AvailablePackage {
-  package_name: string;
-  version: string;
-}
-
 /**
- * Global dialog shown when the public catalogue routes an install request to
- * this local app. Lets the user pick which project the plugin should be enabled
- * for, then reuses the regular "enable package" backend flow.
+ * Global dialog shown when the public catalogue routes install(s) to this local
+ * app. Walks through the queue of pending plugins; for each, the user picks a
+ * project and the plugin is enabled at the catalogue-provided version (there is
+ * no version selection here — that comes from the catalogue).
  */
 export default function PluginInstallDialog() {
-  const { pendingInstall, setPendingInstall } = usePluginInstall();
+  const { currentInstall, pendingInstalls, advance } = usePluginInstall();
   const { setProjectUUID, setProjectName } = useProject();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const [projects, setProjects] = useState<Project[]>([]);
-  const [availableVersions, setAvailableVersions] = useState<string[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>('');
-  const [selectedVersion, setSelectedVersion] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
 
-  const open = Boolean(pendingInstall);
-
-  const candidateVersions: string[] = useMemo(() => {
-    const fromPayload = pendingInstall?.version;
-    const list = [...availableVersions];
-    if (fromPayload && !list.includes(fromPayload)) list.push(fromPayload);
-    return list;
-  }, [availableVersions, pendingInstall]);
+  // Items still queued after the one currently being shown.
+  const remainingAfterCurrent = pendingInstalls.length - 1;
+  const open = Boolean(currentInstall);
+  const pkg = currentInstall?.package ?? null;
+  const version = currentInstall?.version;
 
   useEffect(() => {
     if (!open) return;
@@ -67,57 +58,34 @@ export default function PluginInstallDialog() {
       .then((res) => res.json() as Promise<Project[]>)
       .then((data) => setProjects(data))
       .catch(() => setProjects([]));
+  }, [open, pkg]);
 
-    const pkg = pendingInstall?.package;
-    if (!pkg) return;
-
-    fetch(`${API_URL}/plugins`)
-      .then((res) => res.json() as Promise<AvailablePackage[]>)
-      .then((data) => {
-        const versions = data
-          .filter((p) => p.package_name === pkg)
-          .map((p) => p.version);
-        const unique = [...new Set(versions)].sort();
-        setAvailableVersions(unique);
-        if (pendingInstall?.version) {
-          setSelectedVersion(pendingInstall.version);
-        } else if (unique.length === 1) {
-          setSelectedVersion(unique[0]);
-        }
-      })
-      .catch(() => setAvailableVersions([]));
-    // Resolve initial version after fetching available versions.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-
-  const canSubmit =
-    Boolean(selectedProject) && Boolean(selectedVersion) && !submitting;
+  const canSubmit = Boolean(selectedProject) && !submitting;
 
   const handleInstall = async () => {
-    if (!pendingInstall || !selectedProject || !selectedVersion) {
-      toast.error('Please select a project and version.', { position: 'bottom-right' });
+    if (!currentInstall || !selectedProject) {
+      toast.error('Please select a project.', { position: 'bottom-right' });
       return;
     }
 
     setSubmitting(true);
+    const target = projects.find((p) => p.pid === selectedProject);
     try {
       const res = await fetch(`${API_URL}/plugins`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          package_name: pendingInstall.package,
-          version: selectedVersion,
+          package_name: currentInstall.package,
+          version: currentInstall.version,
           project_uuid: selectedProject,
         }),
       });
       if (!res.ok) throw new Error('Network response was not ok');
 
-      const target = projects.find((p) => p.pid === selectedProject);
       setProjectUUID(selectedProject);
       setProjectName(target?.name ?? null);
 
-      // Ensure any cached plugins/project data (e.g. the Plugins page) is
-      // refreshed so the newly enabled plugin shows up without a manual reload.
+      // Refresh cached plugin/project data so the newly enabled plugin shows up.
       await Promise.allSettled([
         queryClient.invalidateQueries({ queryKey: ['project'] }),
         queryClient.invalidateQueries({ queryKey: ['packages'] }),
@@ -126,8 +94,13 @@ export default function PluginInstallDialog() {
       toast.success(`Plugin enabled for ${target?.name ?? 'project'}.`, {
         position: 'bottom-right',
       });
-      setPendingInstall(null);
-      navigate(`/projects/${target?.name ?? selectedProject}/plugins`);
+      // Was this the last plugin in the queue? If so, take the user to the
+      // plugins page after this one is consumed.
+      const isLast = remainingAfterCurrent === 0;
+      advance();
+      if (isLast) {
+        navigate(`/projects/${target?.name ?? selectedProject}/plugins`);
+      }
     } catch (err) {
       console.error('Failed to enable plugin:', err);
       toast.error('Could not enable the plugin. Is it available in the local plugin registry?', {
@@ -139,8 +112,20 @@ export default function PluginInstallDialog() {
   };
 
   return (
-    <Dialog open={open} onClose={() => setPendingInstall(null)} maxWidth="sm" fullWidth>
-      <DialogTitle>Install plugin from catalogue</DialogTitle>
+    <Dialog
+      open={open}
+      onClose={() => advance()}
+      maxWidth="sm"
+      fullWidth
+    >
+      <DialogTitle>
+        Install plugin from catalogue
+        {remainingAfterCurrent > 0 && (
+          <Typography component="span" sx={{ ml: 1, fontSize: 12, color: 'text.secondary' }}>
+            ({remainingAfterCurrent + 1} of {pendingInstalls.length})
+          </Typography>
+        )}
+      </DialogTitle>
       <DialogContent>
         <DialogContentText>
           A plugin from the public catalogue wants to be enabled on this local
@@ -149,24 +134,12 @@ export default function PluginInstallDialog() {
 
         <Typography sx={{ mt: 2 }}>
           <strong>Package:</strong>{' '}
-          <code>{pendingInstall?.package ?? 'unknown'}</code>
+          <code>{pkg ?? 'unknown'}</code>
         </Typography>
 
-        <FormControl fullWidth sx={{ mt: 2 }} disabled={candidateVersions.length === 0}>
-          <InputLabel id="plugin-dialog-version-label">Version</InputLabel>
-          <Select
-            labelId="plugin-dialog-version-label"
-            label="Version"
-            value={selectedVersion}
-            onChange={(e) => setSelectedVersion(e.target.value)}
-          >
-            {candidateVersions.map((v) => (
-              <MenuItem key={v} value={v}>
-                {v}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <Typography sx={{ mt: 1 }}>
+          <strong>Version:</strong> <code>{version}</code>
+        </Typography>
 
         <FormControl fullWidth sx={{ mt: 2 }}>
           <InputLabel id="plugin-dialog-project-label">Project</InputLabel>
@@ -185,7 +158,7 @@ export default function PluginInstallDialog() {
         </FormControl>
       </DialogContent>
       <DialogActions>
-        <Button onClick={() => setPendingInstall(null)}>Cancel</Button>
+        <Button onClick={() => advance()}>Cancel</Button>
         <Button variant="contained" onClick={handleInstall} disabled={!canSubmit}>
           {submitting ? 'Enabling...' : 'Enable plugin'}
         </Button>

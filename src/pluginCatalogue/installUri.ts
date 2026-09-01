@@ -4,61 +4,83 @@
  * The public catalogue communicates with this local app using a custom
  * protocol URI of the form:
  *
- *   web+aiscplugin://install?package=<name>&version=<version>
+ *   web+aiscplugin://enable?package=<name>&version=<version>
  *
- * The URI reaches the app either:
- *   - via the service worker interceptor (/protocol-receiver?uri=...) and a
- *     postMessage to an open tab, or
+ * (with `package`/`version` repeated for a batch of plugins).
+ *
+ * The URI reaches the app in two ways:
+ *   - via the registered protocol handler, which routes to the handler URL
+ *     ({origin}/receiver?uri=...) in a new tab, or
  *   - directly on the URL (?uri=...) when the app boots from scratch.
+ *
+ * No service worker is involved; each enable opens its own new tab.
  */
 
 export interface CatalogInstallPayload {
   /** Plugin package name, e.g. "aisc-plugin-fairness". */
   package: string;
-  /** Optional explicit version. */
-  version: string | null;
+  /** Version requested by the catalogue. */
+  version: string;
   /** The raw incoming URI, kept for debugging/forwarding. */
   uri: string;
 }
 
-export const INSTALL_MESSAGE_TYPE = 'PLUGIN_INSTALL';
+/** Path on this app that the custom protocol handler routes to. */
+export const RECEIVER_PATH = '/receiver';
 
-/** Message contract received from the service worker. */
-export interface InstallMessage {
-  type: typeof INSTALL_MESSAGE_TYPE;
-  payload: string;
+/** Render the handler URL used to register/unregister the custom scheme. */
+export function buildReceiverUrl(): string {
+  return `${window.location.origin}${RECEIVER_PATH}?uri=%s`;
 }
 
 /**
- * Parse a catalogue install URI into a structured payload.
- * Returns null if the URI does not carry a `package` query parameter.
+ * Parse repeated `package`/`version` query parameters out of a catalogue
+ * install URI. A request is only valid when it carries BOTH a `package` and a
+ * `version` for a plugin; entries missing either are skipped. Each well-formed
+ * pair is returned as a separate payload so a single URI can carry several
+ * plugins. Returns an empty array when no complete packages are present.
  */
-export function parseInstallUri(uri: string | null | undefined): CatalogInstallPayload | null {
-  if (!uri) return null;
+export function parseInstallUris(uri: string | null | undefined): CatalogInstallPayload[] {
+  if (!uri) return [];
 
-  let packageName: string | null = null;
-  let version: string | null = null;
+  const result: CatalogInstallPayload[] = [];
 
   try {
     const parsed = new URL(uri);
-    packageName = parsed.searchParams.get('package');
-    version = parsed.searchParams.get('version');
+    const packages = parsed.searchParams.getAll('package');
+    const versions = parsed.searchParams.getAll('version');
+    // Pairs 1:1 by order (the catalogue appends package+version together).
+    const count = Math.min(packages.length, versions.length);
+    for (let i = 0; i < count; i++) {
+      result.push({ package: packages[i], version: versions[i], uri });
+    }
   } catch {
-    // A malformed URL should not crash the app; fall through to regex.
+    // Malformed URL — fall through to regex extraction.
   }
 
-  if (!packageName) {
-    const m = uri.match(/[?&]package=([^&]+)/);
-    if (m) {
-      packageName = decodeURIComponent(m[1]);
-      const v = uri.match(/[?&]version=([^&]+)/);
-      version = v ? decodeURIComponent(v[1]) : null;
+  // Regex fallback for non-URL / custom-scheme URIs.
+  if (result.length === 0) {
+    const re = /(?:[?&]package=([^&]+))(?:\s*&\s*version=([^&]+))?/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(uri))) {
+      const pkg = m[1];
+      const version = m[2];
+      if (pkg && version !== undefined) {
+        result.push({
+          package: decodeURIComponent(pkg),
+          version: decodeURIComponent(version),
+          uri,
+        });
+      }
     }
   }
 
-  if (!packageName) return null;
+  return result;
+}
 
-  return { package: packageName, version, uri };
+/** Parse a single-package install URI (backward compatible). */
+export function parseInstallUri(uri: string | null | undefined): CatalogInstallPayload | null {
+  return parseInstallUris(uri)[0] ?? null;
 }
 
 /**
@@ -94,8 +116,7 @@ export type ProtocolRegistrationStatus =
  * Requires a secure context (HTTPS or localhost) and browser support.
  */
 export function isProtocolHandlerSupported(): boolean {
-  if (!('registerProtocolHandler' in navigator)) return false;
-  return window.isSecureContext;
+  return typeof navigator.registerProtocolHandler === 'function';
 }
 
 /**
@@ -121,7 +142,7 @@ export async function tryRegisterProtocolHandler(
   if (!('registerProtocolHandler' in navigator)) return 'unsupported';
   if (!window.isSecureContext) return 'unsupported';
 
-  const handlerUrl = `${window.location.origin}/protocol-receiver?uri=%s`;
+  const handlerUrl = buildReceiverUrl();
 
   // If the user previously declined the registration prompt, the browser caches
   // that refusal and suppresses the prompt on subsequent calls. Unregistering
@@ -129,19 +150,7 @@ export async function tryRegisterProtocolHandler(
   // is destructive (it removes a working registration), so it only runs when the
   // user explicitly asks to (re-)register — never from the automatic boot path.
   if (forceReset) {
-    const navWithUnregister = navigator as Navigator & {
-      unregisterProtocolHandler?: (scheme: string, url: string) => void | Promise<void>;
-    };
-    if (typeof navWithUnregister.unregisterProtocolHandler === 'function') {
-      try {
-        const pending = navWithUnregister.unregisterProtocolHandler(PROTOCOL_SCHEME, handlerUrl);
-        if (pending && typeof (pending as Promise<void>).catch === 'function') {
-          await (pending as Promise<void>);
-        }
-      } catch {
-        // Unregister may fail if nothing was registered; ignore.
-      }
-    }
+    await unregisterProtocolHandler();
   }
 
   try {
@@ -150,5 +159,25 @@ export async function tryRegisterProtocolHandler(
   } catch (err) {
     console.log(err)
     return 'error';
+  }
+}
+
+/** Remove this app as the handler for the web+aiscplugin scheme. Does nothing
+ *  (and resolves) when no handler is registered or the browser is unsupported. */
+export async function unregisterProtocolHandler(): Promise<void> {
+  const navWithUnregister = navigator as Navigator & {
+    unregisterProtocolHandler?: (scheme: string, url: string) => void | Promise<void>;
+  };
+  if (typeof navWithUnregister.unregisterProtocolHandler !== 'function') return;
+  try {
+    const pending = navWithUnregister.unregisterProtocolHandler(
+      PROTOCOL_SCHEME,
+      buildReceiverUrl(),
+    );
+    if (pending && typeof (pending as Promise<void>).catch === 'function') {
+      await (pending as Promise<void>);
+    }
+  } catch {
+    // Nothing registered; ignore.
   }
 }

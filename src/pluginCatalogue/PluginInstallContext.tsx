@@ -1,45 +1,62 @@
 import {
   createContext,
   useContext,
-  useEffect,
+  useMemo,
   useState,
   type ReactNode,
 } from 'react';
 import {
-  INSTALL_MESSAGE_TYPE,
   type CatalogInstallPayload,
-  type InstallMessage,
   type ProtocolRegistrationStatus,
-  parseInstallUri,
+  parseInstallUris,
   tryRegisterProtocolHandler,
 } from './installUri';
 
 interface PluginInstallContextType {
-  /** The catalogue install currently awaiting user confirmation, if any. */
-  pendingInstall: CatalogInstallPayload | null;
-  /** Show/clear the install prompt from the UI. */
-  setPendingInstall: (payload: CatalogInstallPayload | null) => void;
+  /** Catalogue installs awaiting user confirmation, in the order received. */
+  pendingInstalls: CatalogInstallPayload[];
+  /** The install currently being displayed, if any. */
+  currentInstall: CatalogInstallPayload | null;
+  /** Remove the front of the queue after it has been handled/declined. */
+  advance: () => void;
+  /** Clear the whole queue. */
+  clear: () => void;
   /** Whether the web+aiscplugin protocol handler is registered. */
   protocolStatus: ProtocolRegistrationStatus;
-  /** (Re-)attempt to register the protocol handler. Pass `forceReset=true` to
-   *  unregister first (destructive) so the browser prompt reappears — use only
-   *  from an explicit user gesture. */
+  /** Register the protocol handler (destructive reset; call from a user gesture). */
   registerProtocol: (forceReset?: boolean) => Promise<ProtocolRegistrationStatus>;
 }
 
 const PluginInstallContext = createContext<PluginInstallContextType | undefined>(undefined);
 
+// Parse any boot-time URI(s) attached to the initial page load (e.g. the
+// protocol handler routing to /receiver?uri=...). Computed once at module load,
+// guarded against React StrictMode's dev-time remount (which would otherwise
+// re-run the effect after the token has been stripped, losing the installs).
+let bootHandled = false;
+const bootInstalls: CatalogInstallPayload[] = (() => {
+  if (typeof window === 'undefined') return [];
+  if (bootHandled) return [];
+  bootHandled = true;
+  const uri = new URLSearchParams(window.location.search).get('uri');
+  if (!uri) return [];
+  // Drop the token from the URL so it is never shared/history-logged.
+  window.history.replaceState(null, '', window.location.pathname);
+  return parseInstallUris(uri);
+})();
+
 /**
- * Registers the service worker and wires up the two ways an install can reach
- * this app:
- *   1. A postMessage from the service worker (handshake to an open tab).
- *   2. A `uri` query parameter (app booting from scratch via protocol handler).
+ * Wires up how an install can reach this app:
+ *   - a `uri` query parameter (app booting from scratch via the protocol
+ *     handler), which may encode several plugins at once.
  *
- * Exposes the detected install so a global dialog can prompt the user to target
- * a project.
+ * Exposes a queue of detected installs so a global dialog can prompt the user
+ * to target a project for each plugin. There is no service worker involved.
  */
 export function PluginInstallProvider({ children }: { children: ReactNode }) {
-  const [pendingInstall, setPendingInstall] = useState<CatalogInstallPayload | null>(null);
+  const [pendingInstalls, setPendingInstalls] = useState<CatalogInstallPayload[]>(
+    bootInstalls,
+  );
   const [protocolStatus, setProtocolStatus] = useState<ProtocolRegistrationStatus>('not-ready');
 
   const registerProtocol = async (forceReset = false): Promise<ProtocolRegistrationStatus> => {
@@ -48,49 +65,20 @@ export function PluginInstallProvider({ children }: { children: ReactNode }) {
     return status;
   };
 
-  useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch((err) => {
-        console.error('SW Registration Error:', err);
-      });
-    }
-
-    // Best-effort protocol registration so OS-level deep links can work without
-    // a prior handshake. Safe to call; browsers silently no-op if unsupported.
-    registerProtocol();
-
-    const handleMessage = (event: MessageEvent) => {
-      const data = event.data as InstallMessage | null | undefined;
-      if (data && data.type === INSTALL_MESSAGE_TYPE && typeof data.payload === 'string') {
-        const parsed = parseInstallUri(data.payload);
-        if (parsed) setPendingInstall(parsed);
-      }
-    };
-
-    if (navigator.serviceWorker) {
-      navigator.serviceWorker.addEventListener('message', handleMessage);
-    }
-
-    // Check for a URI delivered directly on the URL (fresh boot).
-    const params = new URLSearchParams(window.location.search);
-    const uri = params.get('uri');
-    if (uri) {
-      const parsed = parseInstallUri(uri);
-      if (parsed) setPendingInstall(parsed);
-      window.history.replaceState(null, '', window.location.pathname);
-    }
-
-    return () => {
-      if (navigator.serviceWorker) {
-        navigator.serviceWorker.removeEventListener('message', handleMessage);
-      }
-    };
-  }, []);
+  const value = useMemo<PluginInstallContextType>(
+    () => ({
+      pendingInstalls,
+      currentInstall: pendingInstalls[0] ?? null,
+      advance: () => setPendingInstalls((prev) => prev.slice(1)),
+      clear: () => setPendingInstalls([]),
+      protocolStatus,
+      registerProtocol,
+    }),
+    [pendingInstalls, protocolStatus, registerProtocol],
+  );
 
   return (
-    <PluginInstallContext.Provider
-      value={{ pendingInstall, setPendingInstall, protocolStatus, registerProtocol }}
-    >
+    <PluginInstallContext.Provider value={value}>
       {children}
     </PluginInstallContext.Provider>
   );

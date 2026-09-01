@@ -24,6 +24,7 @@ import PluginEvaluations from "./pages/PluginEvaluations.tsx";
 import PluginEvaluationMeasurements from "./pages/PluginEvaluationMeasurements.tsx";
 import PluginEvaluationsTasks from "./pages/PluginEvaluationsTasks.tsx";
 import PluginInstallDialog from "./components/PluginInstallDialog.tsx";
+import ProtocolRegisterPrompt from "./components/ProtocolRegisterPrompt.tsx";
 import './App.css';
 // I must add this for files to take it into consideration
 
@@ -184,10 +185,11 @@ export default function PermanentDrawerLeft() {
                                     );
                                 })
                             }
-                            {/* Route the service-worker /protocol-receiver entry through to
-                                the app root. The URI is consumed on boot by
-                                PluginInstallProvider (which sets the install modal and
-                                strips the query), so no NotFound is shown here. */}
+                            {/* Route the protocol-handler /receiver through to the app root. The
+                                URI is consumed on boot by PluginInstallProvider (which
+                                sets the install modal and strips the query), so no
+                                NotFound is shown here. */}
+                            <Route path="/receiver" element={<Navigate to="/" replace />} />
                             <Route path="/protocol-receiver" element={<Navigate to="/" replace />} />
                             <Route path='*' element={<NotFound />} />
                         </Routes>
@@ -196,6 +198,7 @@ export default function PermanentDrawerLeft() {
                 </Box>
             </ThemeProvider>
             <PluginInstallDialog />
+            <ProtocolRegisterPrompt />
         </Box>
     );
 }
