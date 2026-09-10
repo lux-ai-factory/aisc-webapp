@@ -7,7 +7,7 @@ import toast from "react-hot-toast";
 import { useQueryClient } from '@tanstack/react-query';
 import Form from './CustomFormTemplates.tsx';
 import { FormControl, InputLabel, MenuItem, Select, Typography, Box } from '@mui/material';
-import { ProjectSetting, ProjectSettingSelection, SettingDefinition } from '../../models/models';
+import { ProjectConfig, ProjectConfigSelection, ProjectConfigDefinition } from '../../models/models';
 import './PluginConfigForm.css';
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
@@ -19,14 +19,14 @@ interface PluginConfigFormProps {
     uiSchema: any;
     config?: object | null;
     onFormUpdate: (updatedState: { config: object; formSchema: object; uiSchema: object }) => void;
-    onSubmit: (config: object, projectSettingSelections: ProjectSettingSelection[]) => void;
-    settingDefinitions?: SettingDefinition[];
-    projectSettings?: ProjectSetting[];
-    projectSettingSelections?: ProjectSettingSelection[];
+    onSubmit: (config: object, projectSettingSelections: ProjectConfigSelection[]) => void;
+    projectConfigDefinitions?: ProjectConfigDefinition[];
+    projectSettings?: ProjectConfig[];
+    projectSettingSelections?: ProjectConfigSelection[];
 }
 
-const updateConfigDynamics = async ({ pluginPID, config, projectSettingSelections }: { pluginPID: string; config: object; projectSettingSelections: ProjectSettingSelection[] }) => {
-    const data = { config, project_setting_selections: projectSettingSelections };
+const updateConfigDynamics = async ({ pluginPID, config, projectSettingSelections }: { pluginPID: string; config: object; projectSettingSelections: ProjectConfigSelection[] }) => {
+    const data = { config, project_config_selections: projectSettingSelections };
 
     const response = await fetch(`${API_URL}/plugins/${pluginPID}/config/state`, {
         method: 'POST',
@@ -45,31 +45,31 @@ const PluginConfigForm = React.forwardRef<any, PluginConfigFormProps>(function P
     config,
     onFormUpdate,
     onSubmit,
-    settingDefinitions = [],
+    projectConfigDefinitions = [],
     projectSettings = [],
     projectSettingSelections = [],
 }: PluginConfigFormProps, ref) {
     const [settingSelections, setSettingSelections] = useState<Record<string, string>>({});
 
-    const settingSelectionsToPayload = (selections: Record<string, string>): ProjectSettingSelection[] =>
-        Object.entries(selections).map(([plugin_setting_key, project_setting_pid]) => ({ plugin_setting_key, project_setting_pid }));
+    const settingSelectionsToPayload = (selections: Record<string, string>): ProjectConfigSelection[] =>
+        Object.entries(selections).map(([plugin_config_key, project_config_pid]) => ({ plugin_config_key, project_config_pid }));
 
     useEffect(() => {
         const selections: Record<string, string> = {};
-        for (const definition of settingDefinitions) {
+        for (const definition of projectConfigDefinitions) {
             const compatible = projectSettings.find(setting =>
-                projectSettingSelections.some(selection => selection.project_setting_pid === setting.pid) &&
+                projectSettingSelections.some(selection => selection.project_config_pid === setting.pid) &&
                 setting.category === definition.category &&
-                (definition.category !== 'general' || !definition.value_type || setting.json_value?.type === definition.value_type)
+                (definition.category !== 'variables' || !definition.value_type || setting.json_value?.type === definition.value_type)
             );
             const selected = compatible ?? projectSettings.find(setting =>
                 setting.category === definition.category && setting.key === definition.key &&
-                (definition.category !== 'general' || !definition.value_type || setting.json_value?.type === definition.value_type)
+                (definition.category !== 'variables' || !definition.value_type || setting.json_value?.type === definition.value_type)
             );
             if (selected) selections[definition.key] = selected.pid;
         }
         setSettingSelections(selections);
-    }, [projectSettingSelections, projectSettings, settingDefinitions]);
+    }, [projectSettingSelections, projectSettings, projectConfigDefinitions]);
 
     const queryClient = useQueryClient();
     // Mutation to handle background schema/data synchronization
@@ -197,10 +197,10 @@ const PluginConfigForm = React.forwardRef<any, PluginConfigFormProps>(function P
         <>
         <Typography variant="h6" sx={{ mb: 2 }}>Project Settings</Typography>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 3 }}>
-            {settingDefinitions.map(definition => {
+            {projectConfigDefinitions.map(definition => {
                 const candidates = projectSettings.filter(setting =>
                     setting.category === definition.category &&
-                    (definition.category !== 'general' || !definition.value_type || setting.json_value?.type === definition.value_type)
+                    (definition.category !== 'variables' || !definition.value_type || setting.json_value?.type === definition.value_type)
                 );
                 const selected = settingSelections[definition.key] ?? '';
                 return (

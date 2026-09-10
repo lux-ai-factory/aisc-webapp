@@ -1,9 +1,30 @@
+export type AIComponentType = 'dataset' | 'model' | 'llm' | 'rest' | 'datashape';
+
+export interface AIComponent {
+    pid: string;
+    name: string;
+    description: string;
+    component_type: AIComponentType;
+    data: string;
+    file_size: number | null;
+    endpoint_url?: string;
+    secret_pid?: string | null;
+    source_dataset_pid?: string | null;
+    json_value?: Record<string, unknown>;
+}
+
+export interface AISystem {
+    pid: string;
+    name: string;
+    description: string;
+    components: AIComponent[];
+}
+
 export interface Project {
     pid: string;
     name: string;
     plugins: Plugin[];
-    datasets: DataObject[];
-    models: DataObject[];
+    components: AIComponent[];
 }
 
 export interface Evaluation {
@@ -52,15 +73,16 @@ export interface ProjectPluginConfigState {
     config?: object | null;
     formSchema: object;
     uiSchema: object
-    setting_definitions?: SettingDefinition[];
-    project_setting_selections?: ProjectSettingSelection[];
-    project_settings?: ProjectSetting[];
+    project_config_definitions?: ProjectConfigDefinition[];
+    project_config_selections?: ProjectConfigSelection[];
+    project_settings?: ProjectConfig[];
 }
 
-export type SettingCategory = 'secrets' | 'datashape' | 'general';
+export type SettingCategory = 'secrets' | 'datashape' | 'variables' | 'api_endpoint';
+export type EndpointType = 'openai_compatible' | 'rest';
 export type SettingValueType = 'string' | 'number' | 'boolean' | 'json';
 
-export interface SettingDefinition {
+export interface ProjectConfigDefinition {
     key: string;
     name: string;
     category: SettingCategory;
@@ -68,20 +90,22 @@ export interface SettingDefinition {
     required: boolean;
 }
 
-export interface ProjectSetting {
+export interface ProjectConfig {
     pid: string;
     category: SettingCategory;
     key: string;
     name: string;
     masked_value: string;
     json_value: Record<string, unknown>;
+    endpoint_type?: EndpointType | null;
+    url?: string;
     created_at: string;
     updated_at: string;
 }
 
-export interface ProjectSettingSelection {
-    plugin_setting_key: string;
-    project_setting_pid: string;
+export interface ProjectConfigSelection {
+    plugin_config_key: string;
+    project_config_pid: string;
 }
 
 export interface ValidationReport {

@@ -91,7 +91,9 @@ export default function PluginEvaluationForm({
     const findLabel = (def: PluginInputDefinition): string => {
         const sel = selections.find(s => s.name === def.name);
         if (!sel) return '';
-        const pool = def.input_type === 'dataset' ? project?.datasets : project?.models;
+        const pool = (project?.components ?? []).filter(c =>
+            def.input_type === 'dataset' ? c.component_type === 'dataset' : c.component_type !== 'dataset',
+        );
         const obj = pool?.find((o: DataObject) => o.pid === sel.pid);
         return obj?.name ?? sel.pid.slice(0, 8);
     };
@@ -200,7 +202,9 @@ export default function PluginEvaluationForm({
                     <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }} onClick={e => e.stopPropagation()}>
                         {/* Input definitions: dataset / model selectors — use name + label */}
                         {inputDefinitions?.map((def: PluginInputDefinition) => {
-                            const options = def.input_type === 'dataset' ? project?.datasets : project?.models;
+                            const options = (project?.components ?? []).filter(c =>
+                                def.input_type === 'dataset' ? c.component_type === 'dataset' : c.component_type !== 'dataset',
+                            );
                             const currentSelection = selections.find(s => s.name === def.name);
 
                             return (

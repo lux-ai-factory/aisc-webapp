@@ -21,7 +21,7 @@ const postPluginConfig = async (plugin_pid: string, formData: object, projectSet
 
     const data = {
         config: formData,
-        project_setting_selections: projectSettingSelections,
+        project_config_selections: projectSettingSelections,
     }
     const response = await fetch(`${API_URL}/plugins/${plugin_pid}/config`, {
         method: 'POST',
@@ -234,7 +234,7 @@ function PluginConfig() {
                         value={selectedDataset}
                         onChange={(e) => handleDatasetChange(e)}
                     >
-                        {project?.datasets.map((dataset: DataObject) => (
+                        {(project?.components ?? []).filter(c => c.component_type === 'dataset').map((dataset: DataObject) => (
                             <MenuItem key={dataset.pid} value={dataset.pid}>{dataset.name}</MenuItem>
                         ))}
                     </Select>
@@ -251,9 +251,9 @@ function PluginConfig() {
                         formSchema={configState.formSchema}
                         uiSchema={configState.uiSchema}
                         config={configState.config ?? {}}
-                        settingDefinitions={configState.setting_definitions ?? []}
+                        projectConfigDefinitions={configState.project_config_definitions ?? []}
                         projectSettings={configState.project_settings ?? []}
-                        projectSettingSelections={configState.project_setting_selections ?? []}
+                        projectSettingSelections={configState.project_config_selections ?? []}
                         onFormUpdate={(state) => setConfigOverride(state)}
                         onSubmit={onSubmit}
                     />
