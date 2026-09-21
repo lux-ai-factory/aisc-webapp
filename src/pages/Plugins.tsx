@@ -132,7 +132,12 @@ function Plugins() {
             enabled: enabledPluginsCount > 0,
             plugins: packagePlugins.filter((pl: Plugin) => pl.pid),
         };
-    });
+    })
+        // Only what this project has. Discovery belongs to the catalogue, which
+        // is the only place that knows what a test measures, which regulation it
+        // serves and which distribution provides it. Listing everything the
+        // engine could reach turned this page into a second, poorer catalogue.
+        .filter((pkg: ProjectPackage) => pkg.plugins.length > 0);
 
     const refreshProjectQueries = async () => {
         await queryClient.invalidateQueries({queryKey: ['project']});
@@ -206,6 +211,13 @@ function Plugins() {
             <Typography component="h2" variant="h4" gutterBottom>
                 Available Packages
             </Typography>
+
+            {projectPackages.length === 0 && (
+                <Typography variant="body1" color="text.secondary" sx={{mb: 2}}>
+                    No tests installed in this project yet. Browse the catalogue and
+                    install one from there.
+                </Typography>
+            )}
 
             <Grid
                 container

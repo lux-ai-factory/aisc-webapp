@@ -1,9 +1,6 @@
 import {
     Box,
     Button,
-    Card,
-    CardContent,
-    Chip,
     Dialog,
     DialogContent,
     DialogTitle,
@@ -17,13 +14,12 @@ import {
     ListItem,
     Icon
 } from "@mui/material";
-import Grid from "@mui/material/Grid2";
 import AddIcon from "@mui/icons-material/Add";
 import CloudUpload from "@mui/icons-material/CloudUpload";
 import CloudDoneIcon from "@mui/icons-material/CloudDone";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { styled } from "@mui/material/styles";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import "./addProjectWizard.css";
 import "../styles/common.css";
 
@@ -64,7 +60,8 @@ interface AddProjectWizardProps {
     onFinish: (data: any) => void;
     datasets: any[];
     models: any[];
-    plugins: PluginItem[];
+    /** Unused: tests are installed from the catalogue, not at project creation. */
+    plugins?: PluginItem[];
     fetchDatasets: () => void;
     fetchModels: () => void;
     fetchPlugins: () => void;
@@ -76,7 +73,6 @@ export default function AddProjectWizard({
     onFinish,
     datasets: _datasets,
     models: _models,
-    plugins,
     fetchDatasets,
     fetchModels,
     fetchPlugins
@@ -89,18 +85,9 @@ export default function AddProjectWizard({
     const [localDatasets, setLocalDatasets] = useState<DatasetItem[]>([]);
     const [localModels, setLocalModels] = useState<ModelItem[]>([]);
 
-    const [selectedPlugins, setSelectedPlugins] = useState<Record<string, boolean>>({});
-
-    const groupedPlugins = useMemo(() => {
-        const seen = new Set<string>();
-        return plugins.filter(p => {
-            if (!p.name || seen.has(p.name)) return false;
-            seen.add(p.name);
-            return true;
-        });
-    }, [plugins]);
-
-    const steps = ["Project Name", "Datasets", "Models", "Plugins"];
+    // No "Plugins" step: tests are discovered in the catalogue and installed
+// from there, which is the only place that knows what a test measures.
+    const steps = ["Project Name", "Datasets", "Models"];
 
     // Load wizard data ONLY when the wizard opens
     useEffect(() => {
@@ -114,7 +101,6 @@ export default function AddProjectWizard({
             setProjectName("");
             setLocalDatasets([]);
             setLocalModels([]);
-            setSelectedPlugins({});
         }
     }, [open]);
 
@@ -178,17 +164,13 @@ export default function AddProjectWizard({
     const handleBack = () => setActiveStep(s => s - 1);
 
     const handleFinish = () => {
-        const allEntries: Record<string, { name: string; version: string }> = {};
-        plugins.forEach((p, i) => {
-            if (selectedPlugins[p.name]) {
-                allEntries[String(i)] = { name: p.name, version: p.version };
-            }
-        });
         onFinish({
             name: projectName,
             datasets: localDatasets,
             models: localModels,
-            plugins: allEntries
+            // A project is created without tests. They are discovered in the
+            // catalogue and installed from there.
+            plugins: {}
         });
         onClose();
     };
@@ -406,66 +388,7 @@ export default function AddProjectWizard({
                     </Box>
                 )}
 
-                {/* PLUGINS (now packages) */}
-                {activeStep === 3 && (
-                    <Grid container spacing={2}>
-                        {groupedPlugins.map(pkg => {
-                            const selected = !!selectedPlugins[pkg.name];
 
-                            return (
-                                <Grid key={pkg.name} size={{ xs: 12, sm: 6, md: 4 }}>
-                                    <Card
-                                        onClick={() =>
-                                            setSelectedPlugins(prev => ({
-                                                ...prev,
-                                                [pkg.name]: !prev[pkg.name]
-                                            }))
-                                        }
-                                        className="plugins-card"
-                                        sx={{
-                                            border: '2px solid',
-                                            borderColor: selected ? 'primary.main' : 'grey.200',
-                                            background: selected
-                                                ? 'linear-gradient(135deg, rgba(69, 145, 251, 0.15), rgba(0, 52, 255, 0.1))'
-                                                : 'white',
-                                        }}
-                                    >
-                                        <CardContent sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-                                            <Box sx={{ flex: 1 }}>
-                                                <Typography variant="subtitle1" fontWeight={600} color="text.primary">
-                                                    {pkg.name}
-                                                </Typography>
-
-                                                <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5, flexWrap: 'wrap', alignItems: 'center' }}>
-                                                    <Chip
-                                                        label={`v${pkg.version}`}
-                                                        size="small"
-                                                        variant="outlined"
-                                                        color="default"
-                                                    />
-                                                    {pkg.source && (
-                                                        <Chip
-                                                            label={pkg.source}
-                                                            size="small"
-                                                            color={pkg.source === 'local' ? 'info' : 'default'}
-                                                            variant={pkg.source === 'local' ? 'filled' : 'outlined'}
-                                                        />
-                                                    )}
-                                                </Box>
-                                            </Box>
-
-                                            {selected && (
-                                                <Icon sx={{ color: 'success.main', alignSelf: 'center', fontSize: 24 }}>
-                                                    check_circle
-                                                </Icon>
-                                            )}
-                                        </CardContent>
-                                    </Card>
-                                </Grid>
-                            );
-                        })}
-                    </Grid>
-                )}
 
                 {/* NAVIGATION */}
                 <Box className="wizard-nav">
