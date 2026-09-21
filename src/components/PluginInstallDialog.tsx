@@ -18,6 +18,7 @@ import toast from 'react-hot-toast';
 import { API_VERSION_PREFIX } from '../config';
 import { useProject } from '../context/ProjectContext';
 import { usePluginInstall } from '../pluginCatalogue/PluginInstallContext';
+import { installRequestBody } from '../pluginCatalogue/installUri';
 
 const API_URL = (import.meta.env.VITE_API_URL as string) + API_VERSION_PREFIX;
 
@@ -74,11 +75,7 @@ export default function PluginInstallDialog() {
       const res = await fetch(`${API_URL}/plugins`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          package_name: currentInstall.package,
-          version: currentInstall.version,
-          project_uuid: selectedProject,
-        }),
+        body: JSON.stringify(installRequestBody(currentInstall, selectedProject)),
       });
       if (!res.ok) throw new Error('Network response was not ok');
 
