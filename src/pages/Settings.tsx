@@ -255,7 +255,7 @@ function SettingDialog({
                                     <MenuItem value="true">True</MenuItem><MenuItem value="false">False</MenuItem>
                                 </TextField>
                             ) : valueType === 'json' ? (
-                                <TextField multiline minRows={5} label="JSON value" value={JSON.stringify(generalValue, null, 2)} onChange={e => { try { setGeneralValue(JSON.parse(e.target.value)); } catch { /* keep editing invalid JSON */ } }} />
+                                <TextField multiline minRows={5} label="JSON value" value={JSON.stringify(generalValue, null, 2)} onChange={e => { try { setGeneralValue(JSON.parse(e.target.value)); } catch { /* keep editing invalid JSON */ } }} sx={{ '& .MuiInputBase-input': { fontFamily: 'monospace' } }} />
                             ) : (
                                 <TextField label="Value" type={valueType === 'number' ? 'number' : 'text'} value={String(generalValue ?? '')} onChange={e => setGeneralValue(valueType === 'number' ? Number(e.target.value) : e.target.value)} />
                             )}

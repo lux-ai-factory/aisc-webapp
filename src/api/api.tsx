@@ -44,6 +44,20 @@ export const getPluginProjectConfigDefinitions = async (plugin_pid: string) => {
     return await res.json();
 };
 
+export const getComponentModels = async (component_pid: string): Promise<{ models: string[]; error: string | null }> => {
+    const res = await fetch(`${API_URL}/components/${component_pid}/models`);
+    if (!res.ok) throw new Error('Failed to fetch component models');
+    return await res.json();
+};
+
+export const getEvaluationInputsTemplate = async (
+    project_pid: string,
+): Promise<Record<string, Record<string, { component_pid: string; value?: Record<string, unknown> }>>> => {
+    const res = await fetch(`${API_URL}/projects/${project_pid}/evaluation-inputs-template`);
+    if (!res.ok) throw new Error('Failed to fetch previous evaluation inputs');
+    return await res.json();
+};
+
 export const getProjectConfigs = async (projectPid: string): Promise<ProjectConfig[]> => {
     const res = await fetch(`${API_URL}/project/settings/${projectPid}`);
     if (!res.ok) throw new Error('Failed to fetch project settings');

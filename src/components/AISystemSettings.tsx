@@ -18,8 +18,9 @@ const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 const COMPONENT_TYPES: { value: AIComponentType; label: string }[] = [
     { value: "model", label: "Model (file upload)" },
     { value: "dataset", label: "Dataset (file upload)" },
-    { value: "llm", label: "OpenAI-compatible endpoint" },
+    { value: "llm", label: "LLM (OpenAI-compatible endpoint)" },
     { value: "datashape", label: "DataShape (from dataset)" },
+    { value: "resource", label: "Resource (generic reference)" },
 ];
 
 const SEMANTIC_TYPES = ["numeric", "categorical", "datetime", "text", "boolean"];
@@ -103,8 +104,9 @@ export default function AISystemSettings() {
     const [name, setName] = useState("");
     const [type, setType] = useState<AIComponentType>("model");
     const [file, setFile] = useState<File | undefined>();
-    const [endpointUrl, setEndpointUrl] = useState("");
-    const [secretPid, setSecretPid] = useState("");
+    const [addLlmUrl, setAddLlmUrl] = useState("");
+    const [addSecretKey, setAddSecretKey] = useState("");
+    const [addResourceValue, setAddResourceValue] = useState("");
     const [sourceDatasetPid, setSourceDatasetPid] = useState("");
     const [saving, setSaving] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -113,8 +115,9 @@ export default function AISystemSettings() {
     const [editTarget, setEditTarget] = useState<AIComponent | null>(null);
     const [editName, setEditName] = useState("");
     const [editFile, setEditFile] = useState<File | undefined>();
-    const [editEndpointUrl, setEditEndpointUrl] = useState("");
-    const [editSecretPid, setEditSecretPid] = useState("");
+    const [editLlmUrl, setEditLlmUrl] = useState("");
+    const [editSecretKey, setEditSecretKey] = useState("");
+    const [editResourceValue, setEditResourceValue] = useState("");
     const [editSourceDatasetPid, setEditSourceDatasetPid] = useState("");
     const [editJsonValue, setEditJsonValue] = useState<{ features?: FeatureDraft[] }>({});
     const [editSaving, setEditSaving] = useState(false);
@@ -145,8 +148,9 @@ export default function AISystemSettings() {
         setName("");
         setType("model");
         setFile(undefined);
-        setEndpointUrl("");
-        setSecretPid("");
+        setAddLlmUrl("");
+        setAddSecretKey("");
+        setAddResourceValue("");
         setSourceDatasetPid("");
         if (projectUUID) {
             try {
@@ -159,13 +163,19 @@ export default function AISystemSettings() {
 
     const addComponent = async () => {
         if (!projectUUID || name.trim().length < 1) return;
-        if (type === "llm" && (!endpointUrl.trim() || !secretPid)) return;
+        if (type === "llm" && (!addLlmUrl.trim() || !addSecretKey)) return;
+        if (type === "resource" && !addResourceValue.trim()) return;
         if (type === "datashape" && !sourceDatasetPid) return;
         if ((type === "model" || type === "dataset") && !file) return;
         setSaving(true);
         try {
             const payload: Record<string, unknown> = { name: name.trim(), component_type: type };
-            if (type === "llm") { payload.endpoint_url = endpointUrl.trim(); payload.secret_pid = secretPid; }
+            if (type === "llm") {
+                payload.json_value = { endpoint_url: addLlmUrl.trim(), secret_key: addSecretKey };
+            }
+            if (type === "resource") {
+                payload.json_value = { value: addResourceValue.trim() };
+            }
             if (type === "datashape") { payload.source_dataset_pid = sourceDatasetPid; }
             const res = await fetch(`${API_URL}/projects/${projectUUID}/components`, {
                 method: "POST",
@@ -192,11 +202,13 @@ export default function AISystemSettings() {
     };
 
     const startEdit = (c: AIComponent) => {
+        const json = (c.json_value ?? {}) as Record<string, unknown>;
         setEditTarget(c);
         setEditName(c.name);
         setEditFile(undefined);
-        setEditEndpointUrl(c.endpoint_url ?? "");
-        setEditSecretPid(c.secret_pid ?? "");
+        setEditLlmUrl(typeof json.endpoint_url === "string" ? json.endpoint_url : "");
+        setEditSecretKey(typeof json.secret_key === "string" ? json.secret_key : "");
+        setEditResourceValue(typeof json.value === "string" ? json.value : "");
         setEditSourceDatasetPid(c.source_dataset_pid ?? "");
         setEditJsonValue((c.json_value as { features?: FeatureDraft[] }) ?? {});
     };
@@ -208,8 +220,10 @@ export default function AISystemSettings() {
         try {
             const payload: Record<string, unknown> = { name: editName.trim() };
             if (editTarget.component_type === "llm") {
-                payload.endpoint_url = editEndpointUrl.trim();
-                payload.secret_pid = editSecretPid;
+                payload.json_value = { endpoint_url: editLlmUrl.trim(), secret_key: editSecretKey };
+            }
+            if (editTarget.component_type === "resource") {
+                payload.json_value = { value: editResourceValue };
             }
             if (editTarget.component_type === "datashape") {
                 payload.source_dataset_pid = editSourceDatasetPid;
@@ -236,13 +250,16 @@ export default function AISystemSettings() {
     if (loading) return <CircularProgress />;
 
     const summary = (c: AIComponent) => {
+        const json = (c.json_value ?? {}) as Record<string, unknown>;
         switch (c.component_type) {
             case "model": case "dataset":
                 return c.data ? "file uploaded" : "no file";
             case "llm":
-                return `${c.endpoint_url || "no endpoint"} · key: ${c.secret_pid ? "set" : "none"}`;
+                return `${json.endpoint_url || "no endpoint"} · key: ${json.secret_key ? (json.secret_key as string) : "none"}`;
+            case "resource":
+                return json.value ? String(json.value) : "no value";
             case "datashape": {
-                const features = (c.json_value as { features?: unknown[] })?.features ?? [];
+                const features = (json.features as unknown[]) ?? [];
                 return c.source_dataset_pid ? `${features.length} features from dataset` : "no source dataset";
             }
             default:
@@ -252,7 +269,8 @@ export default function AISystemSettings() {
 
     const canAdd = name.trim().length > 0
         && !((type === "model" || type === "dataset") && !file)
-        && !(type === "llm" && (!endpointUrl.trim() || !secretPid))
+        && !(type === "llm" && (!addLlmUrl.trim() || !addSecretKey))
+        && !(type === "resource" && !addResourceValue.trim())
         && !(type === "datashape" && !sourceDatasetPid);
 
     return (
@@ -316,11 +334,15 @@ export default function AISystemSettings() {
                         )}
                         {type === "llm" && (
                             <>
-                                <TextField label="Endpoint URL" value={endpointUrl} onChange={(e) => setEndpointUrl(e.target.value)} placeholder="https://api.openai.com/v1" />
-                                <TextField select label="API key (from project secrets)" value={secretPid} onChange={(e) => setSecretPid(e.target.value)}>
-                                    {secrets.map(s => <MenuItem key={s.pid} value={s.pid}>{s.name} ({s.masked_value})</MenuItem>)}
+                                <TextField label="Endpoint URL" value={addLlmUrl} onChange={(e) => setAddLlmUrl(e.target.value)} placeholder="https://api.openai.com/v1" />
+                                <TextField select label="API key (from project secrets)" value={addSecretKey} onChange={(e) => setAddSecretKey(e.target.value)}>
+                                    {secrets.map(s => <MenuItem key={s.pid} value={s.key}>{s.name} ({s.masked_value})</MenuItem>)}
                                 </TextField>
                             </>
+                        )}
+                        {type === "resource" && (
+                            <TextField label="Resource reference" value={addResourceValue} onChange={(e) => setAddResourceValue(e.target.value)}
+                                placeholder="e.g. user/hf-model-name" />
                         )}
                         {type === "datashape" && (
                             <TextField select label="Source dataset" value={sourceDatasetPid} onChange={(e) => setSourceDatasetPid(e.target.value)}>
@@ -352,11 +374,15 @@ export default function AISystemSettings() {
                             )}
                             {editTarget.component_type === "llm" && (
                                 <>
-                                    <TextField label="Endpoint URL" value={editEndpointUrl} onChange={(e) => setEditEndpointUrl(e.target.value)} placeholder="https://api.openai.com/v1" />
-                                    <TextField select label="API key (from project secrets)" value={editSecretPid} onChange={(e) => setEditSecretPid(e.target.value)}>
-                                        {secrets.map(s => <MenuItem key={s.pid} value={s.pid}>{s.name} ({s.masked_value})</MenuItem>)}
+                                    <TextField label="Endpoint URL" value={editLlmUrl} onChange={(e) => setEditLlmUrl(e.target.value)} placeholder="https://api.openai.com/v1" />
+                                    <TextField select label="API key (from project secrets)" value={editSecretKey} onChange={(e) => setEditSecretKey(e.target.value)}>
+                                        {secrets.map(s => <MenuItem key={s.pid} value={s.key}>{s.name} ({s.masked_value})</MenuItem>)}
                                     </TextField>
                                 </>
+                            )}
+                            {editTarget.component_type === "resource" && (
+                                <TextField label="Resource reference" value={editResourceValue} onChange={(e) => setEditResourceValue(e.target.value)}
+                                    placeholder="e.g. user/hf-model-name" />
                             )}
                             {editTarget.component_type === "datashape" && (
                                 <>

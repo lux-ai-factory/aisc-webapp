@@ -194,8 +194,9 @@ const PluginConfigForm = React.forwardRef<any, PluginConfigFormProps>(function P
 
     return (
         <>
+        {projectConfigDefinitions.length > 0 && (
         <>
-        <Typography variant="h6" sx={{ mb: 2 }}>Project Settings</Typography>
+        <Typography variant="h6" sx={{ mb: 2 }}>Project Configuration</Typography>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 3 }}>
             {projectConfigDefinitions.map(definition => {
                 const candidates = projectSettings.filter(setting =>
@@ -241,6 +242,8 @@ const PluginConfigForm = React.forwardRef<any, PluginConfigFormProps>(function P
                 );
             })}
         </Box>
+        </>
+        )}
         <Typography variant="h6" sx={{ mb: 2 }}>Plugin Configuration</Typography>
         <Form
             ref={formRefInternal}
@@ -261,7 +264,6 @@ const PluginConfigForm = React.forwardRef<any, PluginConfigFormProps>(function P
             />
             <button type="submit" style={{ display: 'none' }}>Save</button>
         </Form>
-        </>
         </>
     );
 });

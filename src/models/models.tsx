@@ -1,4 +1,4 @@
-export type AIComponentType = 'dataset' | 'model' | 'llm' | 'rest' | 'datashape';
+export type AIComponentType = 'dataset' | 'model' | 'llm' | 'datashape' | 'resource';
 
 export interface AIComponent {
     pid: string;
@@ -7,8 +7,6 @@ export interface AIComponent {
     component_type: AIComponentType;
     data: string;
     file_size: number | null;
-    endpoint_url?: string;
-    secret_pid?: string | null;
     source_dataset_pid?: string | null;
     json_value?: Record<string, unknown>;
 }
@@ -31,8 +29,6 @@ export interface Evaluation {
     pid: string;
     project: Project
     status: string;
-    dataset: DataObject;
-    model: DataObject;
     evaluation_plugins: Plugin[];
     task: string;
 }
@@ -62,12 +58,6 @@ export interface TaskProgress {
     extra: object
 }
 
-export interface DataObject {
-    pid: string;
-    name: string;
-    data: string;
-}
-
 export interface ProjectPluginConfigState {
     plugin_config_id?: number | null;
     config?: object | null;
@@ -75,7 +65,8 @@ export interface ProjectPluginConfigState {
     uiSchema: object
     project_config_definitions?: ProjectConfigDefinition[];
     project_config_selections?: ProjectConfigSelection[];
-    project_settings?: ProjectConfig[];
+    project_configs?: ProjectConfig[];
+    description?: string;
 }
 
 export type SettingCategory = 'secrets' | 'datashape' | 'variables' | 'api_endpoint';
@@ -137,6 +128,7 @@ export interface PluginInputValue {
     name: string;
     input_type: string;
     datashape_pid?: string;
+    value?: Record<string, unknown>;
 }
 
 export interface Measurement {
