@@ -227,7 +227,8 @@ export default function AISystemSettings() {
             }
             if (editTarget.component_type === "datashape") {
                 payload.source_dataset_pid = editSourceDatasetPid;
-                payload.json_value = editJsonValue;
+                const current = (editTarget.json_value ?? {}) as Record<string, unknown>;
+                payload.json_value = { ...current, features: editJsonValue.features ?? [] };
             }
             const res = await fetch(`${API_URL}/components/${editTarget.pid}`, {
                 method: "PATCH",
