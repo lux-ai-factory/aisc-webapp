@@ -160,17 +160,17 @@ const TopBar: React.FC = () => {
 
         const uploads: Promise<unknown>[] = [];
 
-        // 2. Create DATASETS
+        // 2. Create DATASET components
         for (const ds of datasets) {
             if (!ds.name || ds.name.trim().length < 1) continue;
 
-            // 2a. Create dataset row
+            // 2a. Create dataset component row
             const created = await fetch(
-                `${API_URL}/projects/${newProject.pid}/datasets`,
+                `${API_URL}/projects/${newProject.pid}/components`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name: ds.name })
+                    body: JSON.stringify({ name: ds.name, component_type: "dataset" })
                 }
             ).then(r => r.json());
 
@@ -182,24 +182,24 @@ const TopBar: React.FC = () => {
                 const formData = new FormData();
                 formData.append("file", ds.file);
                 uploads.push(
-                    fetch(`${API_URL}/datasets/${ds.pid}/data`, { method: "PUT", body: formData }).then(() => {
+                    fetch(`${API_URL}/components/${ds.pid}/data`, { method: "PUT", body: formData }).then(() => {
                         toast.success(`Dataset \`${ds.name}\` uploaded`, { position: 'bottom-right' });
                     }).finally(() => removeFileUploadingPid(ds.pid))
                 );
             }
         }
 
-        // 3. Create MODELS
+        // 3. Create MODEL components
         for (const m of models) {
             if (!m.name || m.name.trim().length < 1) continue;
 
-            // 3a. Create model row
+            // 3a. Create model component row
             const created = await fetch(
-                `${API_URL}/projects/${newProject.pid}/models`,
+                `${API_URL}/projects/${newProject.pid}/components`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name: m.name })
+                    body: JSON.stringify({ name: m.name, component_type: "model" })
                 }
             ).then(r => r.json());
 
@@ -211,7 +211,7 @@ const TopBar: React.FC = () => {
                 const formData = new FormData();
                 formData.append("file", m.file);
                 uploads.push(
-                    fetch(`${API_URL}/models/${m.pid}/data`, { method: "PUT", body: formData }).then(() => {
+                    fetch(`${API_URL}/components/${m.pid}/data`, { method: "PUT", body: formData }).then(() => {
                         toast.success(`Model \`${m.name}\` uploaded`, { position: 'bottom-right' });
                     }).finally(() => removeFileUploadingPid(m.pid))
                 );
