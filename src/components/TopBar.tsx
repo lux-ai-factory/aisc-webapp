@@ -11,6 +11,7 @@ import {
     Menu,
     MenuItem,
     Toolbar,
+    Tooltip,
     Typography
 } from '@mui/material';
 import React, {useEffect, useState} from 'react';
@@ -24,6 +25,8 @@ import toast from 'react-hot-toast';
 import "./TopBar.css";
 import "./addProjectButton.css";
 import AddProjectWizard from "./addProjectWizard.tsx";
+import { openPublicCatalogue, isProtocolHandlerSupported } from "../pluginCatalogue/installUri.ts";
+import { usePluginInstall } from "../pluginCatalogue/PluginInstallContext.tsx";
 
 
 interface Project {
@@ -139,6 +142,9 @@ const TopBar: React.FC = () => {
 
     // Keycloak auth: who is logged in + login/logout actions
     const {authenticated, username, login, logout} = useAuth();
+    const {registerProtocol} = usePluginInstall();
+    const [registering, setRegistering] = useState(false);
+    const supportsProtocolHandler = isProtocolHandlerSupported();
 
     const navigate = useNavigate();
     const location = useLocation();
@@ -147,6 +153,22 @@ const TopBar: React.FC = () => {
     const fetchProjects = async () => {
         const data = await apiCall('/projects');
         if (data) setProjects(data);
+    };
+
+    const handleRegisterProtocol = async () => {
+        setRegistering(true);
+        // This is a user gesture, so it's safe to do the destructive
+        // unregister-then-register to reset any cached refusal and force the
+        // browser prompt to reappear.
+        const status = await registerProtocol(true);
+        setRegistering(false);
+        if (status === 'registered') {
+            toast.success('Deep-link protocol enabled.', { position: 'bottom-right' });
+        } else if (status === 'unsupported') {
+            toast.error('Protocol handlers need localhost or HTTPS.', { position: 'bottom-right' });
+        } else {
+            toast.error('Could not register the protocol handler.', { position: 'bottom-right' });
+        }
     };
 
     const addProject = async (wizardData: any) => {
@@ -160,17 +182,17 @@ const TopBar: React.FC = () => {
 
         const uploads: Promise<unknown>[] = [];
 
-        // 2. Create DATASETS
+        // 2. Create DATASET components
         for (const ds of datasets) {
             if (!ds.name || ds.name.trim().length < 1) continue;
 
-            // 2a. Create dataset row
+            // 2a. Create dataset component row
             const created = await fetch(
-                `${API_URL}/projects/${newProject.pid}/datasets`,
+                `${API_URL}/projects/${newProject.pid}/components`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name: ds.name })
+                    body: JSON.stringify({ name: ds.name, component_type: "dataset" })
                 }
             ).then(r => r.json());
 
@@ -182,24 +204,24 @@ const TopBar: React.FC = () => {
                 const formData = new FormData();
                 formData.append("file", ds.file);
                 uploads.push(
-                    fetch(`${API_URL}/datasets/${ds.pid}/data`, { method: "PUT", body: formData }).then(() => {
+                    fetch(`${API_URL}/components/${ds.pid}/data`, { method: "PUT", body: formData }).then(() => {
                         toast.success(`Dataset \`${ds.name}\` uploaded`, { position: 'bottom-right' });
                     }).finally(() => removeFileUploadingPid(ds.pid))
                 );
             }
         }
 
-        // 3. Create MODELS
+        // 3. Create MODEL components
         for (const m of models) {
             if (!m.name || m.name.trim().length < 1) continue;
 
-            // 3a. Create model row
+            // 3a. Create model component row
             const created = await fetch(
-                `${API_URL}/projects/${newProject.pid}/models`,
+                `${API_URL}/projects/${newProject.pid}/components`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name: m.name })
+                    body: JSON.stringify({ name: m.name, component_type: "model" })
                 }
             ).then(r => r.json());
 
@@ -211,7 +233,7 @@ const TopBar: React.FC = () => {
                 const formData = new FormData();
                 formData.append("file", m.file);
                 uploads.push(
-                    fetch(`${API_URL}/models/${m.pid}/data`, { method: "PUT", body: formData }).then(() => {
+                    fetch(`${API_URL}/components/${m.pid}/data`, { method: "PUT", body: formData }).then(() => {
                         toast.success(`Model \`${m.name}\` uploaded`, { position: 'bottom-right' });
                     }).finally(() => removeFileUploadingPid(m.pid))
                 );
@@ -295,6 +317,33 @@ const TopBar: React.FC = () => {
 
                 <div style={{flexGrow: 1}}/>
                 <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
+                    <Button
+                        color="inherit"
+                        variant="outlined"
+                        size="small"
+                        onClick={openPublicCatalogue}
+                        className="catalogue-btn"
+                        sx={{textTransform: 'none'}}
+                    >
+                        <Icon sx={{fontSize: 18, mr: 0.5}}>storefront</Icon>
+                        Public Catalogue
+                    </Button>
+                    {supportsProtocolHandler && (
+                        <Tooltip title="Register this app to handle one-click installs from the public catalogue">
+                            <span>
+                                <Button
+                                    color="inherit"
+                                    variant="outlined"
+                                    size="small"
+                                    disabled={registering}
+                                    onClick={handleRegisterProtocol}
+                                    sx={{textTransform: 'none', minWidth: 0}}
+                                >
+                                    <Icon sx={{fontSize: 18}}>link</Icon>
+                                </Button>
+                            </span>
+                        </Tooltip>
+                    )}
                     <ProjectSelector
                         onAddProject={addProject}
                         datasets={datasets}

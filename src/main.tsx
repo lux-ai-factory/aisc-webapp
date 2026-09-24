@@ -13,6 +13,7 @@ import { StyledEngineProvider } from '@mui/material'
 import { BrowserRouter } from 'react-router-dom'
 import { ProjectProvider } from './context/ProjectContext.tsx'
 import { AuthProvider } from './context/AuthContext.tsx'
+import { PluginInstallProvider } from './pluginCatalogue/PluginInstallContext.tsx'
 import {Toaster} from "react-hot-toast";
 
 const queryClient = new QueryClient()
@@ -25,8 +26,10 @@ createRoot(document.getElementById('root')!).render(
           <QueryClientProvider client={queryClient}>
             <AuthProvider>
               <ProjectProvider>
+                <PluginInstallProvider>
                   <MyApp />
                   <Toaster />
+                </PluginInstallProvider>
               </ProjectProvider>
             </AuthProvider>
           </QueryClientProvider>

@@ -16,8 +16,7 @@ interface Dataset {
 }
 
 interface ProjectDetail {
-    models: Model[];
-    datasets: Dataset[];
+    components: { pid: string; name: string; data?: string; component_type?: string }[];
 }
 
 const StartEvaluation: React.FC = () => {
@@ -58,9 +57,9 @@ const StartEvaluation: React.FC = () => {
         const projectDetail = await apiCall(`${API_URL}/projects/${projectPid}`);
         console.log(projectDetail)
         if (projectDetail) {
-            projectDetail.datasets = projectDetail.datasets.filter((dataset: { name: string; }) => !(dataset.name.startsWith('artifact')));
-            setModels(projectDetail.models || []);
-            setDatasets(projectDetail.datasets || []);
+            const components = projectDetail.components || [];
+            setModels(components.filter((c: any) => c.component_type !== 'dataset').map((c: any) => ({ pid: c.pid, name: c.name, data: c.data })));
+            setDatasets(components.filter((c: any) => c.component_type === 'dataset').map((c: any) => ({ pid: c.pid, name: c.name })));
         }
     };
 
