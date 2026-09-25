@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import { API_VERSION_PREFIX } from "../config";
 import keycloak, { initKeycloak, installAuthFetch, login as kcLogin, logout as kcLogout } from "../auth/keycloak";
 
+const AUTH_ENABLED = String(import.meta.env.VITE_AUTH_ENABLED || "true").toLowerCase() !== "false";
+
 type AuthState = {
   ready: boolean;
   authenticated: boolean;
@@ -23,6 +25,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     installAuthFetch(`${import.meta.env.VITE_API_URL}${API_VERSION_PREFIX}`);
+
+    if (!AUTH_ENABLED) {
+      setAuthenticated(true);
+      setReady(true);
+      return;
+    }
 
     initKeycloak()
       .then(() => {
