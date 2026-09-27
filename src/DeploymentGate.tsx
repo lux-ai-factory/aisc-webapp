@@ -17,7 +17,7 @@ export function DeploymentGate({ children }: { children: ReactNode }) {
         <div style={{ maxWidth: 640 }}>
           <h1 style={{ fontSize: 24 }}>The AI Assessment Sandbox cannot start</h1>
           <p>{(err as Error).message}.</p>
-          <p>Set AISC_DEPLOYMENT (APP_DEPLOYMENT for this web app) to standalone or configurator and restart the container.</p>
+          <p>Set AISC_DEPLOYMENT to standalone or configurator, on the web app container too, and restart it.</p>
         </div>
       </main>
     );

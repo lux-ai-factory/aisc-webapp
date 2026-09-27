@@ -5,13 +5,13 @@
  * tasks page). configurator: inside the Sandbox Configurator, where the
  * launcher owns projects and the gateway owns the session.
  *
- * The container writes the value into the bundle at start (env.sh replaces
- * APP_DEPLOYMENT), so it is read when asked, not at import: a bad value then
+ * The container writes the value into the bundle at start (env.sh substitutes
+ * the placeholder .env gives VITE_DEPLOYMENT), so it is read when asked, not at import: a bad value then
  * reaches MyApp, which shows it on a blocking error page instead of a blank one.
  */
 export type Deployment = "standalone" | "configurator";
 
-/** The mode env.sh wrote into the bundle (APP_DEPLOYMENT). Unset in a dev build means standalone. */
+/** The mode env.sh wrote into the bundle (VITE_DEPLOYMENT). Unset in a dev build means standalone. */
 export function deploymentFrom(raw: string | undefined): Deployment {
   if (raw === undefined || raw === "") return "standalone";
   const value = raw.trim().toLowerCase();
