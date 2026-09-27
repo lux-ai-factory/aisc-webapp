@@ -1,3 +1,5 @@
+import { currentPlatformProject } from '../platform/currentProject';
+
 /**
  * Helpers for the public-catalogue <-> local-app plugin install flow.
  *
@@ -83,7 +85,7 @@ export function parseInstallUris(uri: string | null | undefined): CatalogInstall
   try {
     entries = groupEntries(new URL(uri).searchParams);
   } catch {
-    // Malformed URL — fall through to manual extraction.
+    // Malformed URL: fall through to manual extraction.
   }
 
   // Fallback for non-URL / custom-scheme URIs: read the query string by hand.
@@ -150,9 +152,13 @@ export function openPublicCatalogue(): void {
   const base = (import.meta.env.VITE_CATALOG_URL as string | undefined) || 'http://localhost:8000';
   const catalogUrl = base.replace(/\/+$/, '');
 
+  const project = currentPlatformProject();
   const payload = {
     url: window.location.origin,
     expires: Date.now() + 60 * 60 * 1000, // 60 minutes
+    // The controls app sits behind the same gateway, at /controls.
+    controls: (import.meta.env.VITE_CONTROLS_URL as string | undefined) || `${window.location.origin}/controls`,
+    ...(project ? { project } : {}),
   };
   const encoded = btoa(JSON.stringify(payload));
 

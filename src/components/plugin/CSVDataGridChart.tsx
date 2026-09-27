@@ -112,7 +112,7 @@ function CsvGridForPid({ datasetPid, title: _title }: { datasetPid: string; titl
             setError(null);
 
             try {
-                const url = `${API_URL}/datasets/${datasetPid}/data`;
+                const url = `${API_URL}/components/${datasetPid}/data`;
                 const response = await fetch(url);
 
                 if (!response.ok) {

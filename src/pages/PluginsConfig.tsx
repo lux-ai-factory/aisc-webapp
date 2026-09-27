@@ -4,12 +4,15 @@ import {useProject} from '../context/ProjectContext';
 import {useParams} from "react-router-dom";
 import PluginConfigForm from "../components/plugin/PluginConfigForm.tsx";
 import {useEffect, useLayoutEffect, useRef, useState} from "react";
-import {DataObject, ProjectPluginConfigState} from "../models/models.tsx";
+import {AIComponent, ProjectPluginConfigState} from "../models/models.tsx";
 import toast from 'react-hot-toast';
 import {getPluginFeatureFlags, getProject} from "../api/api.tsx";
 import {InputLabel, MenuItem, Select, SelectChangeEvent, Typography, Box, Button, Icon, Tooltip, Divider} from "@mui/material";
 import InfoBanner from "../components/InfoBanner.tsx";
 import ConfigHistory from "../components/plugin/ConfigHistory.tsx";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeSanitize from 'rehype-sanitize';
 import './PluginsConfig.css';
 import '../styles/common.css';
 
@@ -21,7 +24,7 @@ const postPluginConfig = async (plugin_pid: string, formData: object, projectSet
 
     const data = {
         config: formData,
-        project_setting_selections: projectSettingSelections,
+        project_config_selections: projectSettingSelections,
     }
     const response = await fetch(`${API_URL}/plugins/${plugin_pid}/config`, {
         method: 'POST',
@@ -204,6 +207,26 @@ function PluginConfig() {
                 </Box>
             </Box>
 
+            {configState?.description && (
+                <Box
+                    className="plugin-description"
+                    sx={{
+                        border: '1px solid',
+                        borderColor: 'grey.300',
+                        borderRadius: 2,
+                        bgcolor: 'grey.100',
+                        px: 2.5,
+                        py: 1.5,
+                        mb: 3,
+                        fontFamily: 'monospace',
+                    }}
+                >
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
+                        {configState.description}
+                    </ReactMarkdown>
+                </Box>
+            )}
+
             <Box sx={{ mt: 2, mb: 3 }}>
                 <ConfigHistory
                     pluginPID={plugin_pid ?? ""}
@@ -234,7 +257,7 @@ function PluginConfig() {
                         value={selectedDataset}
                         onChange={(e) => handleDatasetChange(e)}
                     >
-                        {project?.datasets.map((dataset: DataObject) => (
+                        {(project?.components ?? []).filter(c => c.component_type === 'dataset').map((dataset: AIComponent) => (
                             <MenuItem key={dataset.pid} value={dataset.pid}>{dataset.name}</MenuItem>
                         ))}
                     </Select>
@@ -251,9 +274,9 @@ function PluginConfig() {
                         formSchema={configState.formSchema}
                         uiSchema={configState.uiSchema}
                         config={configState.config ?? {}}
-                        settingDefinitions={configState.setting_definitions ?? []}
-                        projectSettings={configState.project_settings ?? []}
-                        projectSettingSelections={configState.project_setting_selections ?? []}
+                        projectConfigDefinitions={configState.project_config_definitions ?? []}
+                        projectSettings={configState.project_configs ?? []}
+                        projectSettingSelections={configState.project_config_selections ?? []}
                         onFormUpdate={(state) => setConfigOverride(state)}
                         onSubmit={onSubmit}
                     />

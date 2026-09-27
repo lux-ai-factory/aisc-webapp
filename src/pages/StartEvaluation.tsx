@@ -15,10 +15,19 @@ interface Dataset {
     name: string;
 }
 
-interface ProjectDetail {
-    models: Model[];
-    datasets: Dataset[];
+/** A project component: a dataset when its type says so, a model otherwise. */
+interface ProjectComponent {
+    pid: string;
+    name: string;
+    data?: string;
+    component_type?: string;
 }
+
+interface ProjectDetail {
+    components: ProjectComponent[];
+}
+
+const isDataset = (c: ProjectComponent) => c.component_type === 'dataset';
 
 const StartEvaluation: React.FC = () => {
     const [selectedModel, setSelectedModel] = useState<string>('');
@@ -58,9 +67,9 @@ const StartEvaluation: React.FC = () => {
         const projectDetail = await apiCall(`${API_URL}/projects/${projectPid}`);
         console.log(projectDetail)
         if (projectDetail) {
-            projectDetail.datasets = projectDetail.datasets.filter((dataset: { name: string; }) => !(dataset.name.startsWith('artifact')));
-            setModels(projectDetail.models || []);
-            setDatasets(projectDetail.datasets || []);
+            const components = projectDetail.components || [];
+            setModels(components.filter((c) => !isDataset(c)).map((c) => ({ pid: c.pid, name: c.name, data: c.data as string })));
+            setDatasets(components.filter(isDataset).map((c) => ({ pid: c.pid, name: c.name })));
         }
     };
 

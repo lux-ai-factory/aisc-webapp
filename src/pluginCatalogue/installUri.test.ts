@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { installRequestBody, parseInstallUri, parseInstallUris } from './installUri';
+// @vitest-environment jsdom
+import { describe, it, expect, vi } from 'vitest';
+import { installRequestBody, openPublicCatalogue, parseInstallUri, parseInstallUris } from './installUri';
 
 // The catalogue is the only place plugins are discovered, so an install that
 // arrives here must say which catalogue entry it came from. The slug is that
@@ -84,5 +85,20 @@ describe('installRequestBody', () => {
     );
     expect(body).not.toHaveProperty('catalogue_slug');
     expect(body.package_name).toBe('p');
+  });
+});
+
+describe('openPublicCatalogue', () => {
+  it('sends the controls address and the current project with the handshake', () => {
+    const open = vi.fn();
+    vi.stubGlobal('open', open);
+    window.history.replaceState(null, '', '/?project=0b8e7d3c-1f2a-4b5c-9d6e-7f8a9b0c1d2e');
+    openPublicCatalogue();
+    const url = open.mock.calls[0][0] as string;
+    const payload = JSON.parse(atob(url.split('#env=')[1]));
+    expect(payload.url).toBe(window.location.origin);
+    expect(payload.controls).toBe(`${window.location.origin}/controls`);
+    expect(payload.project).toBe('0b8e7d3c-1f2a-4b5c-9d6e-7f8a9b0c1d2e');
+    vi.unstubAllGlobals();
   });
 });

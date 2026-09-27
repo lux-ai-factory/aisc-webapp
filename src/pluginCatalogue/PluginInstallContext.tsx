@@ -11,6 +11,9 @@ import {
   parseInstallUris,
   tryRegisterProtocolHandler,
 } from './installUri';
+import { rememberPlatformProject } from '../platform/currentProject';
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 interface PluginInstallContextType {
   /** Catalogue installs awaiting user confirmation, in the order received. */
@@ -38,7 +41,13 @@ const bootInstalls: CatalogInstallPayload[] = (() => {
   if (typeof window === 'undefined') return [];
   if (bootHandled) return [];
   bootHandled = true;
-  const uri = new URLSearchParams(window.location.search).get('uri');
+  const params = new URLSearchParams(window.location.search);
+  // The catalogue says which platform project it was opened from: remember it
+  // for this tab before the URL is stripped, so the install dialog opens on it.
+  // Only a uuid is a project.
+  const project = params.get('project');
+  if (project && UUID_PATTERN.test(project)) rememberPlatformProject(project);
+  const uri = params.get('uri');
   if (!uri) return [];
   // Drop the token from the URL so it is never shared/history-logged.
   window.history.replaceState(null, '', window.location.pathname);

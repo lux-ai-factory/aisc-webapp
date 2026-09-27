@@ -27,6 +27,11 @@ import "./addProjectButton.css";
 import AddProjectWizard from "./addProjectWizard.tsx";
 import { openPublicCatalogue, isProtocolHandlerSupported } from "../pluginCatalogue/installUri.ts";
 import { usePluginInstall } from "../pluginCatalogue/PluginInstallContext.tsx";
+import {
+    currentPlatformProject,
+    projectPageUrl,
+    projectsUrl,
+} from "../platform/currentProject.ts";
 
 
 interface Project {
@@ -35,6 +40,22 @@ interface Project {
 }
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
+
+type ComponentType = "dataset" | "model";
+
+/** A dataset or model row as the add-project wizard hands it over. */
+interface WizardComponent {
+    name: string;
+    file?: File | null;
+    pid?: string;
+}
+
+const UPLOAD_LABEL: Record<ComponentType, string> = { dataset: "Dataset", model: "Model" };
+
+// The launcher: where the project was chosen and where the other five steps
+// are. Substituted into the bundle at container start, like every other URL
+// this app is told about.
+const LAUNCHER_URL = (import.meta.env.VITE_LAUNCHER_URL as string) || 'http://localhost:8100/';
 
 const apiCall = async (url: string, method: string = 'GET', body?: any) => {
     try {
@@ -140,7 +161,7 @@ const TopBar: React.FC = () => {
     const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
     const [confirmOpen, setConfirmOpen] = useState(false);
 
-    // Keycloak auth: who is logged in + login/logout actions
+    // Who the gateway says is signed in; signing in and out happen at the gateway.
     const {authenticated, username, login, logout} = useAuth();
     const {registerProtocol} = usePluginInstall();
     const [registering, setRegistering] = useState(false);
@@ -151,7 +172,9 @@ const TopBar: React.FC = () => {
     const isRootPage = location.pathname === '/';
 
     const fetchProjects = async () => {
-        const data = await apiCall('/projects');
+        // Only this project's workspaces: the launcher already decided which
+        // project is being worked on.
+        const data = await apiCall(projectsUrl('', currentPlatformProject()));
         if (data) setProjects(data);
     };
 
@@ -171,74 +194,64 @@ const TopBar: React.FC = () => {
         }
     };
 
+    /**
+     * Create one component row per named wizard entry, in order, and queue the
+     * upload of each attached file on `uploads`. The new pid is written back
+     * onto the entry.
+     */
+    const createComponents = async (
+        projectPid: string,
+        entries: WizardComponent[],
+        componentType: ComponentType,
+        uploads: Promise<unknown>[],
+    ) => {
+        for (const entry of entries) {
+            if (!entry.name || entry.name.trim().length < 1) continue;
+
+            const created = await fetch(
+                `${API_URL}/projects/${projectPid}/components`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name: entry.name, component_type: componentType })
+                }
+            ).then(r => r.json());
+
+            const pid: string = created.pid;
+            entry.pid = pid;
+
+            if (entry.file) {
+                addFileUploadingPid(pid);
+                const formData = new FormData();
+                formData.append("file", entry.file);
+                uploads.push(
+                    fetch(`${API_URL}/components/${pid}/data`, { method: "PUT", body: formData }).then(() => {
+                        toast.success(`${UPLOAD_LABEL[componentType]} \`${entry.name}\` uploaded`, { position: 'bottom-right' });
+                    }).finally(() => removeFileUploadingPid(pid))
+                );
+            }
+        }
+    };
+
     const addProject = async (wizardData: any) => {
         const { name, datasets, models, plugins } = wizardData;
 
-        // 1. Create project
-        const newProject = await apiCall('/projects', 'POST', { name });
+        // 1. Create project. When the launcher opened this engine on a project,
+        // the workspace belongs to it: one list of projects for the platform.
+        const platformProject = currentPlatformProject();
+        const newProject = await apiCall('/projects', 'POST',
+            platformProject ? { name, platform_project_id: platformProject } : { name });
         if (!newProject) return;
 
         setProjects([...projects, newProject]);
 
         const uploads: Promise<unknown>[] = [];
 
-        // 2. Create DATASETS
-        for (const ds of datasets) {
-            if (!ds.name || ds.name.trim().length < 1) continue;
+        // 2. Create DATASET components
+        await createComponents(newProject.pid, datasets, "dataset", uploads);
 
-            // 2a. Create dataset row
-            const created = await fetch(
-                `${API_URL}/projects/${newProject.pid}/datasets`,
-                {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name: ds.name })
-                }
-            ).then(r => r.json());
-
-            ds.pid = created.pid;
-
-            // 2b. Add dataset file to uploads
-            if (ds.file) {
-                addFileUploadingPid(ds.pid);
-                const formData = new FormData();
-                formData.append("file", ds.file);
-                uploads.push(
-                    fetch(`${API_URL}/datasets/${ds.pid}/data`, { method: "PUT", body: formData }).then(() => {
-                        toast.success(`Dataset \`${ds.name}\` uploaded`, { position: 'bottom-right' });
-                    }).finally(() => removeFileUploadingPid(ds.pid))
-                );
-            }
-        }
-
-        // 3. Create MODELS
-        for (const m of models) {
-            if (!m.name || m.name.trim().length < 1) continue;
-
-            // 3a. Create model row
-            const created = await fetch(
-                `${API_URL}/projects/${newProject.pid}/models`,
-                {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name: m.name })
-                }
-            ).then(r => r.json());
-
-            m.pid = created.pid;
-
-            // 3b. Add model file to uploads
-            if (m.file) {
-                addFileUploadingPid(m.pid);
-                const formData = new FormData();
-                formData.append("file", m.file);
-                uploads.push(
-                    fetch(`${API_URL}/models/${m.pid}/data`, { method: "PUT", body: formData }).then(() => {
-                        toast.success(`Model \`${m.name}\` uploaded`, { position: 'bottom-right' });
-                    }).finally(() => removeFileUploadingPid(m.pid))
-                );
-            }
-        }
+        // 3. Create MODEL components
+        await createComponents(newProject.pid, models, "model", uploads);
 
         // 4. Enable all packages in parallel
         await Promise.all(Object.keys(plugins).map(async (key) => {
@@ -321,6 +334,17 @@ const TopBar: React.FC = () => {
                         color="inherit"
                         variant="outlined"
                         size="small"
+                        href={projectPageUrl(LAUNCHER_URL)}
+                        aria-label="Back to the project"
+                        sx={{textTransform: 'none'}}
+                    >
+                        <Icon sx={{fontSize: 18, mr: 0.5}}>arrow_back</Icon>
+                        Back
+                    </Button>
+                    <Button
+                        color="inherit"
+                        variant="outlined"
+                        size="small"
                         onClick={openPublicCatalogue}
                         className="catalogue-btn"
                         sx={{textTransform: 'none'}}
@@ -344,16 +368,20 @@ const TopBar: React.FC = () => {
                             </span>
                         </Tooltip>
                     )}
-                    <ProjectSelector
-                        onAddProject={addProject}
-                        datasets={datasets}
-                        models={models}
-                        plugins={plugins}
-                        fetchDatasets={fetchDatasets}
-                        fetchModels={fetchModels}
-                        fetchPlugins={fetchPlugins}
-                        authenticated={authenticated}
-                    />
+                    {/* Projects are created on the launcher, not here: inside
+                        one, the engine has no project of its own to add. */}
+                    {!currentPlatformProject() && (
+                        <ProjectSelector
+                            onAddProject={addProject}
+                            datasets={datasets}
+                            models={models}
+                            plugins={plugins}
+                            fetchDatasets={fetchDatasets}
+                            fetchModels={fetchModels}
+                            fetchPlugins={fetchPlugins}
+                            authenticated={authenticated}
+                        />
+                    )}
                     {authenticated ? (
                         <Box className="auth-box">
                             <Button

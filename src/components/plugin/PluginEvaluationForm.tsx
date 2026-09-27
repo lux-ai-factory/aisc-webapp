@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { getPluginInputDefinitions, getProject } from "../../api/api.tsx";
-import { Plugin, PluginConfig, PluginInputDefinition, DataObject, PluginInputValue } from "../../models/models.tsx";
-import { Box, Icon, FormControl, InputLabel, MenuItem, Select, Card, CardContent, Chip, Typography, Tooltip } from "@mui/material";
+import { getPluginInputDefinitions, getProject, getComponentModels, getEvaluationInputsTemplate } from "../../api/api.tsx";
+import { Plugin, PluginConfig, PluginInputDefinition, AIComponent, PluginInputValue } from "../../models/models.tsx";
+import { Box, Icon, FormControl, InputLabel, MenuItem, Select, TextField, Card, CardContent, Chip, Typography, Tooltip } from "@mui/material";
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
 import { useProject } from "../../context/ProjectContext.tsx";
@@ -20,6 +20,54 @@ interface PluginEvaluationFormProps {
     onUnselect?: () => void;
     onSelectionChange: (item: PluginInputValue | null, inputName: string) => void;
     onValidationChange?: (valid: boolean) => void;
+}
+
+interface ModelSelectProps {
+    def: PluginInputDefinition;
+    component: AIComponent;
+    value: string;
+    models: string[];
+    error: string;
+    selectMenuProps: object;
+    onChange: (model: string) => void;
+}
+
+function ModelSelect({ def, value, models, error, selectMenuProps, onChange }: ModelSelectProps) {
+    const options = [...new Set([...(value ? [value] : []), ...models])];
+    if (models.length > 0 || value) {
+        return (
+            <FormControl fullWidth size="small" sx={{ mt: 1 }}>
+                <InputLabel>Model</InputLabel>
+                <Select
+                    label="Model"
+                    value={value}
+                    MenuProps={selectMenuProps}
+                    onChange={(e) => onChange(e.target.value)}
+                >
+                    {options.map(m => (
+                        <MenuItem key={m} value={m}>{m}</MenuItem>
+                    ))}
+                </Select>
+                {error && (
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                        {error}
+                    </Typography>
+                )}
+            </FormControl>
+        );
+    }
+    return (
+        <TextField
+            fullWidth
+            size="small"
+            label="Model"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={def.label || def.name}
+            helperText={error || 'Endpoint did not list any models — type a model name'}
+            sx={{ mt: 1 }}
+        />
+    );
 }
 
 export default function PluginEvaluationForm({
@@ -60,6 +108,55 @@ export default function PluginEvaluationForm({
         enabled: !!plugin.pid && isActive,
     });
 
+    const { data: inputsTemplate } = useQuery({
+        queryKey: ['evaluationInputsTemplate', projectUUID],
+        queryFn: () => getEvaluationInputsTemplate(projectUUID!!),
+        enabled: !!projectUUID && isActive,
+    });
+
+    const [modelsByComponent, setModelsByComponent] = useState<Record<string, string[]>>({});
+    const [modelsError, setModelsError] = useState<Record<string, string>>({});
+
+    useEffect(() => {
+        if (!isActive || !inputDefinitions) return;
+        for (const def of inputDefinitions) {
+            if (def.input_type !== 'llm') continue;
+            const sel = selections.find(s => s.name === def.name);
+            if (!sel?.pid) continue;
+            if (modelsByComponent[sel.pid] !== undefined) continue;
+            getComponentModels(sel.pid)
+                .then(res => {
+                    setModelsByComponent(prev => ({ ...prev, [sel.pid]: res.models }));
+                    setModelsError(prev => ({ ...prev, [sel.pid]: res.error ?? '' }));
+                })
+                .catch(() => {
+                    setModelsByComponent(prev => ({ ...prev, [sel.pid]: [] }));
+                    setModelsError(prev => ({ ...prev, [sel.pid]: 'Failed to list models' }));
+                });
+        }
+    }, [isActive, inputDefinitions, selections, modelsByComponent]);
+
+    useEffect(() => {
+        if (!isActive || !inputsTemplate || !inputDefinitions) return;
+        const template = inputsTemplate[plugin.name];
+        if (!template) return;
+        for (const def of inputDefinitions) {
+            const entry = template[def.name];
+            if (!entry) continue;
+            if (selections.some(s => s.name === def.name)) continue;
+            const component = (project?.components ?? []).find(
+                c => c.pid === entry.component_pid && c.component_type === def.input_type,
+            );
+            if (!component) continue;
+            onSelectionChange({
+                pid: component.pid,
+                name: def.name,
+                input_type: def.input_type,
+                value: entry.value ?? {},
+            }, def.name);
+        }
+    }, [isActive, inputsTemplate, inputDefinitions, project, plugin.name, selections, onSelectionChange]);
+
     const sortedConfigs = configs
         ? [...configs].sort(
             (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
@@ -91,8 +188,8 @@ export default function PluginEvaluationForm({
     const findLabel = (def: PluginInputDefinition): string => {
         const sel = selections.find(s => s.name === def.name);
         if (!sel) return '';
-        const pool = def.input_type === 'dataset' ? project?.datasets : project?.models;
-        const obj = pool?.find((o: DataObject) => o.pid === sel.pid);
+        const pool = (project?.components ?? []).filter(c => c.component_type === def.input_type);
+        const obj = pool?.find((o: AIComponent) => o.pid === sel.pid);
         return obj?.name ?? sel.pid.slice(0, 8);
     };
 
@@ -198,10 +295,17 @@ export default function PluginEvaluationForm({
 
                 {isActive && (
                     <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }} onClick={e => e.stopPropagation()}>
-                        {/* Input definitions: dataset / model selectors — use name + label */}
+                        {/* Input definitions: one select per input, filtered by exact component type */}
                         {inputDefinitions?.map((def: PluginInputDefinition) => {
-                            const options = def.input_type === 'dataset' ? project?.datasets : project?.models;
+                            const isLLM = def.input_type === 'llm';
+                            const options = (project?.components ?? []).filter(c => c.component_type === def.input_type);
                             const currentSelection = selections.find(s => s.name === def.name);
+                            const selectedComponent = currentSelection?.pid
+                                ? options.find((o: AIComponent) => o.pid === currentSelection.pid)
+                                : undefined;
+                            const modelValue = (
+                                currentSelection?.value && typeof currentSelection.value.model === 'string'
+                            ) ? currentSelection.value.model : '';
 
                             return (
                                 <Box key={def.name}>
@@ -241,7 +345,7 @@ export default function PluginEvaluationForm({
                                                         </Typography>
                                                     );
                                                 }
-                                                const selectedObj = options?.find((o: DataObject) => o.pid === value);
+                                                const selectedObj = options?.find((o: AIComponent) => o.pid === value);
                                                 return selectedObj?.name || String(value);
                                             }}
                                             onChange={(e) => {
@@ -249,19 +353,20 @@ export default function PluginEvaluationForm({
                                                 if (val === "") {
                                                     onSelectionChange(null, def.name);
                                                 } else {
-                                                    const selectedObj = options?.find((o: DataObject) => o.pid === val);
+                                                    const selectedObj = options?.find((o: AIComponent) => o.pid === val);
                                                     if (selectedObj) {
                                                         onSelectionChange({
                                                             pid: selectedObj.pid,
                                                             name: def.name,
-                                                            input_type: def.input_type
+                                                            input_type: def.input_type,
+                                                            value: {},
                                                         }, def.name);
                                                     }
                                                 }
                                             }}
                                         >
                                             {!def.required && <MenuItem value=""><em>None</em></MenuItem>}
-                                            {options?.map((item: DataObject) => (
+                                            {options?.map((item: AIComponent) => (
                                                 <MenuItem key={item.pid} value={item.pid}>{item.name}</MenuItem>
                                             ))}
                                         </Select>
@@ -270,6 +375,23 @@ export default function PluginEvaluationForm({
                                         <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
                                             (Optional)
                                         </Typography>
+                                    )}
+
+                                    {isLLM && selectedComponent && (
+                                        <ModelSelect
+                                            def={def}
+                                            component={selectedComponent}
+                                            value={modelValue}
+                                            models={modelsByComponent[selectedComponent.pid] ?? []}
+                                            error={modelsError[selectedComponent.pid] ?? ''}
+                                            selectMenuProps={selectMenuProps}
+                                            onChange={(model) =>
+                                                onSelectionChange({
+                                                    ...currentSelection!,
+                                                    value: { ...(currentSelection!.value ?? {}), model },
+                                                }, def.name)
+                                            }
+                                        />
                                     )}
                                 </Box>
                             );

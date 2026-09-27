@@ -135,8 +135,7 @@ function Plugins() {
     })
         // Only what this project has. Discovery belongs to the catalogue, which
         // is the only place that knows what a test measures, which regulation it
-        // serves and which distribution provides it. Listing everything the
-        // engine could reach turned this page into a second, poorer catalogue.
+        // serves and which distribution provides it.
         .filter((pkg: ProjectPackage) => pkg.plugins.length > 0);
 
     const refreshProjectQueries = async () => {

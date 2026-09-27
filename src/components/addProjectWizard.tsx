@@ -86,7 +86,7 @@ export default function AddProjectWizard({
     const [localModels, setLocalModels] = useState<ModelItem[]>([]);
 
     // No "Plugins" step: tests are discovered in the catalogue and installed
-// from there, which is the only place that knows what a test measures.
+    // from there, which is the only place that knows what a test measures.
     const steps = ["Project Name", "Datasets", "Models"];
 
     // Load wizard data ONLY when the wizard opens
@@ -168,8 +168,6 @@ export default function AddProjectWizard({
             name: projectName,
             datasets: localDatasets,
             models: localModels,
-            // A project is created without tests. They are discovered in the
-            // catalogue and installed from there.
             plugins: {}
         });
         onClose();
@@ -387,8 +385,6 @@ export default function AddProjectWizard({
                         )}
                     </Box>
                 )}
-
-
 
                 {/* NAVIGATION */}
                 <Box className="wizard-nav">

@@ -1,13 +1,20 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { API_VERSION_PREFIX } from "../config";
-import keycloak, { initKeycloak, installAuthFetch, login as kcLogin, logout as kcLogout } from "../auth/keycloak";
+import { gatewaySignIn, gatewaySignOut, whoTheGatewaySays } from "../platform/gatewaySession";
 
+/**
+ * Who is using the engine, as the gateway says.
+ *
+ * The engine has no login of its own. People sign in once, at the gateway
+ * (oauth2-proxy in front of Keycloak), which holds the session and passes its
+ * token on every request; the page asks the API who that is. Signing in and
+ * out go to the gateway too.
+ */
 type AuthState = {
   ready: boolean;
   authenticated: boolean;
   username?: string;
   roles: string[];
-  token?: string;
   login: () => void;
   logout: () => void;
 };
@@ -19,29 +26,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authenticated, setAuthenticated] = useState(false);
   const [username, setUsername] = useState<string | undefined>();
   const [roles, setRoles] = useState<string[]>([]);
-  const [token, setToken] = useState<string | undefined>();
 
   useEffect(() => {
-    installAuthFetch(`${import.meta.env.VITE_API_URL}${API_VERSION_PREFIX}`);
-
-    initKeycloak()
-      .then(() => {
-        setAuthenticated(keycloak.authenticated ?? false);
-        setUsername(keycloak.tokenParsed?.preferred_username as string | undefined);
-        setRoles((keycloak.tokenParsed?.realm_access?.roles as string[]) ?? []);
-        setToken(keycloak.token);
+    whoTheGatewaySays(`${import.meta.env.VITE_API_URL}${API_VERSION_PREFIX}`)
+      .then((who) => {
+        setAuthenticated(Boolean(who));
+        setUsername(who?.username);
+        setRoles(who?.roles ?? []);
       })
-      .catch(() => setAuthenticated(false))
       .finally(() => setReady(true));
-
-    keycloak.onTokenExpired = () => {
-      keycloak.updateToken(30).catch(() => {
-        setAuthenticated(false);
-        setUsername(undefined);
-        setRoles([]);
-        setToken(undefined);
-      });
-    };
   }, []);
 
   const value: AuthState = {
@@ -49,9 +42,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     authenticated,
     username,
     roles,
-    token,
-    login: () => kcLogin(),
-    logout: () => kcLogout(),
+    login: () => gatewaySignIn(),
+    logout: () => gatewaySignOut(),
   };
 
   if (!ready) return null;
