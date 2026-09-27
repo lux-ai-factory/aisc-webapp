@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   currentPlatformProject,
+  lastPlatformProject,
+  rememberLastPlatformProject,
   projectForPlatformUrl,
   projectPageUrl,
   projectsUrl,
@@ -91,5 +93,33 @@ describe("the way back to the project", () => {
 
   it("does not care how the launcher URL was written", () => {
     expect(projectPageUrl("http://localhost:8100///", "abc")).toBe("http://localhost:8100/p/abc");
+  });
+});
+
+// The catalogue opens the engine in a new tab, with no project: the install
+// dialog then goes to the project last opened in this browser.
+describe("the project last opened in this browser", () => {
+  it("is written whenever a ?project= is read", () => {
+    const tab = store();
+    const browser = store();
+    currentPlatformProject("?project=abc", tab, browser);
+    expect(lastPlatformProject(browser)).toBe("abc");
+    currentPlatformProject("", tab, browser);
+    currentPlatformProject("?project=def", store(), browser);
+    expect(lastPlatformProject(browser)).toBe("def");
+  });
+
+  it("is absent until one is opened", () => {
+    expect(lastPlatformProject(store())).toBeNull();
+  });
+
+  it("survives a browser that refuses storage", () => {
+    const hostile = {
+      getItem: () => { throw new Error("denied"); },
+      setItem: () => { throw new Error("denied"); },
+    } as unknown as Storage;
+    expect(() => rememberLastPlatformProject("abc", hostile)).not.toThrow();
+    expect(lastPlatformProject(hostile)).toBeNull();
+    expect(currentPlatformProject("?project=abc", store(), hostile)).toBe("abc");
   });
 });

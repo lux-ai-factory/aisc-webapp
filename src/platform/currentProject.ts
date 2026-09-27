@@ -23,14 +23,53 @@ export function rememberPlatformProject(
   }
 }
 
-/** The project in the URL (`?project=<uuid>`), remembered for this tab. */
+const LAST_KEY = "aisc_last_platform_project";
+
+/** This browser's storage, shared by its tabs; null when the browser refuses it. */
+const browserStorage = (): Storage | null => {
+  try {
+    return typeof window === "undefined" ? null : window.localStorage;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Remember, for the whole browser, the project the engine was last opened on.
+ *
+ * The catalogue opens the engine in a new tab with no project; the install
+ * dialog then goes to this one, so it is written whenever a `?project=` is read.
+ */
+export function rememberLastPlatformProject(
+  project: string,
+  storage: Storage | null = browserStorage(),
+): void {
+  try {
+    storage?.setItem(LAST_KEY, project);
+  } catch {
+    /* private window: the dialog then asks which project */
+  }
+}
+
+/** The project the engine was last opened on in this browser, if any. */
+export function lastPlatformProject(storage: Storage | null = browserStorage()): string | null {
+  try {
+    return storage?.getItem(LAST_KEY) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** The project in the URL (`?project=<uuid>`), remembered for this tab and as the browser's last. */
 export function currentPlatformProject(
   search: string = typeof window === "undefined" ? "" : window.location.search,
   storage: Storage | null = tabStorage(),
+  lastStorage: Storage | null = browserStorage(),
 ): string | null {
   const fromUrl = new URLSearchParams(search).get("project");
   if (fromUrl) {
     rememberPlatformProject(fromUrl, storage);
+    rememberLastPlatformProject(fromUrl, lastStorage);
     return fromUrl;
   }
   try {

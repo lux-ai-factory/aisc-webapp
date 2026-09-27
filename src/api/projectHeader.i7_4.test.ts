@@ -112,10 +112,8 @@ function sourceFiles(dir: string): string[] {
 }
 
 // Pages that call fetch themselves and are not in the configurator's path:
-// Sean's Celery tasks page (standalone only, hidden in the configurator) and
-// the install dialog, whose configurator branch is Task 8 of the deployment
-// modes plan.
-const NOT_YET = ['components/PluginInstallDialog.tsx', 'pages/CeleryTasks.tsx'];
+// Sean's Celery tasks page (standalone only, hidden in the configurator).
+const NOT_YET = ['pages/CeleryTasks.tsx'];
 
 const RAW_NETWORK = /(^|[^\w.])fetch\s*\(|\baxios\s*[.(]|new\s+XMLHttpRequest|new\s+EventSource/;
 
@@ -129,6 +127,25 @@ describe('I7.4 one function adds the project header', () => {
     for (const f of direct) {
       expect(readFileSync(f, 'utf8'), `I7.4: ${relative(SRC, f)} does not set the header`).toContain('X-AISC-Project');
     }
+  });
+});
+
+describe('I7.4 a caller may name the project itself', () => {
+  const OTHER = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d';
+
+  it('a named pid wins over the tab project, and needs no tab project', async () => {
+    const { apiFetch } = await import('./projectHeader');
+    await apiFetch('/api/v1/projects/for-platform/x', { method: 'POST', headers: { 'X-AISC-Project': OTHER } });
+    sessionStorage.setItem('aisc_platform_project', PID);
+    await apiFetch('/api/v1/plugins', { method: 'POST', headers: { 'X-AISC-Project': OTHER } });
+    expect(calls.map((c) => c.project)).toEqual([OTHER, OTHER]);
+  });
+
+  it('a named value that is not a pid is replaced by the tab project', async () => {
+    sessionStorage.setItem('aisc_platform_project', PID);
+    const { apiFetch } = await import('./projectHeader');
+    await apiFetch('/api/v1/plugins', { method: 'POST', headers: { 'X-AISC-Project': 'not-a-pid' } });
+    expect(calls.map((c) => c.project)).toEqual([PID]);
   });
 });
 

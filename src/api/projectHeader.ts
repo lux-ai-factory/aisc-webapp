@@ -71,10 +71,29 @@ function withProject(headers: HeadersInit | undefined, pid: string): HeadersInit
   return { ...(headers ?? {}), [PROJECT_HEADER]: pid };
 }
 
-/** fetch, naming the current platform project (I7.4). */
+/**
+ * The project a caller named itself in the headers, when it is a pid.
+ *
+ * The install dialog targets a project that may not be this tab's (the one
+ * last opened, or one chosen in the dialog): it names it, and that wins.
+ */
+function namedPid(headers: HeadersInit | undefined): string | null {
+  if (!headers) return null;
+  let value: string | null | undefined;
+  if (headers instanceof Headers) value = headers.get(PROJECT_HEADER);
+  else if (Array.isArray(headers)) value = headers.find(([k]) => k.toLowerCase() === PROJECT_HEADER.toLowerCase())?.[1];
+  else {
+    const rec = headers as Record<string, string>;
+    const key = Object.keys(rec).find((k) => k.toLowerCase() === PROJECT_HEADER.toLowerCase());
+    value = key ? rec[key] : null;
+  }
+  return value && PID.test(value) ? value.toLowerCase() : null;
+}
+
+/** fetch, naming the current platform project, or the one the caller named (I7.4). */
 export async function apiFetch(input: string, init?: RequestInit): Promise<Response> {
   if (!isConfigurator()) return fetch(input, init);
-  const pid = currentPid();
+  const pid = namedPid(init?.headers) ?? currentPid();
   if (pid) {
     return fetch(input, { ...init, headers: withProject(init?.headers, pid) });
   }

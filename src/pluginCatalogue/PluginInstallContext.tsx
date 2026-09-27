@@ -11,6 +11,10 @@ import {
   parseInstallUris,
   tryRegisterProtocolHandler,
 } from './installUri';
+import { isConfigurator } from '../deployment';
+import { currentPlatformProject } from '../platform/currentProject';
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 interface PluginInstallContextType {
   /** Catalogue installs awaiting user confirmation, in the order received. */
@@ -27,7 +31,7 @@ interface PluginInstallContextType {
   registerProtocol: (forceReset?: boolean) => Promise<ProtocolRegistrationStatus>;
 }
 
-const PluginInstallContext = createContext<PluginInstallContextType | undefined>(undefined);
+export const PluginInstallContext = createContext<PluginInstallContextType | undefined>(undefined);
 
 // Parse any boot-time URI(s) attached to the initial page load (e.g. the
 // protocol handler routing to /receiver?uri=...). Computed once at module load,
@@ -38,7 +42,13 @@ const bootInstalls: CatalogInstallPayload[] = (() => {
   if (typeof window === 'undefined') return [];
   if (bootHandled) return [];
   bootHandled = true;
-  const uri = new URLSearchParams(window.location.search).get('uri');
+  const params = new URLSearchParams(window.location.search);
+  // Configurator: a link that names the platform project it came from is read
+  // before the URL is stripped, so the tab and the browser remember it (the
+  // install dialog opens on it). Only a uuid is a project.
+  const project = params.get('project');
+  if (isConfigurator() && project && UUID_PATTERN.test(project)) currentPlatformProject();
+  const uri = params.get('uri');
   if (!uri) return [];
   // Drop the token from the URL so it is never shared/history-logged.
   window.history.replaceState(null, '', window.location.pathname);
