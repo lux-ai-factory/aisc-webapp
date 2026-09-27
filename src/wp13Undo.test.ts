@@ -26,12 +26,22 @@ describe('WP13 webapp undo', () => {
         expect(hits).toEqual([]);
     });
 
-    it("S13.2 AISystemSettings.tsx is byte-identical to Sean's 429f62c", () => {
+    it("S13.2 AISystemSettings.tsx is byte-identical to Sean's 429f62c (after the G4 normalisation)", () => {
+        // 04-E2-notes.md (D-E2-4, "For V1"): the isolation work made every caller under src/
+        // go through projectHeader's apiFetch. To compare against Sean's pre-isolation
+        // 429f62c, undo just that: apiFetch( -> fetch(, drop the one projectHeader import
+        // line, and drop any line tagged "// I7.4 (isolation)".
         const ref = execFileSync('git', ['show', '429f62c:src/components/AISystemSettings.tsx'], {
             cwd: repo,
-        });
-        const now = readFileSync(join(src, 'components/AISystemSettings.tsx'));
-        expect(now.equals(ref)).toBe(true);
+        }).toString('utf8');
+        const now = readFileSync(join(src, 'components/AISystemSettings.tsx'), 'utf8');
+        const normalised = now
+            .split('\n')
+            .filter((line) => line !== 'import { apiFetch } from "../api/projectHeader";')
+            .filter((line) => !line.endsWith('// I7.4 (isolation)'))
+            .join('\n')
+            .replace(/apiFetch\(/g, 'fetch(');
+        expect(normalised).toBe(ref);
     });
 
     it('S13.2 SystemVersionBanner is gone', () => {

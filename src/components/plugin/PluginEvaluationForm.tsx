@@ -1,3 +1,4 @@
+import { apiFetch } from "../../api/projectHeader";
 import { useQuery } from '@tanstack/react-query';
 import { getPluginInputDefinitions, getProject, getComponentModels, getEvaluationInputsTemplate } from "../../api/api.tsx";
 import { Plugin, PluginConfig, PluginInputDefinition, AIComponent, PluginInputValue } from "../../models/models.tsx";
@@ -86,7 +87,7 @@ export default function PluginEvaluationForm({
 
     const { data: displayIcon } = useQuery({
         queryKey: ['pluginDisplayIcon', plugin.pid],
-        queryFn: () => fetch(`${API_URL}/plugins/${plugin.pid}/display_icon`).then(r => r.ok ? r.json() : Promise.resolve('extension')),
+        queryFn: () => apiFetch(`${API_URL}/plugins/${plugin.pid}/display_icon`).then(r => r.ok ? r.json() : Promise.resolve('extension')),
         enabled: !!plugin.pid,
     });
 
@@ -104,7 +105,7 @@ export default function PluginEvaluationForm({
 
     const { data: configs } = useQuery({
         queryKey: ['pluginConfigHistory', plugin.pid],
-        queryFn: () => fetch(`${API_URL}/plugins/${plugin.pid}/configs`).then(r => r.json()) as Promise<PluginConfig[]>,
+        queryFn: () => apiFetch(`${API_URL}/plugins/${plugin.pid}/configs`).then(r => r.json()) as Promise<PluginConfig[]>,
         enabled: !!plugin.pid && isActive,
     });
 

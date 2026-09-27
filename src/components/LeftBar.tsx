@@ -1,3 +1,4 @@
+import { apiFetch } from "../api/projectHeader";
 import * as React from 'react';
 import './LeftBar.css';
 import MuiDrawer from '@mui/material/Drawer';
@@ -204,7 +205,7 @@ const Drawer = styled(MuiDrawer, {
 
 const getProject = async (project_uuid: string) => {
     if (!project_uuid) throw new Error('Invalid uuid');
-    const res = await fetch(`${API_URL}/projects/${project_uuid}`);
+    const res = await apiFetch(`${API_URL}/projects/${project_uuid}`);
     const project = await res.json() as Project;
     for (const plugin of project.plugins) {
         if (!plugin.enabled) continue;
@@ -216,7 +217,7 @@ const getProject = async (project_uuid: string) => {
 const getDisplayIcon = async (plugin_pid: string) => {
     if (!plugin_pid) return 'extension';
     try {
-        const res = await fetch(`${API_URL}/plugins/${plugin_pid}/display_icon`);
+        const res = await apiFetch(`${API_URL}/plugins/${plugin_pid}/display_icon`);
         if (!res.ok) return 'extension';
         return await res.json() as string;
     } catch {

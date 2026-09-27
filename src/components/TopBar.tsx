@@ -1,3 +1,4 @@
+import { apiFetch } from "../api/projectHeader";
 import {
     AppBar,
     Box,
@@ -67,7 +68,7 @@ const apiCall = async (url: string, method: string = 'GET', body?: any) => {
         };
         if (body) options.body = JSON.stringify(body);
 
-        const response = await fetch(API_URL + url, options);
+        const response = await apiFetch(API_URL + url, options);
         return response.ok ? await response.json() : null;
     } catch (error) {
         console.error(`Error fetching ${url}:`, error);
@@ -208,7 +209,7 @@ const TopBar: React.FC = () => {
         for (const entry of entries) {
             if (!entry.name || entry.name.trim().length < 1) continue;
 
-            const created = await fetch(
+            const created = await apiFetch(
                 `${API_URL}/projects/${projectPid}/components`,
                 {
                     method: "POST",
@@ -225,7 +226,7 @@ const TopBar: React.FC = () => {
                 const formData = new FormData();
                 formData.append("file", entry.file);
                 uploads.push(
-                    fetch(`${API_URL}/components/${pid}/data`, { method: "PUT", body: formData }).then(() => {
+                    apiFetch(`${API_URL}/components/${pid}/data`, { method: "PUT", body: formData }).then(() => {
                         toast.success(`${UPLOAD_LABEL[componentType]} \`${entry.name}\` uploaded`, { position: 'bottom-right' });
                     }).finally(() => removeFileUploadingPid(pid))
                 );
@@ -256,7 +257,7 @@ const TopBar: React.FC = () => {
         // 4. Enable all packages in parallel
         await Promise.all(Object.keys(plugins).map(async (key) => {
             const pkg = plugins[key];
-            await fetch(`${API_URL}/plugins`, {
+            await apiFetch(`${API_URL}/plugins`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

@@ -1,3 +1,4 @@
+import { apiFetch } from "../api/projectHeader";
 import {
   Button,
   Dialog,
@@ -50,13 +51,13 @@ const NOT_ADMIN = 'Installing a test takes the admin role.';
 async function loadInstallTargets(platformProject: string | null): Promise<Project[]> {
   let found: Project[] = [];
   try {
-    found = (await (await fetch(projectsUrl(API_URL, platformProject))).json()) as Project[];
+    found = (await (await apiFetch(projectsUrl(API_URL, platformProject))).json()) as Project[];
   } catch {
     found = [];
   }
   if (found.length === 0 && platformProject) {
     try {
-      const res = await fetch(projectForPlatformUrl(API_URL, platformProject), { method: 'POST' });
+      const res = await apiFetch(projectForPlatformUrl(API_URL, platformProject), { method: 'POST' });
       if (res.ok) found = [(await res.json()) as Project];
     } catch {
       /* the list stays empty */
@@ -75,7 +76,7 @@ async function alreadyInstalledIn(
   version: string | undefined,
 ): Promise<Project | null> {
   try {
-    const detail = (await (await fetch(`${API_URL}/projects/${project.pid}`)).json()) as ProjectDetail;
+    const detail = (await (await apiFetch(`${API_URL}/projects/${project.pid}`)).json()) as ProjectDetail;
     const same = (detail.plugins ?? []).some(
       (p) => p.package_name === pkg && p.version === version,
     );
@@ -154,7 +155,7 @@ export default function PluginInstallDialog() {
     setSubmitting(true);
     const target = projects.find((p) => p.pid === selectedProject);
     try {
-      const res = await fetch(`${API_URL}/plugins`, {
+      const res = await apiFetch(`${API_URL}/plugins`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(installRequestBody(currentInstall, selectedProject)),

@@ -1,3 +1,4 @@
+import { apiFetch } from "../api/projectHeader";
 import {
     Box,
     Button,
@@ -84,7 +85,7 @@ function ProjectDetailsSection() {
     useEffect(() => {
         async function fetchProject() {
             try {
-                const response = await fetch(`${API_URL}/projects/${projectUUID}`);
+                const response = await apiFetch(`${API_URL}/projects/${projectUUID}`);
                 const data = await response.json();
                 setProject({ pid: data.pid, name: data.name ?? '', datasets: [], models: [] });
                 setFetchedProject({ pid: data.pid, name: data.name ?? '', datasets: [], models: [] });
@@ -109,7 +110,7 @@ function ProjectDetailsSection() {
         if (!project || !projectUUID) return;
         setLoading(true);
         try {
-            const response = await fetch(`${API_URL}/projects/${projectUUID}`, {
+            const response = await apiFetch(`${API_URL}/projects/${projectUUID}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: project.name }),

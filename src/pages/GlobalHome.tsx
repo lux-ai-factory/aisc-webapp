@@ -1,3 +1,4 @@
+import { apiFetch, NoCurrentProject } from "../api/projectHeader";
 import { Box, Button, Card, CardActionArea, CardContent, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import { useEffect, useState } from "react";
@@ -8,6 +9,7 @@ import { useProject } from "../context/ProjectContext";
 import {
     currentPlatformProject,
     projectForPlatformUrl,
+    projectPageUrl,
     projectsUrl,
 } from "../platform/currentProject";
 import "../styles/common.css";
@@ -16,6 +18,7 @@ import "./GlobalHome.css";
 
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
+const LAUNCHER_URL = (import.meta.env.VITE_LAUNCHER_URL as string) || 'http://localhost:8100/';
 
 interface Project {
     pid: string;
@@ -26,10 +29,11 @@ const ProjectsList = () => {
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
+    const [noProject, setNoProject] = useState<boolean>(false);
     const navigate = useNavigate();
 
     useEffect(() => {
-        fetch(projectsUrl(API_URL))
+        apiFetch(projectsUrl(API_URL))
             .then((res) => {
                 if (!res.ok) throw new Error("Network response was not ok");
                 return res.json();
@@ -39,11 +43,24 @@ const ProjectsList = () => {
                 setLoading(false);
             })
             .catch((err) => {
-                setError(err.message);
+                // Every project has its own database (isolation I7.4): with no
+                // project open there is nothing to list, only the way to one.
+                if (err instanceof NoCurrentProject) setNoProject(true);
+                else setError(err.message);
                 setLoading(false);
             });
     }, []);
 
+    if (noProject) {
+        return (
+            <Box sx={{ textAlign: 'center', mt: 4 }}>
+                <Typography variant="body1" color="text.secondary" gutterBottom>
+                    Open a project on the launcher to work on it here.
+                </Typography>
+                <Button variant="outlined" href={projectPageUrl(LAUNCHER_URL)}>Go to the launcher</Button>
+            </Box>
+        );
+    }
     if (loading) return <Typography sx={{ textAlign: 'center', mt: 4 }}>Loading...</Typography>;
     if (error) return <Typography color="error" sx={{ textAlign: 'center', mt: 4 }}>Error: {error}</Typography>;
 
@@ -96,7 +113,7 @@ const OpenTheProject = ({ project }: { project: string }) => {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        fetch(projectForPlatformUrl(API_URL, project), { method: "POST" })
+        apiFetch(projectForPlatformUrl(API_URL, project), { method: "POST" })
             .then((res) => {
                 if (!res.ok) throw new Error("Could not open this project.");
                 return res.json();
@@ -124,8 +141,8 @@ const OpenTheProject = ({ project }: { project: string }) => {
  * Home page component
  *
  * Inside a project (opened from the launcher) there is nothing to pick: it goes
- * straight into that project. Without one, the engine is running on its own and
- * still lists what it has.
+ * straight into that project. Without one there is nothing to list (each
+ * project's workspace is in its own database), so it points to the launcher.
  */
 const GlobalHome = () => {
     const { authenticated, login } = useAuth();

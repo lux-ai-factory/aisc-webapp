@@ -1,3 +1,4 @@
+import { apiFetch } from "../api/projectHeader";
 import React, { useEffect, useState } from "react";
 import {
     Box, Typography, Card, CardContent, Stack, Skeleton, Chip,
@@ -163,7 +164,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
             fetchWithFallback(() => getProjectMetricBreakdown(projectPid), { metrics: [] }),
             fetchWithFallback(() => getProjectPluginUsage(projectPid), { plugins: [] }),
             fetchWithFallback(async () => {
-                const res = await fetch(`${API_URL}/projects/${projectPid}`);
+                const res = await apiFetch(`${API_URL}/projects/${projectPid}`);
                 return await res.json() as { plugins: { name: string; pid: string; display_name: string }[] };
             }, { plugins: [] }),
         ])
@@ -197,7 +198,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ projectPid }) => {
                             const pid = pidByName[shortName];
                             if (!pid) return;
                             try {
-                                const res = await fetch(`${API_URL}/plugins/${pid}/display_icon`);
+                                const res = await apiFetch(`${API_URL}/plugins/${pid}/display_icon`);
                                 if (res.ok) {
                                     icons[name] = await res.json() as string;
                                 }
