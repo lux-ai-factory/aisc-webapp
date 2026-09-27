@@ -229,6 +229,65 @@ describe('configurator', () => {
   });
 });
 
+describe('configurator: only a pid is a project', () => {
+  it('a page with ?project=foo leaves both storages untouched', async () => {
+    configuratorBackend();
+    renderWithInstall(<PluginInstallDialog />, { uri: ENABLE, search: '?project=foo' });
+    await waitFor(() => expect(pageText()).toMatch(/Choose a project/));
+    expect(sessionStorage.getItem('aisc_platform_project')).toBeNull();
+    expect(localStorage.getItem('aisc_last_platform_project')).toBeNull();
+    expect(installButton()?.disabled).toBe(true);
+  });
+
+  it('a stored "foo" gives no target and Install disabled, even when the list is unreadable', async () => {
+    stubFetch(() => json({ detail: 'Bad Gateway' }, 502));
+    localStorage.setItem('aisc_last_platform_project', 'foo');
+    sessionStorage.setItem('aisc_platform_project', 'foo');
+    renderWithInstall(<PluginInstallDialog />, { uri: ENABLE });
+    await waitFor(() => expect(pageText()).toMatch(/could not be loaded/));
+    expect(pageText()).not.toMatch(/project you came from/);
+    expect(installButton()?.disabled).toBe(true);
+    await click(installButton());
+    expect(calls.filter((c) => c.method === 'POST')).toEqual([]);
+  });
+
+  it('a stored "foo" with a readable list says "Choose a project"', async () => {
+    configuratorBackend([DEMO]);
+    localStorage.setItem('aisc_last_platform_project', 'foo');
+    renderWithInstall(<PluginInstallDialog />, { uri: ENABLE });
+    await waitFor(() => expect(pageText()).toMatch(/Choose a project/));
+    expect(pageText()).not.toMatch(/not in this project/);
+    expect(installButton()?.disabled).toBe(true);
+  });
+
+  it('list unreadable and no target: says so, with the launcher link', async () => {
+    stubFetch(() => json({ detail: 'Bad Gateway' }, 502));
+    renderWithInstall(<PluginInstallDialog />, { uri: ENABLE });
+    await waitFor(() =>
+      expect(pageText()).toMatch(/Your projects could not be loaded\. Open this from your project on the launcher\./),
+    );
+    const link = Array.from(document.querySelectorAll('a')).find((a) => /launcher/i.test(a.textContent ?? ''));
+    expect(link?.getAttribute('href')).toBeTruthy();
+    expect(installButton()?.disabled).toBe(true);
+  });
+
+  it('list unreadable with a pid target: the URL and the header name the same project', async () => {
+    stubFetch((url, method) => {
+      if (url.endsWith('/platform/api/projects')) return json({}, 502);
+      if (method === 'POST' && url.includes('/projects/for-platform/')) return json({ pid: 'engine-demo', name: 'Demo' });
+      return json({ ok: true });
+    });
+    sessionStorage.setItem('aisc_platform_project', LOANS.pid);
+    localStorage.setItem('aisc_last_platform_project', DEMO.pid);
+    renderWithInstall(<PluginInstallDialog />, { uri: ENABLE, search: `?project=${DEMO.pid}` });
+    await waitFor(() => expect(installButton()?.disabled).toBe(false));
+    await click(installButton());
+    const sent = calls.filter((c) => c.method === 'POST');
+    expect(sent[0].url).toMatch(new RegExp(`/projects/for-platform/${DEMO.pid}$`));
+    expect(sent.map((c) => c.project)).toEqual([DEMO.pid, DEMO.pid]);
+  });
+});
+
 describe('standalone', () => {
   it("is Sean's dialog: every engine project in the dropdown", async () => {
     mode.configurator = false;

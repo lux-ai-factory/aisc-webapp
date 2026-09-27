@@ -8,6 +8,9 @@ import {
   projectsUrl,
 } from "./currentProject";
 
+const A = "3f2b8c1e-0d4a-4e7b-9a55-1c2d3e4f5a6b";
+const B = "701ef4b8-057d-4a93-8b30-9b19052c881e";
+
 const store = (): Storage => {
   const map = new Map<string, string>();
   return {
@@ -22,13 +25,13 @@ const store = (): Storage => {
 
 describe("the platform project the engine was opened from", () => {
   it("is the one in the URL", () => {
-    expect(currentPlatformProject("?project=abc", store())).toBe("abc");
+    expect(currentPlatformProject(`?project=${A}`, store())).toBe(A);
   });
 
   it("is remembered once, so navigating inside the app keeps it", () => {
     const s = store();
-    currentPlatformProject("?project=abc", s);
-    expect(currentPlatformProject("", s)).toBe("abc");
+    currentPlatformProject(`?project=${A}`, s);
+    expect(currentPlatformProject("", s)).toBe(A);
   });
 
   it("is simply absent when the engine is opened on its own", () => {
@@ -40,7 +43,7 @@ describe("the platform project the engine was opened from", () => {
       getItem: () => { throw new Error("denied"); },
       setItem: () => { throw new Error("denied"); },
     } as unknown as Storage;
-    expect(currentPlatformProject("?project=abc", hostile)).toBe("abc");
+    expect(currentPlatformProject(`?project=${A}`, hostile)).toBe(A);
     expect(currentPlatformProject("", hostile)).toBeNull();
   });
 });
@@ -102,11 +105,11 @@ describe("the project last opened in this browser", () => {
   it("is written whenever a ?project= is read", () => {
     const tab = store();
     const browser = store();
-    currentPlatformProject("?project=abc", tab, browser);
-    expect(lastPlatformProject(browser)).toBe("abc");
+    currentPlatformProject(`?project=${A}`, tab, browser);
+    expect(lastPlatformProject(browser)).toBe(A);
     currentPlatformProject("", tab, browser);
-    currentPlatformProject("?project=def", store(), browser);
-    expect(lastPlatformProject(browser)).toBe("def");
+    currentPlatformProject(`?project=${B}`, store(), browser);
+    expect(lastPlatformProject(browser)).toBe(B);
   });
 
   it("is absent until one is opened", () => {
@@ -118,8 +121,34 @@ describe("the project last opened in this browser", () => {
       getItem: () => { throw new Error("denied"); },
       setItem: () => { throw new Error("denied"); },
     } as unknown as Storage;
-    expect(() => rememberLastPlatformProject("abc", hostile)).not.toThrow();
+    expect(() => rememberLastPlatformProject(A, hostile)).not.toThrow();
     expect(lastPlatformProject(hostile)).toBeNull();
-    expect(currentPlatformProject("?project=abc", store(), hostile)).toBe("abc");
+    expect(currentPlatformProject(`?project=${A}`, store(), hostile)).toBe(A);
+  });
+});
+
+// Only a pid is a project: anything else in ?project= or in storage is no
+// project, so the URL and the X-AISC-Project header can never name two.
+describe("a project that is not a pid", () => {
+  it("in ?project= leaves both storages untouched and counts as absent", () => {
+    const tab = store();
+    const browser = store();
+    expect(currentPlatformProject("?project=foo", tab, browser)).toBeNull();
+    expect(tab.getItem("aisc_platform_project")).toBeNull();
+    expect(browser.getItem("aisc_last_platform_project")).toBeNull();
+  });
+
+  it("in ?project= falls back to the tab's stored project", () => {
+    const tab = store();
+    const browser = store();
+    currentPlatformProject(`?project=${A}`, tab, browser);
+    expect(currentPlatformProject("?project=foo", tab, browser)).toBe(A);
+    expect(lastPlatformProject(browser)).toBe(A);
+  });
+
+  it("stored as the browser's last project is no last project", () => {
+    const browser = store();
+    browser.setItem("aisc_last_platform_project", "foo");
+    expect(lastPlatformProject(browser)).toBeNull();
   });
 });

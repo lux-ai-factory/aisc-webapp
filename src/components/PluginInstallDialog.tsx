@@ -24,6 +24,7 @@ import { apiFetch, PROJECT_HEADER } from '../api/projectHeader';
 import { isConfigurator } from '../deployment';
 import {
   currentPlatformProject,
+  isPlatformPid,
   lastPlatformProject,
   projectForPlatformUrl,
   rememberLastPlatformProject,
@@ -193,6 +194,7 @@ const launcherUrl = (): string => (import.meta.env.VITE_LAUNCHER_URL as string) 
 /** The engine's 403 on an install: installing a test is an admin's job. */
 const NOT_ADMIN = 'Installing a test takes the admin role.';
 const NOT_MEMBER = 'You are not in this project.';
+const LIST_UNREADABLE = 'Your projects could not be loaded. Open this from your project on the launcher.';
 
 /** null: the list could not be read (the gateway decides, on Install). */
 async function loadPlatformProjects(): Promise<PlatformProject[] | null> {
@@ -234,7 +236,9 @@ function ConfiguratorInstallDialog() {
 
   useEffect(() => {
     if (!open) return;
-    setTarget(currentPlatformProject() ?? lastPlatformProject());
+    // Only a pid is a target; anything else is no target.
+    const fromTab = currentPlatformProject();
+    setTarget(isPlatformPid(fromTab) ? fromTab : lastPlatformProject());
     setChanging(false);
     setRefused(null);
     setSubmitting(false);
@@ -249,6 +253,7 @@ function ConfiguratorInstallDialog() {
   }, [open, pkg, version]);
 
   const inNoProject = Array.isArray(mine) && mine.length === 0;
+  const lost = mine === null && !target;
   const named = Array.isArray(mine) ? mine.find((p) => p.pid.toLowerCase() === target?.toLowerCase()) : undefined;
   const notMember =
     Boolean(target) && (refused === target || (Array.isArray(mine) && mine.length > 0 && !named));
@@ -345,6 +350,11 @@ function ConfiguratorInstallDialog() {
         {inNoProject ? (
           <Typography sx={{ mt: 2 }}>
             You are in no project yet: create one on the launcher.{' '}
+            <Link href={launcherUrl()}>Go to the launcher</Link>
+          </Typography>
+        ) : lost ? (
+          <Typography sx={{ mt: 2 }}>
+            {LIST_UNREADABLE}{' '}
             <Link href={launcherUrl()}>Go to the launcher</Link>
           </Typography>
         ) : (
