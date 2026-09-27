@@ -1,7 +1,20 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { API_VERSION_PREFIX } from "../config";
 import keycloak, { initKeycloak, installAuthFetch, login as kcLogin, logout as kcLogout } from "../auth/keycloak";
+import { isConfigurator } from "../deployment";
+import { gatewaySignIn, gatewaySignOut, whoTheGatewaySays } from "../platform/gatewaySession";
 
+/**
+ * Who is using the engine.
+ *
+ * Standalone (Sean's engine): its own Keycloak login, the token added to every
+ * API call.
+ *
+ * Configurator: the engine has no login of its own. People sign in once, at
+ * the gateway (oauth2-proxy in front of Keycloak), which holds the session and
+ * passes its token on every request; the page asks the API who that is.
+ * Signing in and out go to the gateway too.
+ */
 type AuthState = {
   ready: boolean;
   authenticated: boolean;
@@ -20,8 +33,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [username, setUsername] = useState<string | undefined>();
   const [roles, setRoles] = useState<string[]>([]);
   const [token, setToken] = useState<string | undefined>();
+  const configurator = isConfigurator();
 
   useEffect(() => {
+    if (configurator) {
+      whoTheGatewaySays(`${import.meta.env.VITE_API_URL}${API_VERSION_PREFIX}`)
+        .then((who) => {
+          setAuthenticated(Boolean(who));
+          setUsername(who?.username);
+          setRoles(who?.roles ?? []);
+        })
+        .finally(() => setReady(true));
+      return;
+    }
+
     installAuthFetch(`${import.meta.env.VITE_API_URL}${API_VERSION_PREFIX}`);
 
     initKeycloak()
@@ -42,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setToken(undefined);
       });
     };
-  }, []);
+  }, [configurator]);
 
   const value: AuthState = {
     ready,
@@ -50,8 +75,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     username,
     roles,
     token,
-    login: () => kcLogin(),
-    logout: () => kcLogout(),
+    login: () => (configurator ? gatewaySignIn() : kcLogin()),
+    logout: () => (configurator ? gatewaySignOut() : kcLogout()),
   };
 
   if (!ready) return null;

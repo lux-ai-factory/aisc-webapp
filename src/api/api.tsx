@@ -1,3 +1,4 @@
+import { apiFetch } from "./projectHeader";
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {Project, PluginFeatureFlags, PluginInputDefinition, Package,
 ProjectStatsOverview,
@@ -10,20 +11,20 @@ const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
 
 export const getPlugins = async () => {
-    const res = await fetch(`${API_URL}/plugins`);
+    const res = await apiFetch(`${API_URL}/plugins`);
     return await res.json() as Package[];
 };
 
 export const getProject = async (project_uuid: string) => {
     if (!project_uuid) throw new Error('Invalid uuid');
-    const res = await fetch(`${API_URL}/projects/${project_uuid}`);
+    const res = await apiFetch(`${API_URL}/projects/${project_uuid}`);
     return await res.json() as Project;
 };
 
 export const getPluginFeatureFlags = async (plugin_pid: string) => {
     if (!plugin_pid) throw new Error("Plugin PID is required");
 
-    const res = await fetch(`${API_URL}/plugins/${plugin_pid}/feature_flags`);
+    const res = await apiFetch(`${API_URL}/plugins/${plugin_pid}/feature_flags`);
     if (!res.ok) throw new Error('Network response was not ok');
 
     return await res.json() as PluginFeatureFlags;
@@ -32,20 +33,20 @@ export const getPluginFeatureFlags = async (plugin_pid: string) => {
 export const getPluginInputDefinitions = async (plugin_pid: string) => {
     if (!plugin_pid) throw new Error("Plugin PID is required");
 
-    const res = await fetch(`${API_URL}/plugins/${plugin_pid}/input_definitions`);
+    const res = await apiFetch(`${API_URL}/plugins/${plugin_pid}/input_definitions`);
     if (!res.ok) throw new Error('Network response was not ok');
 
     return await res.json() as PluginInputDefinition[];
 };
 
 export const getPluginProjectConfigDefinitions = async (plugin_pid: string) => {
-    const res = await fetch(`${API_URL}/plugins/${plugin_pid}/project_config_definitions`);
+    const res = await apiFetch(`${API_URL}/plugins/${plugin_pid}/project_config_definitions`);
     if (!res.ok) throw new Error('Failed to fetch plugin project config definitions');
     return await res.json();
 };
 
 export const getComponentModels = async (component_pid: string): Promise<{ models: string[]; error: string | null }> => {
-    const res = await fetch(`${API_URL}/components/${component_pid}/models`);
+    const res = await apiFetch(`${API_URL}/components/${component_pid}/models`);
     if (!res.ok) throw new Error('Failed to fetch component models');
     return await res.json();
 };
@@ -53,42 +54,42 @@ export const getComponentModels = async (component_pid: string): Promise<{ model
 export const getEvaluationInputsTemplate = async (
     project_pid: string,
 ): Promise<Record<string, Record<string, { component_pid: string; value?: Record<string, unknown> }>>> => {
-    const res = await fetch(`${API_URL}/projects/${project_pid}/evaluation-inputs-template`);
+    const res = await apiFetch(`${API_URL}/projects/${project_pid}/evaluation-inputs-template`);
     if (!res.ok) throw new Error('Failed to fetch previous evaluation inputs');
     return await res.json();
 };
 
 export const getProjectConfigs = async (projectPid: string): Promise<ProjectConfig[]> => {
-    const res = await fetch(`${API_URL}/project/settings/${projectPid}`);
+    const res = await apiFetch(`${API_URL}/project/settings/${projectPid}`);
     if (!res.ok) throw new Error('Failed to fetch project settings');
     return await res.json();
 };
 
 export const createProjectConfig = async (projectPid: string, data: object): Promise<ProjectConfig> => {
-    const res = await fetch(`${API_URL}/project/settings/${projectPid}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+    const res = await apiFetch(`${API_URL}/project/settings/${projectPid}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
     if (!res.ok) throw new Error('Failed to create project setting');
     return await res.json();
 };
 
 export const updateProjectConfig = async (projectPid: string, settingPid: string, data: object): Promise<ProjectConfig> => {
-    const res = await fetch(`${API_URL}/project/settings/${projectPid}/${settingPid}`, { method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+    const res = await apiFetch(`${API_URL}/project/settings/${projectPid}/${settingPid}`, { method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
     if (!res.ok) throw new Error('Failed to update project setting');
     return await res.json();
 };
 
 export const deleteProjectConfig = async (projectPid: string, settingPid: string) => {
-    const res = await fetch(`${API_URL}/project/settings/${projectPid}/${settingPid}`, {method: 'DELETE'});
+    const res = await apiFetch(`${API_URL}/project/settings/${projectPid}/${settingPid}`, {method: 'DELETE'});
     if (!res.ok) throw new Error('Failed to delete project setting');
 };
 
 export const deriveFeaturesFromDataset = async (projectPid: string, data: object): Promise<ProjectConfig> => {
-    const res = await fetch(`${API_URL}/project/settings/${projectPid}/derive-features`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)});
+    const res = await apiFetch(`${API_URL}/project/settings/${projectPid}/derive-features`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)});
     if (!res.ok) throw new Error('Failed to derive datashape');
     return await res.json();
 };
 
 export const validateDatasetAgainstDatashape = async (projectPid: string, settingPid: string, datasetPid: string): Promise<ValidationReport> => {
-    const res = await fetch(`${API_URL}/project/settings/${projectPid}/${settingPid}/validate`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({dataset_pid: datasetPid})});
+    const res = await apiFetch(`${API_URL}/project/settings/${projectPid}/${settingPid}/validate`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({dataset_pid: datasetPid})});
     if (!res.ok) throw new Error('Failed to validate dataset');
     return await res.json();
 };
@@ -96,25 +97,25 @@ export const validateDatasetAgainstDatashape = async (projectPid: string, settin
 // Stats API
 
 export const getProjectStatsOverview = async (projectPid: string): Promise<ProjectStatsOverview> => {
-    const res = await fetch(`${API_URL}/stats/projects/${projectPid}/overview`);
+    const res = await apiFetch(`${API_URL}/stats/projects/${projectPid}/overview`);
     if (!res.ok) throw new Error('Failed to fetch project stats overview');
     return await res.json();
 };
 
 export const getProjectMetricBreakdown = async (projectPid: string): Promise<{ metrics: MetricScoreSummary[] }> => {
-    const res = await fetch(`${API_URL}/stats/projects/${projectPid}/metrics`);
+    const res = await apiFetch(`${API_URL}/stats/projects/${projectPid}/metrics`);
     if (!res.ok) throw new Error('Failed to fetch metric breakdown');
     return await res.json();
 };
 
 export const getProjectPluginUsage = async (projectPid: string): Promise<{ plugins: PluginUsageSummary[] }> => {
-    const res = await fetch(`${API_URL}/stats/projects/${projectPid}/plugins`);
+    const res = await apiFetch(`${API_URL}/stats/projects/${projectPid}/plugins`);
     if (!res.ok) throw new Error('Failed to fetch plugin usage');
     return await res.json();
 };
 
 export const getProjectPluginDurations = async (projectPid: string): Promise<{ runs: PluginRunDuration[] }> => {
-    const res = await fetch(`${API_URL}/stats/projects/${projectPid}/plugin-durations`);
+    const res = await apiFetch(`${API_URL}/stats/projects/${projectPid}/plugin-durations`);
     if (!res.ok) throw new Error('Failed to fetch plugin durations');
     return await res.json();
 };
@@ -126,7 +127,7 @@ export const getEvaluationDimensionKeys = async (
     evaluationPluginPid?: string,
     metricName?: string
 ): Promise<{ keys: string[] }> => {
-    const res = await fetch(`${API_URL}/evaluations/${evaluationPid}/measurements/dimension-keys`, {
+    const res = await apiFetch(`${API_URL}/evaluations/${evaluationPid}/measurements/dimension-keys`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -144,7 +145,7 @@ export const getEvaluationDimensionValues = async (
     evaluationPluginPid?: string,
     metricName?: string
 ): Promise<{ key: string, values: any[] }> => {
-    const res = await fetch(`${API_URL}/evaluations/${evaluationPid}/measurements/dimension-values/${key}`, {
+    const res = await apiFetch(`${API_URL}/evaluations/${evaluationPid}/measurements/dimension-values/${key}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -160,7 +161,7 @@ export const getEvaluationMetricNames = async (
     evaluationPid: string,
     evaluationPluginPid?: string
 ): Promise<{ names: string[] }> => {
-    const res = await fetch(`${API_URL}/evaluations/${evaluationPid}/measurements/metric-names`, {
+    const res = await apiFetch(`${API_URL}/evaluations/${evaluationPid}/measurements/metric-names`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -179,7 +180,7 @@ export const aggregateEvaluationMeasurements = async (evaluationPid: string, agg
     filters?: Record<string, any>,
     aggregations?: string[]
 }): Promise<{ results: any[] }> => {
-    const res = await fetch(`${API_URL}/evaluations/${evaluationPid}/measurements/aggregate`, {
+    const res = await apiFetch(`${API_URL}/evaluations/${evaluationPid}/measurements/aggregate`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

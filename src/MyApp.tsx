@@ -1,3 +1,4 @@
+import { apiFetch } from "./api/projectHeader";
 import Box from '@mui/material/Box';
 import CssBaseline from '@mui/material/CssBaseline';
 import Toolbar from '@mui/material/Toolbar';
@@ -26,6 +27,7 @@ import PluginEvaluationsTasks from "./pages/PluginEvaluationsTasks.tsx";
 import PluginInstallDialog from "./components/PluginInstallDialog.tsx";
 import ProtocolRegisterPrompt from "./components/ProtocolRegisterPrompt.tsx";
 import CeleryTasks from "./pages/CeleryTasks.tsx";
+import { showsCeleryTasks } from "./deployment";
 import './App.css';
 // I must add this for files to take it into consideration
 
@@ -53,7 +55,7 @@ const ProjectContextWrapper: React.FC<ProjectContextWrapperProps> = ({ children 
     useEffect(() => {
         if (!project_name) return;
 
-        fetch(`${API_URL}/projects/by-name/${project_name}`).then((res) => {
+        apiFetch(`${API_URL}/projects/by-name/${project_name}`).then((res) => {
             if (!res.ok) throw new Error("Network response was not ok");
             return res.json();
         })
@@ -102,7 +104,8 @@ export default function PermanentDrawerLeft() {
         { id: 8, name: 'Plugin Evaluations', path: '/projects/:project_name/plugins/evaluations', element: <ProjectContextWrapper><PluginEvaluations /></ProjectContextWrapper> },
         { id: 9, name: 'Plugin Evaluation Measurements', path: '/projects/:project_name/plugins/evaluations/:evaluation_uuid', element: <ProjectContextWrapper><PluginEvaluationMeasurements /></ProjectContextWrapper> },
         { id: 10, name: 'Plugin Evaluations Tasks', path: '/projects/:project_name/plugins/evaluations/tasks', element: <ProjectContextWrapper><PluginEvaluationsTasks /></ProjectContextWrapper> },
-        ...(SHOW_CELERY_TASKS ? [{ id: 12, name: 'Tasks', path: '/projects/:project_name/tasks', element: <ProjectContextWrapper><CeleryTasks /></ProjectContextWrapper> }] : []),
+        // Configurator: no route either, the page lists every project's tasks.
+        ...(SHOW_CELERY_TASKS && showsCeleryTasks() ? [{ id: 12, name: 'Tasks', path: '/projects/:project_name/tasks', element: <ProjectContextWrapper><CeleryTasks /></ProjectContextWrapper> }] : []),
     ];
     const theme = useTheme();
     const autoCollapse = useMediaQuery(theme.breakpoints.down('lg'));

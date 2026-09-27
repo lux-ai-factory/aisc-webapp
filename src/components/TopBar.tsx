@@ -1,3 +1,4 @@
+import { apiFetch } from "../api/projectHeader";
 import {
     AppBar,
     Box,
@@ -27,6 +28,12 @@ import "./addProjectButton.css";
 import AddProjectWizard from "./addProjectWizard.tsx";
 import { openPublicCatalogue, isProtocolHandlerSupported } from "../pluginCatalogue/installUri.ts";
 import { usePluginInstall } from "../pluginCatalogue/PluginInstallContext.tsx";
+import { canCreateProjects, isConfigurator, showsLauncher } from "../deployment";
+import {
+    currentPlatformProject,
+    projectPageUrl,
+    projectsUrl,
+} from "../platform/currentProject.ts";
 
 
 interface Project {
@@ -35,6 +42,11 @@ interface Project {
 }
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
+
+// The launcher (configurator only): where the project was chosen and where the
+// other steps are. Substituted into the bundle at container start, like every
+// other URL this app is told about.
+const launcherUrl = (): string => (import.meta.env.VITE_LAUNCHER_URL as string) || 'http://localhost:8100/';
 
 const apiCall = async (url: string, method: string = 'GET', body?: any) => {
     try {
@@ -46,7 +58,7 @@ const apiCall = async (url: string, method: string = 'GET', body?: any) => {
         };
         if (body) options.body = JSON.stringify(body);
 
-        const response = await fetch(API_URL + url, options);
+        const response = await apiFetch(API_URL + url, options);
         return response.ok ? await response.json() : null;
     } catch (error) {
         console.error(`Error fetching ${url}:`, error);
@@ -140,7 +152,8 @@ const TopBar: React.FC = () => {
     const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
     const [confirmOpen, setConfirmOpen] = useState(false);
 
-    // Keycloak auth: who is logged in + login/logout actions
+    // Who is signed in + sign in/out: Sean's Keycloak login standalone, the
+    // gateway's session in the configurator (AuthContext decides).
     const {authenticated, username, login, logout} = useAuth();
     const {registerProtocol} = usePluginInstall();
     const [registering, setRegistering] = useState(false);
@@ -151,7 +164,9 @@ const TopBar: React.FC = () => {
     const isRootPage = location.pathname === '/';
 
     const fetchProjects = async () => {
-        const data = await apiCall('/projects');
+        // Configurator: only this project's workspaces, the launcher already
+        // decided which project is being worked on.
+        const data = await apiCall(isConfigurator() ? projectsUrl('', currentPlatformProject()) : '/projects');
         if (data) setProjects(data);
     };
 
@@ -187,7 +202,7 @@ const TopBar: React.FC = () => {
             if (!ds.name || ds.name.trim().length < 1) continue;
 
             // 2a. Create dataset component row
-            const created = await fetch(
+            const created = await apiFetch(
                 `${API_URL}/projects/${newProject.pid}/components`,
                 {
                     method: "POST",
@@ -204,7 +219,7 @@ const TopBar: React.FC = () => {
                 const formData = new FormData();
                 formData.append("file", ds.file);
                 uploads.push(
-                    fetch(`${API_URL}/components/${ds.pid}/data`, { method: "PUT", body: formData }).then(() => {
+                    apiFetch(`${API_URL}/components/${ds.pid}/data`, { method: "PUT", body: formData }).then(() => {
                         toast.success(`Dataset \`${ds.name}\` uploaded`, { position: 'bottom-right' });
                     }).finally(() => removeFileUploadingPid(ds.pid))
                 );
@@ -216,7 +231,7 @@ const TopBar: React.FC = () => {
             if (!m.name || m.name.trim().length < 1) continue;
 
             // 3a. Create model component row
-            const created = await fetch(
+            const created = await apiFetch(
                 `${API_URL}/projects/${newProject.pid}/components`,
                 {
                     method: "POST",
@@ -233,7 +248,7 @@ const TopBar: React.FC = () => {
                 const formData = new FormData();
                 formData.append("file", m.file);
                 uploads.push(
-                    fetch(`${API_URL}/components/${m.pid}/data`, { method: "PUT", body: formData }).then(() => {
+                    apiFetch(`${API_URL}/components/${m.pid}/data`, { method: "PUT", body: formData }).then(() => {
                         toast.success(`Model \`${m.name}\` uploaded`, { position: 'bottom-right' });
                     }).finally(() => removeFileUploadingPid(m.pid))
                 );
@@ -243,7 +258,7 @@ const TopBar: React.FC = () => {
         // 4. Enable all packages in parallel
         await Promise.all(Object.keys(plugins).map(async (key) => {
             const pkg = plugins[key];
-            await fetch(`${API_URL}/plugins`, {
+            await apiFetch(`${API_URL}/plugins`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -317,6 +332,19 @@ const TopBar: React.FC = () => {
 
                 <div style={{flexGrow: 1}}/>
                 <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
+                    {showsLauncher() && (
+                        <Button
+                            color="inherit"
+                            variant="outlined"
+                            size="small"
+                            href={projectPageUrl(launcherUrl())}
+                            aria-label="Back to the project"
+                            sx={{textTransform: 'none'}}
+                        >
+                            <Icon sx={{fontSize: 18, mr: 0.5}}>arrow_back</Icon>
+                            Back
+                        </Button>
+                    )}
                     <Button
                         color="inherit"
                         variant="outlined"
@@ -344,16 +372,19 @@ const TopBar: React.FC = () => {
                             </span>
                         </Tooltip>
                     )}
-                    <ProjectSelector
-                        onAddProject={addProject}
-                        datasets={datasets}
-                        models={models}
-                        plugins={plugins}
-                        fetchDatasets={fetchDatasets}
-                        fetchModels={fetchModels}
-                        fetchPlugins={fetchPlugins}
-                        authenticated={authenticated}
-                    />
+                    {/* Configurator: projects are created on the launcher, never here. */}
+                    {canCreateProjects() && (
+                        <ProjectSelector
+                            onAddProject={addProject}
+                            datasets={datasets}
+                            models={models}
+                            plugins={plugins}
+                            fetchDatasets={fetchDatasets}
+                            fetchModels={fetchModels}
+                            fetchPlugins={fetchPlugins}
+                            authenticated={authenticated}
+                        />
+                    )}
                     {authenticated ? (
                         <Box className="auth-box">
                             <Button
