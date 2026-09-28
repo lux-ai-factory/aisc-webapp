@@ -1,4 +1,3 @@
-import { apiFetch } from "../../api/projectHeader";
 import { useMutation } from '@tanstack/react-query';
 import validator from '@rjsf/validator-ajv8';
 import React, {useCallback, useEffect, useImperativeHandle, useRef, useState} from 'react';
@@ -29,7 +28,7 @@ interface PluginConfigFormProps {
 const updateConfigDynamics = async ({ pluginPID, config, projectSettingSelections }: { pluginPID: string; config: object; projectSettingSelections: ProjectConfigSelection[] }) => {
     const data = { config, project_config_selections: projectSettingSelections };
 
-    const response = await apiFetch(`${API_URL}/plugins/${pluginPID}/config/state`, {
+    const response = await fetch(`${API_URL}/plugins/${pluginPID}/config/state`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),

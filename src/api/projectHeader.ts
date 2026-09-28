@@ -3,19 +3,20 @@
  *
  * The engine keeps every project in its own database, and its door opens the
  * database of the project named in the X-AISC-Project header. So every call the
- * SPA makes goes through here, and each one names the platform project this tab
- * was opened on. With no current project, a route that belongs to a project is
- * not called at all (NoCurrentProject); the few routes that need no project
- * (the plugin list, who am I, the app name, the docs, the audit) still are.
+ * SPA makes goes through here (installProjectHeader wraps fetch and axios at
+ * start), and each one names the platform project this tab was opened on.
+ * With no current project, a route that belongs to a project is not called at
+ * all (NoCurrentProject); the few routes that need no project (the plugin
+ * list, who am I, the app name, the docs, the audit) still are.
  *
  * Which project a caller may reach is decided by the backend, not here: this
  * only says which one the SPA is working on.
  *
  * All of this is the configurator's (AISC_DEPLOYMENT=configurator). Sean's
- * standalone engine has one database and no door: there apiFetch is fetch and
- * apiAxios is axios, unchanged.
+ * standalone engine has one database and no door: there nothing is installed,
+ * and fetch and axios are Sean's, unchanged.
  */
-import axios, { AxiosHeaders } from "axios";
+import { AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
 
 import { API_VERSION_PREFIX } from "../config";
 import { isConfigurator } from "../deployment";
@@ -90,34 +91,47 @@ function namedPid(headers: HeadersInit | undefined): string | null {
   return value && PID.test(value) ? value.toLowerCase() : null;
 }
 
-/** fetch, naming the current platform project, or the one the caller named (I7.4). */
-export async function apiFetch(input: string, init?: RequestInit): Promise<Response> {
-  if (!isConfigurator()) return fetch(input, init);
-  const pid = namedPid(init?.headers) ?? currentPid();
-  if (pid) {
-    return fetch(input, { ...init, headers: withProject(init?.headers, pid) });
-  }
-  if (isApiRoute(input) && !isProjectLess(init?.method ?? "GET", input)) {
-    throw new NoCurrentProject(pathOf(input));
-  }
-  return fetch(input, init);
+/** The URL of whatever fetch was given: a string, a URL or a Request. */
+function urlOf(input: RequestInfo | URL): string {
+  if (typeof input === "string") return input;
+  if (input instanceof URL) return input.href;
+  return input.url;
 }
 
-/** axios with the same rule, for uploads that report their progress. */
-export const apiAxios = axios.create();
-
-apiAxios.interceptors.request.use((config) => {
-  if (!isConfigurator()) return config;
-  const url = config.url ?? "";
-  const pid = currentPid();
+/**
+ * fetch through `base`, naming the current platform project, or the one the
+ * caller named (I7.4). Only the engine's API routes are touched: any other URL
+ * (the platform, MinIO, another host) goes out exactly as given.
+ */
+export async function projectFetch(base: typeof fetch, input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const url = urlOf(input);
+  if (!isConfigurator() || !isApiRoute(url)) return base(input, init);
+  const given = init?.headers ?? (input instanceof Request ? input.headers : undefined);
+  const pid = namedPid(given) ?? currentPid();
   if (pid) {
-    const headers = AxiosHeaders.from(config.headers);
+    return base(input, { ...init, headers: withProject(given, pid) });
+  }
+  const method = init?.method ?? (input instanceof Request ? input.method : "GET");
+  if (!isProjectLess(method, url)) {
+    throw new NoCurrentProject(pathOf(url));
+  }
+  return base(input, init);
+}
+
+/** The same rule for axios (uploads that report their progress). */
+export function projectHeaderInterceptor(config: InternalAxiosRequestConfig): InternalAxiosRequestConfig {
+  const url = config.url ?? "";
+  if (!isConfigurator() || !isApiRoute(url)) return config;
+  const headers = AxiosHeaders.from(config.headers);
+  const named = headers.get(PROJECT_HEADER);
+  const pid = (typeof named === "string" && PID.test(named) ? named.toLowerCase() : null) ?? currentPid();
+  if (pid) {
     headers.set(PROJECT_HEADER, pid);
     config.headers = headers;
     return config;
   }
-  if (isApiRoute(url) && !isProjectLess(config.method ?? "GET", url)) {
+  if (!isProjectLess(config.method ?? "GET", url)) {
     throw new NoCurrentProject(pathOf(url));
   }
   return config;
-});
+}

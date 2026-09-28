@@ -23,6 +23,7 @@ vi.mock('../pluginCatalogue/installUri', async (importOriginal) => ({
 }));
 
 import Plugins from './Plugins';
+import { installProjectHeader } from '../api/installProjectHeader';
 import { ProjectProvider, useProject } from '../context/ProjectContext';
 
 const PROJECT = 'fa6bf828-b44a-40dc-ba61-2c107251487f';
@@ -42,12 +43,20 @@ function SetProject({ uuid }: { uuid: string }) {
   return null;
 }
 
+/** What main.tsx does in the configurator: the start-up wrapper over this test's fetch. It
+ *  consults the mode itself, so in standalone it passes every call through unchanged. */
+let uninstalls: (() => void)[] = [];
+function stubFetchGlobal(fn: unknown) {
+  vi.stubGlobal('fetch', fn);
+  uninstalls.push(installProjectHeader(globalThis));
+}
+
 let root: Root | null = null;
 let host: HTMLDivElement | null = null;
 let urls: string[] = [];
 
 async function renderPage(installed: object[]) {
-  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+  stubFetchGlobal(vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     urls.push(url);
     const body = /\/plugins$/.test(url) ? INDEX : { pid: PROJECT, name: 'Demo', plugins: installed };
@@ -83,6 +92,7 @@ afterEach(() => {
   act(() => root?.unmount());
   host?.remove();
   root = null;
+  while (uninstalls.length) uninstalls.pop()!();
   vi.unstubAllGlobals();
   openPublicCatalogue.mockReset();
 });

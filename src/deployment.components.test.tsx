@@ -34,6 +34,14 @@ type Call = { url: string; method: string; project: string | null };
 let calls: Call[] = [];
 let container: HTMLElement;
 let root: Root;
+let uninstall: () => void = () => {};
+
+/** The configurator as main.tsx starts it: the mode, then the start-up wrapper over this test's fetch. */
+async function configurator() {
+  vi.stubEnv('VITE_DEPLOYMENT', 'configurator');
+  const { installProjectHeader } = await import('./api/installProjectHeader');
+  uninstall = installProjectHeader(globalThis);
+}
 
 function respond(url: string, method: string): unknown {
   if (url.includes('/for-platform/')) return { pid: 'eng-1', name: 'launcher-project' };
@@ -65,6 +73,8 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
+  uninstall();
+  uninstall = () => {};
   vi.unstubAllEnvs();
 });
 
@@ -116,7 +126,7 @@ describe('GlobalHome by mode', () => {
   });
 
   it("configurator opens the launcher's project (OpenTheProject): finds or makes the engine's row and goes in", async () => {
-    vi.stubEnv('VITE_DEPLOYMENT', 'configurator');
+    await configurator();
     window.history.replaceState(null, '', `/?project=${PID}`);
     const { default: GlobalHome } = await import('./pages/GlobalHome');
     await render(<GlobalHome />);
@@ -128,7 +138,7 @@ describe('GlobalHome by mode', () => {
   });
 
   it('configurator with no project points to the launcher and lists nothing', async () => {
-    vi.stubEnv('VITE_DEPLOYMENT', 'configurator');
+    await configurator();
     vi.stubEnv('VITE_LAUNCHER_URL', 'http://launcher.test/');
     const { default: GlobalHome } = await import('./pages/GlobalHome');
     await render(<GlobalHome />);
@@ -148,7 +158,7 @@ describe('TopBar by mode', () => {
   });
 
   it('configurator links back to the project on the launcher and cannot add a project', async () => {
-    vi.stubEnv('VITE_DEPLOYMENT', 'configurator');
+    await configurator();
     vi.stubEnv('VITE_LAUNCHER_URL', 'http://launcher.test/');
     sessionStorage.setItem('aisc_platform_project', PID);
     const { default: TopBar } = await import('./components/TopBar');
@@ -182,7 +192,7 @@ describe('LeftBar by mode', () => {
   });
 
   it("configurator hides it (it lists every project's tasks), even when the flag is on", async () => {
-    vi.stubEnv('VITE_DEPLOYMENT', 'configurator');
+    await configurator();
     await renderLeftBar();
     expect(container.querySelector('a[href="/projects/alpha/tasks"]')).toBeNull();
   });
@@ -210,7 +220,7 @@ describe('AuthContext by mode', () => {
   });
 
   it("configurator has no login of its own: it asks the API who the gateway says this is", async () => {
-    vi.stubEnv('VITE_DEPLOYMENT', 'configurator');
+    await configurator();
     kc.initKeycloak.mockClear();
     kc.installAuthFetch.mockClear();
     await renderAuth();
@@ -232,7 +242,7 @@ describe('a bad AISC_DEPLOYMENT stops the app with a blocking error page', () =>
   });
 
   it('a good one renders the app', async () => {
-    vi.stubEnv('VITE_DEPLOYMENT', 'configurator');
+    await configurator();
     const { DeploymentGate } = await import('./DeploymentGate');
     await act(async () => {
       root.render(<DeploymentGate><p>the app</p></DeploymentGate>);

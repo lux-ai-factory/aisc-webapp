@@ -1,4 +1,3 @@
-import { apiFetch } from "../api/projectHeader";
 import {
     AppBar,
     Box,
@@ -58,7 +57,7 @@ const apiCall = async (url: string, method: string = 'GET', body?: any) => {
         };
         if (body) options.body = JSON.stringify(body);
 
-        const response = await apiFetch(API_URL + url, options);
+        const response = await fetch(API_URL + url, options);
         return response.ok ? await response.json() : null;
     } catch (error) {
         console.error(`Error fetching ${url}:`, error);
@@ -202,7 +201,7 @@ const TopBar: React.FC = () => {
             if (!ds.name || ds.name.trim().length < 1) continue;
 
             // 2a. Create dataset component row
-            const created = await apiFetch(
+            const created = await fetch(
                 `${API_URL}/projects/${newProject.pid}/components`,
                 {
                     method: "POST",
@@ -219,7 +218,7 @@ const TopBar: React.FC = () => {
                 const formData = new FormData();
                 formData.append("file", ds.file);
                 uploads.push(
-                    apiFetch(`${API_URL}/components/${ds.pid}/data`, { method: "PUT", body: formData }).then(() => {
+                    fetch(`${API_URL}/components/${ds.pid}/data`, { method: "PUT", body: formData }).then(() => {
                         toast.success(`Dataset \`${ds.name}\` uploaded`, { position: 'bottom-right' });
                     }).finally(() => removeFileUploadingPid(ds.pid))
                 );
@@ -231,7 +230,7 @@ const TopBar: React.FC = () => {
             if (!m.name || m.name.trim().length < 1) continue;
 
             // 3a. Create model component row
-            const created = await apiFetch(
+            const created = await fetch(
                 `${API_URL}/projects/${newProject.pid}/components`,
                 {
                     method: "POST",
@@ -248,7 +247,7 @@ const TopBar: React.FC = () => {
                 const formData = new FormData();
                 formData.append("file", m.file);
                 uploads.push(
-                    apiFetch(`${API_URL}/components/${m.pid}/data`, { method: "PUT", body: formData }).then(() => {
+                    fetch(`${API_URL}/components/${m.pid}/data`, { method: "PUT", body: formData }).then(() => {
                         toast.success(`Model \`${m.name}\` uploaded`, { position: 'bottom-right' });
                     }).finally(() => removeFileUploadingPid(m.pid))
                 );
@@ -258,7 +257,7 @@ const TopBar: React.FC = () => {
         // 4. Enable all packages in parallel
         await Promise.all(Object.keys(plugins).map(async (key) => {
             const pkg = plugins[key];
-            await apiFetch(`${API_URL}/plugins`, {
+            await fetch(`${API_URL}/plugins`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

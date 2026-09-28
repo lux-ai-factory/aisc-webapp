@@ -1,4 +1,3 @@
-import { apiFetch } from "../api/projectHeader";
 import {useState, useMemo} from 'react';
 import {useQuery, useQueries} from '@tanstack/react-query'
 import {API_VERSION_PREFIX} from "../config.tsx";
@@ -68,7 +67,7 @@ interface StoredChartConfig {
 const getEvaluation = async (uuid: string) => {
     if (!uuid) throw new Error('Invalid uuid');
 
-    const res = await apiFetch(`${API_URL}/evaluations/${uuid}?include=project,dataset,model,datashape,plugin`);
+    const res = await fetch(`${API_URL}/evaluations/${uuid}?include=project,dataset,model,datashape,plugin`);
     if (!res.ok) throw new Error('Network response was not ok');
     return await res.json();
 };
@@ -77,11 +76,11 @@ const getEvaluationMeasurements = async (evaluation_plugin_pid: string, plugin_n
     if (!evaluation_plugin_pid) throw new Error('Invalid evaluation plugin PID');
     if (!evaluation_uuid) throw new Error('Invalid uuid');
 
-    const res = await apiFetch(`${API_URL}/plugins/${evaluation_plugin_pid}/evaluations/${evaluation_uuid}/result`);
+    const res = await fetch(`${API_URL}/plugins/${evaluation_plugin_pid}/evaluations/${evaluation_uuid}/result`);
     if (!res.ok) throw new Error('Network response was not ok');
     const data = await res.json()
 
-    const ffRes = await apiFetch(`${API_URL}/plugins/${plugin_pid}/feature_flags`);
+    const ffRes = await fetch(`${API_URL}/plugins/${plugin_pid}/feature_flags`);
     const feature_flags = ffRes.ok ? await ffRes.json() : null;
 
     return {
@@ -98,7 +97,7 @@ const getEvaluationArtifacts = async (evaluation_plugin_uuid: string, plugin_nam
     if (!evaluation_plugin_uuid) throw new Error('Invalid evaluation plugin PID');
     if (!evaluation_uuid) throw new Error('Invalid uuid');
 
-    const res = await apiFetch(`${API_URL}/evaluations/${evaluation_uuid}/artifacts?evaluation_plugin_uuid=${evaluation_plugin_uuid}`);
+    const res = await fetch(`${API_URL}/evaluations/${evaluation_uuid}/artifacts?evaluation_plugin_uuid=${evaluation_plugin_uuid}`);
     if (!res.ok) throw new Error('Network response was not ok');
     const data = await res.json()
 
@@ -109,7 +108,7 @@ const getEvaluationArtifacts = async (evaluation_plugin_uuid: string, plugin_nam
 };
 
 const handleDownload = async (file_name: string) => {
-    const response = await apiFetch(`${API_URL}/files/artifact/${file_name}`);
+    const response = await fetch(`${API_URL}/files/artifact/${file_name}`);
     const blob = await response.blob();
     const url = window.URL.createObjectURL(blob);
     const anchor = document.createElement('a');

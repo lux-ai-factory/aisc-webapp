@@ -1,4 +1,3 @@
-import { apiFetch } from "../../api/projectHeader";
 import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query'
 import {API_VERSION_PREFIX} from "../../config.tsx";
 import {MenuItem, Select, SelectChangeEvent, FormControl, Box, Typography} from "@mui/material";
@@ -9,13 +8,13 @@ import toast from "react-hot-toast";
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
 const fetchConfigHistory = async (plugin_pid: string): Promise<PluginConfig[]> => {
-    const res = await apiFetch(`${API_URL}/plugins/${plugin_pid}/configs`);
+    const res = await fetch(`${API_URL}/plugins/${plugin_pid}/configs`);
     if (!res.ok) throw new Error('Failed to fetch config history');
     return await res.json();
 };
 
 const restoreConfig = async (plugin_pid: string, config_id: number): Promise<Plugin> => {
-    const res = await apiFetch(`${API_URL}/plugins/${plugin_pid}/configs/${config_id}/restore`, {
+    const res = await fetch(`${API_URL}/plugins/${plugin_pid}/configs/${config_id}/restore`, {
         method: 'POST',
     });
     if (!res.ok) throw new Error('Failed to restore config');

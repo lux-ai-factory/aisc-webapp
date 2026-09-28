@@ -1,4 +1,3 @@
-import { apiFetch } from "../api/projectHeader";
 import {
     alpha,
     Box,
@@ -35,7 +34,7 @@ const fetchEvalsByStatus = async (
     projectUUID: string,
     status: RunningStatus,
 ): Promise<Evaluation[]> => {
-    const res = await apiFetch(
+    const res = await fetch(
         `${API_URL}/projects/${projectUUID}/evaluations?status=${status}`,
     );
     if (!res.ok) throw new Error(`evals ${status} fetch failed: ${res.status}`);
@@ -45,7 +44,7 @@ const fetchEvalsByStatus = async (
 const fetchTaskStatus = async (
     taskPid: string,
 ): Promise<Record<string, TaskProgress & {plugin_name?: string}>> => {
-    const res = await apiFetch(`${API_URL}/tasks/${taskPid}/status`);
+    const res = await fetch(`${API_URL}/tasks/${taskPid}/status`);
     if (!res.ok) throw new Error(`task status fetch failed: ${res.status}`);
     return res.json();
 };
@@ -53,7 +52,7 @@ const fetchTaskStatus = async (
 const fetchEvaluationPluginStatuses = async (
     evaluationPid: string,
 ): Promise<Record<string, string>> => {
-    const res = await apiFetch(`${API_URL}/evaluations/${evaluationPid}?include=plugin`);
+    const res = await fetch(`${API_URL}/evaluations/${evaluationPid}?include=plugin`);
     if (!res.ok) throw new Error('evaluation plugin statuses fetch failed');
 
     const data = await res.json() as {
@@ -79,13 +78,13 @@ const fetchEvaluationPluginStatuses = async (
 };
 
 const fetchPluginIcon = async (pluginPid: string): Promise<string> => {
-    const res = await apiFetch(`${API_URL}/plugins/${pluginPid}/display_icon`);
+    const res = await fetch(`${API_URL}/plugins/${pluginPid}/display_icon`);
     if (!res.ok) throw new Error('plugin icon fetch failed');
     return res.json() as Promise<string>;
 };
 
 const fetchProjectPluginPidMap = async (projectUUID: string): Promise<Record<string, string>> => {
-    const res = await apiFetch(`${API_URL}/projects/${projectUUID}`);
+    const res = await fetch(`${API_URL}/projects/${projectUUID}`);
     if (!res.ok) throw new Error('project fetch failed');
     const data = await res.json() as {plugins?: Array<{name?: string; display_name?: string; pid?: string}>};
     const map: Record<string, string> = {};

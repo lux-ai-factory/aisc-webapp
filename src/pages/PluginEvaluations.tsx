@@ -1,4 +1,3 @@
-import { apiFetch } from "../api/projectHeader";
 import {useCallback, useEffect, useRef, useState} from 'react';
 import './PluginEvaluations.css';
 import '../styles/common.css';
@@ -138,7 +137,7 @@ function formatTimestamp(date: Date): string {
 
 const getDoneEvaluations = async (uuid: string) => {
     if (!uuid) throw new Error('Invalid uuid');
-    const res = await apiFetch(`${API_URL}/projects/${uuid}/evaluations?status=Done`);
+    const res = await fetch(`${API_URL}/projects/${uuid}/evaluations?status=Done`);
     if (!res.ok) throw new Error('Network response was not ok');
     return await res.json();
 };

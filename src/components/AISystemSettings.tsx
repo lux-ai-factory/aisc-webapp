@@ -1,4 +1,3 @@
-import { apiFetch } from "../api/projectHeader";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
     Box, Button, Card, CardContent, Chip, CircularProgress, Dialog,
@@ -130,7 +129,7 @@ export default function AISystemSettings() {
         if (!projectUUID) return;
         setLoading(true);
         try {
-            const res = await apiFetch(`${API_URL}/projects/${projectUUID}/aisystem`);
+            const res = await fetch(`${API_URL}/projects/${projectUUID}/aisystem`);
             if (res.ok) {
                 const data = await res.json();
                 setSystemInfo({ pid: data.pid, name: data.name });
@@ -178,7 +177,7 @@ export default function AISystemSettings() {
                 payload.json_value = { value: addResourceValue.trim() };
             }
             if (type === "datashape") { payload.source_dataset_pid = sourceDatasetPid; }
-            const res = await apiFetch(`${API_URL}/projects/${projectUUID}/components`, {
+            const res = await fetch(`${API_URL}/projects/${projectUUID}/components`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
@@ -188,7 +187,7 @@ export default function AISystemSettings() {
             if ((type === "model" || type === "dataset") && file) {
                 const formData = new FormData();
                 formData.append("file", file);
-                await apiFetch(`${API_URL}/components/${created.pid}/data`, { method: "PUT", body: formData });
+                await fetch(`${API_URL}/components/${created.pid}/data`, { method: "PUT", body: formData });
             }
             setOpen(false);
             refresh();
@@ -198,7 +197,7 @@ export default function AISystemSettings() {
     };
 
     const remove = async (pid: string) => {
-        await apiFetch(`${API_URL}/components/${pid}`, { method: "DELETE" });
+        await fetch(`${API_URL}/components/${pid}`, { method: "DELETE" });
         refresh();
     };
 
@@ -231,7 +230,7 @@ export default function AISystemSettings() {
                 const current = (editTarget.json_value ?? {}) as Record<string, unknown>;
                 payload.json_value = { ...current, features: editJsonValue.features ?? [] };
             }
-            const res = await apiFetch(`${API_URL}/components/${editTarget.pid}`, {
+            const res = await fetch(`${API_URL}/components/${editTarget.pid}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
@@ -240,7 +239,7 @@ export default function AISystemSettings() {
             if ((editTarget.component_type === "model" || editTarget.component_type === "dataset") && editFile) {
                 const formData = new FormData();
                 formData.append("file", editFile);
-                await apiFetch(`${API_URL}/components/${editTarget.pid}/data`, { method: "PUT", body: formData });
+                await fetch(`${API_URL}/components/${editTarget.pid}/data`, { method: "PUT", body: formData });
             }
             setEditTarget(null);
             refresh();

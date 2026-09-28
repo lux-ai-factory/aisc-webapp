@@ -1,4 +1,3 @@
-import { apiFetch } from "../api/projectHeader";
 import { useQuery } from '@tanstack/react-query';
 import { API_VERSION_PREFIX } from "../config.tsx";
 import { useProject } from "../context/ProjectContext.tsx";
@@ -36,7 +35,7 @@ const createEvaluation = async (project_uuid: string, selectedPlugins: SelectedP
         plugins_to_run
     };
 
-    const response = await apiFetch(`${API_URL}/evaluations/task`, {
+    const response = await fetch(`${API_URL}/evaluations/task`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),

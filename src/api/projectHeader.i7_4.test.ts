@@ -2,24 +2,32 @@
 // I7.4 (isolation 2026-09-25, 01-specs.md): the engine keeps one database per
 // platform project, and its door (I7.2) opens the database named by the
 // X-AISC-Project header. So the SPA sets X-AISC-Project from its current
-// platform project on every API call, every call builder goes through the one
-// function that adds it, and with no current project the SPA does not call a
-// project route at all.
+// platform project on every API call: one wrapper, installed at start
+// (installProjectHeader, adapt plan 2026-09-28 item 4), adds it to fetch and
+// axios, and with no current project the SPA does not call a project route at
+// all.
 //
 // Cross-project isolation itself is decided by the backend's door (I7.2, the
 // backend suite); the SPA's part is only this header.
 //
 // Deployment modes (2026-09-27): all of this is the configurator's. In
-// standalone (Sean's engine on its own) apiFetch is fetch, unchanged.
+// standalone (Sean's engine on its own) nothing is installed: fetch is fetch.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const PID = '3f2b8c1e-0d4a-4e7b-9a55-1c2d3e4f5a6b';
 const SRC = join(__dirname, '..');
 
 type Call = { url: string; method: string; project: string | null };
 let calls: Call[] = [];
+let uninstall: () => void = () => {};
+
+/** What main.tsx does in the configurator. */
+async function install(): Promise<void> {
+  const { installProjectHeader } = await import('./installProjectHeader');
+  uninstall = installProjectHeader(globalThis);
+}
 
 function headerOf(input: RequestInfo | URL, init: RequestInit | undefined, name: string): string | null {
   const fromRequest = typeof Request !== 'undefined' && input instanceof Request ? input.headers.get(name) : null;
@@ -52,6 +60,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  uninstall();
+  uninstall = () => {};
   vi.unstubAllEnvs();
   window.history.replaceState(null, '', '/');
 });
@@ -84,6 +94,7 @@ describe('I7.4 every API call names the current platform project', () => {
   it('I7.4 every call builder of api.tsx sends X-AISC-Project with the current project', async () => {
     sessionStorage.setItem('aisc_platform_project', PID);
     window.history.replaceState(null, '', `/?project=${PID}`);
+    await install();
     const names = await callEveryBuilder();
     expect(names.length).toBeGreaterThan(10);
     expect(calls.length).toBeGreaterThan(0);
@@ -92,6 +103,7 @@ describe('I7.4 every API call names the current platform project', () => {
   });
 
   it('I7.4 with no current project the SPA calls no project route', async () => {
+    await install();
     const names = await callEveryBuilder();
     expect(names.length).toBeGreaterThan(10);
     const projectRoutes = calls.filter((c) => !projectLess(c.url, c.method)).map((c) => `${c.method} ${c.url}`);
@@ -99,34 +111,15 @@ describe('I7.4 every API call names the current platform project', () => {
   });
 });
 
-// Source scan: the header is added in one place only. Every file under src/
-// (tests excluded) that calls the network directly is listed; only one module,
-// the one function that adds X-AISC-Project, may do so. gatewaySession.ts
-// calls its injected fetchImpl (the project-less /me) and does not match.
-function sourceFiles(dir: string): string[] {
-  return readdirSync(dir).flatMap((name) => {
-    const path = join(dir, name);
-    if (statSync(path).isDirectory()) return sourceFiles(path);
-    return /\.(ts|tsx)$/.test(name) && !/\.test\.(ts|tsx)$/.test(name) ? [path] : [];
-  });
-}
-
-// Pages that call fetch themselves and are not in the configurator's path:
-// Sean's Celery tasks page (standalone only, hidden in the configurator).
-const NOT_YET = ['pages/CeleryTasks.tsx'];
-
-const RAW_NETWORK = /(^|[^\w.])fetch\s*\(|\baxios\s*[.(]|new\s+XMLHttpRequest|new\s+EventSource/;
-
-describe('I7.4 one function adds the project header', () => {
-  it('I7.4 only one module in src/ calls the network directly, and it sets X-AISC-Project', () => {
-    const direct = sourceFiles(SRC)
-      .filter((f) => !NOT_YET.includes(relative(SRC, f)))
-      .filter((f) => RAW_NETWORK.test(readFileSync(f, 'utf8')));
-    const names = direct.map((f) => relative(SRC, f)).sort();
-    expect(names.length, `I7.4: files calling fetch/axios directly: ${names.join(', ')}`).toBeLessThanOrEqual(1);
-    for (const f of direct) {
-      expect(readFileSync(f, 'utf8'), `I7.4: ${relative(SRC, f)} does not set the header`).toContain('X-AISC-Project');
-    }
+// Start-up: the header is added in one place only, the wrapper main.tsx
+// installs before the first render, and only in the configurator. Sean's
+// components call fetch and axios as they always did.
+describe('I7.4 one wrapper adds the project header', () => {
+  it('I7.4 main.tsx installs installProjectHeader, gated on the configurator, before rendering', () => {
+    const main = readFileSync(join(SRC, 'main.tsx'), 'utf8');
+    const install = main.indexOf('if (isConfigurator()) installProjectHeader()');
+    expect(install, 'I7.4: main.tsx does not install the wrapper in the configurator').toBeGreaterThan(-1);
+    expect(install, 'I7.4: the wrapper is installed after the first render').toBeLessThan(main.indexOf('createRoot('));
   });
 });
 
@@ -134,30 +127,30 @@ describe('I7.4 a caller may name the project itself', () => {
   const OTHER = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d';
 
   it('a named pid wins over the tab project, and needs no tab project', async () => {
-    const { apiFetch } = await import('./projectHeader');
-    await apiFetch('/api/v1/projects/for-platform/x', { method: 'POST', headers: { 'X-AISC-Project': OTHER } });
+    await install();
+    await fetch('/api/v1/projects/for-platform/x', { method: 'POST', headers: { 'X-AISC-Project': OTHER } });
     sessionStorage.setItem('aisc_platform_project', PID);
-    await apiFetch('/api/v1/plugins', { method: 'POST', headers: { 'X-AISC-Project': OTHER } });
+    await fetch('/api/v1/plugins', { method: 'POST', headers: { 'X-AISC-Project': OTHER } });
     expect(calls.map((c) => c.project)).toEqual([OTHER, OTHER]);
   });
 
   it('a named value that is not a pid is replaced by the tab project', async () => {
     sessionStorage.setItem('aisc_platform_project', PID);
-    const { apiFetch } = await import('./projectHeader');
-    await apiFetch('/api/v1/plugins', { method: 'POST', headers: { 'X-AISC-Project': 'not-a-pid' } });
+    await install();
+    await fetch('/api/v1/plugins', { method: 'POST', headers: { 'X-AISC-Project': 'not-a-pid' } });
     expect(calls.map((c) => c.project)).toEqual([PID]);
   });
 });
 
-describe('standalone: apiFetch is fetch, unchanged', () => {
+describe('standalone: projectFetch is the base fetch, unchanged', () => {
   it('passes the same arguments to fetch and adds no header, with or without a project', async () => {
     vi.stubEnv('VITE_DEPLOYMENT', 'standalone');
-    const { apiFetch } = await import('./projectHeader');
-    const init = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' };
-    await apiFetch('APP_API_URL/api/v1/projects', init);
-    sessionStorage.setItem('aisc_platform_project', PID);
-    await apiFetch('APP_API_URL/api/v1/projects/x-1');
+    const { projectFetch } = await import('./projectHeader');
     const f = globalThis.fetch as unknown as ReturnType<typeof vi.fn>;
+    const init = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' };
+    await projectFetch(globalThis.fetch, 'APP_API_URL/api/v1/projects', init);
+    sessionStorage.setItem('aisc_platform_project', PID);
+    await projectFetch(globalThis.fetch, 'APP_API_URL/api/v1/projects/x-1');
     expect(f.mock.calls[0]).toEqual(['APP_API_URL/api/v1/projects', init]);
     expect(f.mock.calls[0][1]).toBe(init);
     expect(f.mock.calls[1]).toEqual(['APP_API_URL/api/v1/projects/x-1', undefined]);

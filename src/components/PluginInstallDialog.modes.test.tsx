@@ -25,6 +25,7 @@ vi.mock('react-hot-toast', () => ({
 }));
 
 import PluginInstallDialog from './PluginInstallDialog';
+import { installProjectHeader } from '../api/installProjectHeader';
 import {
   buttonNamed,
   chooseOption,
@@ -55,9 +56,16 @@ function headerOf(init: RequestInit | undefined, name: string): string | null {
 }
 
 /** A fetch that records every call; `route` answers it. */
+/** What main.tsx does in the configurator: the start-up wrapper over this test's fetch. It
+ *  consults the mode itself, so in standalone it passes every call through unchanged. */
+let uninstalls: (() => void)[] = [];
+function stubFetchGlobal(fn: unknown) {
+  vi.stubGlobal('fetch', fn);
+  uninstalls.push(installProjectHeader(globalThis));
+}
+
 function stubFetch(route: (url: string, method: string) => Response) {
-  vi.stubGlobal(
-    'fetch',
+  stubFetchGlobal(
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       const method = (init?.method ?? 'GET').toUpperCase();
@@ -92,8 +100,7 @@ beforeEach(() => {
   toastSuccess.mockClear();
   localStorage.clear();
   sessionStorage.clear();
-  vi.stubGlobal(
-    'fetch',
+  stubFetchGlobal(
     vi.fn(async (url: string) => {
       if (url.endsWith('/platform/api/projects')) return new Response(JSON.stringify([DEMO]));
       if (url.includes('/projects/for-platform/')) return new Response(JSON.stringify({ pid: 'engine-pid', name: 'Demo' }));
@@ -104,6 +111,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  while (uninstalls.length) uninstalls.pop()!();
   vi.unstubAllGlobals();
   window.history.replaceState(null, '', '/');
 });
@@ -119,7 +127,7 @@ describe('configurator', () => {
   });
 
   it('with no project anywhere it says so and links to the launcher', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('[]')));
+    stubFetchGlobal(vi.fn(async () => new Response('[]')));
     renderWithInstall(<PluginInstallDialog />, { uri: 'web+aiscplugin://enable?package=x&version=1' });
     await waitFor(() => expect(pageText()).toMatch(/in no project yet/));
     const link = Array.from(document.querySelectorAll('a')).find((a) => /launcher/i.test(a.textContent ?? ''));
@@ -291,7 +299,7 @@ describe('configurator: only a pid is a project', () => {
 describe('standalone', () => {
   it("is Sean's dialog: every engine project in the dropdown", async () => {
     mode.configurator = false;
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify([{ pid: 'p1', name: 'Loans' }]))));
+    stubFetchGlobal(vi.fn(async () => new Response(JSON.stringify([{ pid: 'p1', name: 'Loans' }]))));
     renderWithInstall(<PluginInstallDialog />, { uri: 'web+aiscplugin://enable?package=x&version=1' });
     await waitFor(() => expect(document.querySelector('[role="combobox"]')).toBeTruthy());
     await openSelect();

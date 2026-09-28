@@ -1,4 +1,3 @@
-import { apiFetch } from "../api/projectHeader";
 import { Box, Typography, Button, Paper, Stack, FormControl, InputLabel, Select, MenuItem, SelectChangeEvent } from '@mui/material';
 import React, { useState, useEffect } from 'react';
 import { API_VERSION_PREFIX } from '../config';
@@ -46,7 +45,7 @@ const StartEvaluation: React.FC = () => {
 
     const apiCall = async (url: string): Promise<ProjectDetail | null> => {
         try {
-            const response = await apiFetch(url);
+            const response = await fetch(url);
             return response.ok ? await response.json() : null;
         } catch (error) {
             console.error(`Error fetching ${url}:`, error);
@@ -89,7 +88,7 @@ const StartEvaluation: React.FC = () => {
             });
 
             console.log('Making POST request to:', `${API_URL}/evaluations?${params}`);
-            const response = await apiFetch(`${API_URL}/evaluations?${params}`, { method: 'POST' });
+            const response = await fetch(`${API_URL}/evaluations?${params}`, { method: 'POST' });
 
             console.log('Response status:', response.status);
             console.log('Response ok:', response.ok);

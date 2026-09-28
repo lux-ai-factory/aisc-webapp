@@ -38,7 +38,6 @@ const plugin: Plugin = {
 };
 
 beforeEach(() => {
-    sessionStorage.setItem("aisc_platform_project", "3f2b8c1e-0d4a-4e7b-9a55-1c2d3e4f5a6b"); // I7.4 (isolation)
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input);
         if (url.includes('/display_icon')) {

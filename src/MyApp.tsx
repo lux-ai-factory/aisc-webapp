@@ -1,4 +1,3 @@
-import { apiFetch } from "./api/projectHeader";
 import Box from '@mui/material/Box';
 import CssBaseline from '@mui/material/CssBaseline';
 import Toolbar from '@mui/material/Toolbar';
@@ -55,7 +54,7 @@ const ProjectContextWrapper: React.FC<ProjectContextWrapperProps> = ({ children 
     useEffect(() => {
         if (!project_name) return;
 
-        apiFetch(`${API_URL}/projects/by-name/${project_name}`).then((res) => {
+        fetch(`${API_URL}/projects/by-name/${project_name}`).then((res) => {
             if (!res.ok) throw new Error("Network response was not ok");
             return res.json();
         })

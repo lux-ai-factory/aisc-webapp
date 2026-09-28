@@ -20,7 +20,7 @@ import { API_VERSION_PREFIX } from '../config';
 import { useProject } from '../context/ProjectContext';
 import { usePluginInstall } from '../pluginCatalogue/PluginInstallContext';
 import { catalogueSlugOf } from '../pluginCatalogue/installUri';
-import { apiFetch, PROJECT_HEADER } from '../api/projectHeader';
+import { PROJECT_HEADER } from '../api/projectHeader';
 import { isConfigurator } from '../deployment';
 import {
   currentPlatformProject,
@@ -66,7 +66,7 @@ function StandaloneInstallDialog() {
     setSelectedProject('');
     setSubmitting(false);
 
-    apiFetch(`${API_URL}/projects`)
+    fetch(`${API_URL}/projects`)
       .then((res) => res.json() as Promise<Project[]>)
       .then((data) => setProjects(data))
       .catch(() => setProjects([]));
@@ -83,7 +83,7 @@ function StandaloneInstallDialog() {
     setSubmitting(true);
     const target = projects.find((p) => p.pid === selectedProject);
     try {
-      const res = await apiFetch(`${API_URL}/plugins`, {
+      const res = await fetch(`${API_URL}/plugins`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -199,7 +199,7 @@ const LIST_UNREADABLE = 'Your projects could not be loaded. Open this from your 
 /** null: the list could not be read (the gateway decides, on Install). */
 async function loadPlatformProjects(): Promise<PlatformProject[] | null> {
   try {
-    const res = await apiFetch(PLATFORM_PROJECTS_URL);
+    const res = await fetch(PLATFORM_PROJECTS_URL);
     if (!res.ok) return null;
     const data = (await res.json()) as unknown;
     return Array.isArray(data) ? (data as PlatformProject[]) : null;
@@ -269,7 +269,7 @@ function ConfiguratorInstallDialog() {
     setSubmitting(true);
     const headers = { [PROJECT_HEADER]: target };
     try {
-      const found = await apiFetch(projectForPlatformUrl(API_URL, target), { method: 'POST', headers });
+      const found = await fetch(projectForPlatformUrl(API_URL, target), { method: 'POST', headers });
       if (found.status === 404) {
         setRefused(target);
         return;
@@ -282,7 +282,7 @@ function ConfiguratorInstallDialog() {
       const engine = (await found.json()) as Project;
 
       const slug = catalogueSlugOf(currentInstall);
-      const res = await apiFetch(`${API_URL}/plugins`, {
+      const res = await fetch(`${API_URL}/plugins`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...headers },
         body: JSON.stringify({

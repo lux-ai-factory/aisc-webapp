@@ -1,4 +1,3 @@
-import { apiFetch } from "../api/projectHeader";
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {useProject} from '../context/ProjectContext';
@@ -53,7 +52,7 @@ const createProjectPlugins = async (project_uuid: string, package_name: string, 
     if (!package_name) throw new Error('Invalid package name')
     if (!version) throw new Error('Invalid version')
 
-    const res = await apiFetch(`${API_URL}/plugins`, {
+    const res = await fetch(`${API_URL}/plugins`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -69,7 +68,7 @@ const deleteProjectPlugins = async (project_uuid: string, package_name: string, 
     if (!package_name) throw new Error('Invalid package name')
     if (!version) throw new Error('Invalid version')
 
-    await apiFetch(`${API_URL}/plugins`, {
+    await fetch(`${API_URL}/plugins`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({package_name, project_uuid, version}),
@@ -80,7 +79,7 @@ const deleteProjectPlugins = async (project_uuid: string, package_name: string, 
 const updatePluginEnabled = async (plugin_pid: string, enabled: boolean) => {
     if (!plugin_pid) throw new Error('Invalid plugin pid');
 
-    const res = await apiFetch(`${API_URL}/plugins/${plugin_pid}/enabled`, {
+    const res = await fetch(`${API_URL}/plugins/${plugin_pid}/enabled`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ enabled }),
@@ -90,7 +89,7 @@ const updatePluginEnabled = async (plugin_pid: string, enabled: boolean) => {
 };
 
 const refreshPackage = async (project_uuid: string, package_name: string, version: string) => {
-    const res = await apiFetch(`${API_URL}/plugins/refresh`, {
+    const res = await fetch(`${API_URL}/plugins/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({package_name, project_uuid, version}),

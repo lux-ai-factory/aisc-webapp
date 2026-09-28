@@ -1,4 +1,4 @@
-import { apiFetch, NoCurrentProject } from "../api/projectHeader";
+import { NoCurrentProject } from "../api/projectHeader";
 import { Box, Button, Card, CardActionArea, CardContent, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import { useEffect, useState } from "react";
@@ -36,7 +36,7 @@ const ProjectsList = () => {
     useEffect(() => {
         // Standalone: Sean's list of every project. Configurator: only the
         // launcher's project, and none at all without one (NoCurrentProject).
-        apiFetch(isConfigurator() ? projectsUrl(API_URL) : `${API_URL}/projects`)
+        fetch(isConfigurator() ? projectsUrl(API_URL) : `${API_URL}/projects`)
             .then((res) => {
                 if (!res.ok) throw new Error("Network response was not ok");
                 return res.json();
@@ -118,7 +118,7 @@ const OpenTheProject = ({ project }: { project: string }) => {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        apiFetch(projectForPlatformUrl(API_URL, project), { method: "POST" })
+        fetch(projectForPlatformUrl(API_URL, project), { method: "POST" })
             .then((res) => {
                 if (!res.ok) throw new Error("Could not open this project.");
                 return res.json();
