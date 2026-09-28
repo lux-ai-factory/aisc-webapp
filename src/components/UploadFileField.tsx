@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { apiAxios } from "../api/projectHeader";
+import axios from "axios";
 import { TextField, Box, Stack, IconButton } from '@mui/material';
 import { FileDownloadDone, Replay, UploadFile } from '@mui/icons-material';
 import CircularProgressWithLabel from "./CircularProgressWithLabel";
@@ -43,7 +43,7 @@ function UploadFileField({ label, fileType, uploadUrl, onSuccess }: UploadFileFi
         formData.append("file", localFile);
 
         try {
-            const response = await apiAxios.put(uploadUrl, formData, {
+            const response = await axios.put(uploadUrl, formData, {
                 headers: { "Content-Type": "multipart/form-data" },
                 onUploadProgress: (progressEvent) => {
                     if (progressEvent.total) {

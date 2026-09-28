@@ -1,16 +1,12 @@
-import { currentPlatformProject } from '../platform/currentProject';
-
 /**
  * Helpers for the public-catalogue <-> local-app plugin install flow.
  *
  * The public catalogue communicates with this local app using a custom
  * protocol URI of the form:
  *
- *   web+aiscplugin://enable?package=<name>&version=<version>&slug=<entry>
+ *   web+aiscplugin://enable?package=<name>&version=<version>
  *
- * (with the triple repeated for a batch of plugins). `slug` names the catalogue
- * entry the package came from; it is optional, because a deep link may arrive
- * from somewhere other than the catalogue.
+ * (with `package`/`version` repeated for a batch of plugins).
  *
  * The URI reaches the app in two ways:
  *   - via the registered protocol handler, which routes to the handler URL
@@ -25,8 +21,6 @@ export interface CatalogInstallPayload {
   package: string;
   /** Version requested by the catalogue. */
   version: string;
-  /** Catalogue entry the package came from, when the sender knew it. */
-  slug?: string;
   /** The raw incoming URI, kept for debugging/forwarding. */
   uri: string;
 }
@@ -39,103 +33,49 @@ export function buildReceiverUrl(): string {
   return `${window.location.origin}${RECEIVER_PATH}?uri=%s`;
 }
 
-/** One entry while it is still being assembled from the query string. */
-interface PartialEntry {
-  package: string;
-  version?: string;
-  slug?: string;
-}
-
 /**
- * Group an ordered list of query parameters into install entries.
- *
- * `package` opens a new entry; `version` and `slug` belong to the entry that is
- * currently open, which is why the query string is walked in order instead of
- * zipping `getAll('package')` against `getAll('slug')`: an entry that carries no
- * slug would otherwise be handed the slug of a later one. Parameters appearing
- * before any `package` have no owner and are dropped.
- */
-function groupEntries(params: Iterable<[string, string]>): PartialEntry[] {
-  const entries: PartialEntry[] = [];
-  for (const [key, value] of params) {
-    if (key === 'package') {
-      entries.push({ package: value });
-      continue;
-    }
-    const current = entries[entries.length - 1];
-    if (!current) continue;
-    if (key === 'version' && current.version === undefined) current.version = value;
-    if (key === 'slug' && current.slug === undefined) current.slug = value;
-  }
-  return entries;
-}
-
-/**
- * Parse repeated `package`/`version`/`slug` query parameters out of a catalogue
+ * Parse repeated `package`/`version` query parameters out of a catalogue
  * install URI. A request is only valid when it carries BOTH a `package` and a
  * `version` for a plugin; entries missing either are skipped. Each well-formed
- * entry is returned as a separate payload so a single URI can carry several
+ * pair is returned as a separate payload so a single URI can carry several
  * plugins. Returns an empty array when no complete packages are present.
  */
 export function parseInstallUris(uri: string | null | undefined): CatalogInstallPayload[] {
   if (!uri) return [];
 
-  let entries: PartialEntry[] = [];
+  const result: CatalogInstallPayload[] = [];
 
   try {
-    entries = groupEntries(new URL(uri).searchParams);
+    const parsed = new URL(uri);
+    const packages = parsed.searchParams.getAll('package');
+    const versions = parsed.searchParams.getAll('version');
+    // Pairs 1:1 by order (the catalogue appends package+version together).
+    const count = Math.min(packages.length, versions.length);
+    for (let i = 0; i < count; i++) {
+      result.push({ package: packages[i], version: versions[i], uri });
+    }
   } catch {
-    // Malformed URL: fall through to manual extraction.
+    // Malformed URL — fall through to regex extraction.
   }
 
-  // Fallback for non-URL / custom-scheme URIs: read the query string by hand.
-  if (entries.length === 0) {
-    const query = uri.slice(uri.indexOf('?') + 1);
-    const pairs: [string, string][] = query
-      .split('&')
-      .map((part) => part.split('='))
-      .filter((kv) => kv.length === 2 && kv[0] !== '')
-      .map(([k, v]) => [decodeURIComponent(k.trim()), decodeURIComponent(v.trim())]);
-    entries = groupEntries(pairs);
+  // Regex fallback for non-URL / custom-scheme URIs.
+  if (result.length === 0) {
+    const re = /(?:[?&]package=([^&]+))(?:\s*&\s*version=([^&]+))?/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(uri))) {
+      const pkg = m[1];
+      const version = m[2];
+      if (pkg && version !== undefined) {
+        result.push({
+          package: decodeURIComponent(pkg),
+          version: decodeURIComponent(version),
+          uri,
+        });
+      }
+    }
   }
 
-  return entries
-    .filter((e): e is PartialEntry & { version: string } =>
-      Boolean(e.package) && e.version !== undefined && e.version !== '')
-    .map((e) => ({
-      package: e.package,
-      version: e.version,
-      ...(e.slug ? { slug: e.slug } : {}),
-      uri,
-    }));
-}
-
-/** Body of POST /plugins for one catalogue install. */
-export interface InstallRequestBody {
-  package_name: string;
-  version: string;
-  project_uuid: string;
-  /** Present only when the install came from a catalogue entry. */
-  catalogue_slug?: string;
-}
-
-/**
- * Build the enable request the engine expects for one queued install.
- *
- * The slug is what ties an installed distribution back to its catalogue entry,
- * so it is forwarded when the sender knew it and left out entirely otherwise:
- * the engine stores an absent origin as absent, not as an empty string.
- */
-export function installRequestBody(
-  install: CatalogInstallPayload,
-  projectUuid: string,
-): InstallRequestBody {
-  return {
-    package_name: install.package,
-    version: install.version,
-    project_uuid: projectUuid,
-    ...(install.slug ? { catalogue_slug: install.slug } : {}),
-  };
+  return result;
 }
 
 /** Parse a single-package install URI (backward compatible). */
@@ -152,13 +92,9 @@ export function openPublicCatalogue(): void {
   const base = (import.meta.env.VITE_CATALOG_URL as string | undefined) || 'http://localhost:8000';
   const catalogUrl = base.replace(/\/+$/, '');
 
-  const project = currentPlatformProject();
   const payload = {
     url: window.location.origin,
     expires: Date.now() + 60 * 60 * 1000, // 60 minutes
-    // The controls app sits behind the same gateway, at /controls.
-    controls: (import.meta.env.VITE_CONTROLS_URL as string | undefined) || `${window.location.origin}/controls`,
-    ...(project ? { project } : {}),
   };
   const encoded = btoa(JSON.stringify(payload));
 
@@ -244,4 +180,34 @@ export async function unregisterProtocolHandler(): Promise<void> {
   } catch {
     // Nothing registered; ignore.
   }
+}
+
+/**
+ * The catalogue entry (`slug`) an install came from, when its link names one.
+ *
+ * The query string is walked in order: a `slug` belongs to the `package` before
+ * it, so in a batch each package gets its own slug, or none.
+ */
+export function catalogueSlugOf(install: CatalogInstallPayload): string | undefined {
+  let query: string;
+  try {
+    query = new URL(install.uri).search;
+  } catch {
+    const at = install.uri.indexOf('?');
+    query = at < 0 ? '' : install.uri.slice(at);
+  }
+  let current: { package: string; version?: string; slug?: string } | null = null;
+  const entries: { package: string; version?: string; slug?: string }[] = [];
+  for (const [key, value] of new URLSearchParams(query)) {
+    if (key === 'package') {
+      current = { package: value };
+      entries.push(current);
+    } else if (current && key === 'version' && current.version === undefined) {
+      current.version = value;
+    } else if (current && key === 'slug' && current.slug === undefined) {
+      current.slug = value;
+    }
+  }
+  const match = entries.find((e) => e.package === install.package && e.version === install.version);
+  return match?.slug || undefined;
 }

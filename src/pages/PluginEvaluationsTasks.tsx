@@ -1,4 +1,3 @@
-import { apiFetch } from "../api/projectHeader";
 import {useQueries, useQuery} from '@tanstack/react-query'
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {useProject} from "../context/ProjectContext.tsx";
@@ -16,7 +15,7 @@ interface EvaluationTask {
 
 const getEvaluations = async (uuid: string) => {
     if (!uuid) throw new Error('Invalid uuid');
-    const res = await apiFetch(`${API_URL}/projects/${uuid}/evaluations?exclude_status=Done&exclude_status=Failed`);
+    const res = await fetch(`${API_URL}/projects/${uuid}/evaluations?exclude_status=Done&exclude_status=Failed`);
     if (!res.ok) throw new Error('Network response was not ok');
     return await res.json() as [Evaluation];
 };
@@ -24,7 +23,7 @@ const getEvaluations = async (uuid: string) => {
 const getEvaluationTask = async (task_uuid: string, evaluation_uuid: string) => {
     if (!task_uuid) throw new Error('Invalid  task uuid');
     if (!evaluation_uuid) throw new Error('Invalid evaluation uuid');
-    const res = await apiFetch(`${API_URL}/tasks/${task_uuid}/status`);
+    const res = await fetch(`${API_URL}/tasks/${task_uuid}/status`);
     if (!res.ok) throw new Error('Network response was not ok');
     const tasks = await res.json() as { [plugin_name: string]: TaskProgress }
 

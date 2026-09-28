@@ -1,9 +1,9 @@
-import { apiFetch } from "../api/projectHeader";
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {useProject} from '../context/ProjectContext';
 import {
     Box,
+    Button,
     Card,
     CardContent,
     Chip,
@@ -21,6 +21,8 @@ import React, {useState} from "react";
 import {getPlugins, getProject} from "../api/api.tsx";
 import toast from "react-hot-toast";
 import "./Plugins.css";
+import {listsPackageIndex} from "../deployment";
+import {openPublicCatalogue} from "../pluginCatalogue/installUri";
 
 class PluginErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
     constructor(props: {children: React.ReactNode}) {
@@ -50,7 +52,7 @@ const createProjectPlugins = async (project_uuid: string, package_name: string, 
     if (!package_name) throw new Error('Invalid package name')
     if (!version) throw new Error('Invalid version')
 
-    const res = await apiFetch(`${API_URL}/plugins`, {
+    const res = await fetch(`${API_URL}/plugins`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -66,7 +68,7 @@ const deleteProjectPlugins = async (project_uuid: string, package_name: string, 
     if (!package_name) throw new Error('Invalid package name')
     if (!version) throw new Error('Invalid version')
 
-    await apiFetch(`${API_URL}/plugins`, {
+    await fetch(`${API_URL}/plugins`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({package_name, project_uuid, version}),
@@ -77,7 +79,7 @@ const deleteProjectPlugins = async (project_uuid: string, package_name: string, 
 const updatePluginEnabled = async (plugin_pid: string, enabled: boolean) => {
     if (!plugin_pid) throw new Error('Invalid plugin pid');
 
-    const res = await apiFetch(`${API_URL}/plugins/${plugin_pid}/enabled`, {
+    const res = await fetch(`${API_URL}/plugins/${plugin_pid}/enabled`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ enabled }),
@@ -87,7 +89,7 @@ const updatePluginEnabled = async (plugin_pid: string, enabled: boolean) => {
 };
 
 const refreshPackage = async (project_uuid: string, package_name: string, version: string) => {
-    const res = await apiFetch(`${API_URL}/plugins/refresh`, {
+    const res = await fetch(`${API_URL}/plugins/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({package_name, project_uuid, version}),
@@ -103,9 +105,12 @@ function Plugins() {
     const [pendingPlugins, setPendingPlugins] = useState<Record<string, boolean>>({});
     const [refreshingPackages, setRefreshingPackages] = useState<Record<string, boolean>>({});
 
+    // Configurator: the catalogue is the only place tests are found, so the page shows only
+    // what the project has installed and never lists the package index.
+    const fromIndex = listsPackageIndex();
     const {data: packages, isPending, error} = useQuery({
-        queryKey: ['packages', projectUUID],
-        queryFn: getPlugins,
+        queryKey: ['packages', projectUUID, fromIndex],
+        queryFn: fromIndex ? getPlugins : async () => [] as Package[],
     })
 
     const {data: project} = useQuery({
@@ -114,10 +119,19 @@ function Plugins() {
         enabled: !!projectUUID,
     })
 
-    if (isPending) return <span>Loading...</span>
+    if (isPending || (!fromIndex && !project)) return <span>Loading...</span>
     if (error) return <span>Oops!</span>
 
-    const projectPackages: ProjectPackage[] = packages.map((pkg: Package) => {
+    const installedPackages = (): Package[] => {
+        const seen = new Map<string, Package>();
+        for (const pl of project?.plugins ?? []) {
+            const key = `${pl.package_name}::${pl.version}`;
+            if (!seen.has(key)) seen.set(key, {package_name: pl.package_name, version: pl.version, source: 'installed'});
+        }
+        return Array.from(seen.values());
+    };
+
+    const projectPackages: ProjectPackage[] = (fromIndex ? packages : installedPackages()).map((pkg: Package) => {
         const packagePlugins = project?.plugins?.filter((projectPkg: any) => {
             return (
                 projectPkg.package_name === pkg.package_name &&
@@ -133,11 +147,7 @@ function Plugins() {
             enabled: enabledPluginsCount > 0,
             plugins: packagePlugins.filter((pl: Plugin) => pl.pid),
         };
-    })
-        // Only what this project has. Discovery belongs to the catalogue, which
-        // is the only place that knows what a test measures, which regulation it
-        // serves and which distribution provides it.
-        .filter((pkg: ProjectPackage) => pkg.plugins.length > 0);
+    });
 
     const refreshProjectQueries = async () => {
         await queryClient.invalidateQueries({queryKey: ['project']});
@@ -208,14 +218,24 @@ function Plugins() {
 
     return (
         <>
-            <Typography component="h2" variant="h4" gutterBottom>
-                Available Packages
-            </Typography>
-
-            {projectPackages.length === 0 && (
-                <Typography variant="body1" color="text.secondary" sx={{mb: 2}}>
-                    No tests installed in this project yet. Browse the catalogue and
-                    install one from there.
+            {fromIndex ? (
+                <Typography component="h2" variant="h4" gutterBottom>
+                    Available Packages
+                </Typography>
+            ) : (
+                <Box sx={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, mb: 1, flexWrap: 'wrap'}}>
+                    <Typography component="h2" variant="h4">
+                        Installed tests
+                    </Typography>
+                    <Button variant="outlined" size="small" onClick={openPublicCatalogue} sx={{textTransform: 'none'}}>
+                        <Icon sx={{fontSize: 18, mr: 0.5}}>storefront</Icon>
+                        Add tests from the Public Catalogue
+                    </Button>
+                </Box>
+            )}
+            {!fromIndex && projectPackages.length === 0 && (
+                <Typography color="text.secondary" sx={{mb: 2}}>
+                    No tests are installed in this project yet.
                 </Typography>
             )}
 

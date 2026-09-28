@@ -1,4 +1,3 @@
-import { apiFetch } from "../api/projectHeader";
 import * as React from 'react';
 import './LeftBar.css';
 import MuiDrawer from '@mui/material/Drawer';
@@ -16,6 +15,7 @@ import KeyboardDoubleArrowLeftRoundedIcon from '@mui/icons-material/KeyboardDoub
 import KeyboardDoubleArrowRightRoundedIcon from '@mui/icons-material/KeyboardDoubleArrowRightRounded';
 import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
+import TaskAltIcon from '@mui/icons-material/TaskAlt';
 import {Box, Icon, IconButton, Tooltip} from '@mui/material';
 import {styled} from '@mui/material/styles';
 import { Link, useLocation } from 'react-router-dom';
@@ -23,8 +23,12 @@ import { useProject } from '../context/ProjectContext';
 import {useQuery} from "@tanstack/react-query";
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {Project, Plugin} from "../models/models.tsx";
+import { showsCeleryTasks } from "../deployment";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
+
+const SHOW_CELERY_TASKS =
+    String(import.meta.env.VITE_SHOW_CELERY_TASKS).toLowerCase() === 'true';
 
 /**
  * Props interface for the MenuList component
@@ -205,7 +209,7 @@ const Drawer = styled(MuiDrawer, {
 
 const getProject = async (project_uuid: string) => {
     if (!project_uuid) throw new Error('Invalid uuid');
-    const res = await apiFetch(`${API_URL}/projects/${project_uuid}`);
+    const res = await fetch(`${API_URL}/projects/${project_uuid}`);
     const project = await res.json() as Project;
     for (const plugin of project.plugins) {
         if (!plugin.enabled) continue;
@@ -217,7 +221,7 @@ const getProject = async (project_uuid: string) => {
 const getDisplayIcon = async (plugin_pid: string) => {
     if (!plugin_pid) return 'extension';
     try {
-        const res = await apiFetch(`${API_URL}/plugins/${plugin_pid}/display_icon`);
+        const res = await fetch(`${API_URL}/plugins/${plugin_pid}/display_icon`);
         if (!res.ok) return 'extension';
         return await res.json() as string;
     } catch {
@@ -331,7 +335,9 @@ export default function LeftBar({ drawerWidth, expandedDrawerWidth, collapsed, m
                         onNavigate={onNavigate}
                         items={[
                             { text: 'Start Evaluations', icon: <PlayCircleIcon />, target: `/projects/${projectName}/plugins/evaluation` },
-                            { text: 'Evaluations', icon: <Icon>sports_score</Icon>, target: `/projects/${projectName}/plugins/evaluations` }
+                            { text: 'Evaluations', icon: <Icon>sports_score</Icon>, target: `/projects/${projectName}/plugins/evaluations` },
+                            // Configurator: hidden, the page lists every project's tasks.
+                            ...(SHOW_CELERY_TASKS && showsCeleryTasks() ? [{ text: 'Tasks', icon: <TaskAltIcon />, target: `/projects/${projectName}/tasks` }] : []),
                         ]}
                     />
                     {!isCollapsedView && <Divider sx={{borderColor: '#e6e8ed'}} />}

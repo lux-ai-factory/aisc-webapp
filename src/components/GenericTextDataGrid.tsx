@@ -1,4 +1,3 @@
-import { apiFetch } from "../api/projectHeader";
 import React, { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -22,7 +21,7 @@ export const GenericTextDataGrid: React.FC<GenericMarkdownPreviewProps> = ({ tit
         setError(null);
         setLoading(true);
 
-        apiFetch(fileUrl)
+        fetch(fileUrl)
             .then(res => {
                 if (!res.ok) throw new Error('Failed to fetch the file');
                 return res.text();

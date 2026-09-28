@@ -1,4 +1,3 @@
-import { apiFetch } from "../../api/projectHeader";
 import React from 'react';
 import Box from '@mui/material/Box';
 import {
@@ -114,7 +113,7 @@ function CsvGridForPid({ datasetPid, title: _title }: { datasetPid: string; titl
 
             try {
                 const url = `${API_URL}/components/${datasetPid}/data`;
-                const response = await apiFetch(url);
+                const response = await fetch(url);
 
                 if (!response.ok) {
                     throw new Error(`Failed to fetch CSV (status ${response.status})`);

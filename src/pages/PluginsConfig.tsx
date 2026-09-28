@@ -1,4 +1,3 @@
-import { apiFetch } from "../api/projectHeader";
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {useProject} from '../context/ProjectContext';
@@ -27,7 +26,7 @@ const postPluginConfig = async (plugin_pid: string, formData: object, projectSet
         config: formData,
         project_config_selections: projectSettingSelections,
     }
-    const response = await apiFetch(`${API_URL}/plugins/${plugin_pid}/config`, {
+    const response = await fetch(`${API_URL}/plugins/${plugin_pid}/config`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -47,7 +46,7 @@ const parseConfigStateFromDataset = async (plugin_pid: string, dataset_uuid: str
     if (!plugin_pid) throw new Error("Plugin PID is required");
     if (!dataset_uuid) throw new Error('Invalid dataset uuid');
 
-    const res = await apiFetch(`${API_URL}/plugins/${plugin_pid}/parse_dataset/${dataset_uuid}/config/state`);
+    const res = await fetch(`${API_URL}/plugins/${plugin_pid}/parse_dataset/${dataset_uuid}/config/state`);
     if (!res.ok) {
         toast.error('Failed to parse config from dataset', {position: "bottom-right"});
         throw new Error('Failed to submit form');
@@ -60,7 +59,7 @@ const parseConfigStateFromDataset = async (plugin_pid: string, dataset_uuid: str
 const getProjectPluginConfigState = async (plugin_pid: string) => {
     if (!plugin_pid) throw new Error("Plugin PID is required");
 
-    const res = await apiFetch(`${API_URL}/plugins/${plugin_pid}/config/state`);
+    const res = await fetch(`${API_URL}/plugins/${plugin_pid}/config/state`);
     if (!res.ok) throw new Error('Network response was not ok');
 
     return await res.json() as ProjectPluginConfigState;

@@ -1,4 +1,4 @@
-import { apiFetch, NoCurrentProject } from "../api/projectHeader";
+import { NoCurrentProject } from "../api/projectHeader";
 import { Box, Button, Card, CardActionArea, CardContent, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import { useEffect, useState } from "react";
@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { API_VERSION_PREFIX } from "../config";
 import { useAuth } from "../context/AuthContext";
 import { useProject } from "../context/ProjectContext";
+import { isConfigurator } from "../deployment";
 import {
     currentPlatformProject,
     projectForPlatformUrl,
@@ -18,7 +19,7 @@ import "./GlobalHome.css";
 
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
-const LAUNCHER_URL = (import.meta.env.VITE_LAUNCHER_URL as string) || 'http://localhost:8100/';
+const launcherUrl = (): string => (import.meta.env.VITE_LAUNCHER_URL as string) || 'http://localhost:8100/';
 
 interface Project {
     pid: string;
@@ -33,7 +34,9 @@ const ProjectsList = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        apiFetch(projectsUrl(API_URL))
+        // Standalone: Sean's list of every project. Configurator: only the
+        // launcher's project, and none at all without one (NoCurrentProject).
+        fetch(isConfigurator() ? projectsUrl(API_URL) : `${API_URL}/projects`)
             .then((res) => {
                 if (!res.ok) throw new Error("Network response was not ok");
                 return res.json();
@@ -43,8 +46,9 @@ const ProjectsList = () => {
                 setLoading(false);
             })
             .catch((err) => {
-                // Every project has its own database (isolation I7.4): with no
-                // project open there is nothing to list, only the way to one.
+                // Configurator: every project has its own database (isolation
+                // I7.4), so with no project open there is nothing to list, only
+                // the way to one.
                 if (err instanceof NoCurrentProject) setNoProject(true);
                 else setError(err.message);
                 setLoading(false);
@@ -57,10 +61,11 @@ const ProjectsList = () => {
                 <Typography variant="body1" color="text.secondary" gutterBottom>
                     Open a project on the launcher to work on it here.
                 </Typography>
-                <Button variant="outlined" href={projectPageUrl(LAUNCHER_URL)}>Go to the launcher</Button>
+                <Button variant="outlined" href={projectPageUrl(launcherUrl())}>Go to the launcher</Button>
             </Box>
         );
     }
+
     if (loading) return <Typography sx={{ textAlign: 'center', mt: 4 }}>Loading...</Typography>;
     if (error) return <Typography color="error" sx={{ textAlign: 'center', mt: 4 }}>Error: {error}</Typography>;
 
@@ -100,7 +105,7 @@ const ProjectsList = () => {
 
 
 /**
- * The project the engine was opened on.
+ * The project the engine was opened on (configurator only).
  *
  * There is nothing to choose here: the project is chosen once, on the
  * launcher, and opening the engine inside it means working on it. This asks the
@@ -113,7 +118,7 @@ const OpenTheProject = ({ project }: { project: string }) => {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        apiFetch(projectForPlatformUrl(API_URL, project), { method: "POST" })
+        fetch(projectForPlatformUrl(API_URL, project), { method: "POST" })
             .then((res) => {
                 if (!res.ok) throw new Error("Could not open this project.");
                 return res.json();
@@ -124,7 +129,7 @@ const OpenTheProject = ({ project }: { project: string }) => {
                 navigate(`/projects/${opened.name}`, { replace: true });
             })
             .catch((err) => setError(err.message));
-    }, [project, navigate, setProjectUUID, setProjectName]);
+    }, [project, navigate]);
 
     if (error) {
         return (
@@ -133,20 +138,38 @@ const OpenTheProject = ({ project }: { project: string }) => {
             </Typography>
         );
     }
-    return <Typography sx={{ textAlign: "center", mt: 4 }}>Opening the project…</Typography>;
+    return <Typography sx={{ textAlign: "center", mt: 4 }}>Opening the project...</Typography>;
 };
 
 
 /**
  * Home page component
  *
- * Inside a project (opened from the launcher) there is nothing to pick: it goes
- * straight into that project. Without one there is nothing to list (each
- * project's workspace is in its own database), so it points to the launcher.
+ * Standalone (Sean's engine): the list of every project, after signing in.
+ *
+ * Configurator: inside a project (opened from the launcher) there is nothing
+ * to pick, it goes straight into that project. Without one there is nothing to
+ * list (each project's workspace is in its own database), so it points to the
+ * launcher.
  */
 const GlobalHome = () => {
     const { authenticated, login } = useAuth();
-    const platformProject = currentPlatformProject();
+
+    if (!isConfigurator()) {
+        if (!authenticated) {
+            return (
+                <Box className="auth-message">
+                    <Typography variant="h4" fontWeight={700} gutterBottom>
+                        AI Assessment Sandbox
+                    </Typography>
+                    <Typography variant="body1" color="text.secondary">
+                        Please sign in to get started.
+                    </Typography>
+                </Box>
+            );
+        }
+        return <ProjectsList />;
+    }
 
     // Everything here is behind the gateway, so there is no sign-in screen of
     // our own: this only shows when the engine could not confirm who the
@@ -165,6 +188,7 @@ const GlobalHome = () => {
         );
     }
 
+    const platformProject = currentPlatformProject();
     if (platformProject) return <OpenTheProject project={platformProject} />;
 
     return <ProjectsList />;

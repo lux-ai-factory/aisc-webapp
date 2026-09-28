@@ -23,14 +23,62 @@ export function rememberPlatformProject(
   }
 }
 
-/** The project in the URL (`?project=<uuid>`), remembered for this tab. */
+const LAST_KEY = "aisc_last_platform_project";
+
+const PID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Only a pid is a platform project; anything else counts as none. */
+export const isPlatformPid = (value: string | null | undefined): value is string =>
+  typeof value === "string" && PID.test(value);
+
+/** This browser's storage, shared by its tabs; null when the browser refuses it. */
+const browserStorage = (): Storage | null => {
+  try {
+    return typeof window === "undefined" ? null : window.localStorage;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Remember, for the whole browser, the project the engine was last opened on.
+ *
+ * The catalogue opens the engine in a new tab with no project; the install
+ * dialog then goes to this one, so it is written whenever a `?project=` is read.
+ */
+export function rememberLastPlatformProject(
+  project: string,
+  storage: Storage | null = browserStorage(),
+): void {
+  try {
+    storage?.setItem(LAST_KEY, project);
+  } catch {
+    /* private window: the dialog then asks which project */
+  }
+}
+
+/** The project the engine was last opened on in this browser, if any. */
+export function lastPlatformProject(storage: Storage | null = browserStorage()): string | null {
+  try {
+    const stored = storage?.getItem(LAST_KEY) ?? null;
+    return isPlatformPid(stored) ? stored : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The project in the URL (`?project=<uuid>`, a pid only), remembered for this tab and as the browser's last. */
 export function currentPlatformProject(
   search: string = typeof window === "undefined" ? "" : window.location.search,
   storage: Storage | null = tabStorage(),
+  lastStorage: Storage | null = browserStorage(),
 ): string | null {
+  // A ?project= that is not a pid is ignored, as if absent: it is never stored,
+  // so the URL and the X-AISC-Project header cannot name two projects.
   const fromUrl = new URLSearchParams(search).get("project");
-  if (fromUrl) {
+  if (isPlatformPid(fromUrl)) {
     rememberPlatformProject(fromUrl, storage);
+    rememberLastPlatformProject(fromUrl, lastStorage);
     return fromUrl;
   }
   try {
