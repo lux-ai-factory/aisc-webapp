@@ -25,3 +25,6 @@ export const isConfigurator = (): boolean => deployment() === "configurator";
 export const canCreateProjects = (): boolean => deployment() === "standalone";
 export const showsLauncher = (): boolean => deployment() === "configurator";
 export const showsCeleryTasks = (): boolean => deployment() === "standalone";
+/** Standalone: the Plugins page lists every package on the index. Configurator: only what the
+ *  project has installed; the hosted catalogue is the only place tests are found. */
+export const listsPackageIndex = (): boolean => deployment() === "standalone";
