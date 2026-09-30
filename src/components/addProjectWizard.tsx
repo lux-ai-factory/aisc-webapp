@@ -13,6 +13,7 @@ import {
     Stepper,
     TextField,
     Typography,
+    Tooltip,
     IconButton,
     List,
     ListItem,
@@ -106,7 +107,7 @@ export default function AddProjectWizard({
     const addComponentRow = () => {
         setLocalComponents(prev => [
             ...prev,
-            { name: "", type: "dataset", file: null, uploaded: false }
+            { name: "", type: "model", file: null, uploaded: false }
         ]);
     };
 
@@ -249,35 +250,32 @@ export default function AddProjectWizard({
                                             }
                                             sx={{ minWidth: 140 }}
                                         >
-                                            <MenuItem value="dataset">Dataset</MenuItem>
                                             <MenuItem value="model">Model</MenuItem>
+                                            <MenuItem value="dataset">Dataset</MenuItem>
                                         </TextField>
 
                                         <Box className="step-actions">
-                                            {c.uploaded ? (
-                                                <CloudDoneIcon
-                                                    color="success"
-                                                    sx={{ mr: 2 }}
-                                                />
-                                            ) : (
+                                            <Tooltip title={c.file ? "File selected — click to change" : "Choose file"} placement="top">
                                                 <IconButton
                                                     component="label"
-                                                    color="primary"
-                                                    aria-label="Upload"
+                                                    color={c.file ? "success" : "primary"}
+                                                    aria-label={c.file ? "Change file" : "Upload"}
+                                                    sx={{ mr: 0.5 }}
                                                 >
-                                                    <CloudUpload />
+                                                    {c.file ? <CloudDoneIcon /> : <CloudUpload />}
                                                     <HiddenInput
                                                         type="file"
                                                         accept={c.type === 'model' ? '.onnx' : '*/*'}
-                                                        onChange={e =>
+                                                        onChange={e => {
                                                             updateComponentFile(
                                                                 index,
                                                                 e.target.files?.[0]
-                                                            )
-                                                        }
+                                                            );
+                                                            e.target.value = "";
+                                                        }}
                                                     />
                                                 </IconButton>
-                                            )}
+                                            </Tooltip>
 
                                             <IconButton
                                                 color="error"
