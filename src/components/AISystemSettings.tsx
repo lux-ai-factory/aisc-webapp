@@ -338,7 +338,7 @@ export default function AISystemSettings() {
         switch (c.component_type) {
             case "model": case "dataset":
                 return c.data
-                    ? `file: ${c.data}${c.file_size ? ` (${formatBytes(c.file_size)})` : ""}`
+                    ? `file: ${c.data}`
                     : "no file";
             case "llm": {
                 const secretName = secrets.find(s => s.key === json.secret_key)?.name ?? (json.secret_key ? String(json.secret_key) : null);
