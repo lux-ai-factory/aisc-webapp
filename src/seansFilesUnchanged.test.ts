@@ -10,7 +10,9 @@ const UNCHANGED = [
   // PluginEvaluations.tsx is not on this list: its report links went to /report, which the AISC stack
   // never serves (the report is the report composer), so they were removed (PluginEvaluations.noReport.test.ts).
   'src/pages/PluginEvaluationMeasurements.tsx', 'src/pages/PluginEvaluationsTasks.tsx',
-  'src/pages/PluginStartEvaluation.tsx', 'src/pages/PluginsConfig.tsx', 'src/pages/Settings.tsx', 'src/pages/StartEvaluation.tsx',
+  // PluginStartEvaluation.tsx is not on this list either: its button says Launch Evaluation, not Create
+  // Evaluation (PluginStartEvaluation.launch.test.ts).
+  'src/pages/PluginsConfig.tsx', 'src/pages/Settings.tsx', 'src/pages/StartEvaluation.tsx',
 ];
 const master = (p: string) => { try { return execFileSync('git', ['show', `origin/master:${p}`], { encoding: 'utf8' }); } catch { return null; } };
 

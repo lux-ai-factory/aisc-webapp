@@ -46,8 +46,8 @@ const createEvaluation = async (project_uuid: string, selectedPlugins: SelectedP
             const errorData = await response.json();
             throw new Error(JSON.stringify(errorData.detail));
         }
-        toast.error('Failed to create evaluation', { position: "bottom-right" });
-        throw new Error('Failed to create evaluation');
+        toast.error('Failed to launch evaluation', { position: "bottom-right" });
+        throw new Error('Failed to launch evaluation');
     }
     toast.success('Evaluation created', { position: "bottom-right" });
     sessionStorage.removeItem(STORAGE_KEY);
@@ -145,7 +145,7 @@ export default function PluginStartEvaluation() {
                     return;
                 }
             } catch { /* display the generic error below */ }
-            toast.error(error instanceof Error ? error.message : 'Failed to create evaluation', { position: 'bottom-right' });
+            toast.error(error instanceof Error ? error.message : 'Failed to launch evaluation', { position: 'bottom-right' });
         }
     };
 
@@ -220,7 +220,7 @@ export default function PluginStartEvaluation() {
                     Start an Evaluation
                 </Typography>
 
-                <Tooltip title="Create Evaluation">
+                <Tooltip title="Launch Evaluation">
                     <Button
                         variant="contained"
                         className="gradient-btn"
@@ -233,7 +233,7 @@ export default function PluginStartEvaluation() {
                     >
                         <PlayCircleIcon />
                         <Box component="span" sx={{display: {xs: 'none', md: 'inline'}}}>
-                            Create Evaluation
+                            Launch Evaluation
                         </Box>
                     </Button>
                 </Tooltip>
