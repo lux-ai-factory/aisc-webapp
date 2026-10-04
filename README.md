@@ -89,7 +89,6 @@ Key variables:
 | `VITE_SHOW_PLUGIN_VISUALIZATION` | Boolean flag to enable/disable plugin visualization links |
 | `VITE_SHOW_CELERY_TASKS` | Boolean flag to show the Celery tasks view |
 | `VITE_KEYCLOAK_URL`, `VITE_KEYCLOAK_REALM`, `VITE_KEYCLOAK_CLIENT_ID` | Keycloak login (standalone mode) |
-| `VITE_REPORT_URL` | Link to the report module (default `/report`) |
 
 ### Docker / Production Notes
 
@@ -121,6 +120,10 @@ the configurator mode and keeps standalone as on master (the list of files and r
 - **Open a test from the URL**: `src/pages/OpenPluginFromUrl.tsx` wraps the evaluation page, so
   `/projects/<name>/plugins/evaluation?plugin=<plugin name>` opens that test's card (the link from
   the launcher's step 4).
+- **No report links**, in both modes: the Completed Evaluations page's Download Report button and the
+  per-evaluation report icon are removed, with `VITE_REPORT_URL`. They went to `/report/generate`, which
+  the AISC stack never serves; the AISC report is the report composer (`/report-composer`). This is the
+  one change that also touches standalone (`src/pages/PluginEvaluations.tsx`).
 - **Tests** for each of these (`*.test.ts`, `*.test.tsx`), including a check that master's files
   the configurator no longer edits are unchanged.
 

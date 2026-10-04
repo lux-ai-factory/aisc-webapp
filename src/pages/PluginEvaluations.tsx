@@ -142,8 +142,6 @@ const getDoneEvaluations = async (uuid: string) => {
     return await res.json();
 };
 
-const REPORT_URL = (import.meta.env.VITE_REPORT_URL as string | undefined) ?? '/report';
-
 function PluginEvaluations() {
     const {projectUUID, projectName} = useProject();
     const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
@@ -172,16 +170,6 @@ function PluginEvaluations() {
             setIsPending(false);
         }
     }, [projectUUID]);
-
-    const handleDownloadReport = () => {
-        if (!projectName) return;
-        window.location.href = `${REPORT_URL}/generate?project=${encodeURIComponent(projectName)}`;
-    };
-
-    const handleDownloadEvalReport = (evaluationPid: string) => {
-        if (!projectName || !evaluationPid) return;
-        window.location.href = `${REPORT_URL}/generate?project=${encodeURIComponent(projectName)}&evaluation_pid=${encodeURIComponent(evaluationPid)}`;
-    };
 
     const handleDownloadPluginConfig = (_evaluationPid: string, plugin: Plugin) => {
         const payload = plugin.plugin_config ?? {};
@@ -288,20 +276,6 @@ function PluginEvaluations() {
                         </ToggleButton>
                     </ToggleButtonGroup>
                 </Stack>
-                <Tooltip title="Download Report">
-                    <Button
-                        variant="contained"
-                        onClick={handleDownloadReport}
-                        disabled={!projectName || !evaluations || evaluations.length === 0}
-                        className="gradient-btn"
-                        sx={{minWidth: {xs: '44px', md: 'auto'}, px: {xs: 1.5, md: 3}}}
-                    >
-                        <DownloadIcon />
-                        <Box component="span" sx={{display: {xs: 'none', md: 'inline'}}}>
-                            Download Report
-                        </Box>
-                    </Button>
-                </Tooltip>
             </Box>
             <Grid
                 container
@@ -371,19 +345,6 @@ function PluginEvaluations() {
                                                 </Stack>
                                             </Box>
 
-                                            <Tooltip title="Download report for this evaluation">
-                                                <IconButton
-                                                    onClick={(event) => {
-                                                        event.preventDefault();
-                                                        event.stopPropagation();
-                                                        handleDownloadEvalReport(evaluation.pid);
-                                                    }}
-                                                    size="small"
-                                                    className="eval-icon-btn"
-                                                >
-                                                    <DownloadIcon fontSize="small" />
-                                                </IconButton>
-                                            </Tooltip>
                                         </Box>
 
                                         <Divider sx={{my: 0.25}} />
