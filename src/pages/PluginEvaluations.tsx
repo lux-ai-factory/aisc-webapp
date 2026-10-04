@@ -6,14 +6,12 @@ import {Link} from "react-router-dom";
 import {useProject} from "../context/ProjectContext.tsx";
 import {
     Box,
-    Button,
     Card,
     CardActionArea,
     CardContent,
     Chip,
     Divider,
     Icon,
-    IconButton,
     Stack,
     ToggleButton,
     ToggleButtonGroup,
@@ -143,7 +141,7 @@ const getDoneEvaluations = async (uuid: string) => {
 };
 
 function PluginEvaluations() {
-    const {projectUUID, projectName} = useProject();
+    const {projectUUID} = useProject();
     const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
     const previousInProgressRef = useRef<string[]>([]);
     const [evaluations, setEvaluations] = useState<any[]>([]);
