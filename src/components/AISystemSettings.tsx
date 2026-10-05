@@ -13,7 +13,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import LinkIcon from "@mui/icons-material/Link";
 import toast from "react-hot-toast";
 import { useProject } from "../context/ProjectContext";
-import { getProjectConfigs } from "../api/api";
+import { deriveFeaturesFromDataset, getProjectConfigs } from "../api/api";
 import keycloak from "../auth/keycloak";
 import { API_VERSION_PREFIX } from "../config";
 import { AIComponent, AIComponentType, ProjectConfig } from "../models/models";
@@ -150,8 +150,13 @@ export default function AISystemSettings() {
     const [addSecretKey, setAddSecretKey] = useState("");
     const [addResourceValue, setAddResourceValue] = useState("");
     const [sourceDatasetPid, setSourceDatasetPid] = useState("");
+    const [addJsonValue, setAddJsonValue] = useState<{ features?: FeatureDraft[] }>({});
+    const [addDeriving, setAddDeriving] = useState(false);
+    const [addDeriveError, setAddDeriveError] = useState<string | null>(null);
+    const [addImported, setAddImported] = useState(false);
     const [saving, setSaving] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const datashapeFileInputRef = useRef<HTMLInputElement>(null);
 
     // edit-dialog state
     const [editTarget, setEditTarget] = useState<AIComponent | null>(null);
@@ -196,6 +201,34 @@ export default function AISystemSettings() {
 
     useEffect(() => { load(); }, [load]);
 
+    // When a source dataset is picked in the add-dialog (datashape), derive the
+    // data shape and let the user inspect/edit it BEFORE creating the component.
+    useEffect(() => {
+        if (addImported) return;
+        if (type !== "datashape" || !sourceDatasetPid || !projectUUID) {
+            setAddJsonValue({});
+            setAddDeriveError(null);
+            setAddDeriving(false);
+            return;
+        }
+        let cancelled = false;
+        setAddDeriving(true);
+        setAddDeriveError(null);
+        deriveFeaturesFromDataset(projectUUID, sourceDatasetPid)
+            .then((res) => {
+                if (cancelled) return;
+                setAddJsonValue({ features: (res.features ?? []) as FeatureDraft[] });
+            })
+            .catch(() => {
+                if (cancelled) return;
+                setAddDeriveError("Could not derive the data shape from this dataset.");
+            })
+            .finally(() => {
+                if (!cancelled) setAddDeriving(false);
+            });
+        return () => { cancelled = true; };
+    }, [type, sourceDatasetPid, projectUUID, addImported]);
+
     const openDialog = async () => {
         setName("");
         setType("model");
@@ -204,6 +237,10 @@ export default function AISystemSettings() {
         setAddSecretKey("");
         setAddResourceValue("");
         setSourceDatasetPid("");
+        setAddJsonValue({});
+        setAddDeriveError(null);
+        setAddDeriving(false);
+        setAddImported(false);
         if (projectUUID) {
             try {
                 const settings = await getProjectConfigs(projectUUID);
@@ -211,6 +248,29 @@ export default function AISystemSettings() {
             } catch { /* keep current secrets on failure */ }
         }
         setOpen(true);
+    };
+
+    const handleDatashapeImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            try {
+                const text = String(reader.result ?? "");
+                const parsed = JSON.parse(text);
+                const features = Array.isArray((parsed as { features?: unknown })?.features) ? (parsed as { features: unknown[] }).features : Array.isArray(parsed) ? parsed : null;
+                if (!features) throw new Error("Missing features array");
+                setAddJsonValue({ features: features as FeatureDraft[] });
+                setAddDeriveError(null);
+                setAddImported(true);
+                toast.success("Datashape imported", { position: 'bottom-right' });
+            } catch {
+                toast.error("Invalid datashape JSON", { position: 'bottom-right' });
+            } finally {
+                e.target.value = "";
+            }
+        };
+        reader.readAsText(file);
     };
 
     const addComponent = async () => {
@@ -228,7 +288,10 @@ export default function AISystemSettings() {
             if (type === "resource") {
                 payload.json_value = { value: addResourceValue.trim() };
             }
-            if (type === "datashape") { payload.source_dataset_pid = sourceDatasetPid; }
+            if (type === "datashape") {
+                payload.source_dataset_pid = sourceDatasetPid;
+                payload.json_value = { features: addJsonValue.features ?? [] };
+            }
             const res = await fetch(`${API_URL}/projects/${projectUUID}/components`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -364,6 +427,18 @@ export default function AISystemSettings() {
     };
 
     const handleCardDownload = async (c: AIComponent) => {
+        if (c.component_type === "datashape") {
+            const blob = new Blob([JSON.stringify(c.json_value ?? {}, null, 2)], { type: "application/json" });
+            const url = window.URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = `${c.name}.json`;
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            window.URL.revokeObjectURL(url);
+            return;
+        }
         try {
             const response = await fetch(`${API_URL}/components/${c.pid}/data`);
             const blob = await response.blob();
@@ -384,7 +459,7 @@ export default function AISystemSettings() {
         && !((type === "model" || type === "dataset") && !file)
         && !(type === "llm" && (!addLlmUrl.trim() || !addSecretKey))
         && !(type === "resource" && !addResourceValue.trim())
-        && !(type === "datashape" && !sourceDatasetPid);
+        && !(type === "datashape" && (!sourceDatasetPid || (!addImported && (addDeriving || addDeriveError !== null))));
 
     return (
         <Box>
@@ -431,7 +506,7 @@ export default function AISystemSettings() {
                                                 </Typography>
                                             </Tooltip>
                                             <Stack direction="row" sx={{ alignItems: "center", gap: 0.5 }}>
-                                                {uploaded && (
+                                                {(uploaded || c.component_type === "datashape") && (
                                                     <Tooltip title="Download file" placement="top">
                                                         <IconButton size="small" color="primary" onClick={() => handleCardDownload(c)}>
                                                             <DownloadIcon fontSize="small" />
@@ -465,6 +540,14 @@ export default function AISystemSettings() {
                                             )}
                                             {uploaded && c.file_size != null && (
                                                 <Chip label={formatBytes(c.file_size)} size="small" variant="filled" sx={{ height: 22, fontWeight: 500, bgcolor: "#fff9c4" }} />
+                                            )}
+                                            {c.component_type === "datashape" && c.source_dataset_pid && (
+                                                <Chip
+                                                    label={`source: ${datasetComponents.find(d => d.pid === c.source_dataset_pid)?.name ?? c.source_dataset_pid}`}
+                                                    size="small"
+                                                    variant="filled"
+                                                    sx={{ height: 22, fontWeight: 500, bgcolor: "grey.300", color: "text.secondary" }}
+                                                />
                                             )}
                                             {isFileComponent && uploading && (
                                                 <CircularProgress variant="determinate" value={progress ?? 0} size={20} />
@@ -513,11 +596,33 @@ export default function AISystemSettings() {
                                 placeholder="e.g. user/hf-model-name" />
                         )}
                         {type === "datashape" && (
-                            <TextField select label="Source dataset" value={sourceDatasetPid} onChange={(e) => setSourceDatasetPid(e.target.value)}>
-                                {datasetComponents.map(d => <MenuItem key={d.pid} value={d.pid}>{d.name}</MenuItem>)}
-                            </TextField>
+                            <>
+                                <Stack direction="row" spacing={1} alignItems="flex-start">
+                                    <TextField select label="Source dataset" value={sourceDatasetPid} onChange={(e) => { setAddImported(false); setSourceDatasetPid(e.target.value); }} sx={{ flexGrow: 1 }}>
+                                        {datasetComponents.map(d => <MenuItem key={d.pid} value={d.pid}>{d.name}</MenuItem>)}
+                                    </TextField>
+                                    <Button variant="outlined" startIcon={<CloudUploadIcon />} onClick={() => datashapeFileInputRef.current?.click()} sx={{ whiteSpace: "nowrap", height: 56 }}>
+                                        <Stack sx={{ alignItems: "center", lineHeight: 1.1 }}>
+                                            <span>Import JSON</span>
+                                            <Typography component="span" variant="caption" color="text.secondary">optional</Typography>
+                                        </Stack>
+                                    </Button>
+                                </Stack>
+                                <Divider />
+                                {addDeriving ? (
+                                    <Stack direction="row" spacing={1} alignItems="center">
+                                        <CircularProgress size={20} />
+                                        <Typography color="text.secondary" variant="body2">Deriving data shape...</Typography>
+                                    </Stack>
+                                ) : addDeriveError ? (
+                                    <Typography color="error" variant="body2">{addDeriveError}</Typography>
+                                ) : (
+                                    <DataShapeFeaturesEditor value={addJsonValue} onChange={setAddJsonValue} />
+                                )}
+                            </>
                         )}
                         <input ref={fileInputRef} hidden type="file" onChange={(e) => setFile(e.target.files?.[0])} />
+                        <input ref={datashapeFileInputRef} hidden type="file" accept=".json,application/json" onChange={handleDatashapeImport} />
                         <Stack direction="row" justifyContent="flex-end" spacing={1}>
                             <Button onClick={() => setOpen(false)}>Cancel</Button>
                             <Button variant="contained" className="gradient-btn" onClick={addComponent} disabled={saving || !canAdd}>
