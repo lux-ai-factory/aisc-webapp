@@ -19,6 +19,7 @@ import { useAuth } from './context/AuthContext';
 import { API_VERSION_PREFIX } from './config';
 import Plugins from "./pages/Plugins.tsx";
 import OpenPluginFromUrl from "./pages/OpenPluginFromUrl.tsx";
+import { projectByNameUrl } from "./platform/currentProject";
 import PluginConfig from "./pages/PluginsConfig.tsx";
 import PluginStartEvaluation from "./pages/PluginStartEvaluation.tsx";
 import PluginEvaluations from "./pages/PluginEvaluations.tsx";
@@ -55,7 +56,7 @@ const ProjectContextWrapper: React.FC<ProjectContextWrapperProps> = ({ children 
     useEffect(() => {
         if (!project_name) return;
 
-        fetch(`${API_URL}/projects/by-name/${project_name}`).then((res) => {
+        fetch(projectByNameUrl(API_URL, project_name)).then((res) => {
             if (!res.ok) throw new Error("Network response was not ok");
             return res.json();
         })

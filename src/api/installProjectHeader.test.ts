@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import axios from 'axios';
+import axios, { AxiosHeaders } from 'axios';
 
 vi.mock('../deployment', async (orig) => ({ ...(await orig<typeof import('../deployment')>()), isConfigurator: () => true }));
 import { installProjectHeader } from './installProjectHeader';
@@ -37,7 +37,10 @@ describe('the start-up wrapper', () => {
     expect(seen[0].header).toBe(other);
   });
   it('adds the header on the default axios instance too', async () => {
-    const config = await (axios.interceptors.request as any).handlers.at(-1).fulfilled({ url: `${API}/components/x/data`, headers: {} });
-    expect(new Headers(config.headers as any).get('X-AISC-Project') ?? config.headers.get?.('X-AISC-Project')).toBe(PID);
+    // axios keeps its interceptors on a field its types do not declare
+    type Handlers = { handlers: { fulfilled: (c: { url: string; headers: object }) => Promise<{ headers: AxiosHeaders }> }[] };
+    const { handlers } = axios.interceptors.request as unknown as Handlers;
+    const config = await handlers[handlers.length - 1].fulfilled({ url: `${API}/components/x/data`, headers: {} });
+    expect(config.headers.get('X-AISC-Project')).toBe(PID);
   });
 });

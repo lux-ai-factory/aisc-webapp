@@ -23,6 +23,7 @@ import toast from "react-hot-toast";
 import "./Plugins.css";
 import {listsPackageIndex} from "../deployment";
 import {openPublicCatalogue} from "../pluginCatalogue/installUri";
+import { ADMIN_TO_TOGGLE, updatePluginEnabled } from "./pluginToggle";
 
 class PluginErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
     constructor(props: {children: React.ReactNode}) {
@@ -76,17 +77,6 @@ const deleteProjectPlugins = async (project_uuid: string, package_name: string, 
 };
 
 // Plugin toggle
-const updatePluginEnabled = async (plugin_pid: string, enabled: boolean) => {
-    if (!plugin_pid) throw new Error('Invalid plugin pid');
-
-    const res = await fetch(`${API_URL}/plugins/${plugin_pid}/enabled`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled }),
-    });
-
-    return await res.json();
-};
 
 const refreshPackage = async (project_uuid: string, package_name: string, version: string) => {
     const res = await fetch(`${API_URL}/plugins/refresh`, {
@@ -113,14 +103,15 @@ function Plugins() {
         queryFn: fromIndex ? getPlugins : async () => [] as Package[],
     })
 
-    const {data: project} = useQuery({
+    const {data: project, error: projectError} = useQuery({
         queryKey: ['project', projectUUID],
         queryFn: () => getProject(projectUUID ?? ""),
         enabled: !!projectUUID,
     })
 
+    // a project that cannot be read says so, rather than waiting on it for ever (code review 2026-10-06)
+    if (error || (!fromIndex && projectError)) return <span>Oops!</span>
     if (isPending || (!fromIndex && !project)) return <span>Loading...</span>
-    if (error) return <span>Oops!</span>
 
     const installedPackages = (): Package[] => {
         const seen = new Map<string, Package>();
@@ -190,9 +181,10 @@ function Plugins() {
         setPendingPlugins(prev => ({...prev, [plugin.pid]: true}));
 
         try {
-            await updatePluginEnabled(plugin.pid, !plugin.enabled);
+            await updatePluginEnabled(API_URL, plugin.pid, !plugin.enabled);
         } catch (err) {
-            const message = 'Could not update plugin state.';
+            const message = err instanceof Error && err.message === ADMIN_TO_TOGGLE
+                ? ADMIN_TO_TOGGLE : 'Could not update plugin state.';
             toast.error(message, { position: 'bottom-right' });
         } finally {
             setPendingPlugins(prev => ({...prev, [plugin.pid]: false}));

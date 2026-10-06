@@ -116,6 +116,16 @@ export function projectForPlatformUrl(apiUrl: string, project: string): string {
 }
 
 /**
+ * Where to ask for a project by its name. In the configurator the name is the
+ * platform project's, free text, so it goes as an encoded query parameter: # ?
+ * and spaces would cut a path, and a / could not reach the backend's path route,
+ * which takes one segment (apps/backend routers/project_by_name.py).
+ */
+export function projectByNameUrl(apiUrl: string, name: string): string {
+  return `${apiUrl}/projects/by-name?name=${encodeURIComponent(name)}`;
+}
+
+/**
  * The way back to the project page on the launcher, where all six steps are.
  *
  * Every tool has one, because the project is chosen there and each tool is

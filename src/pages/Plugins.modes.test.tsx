@@ -45,7 +45,7 @@ function SetProject({ uuid }: { uuid: string }) {
 
 /** What main.tsx does in the configurator: the start-up wrapper over this test's fetch. It
  *  consults the mode itself, so in standalone it passes every call through unchanged. */
-let uninstalls: (() => void)[] = [];
+const uninstalls: (() => void)[] = [];
 function stubFetchGlobal(fn: unknown) {
   vi.stubGlobal('fetch', fn);
   uninstalls.push(installProjectHeader(globalThis));
@@ -115,6 +115,33 @@ describe('configurator: the catalogue is the only place tests are found', () => 
     expect(add).toBeDefined();
     await act(async () => { add!.click(); });
     expect(openPublicCatalogue).toHaveBeenCalledTimes(1);
+  });
+
+  it('says what went wrong when the project cannot be read, instead of loading for ever', async () => {
+    // code review 2026-10-06: the project query's error was never looked at, so a failed read of the
+    // project left the page on "Loading..." with nothing to say why
+    stubFetchGlobal(vi.fn(async (input: RequestInfo | URL) => {
+      urls.push(String(input));
+      throw new TypeError('Failed to fetch');
+    }));
+    host = document.createElement('div');
+    document.body.appendChild(host);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    await act(async () => {
+      root = createRoot(host!);
+      root.render(
+        <QueryClientProvider client={client}>
+          <MemoryRouter>
+            <ProjectProvider><SetProject uuid={PROJECT} /><Plugins /></ProjectProvider>
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+    });
+    for (let i = 0; i < 20 && /Loading/.test(text()); i++) {
+      await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
+    }
+    expect(text()).not.toContain('Loading...');
+    expect(text()).toContain('Oops!');
   });
 
   it('says so when nothing is installed yet', async () => {

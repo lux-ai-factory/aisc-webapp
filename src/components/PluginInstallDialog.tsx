@@ -210,7 +210,8 @@ async function loadPlatformProjects(): Promise<PlatformProject[] | null> {
 
 /**
  * Configurator: the engine has no project list of its own. The install goes to
- * the link's ?project=, else the project last opened in this browser, named;
+ * the link's ?project=, else the project last opened in this browser, named from the caller's
+ * platform projects; without that list only the tab's own project is offered, named by its id;
  * the caller's platform projects are there to change it. The engine's side of
  * the project is found (or made) by for-platform, then the plugin is enabled
  * in it, both calls naming the target project.
@@ -224,6 +225,8 @@ function ConfiguratorInstallDialog() {
   /** undefined: loading; null: could not be read. */
   const [mine, setMine] = useState<PlatformProject[] | null | undefined>(undefined);
   const [target, setTarget] = useState<string | null>(null);
+  /** The target is this tab's (or the link's) project, not only the one last opened in the browser. */
+  const [targetIsTabs, setTargetIsTabs] = useState(false);
   const [changing, setChanging] = useState(false);
   /** The engine said the caller is not in the target (for-platform 404). */
   const [refused, setRefused] = useState<string | null>(null);
@@ -238,6 +241,7 @@ function ConfiguratorInstallDialog() {
     if (!open) return;
     // Only a pid is a target; anything else is no target.
     const fromTab = currentPlatformProject();
+    setTargetIsTabs(isPlatformPid(fromTab));
     setTarget(isPlatformPid(fromTab) ? fromTab : lastPlatformProject());
     setChanging(false);
     setRefused(null);
@@ -253,14 +257,17 @@ function ConfiguratorInstallDialog() {
   }, [open, pkg, version]);
 
   const inNoProject = Array.isArray(mine) && mine.length === 0;
-  const lost = mine === null && !target;
+  // Without the list, only this tab's own project can be named (by its id): the one last opened in some
+  // other tab is not where this install came from, so it is never guessed (review 2026-10-06).
+  const lost = mine === null && (!target || !targetIsTabs);
   const named = Array.isArray(mine) ? mine.find((p) => p.pid.toLowerCase() === target?.toLowerCase()) : undefined;
   const notMember =
     Boolean(target) && (refused === target || (Array.isArray(mine) && mine.length > 0 && !named));
-  const canSubmit = Boolean(target) && mine !== undefined && !inNoProject && !notMember && !submitting;
+  const canSubmit = Boolean(target) && mine !== undefined && !inNoProject && !lost && !notMember && !submitting;
 
   const choose = (pid: string) => {
     setTarget(pid);
+    setTargetIsTabs(true);
     setRefused(null);
   };
 
@@ -313,7 +320,8 @@ function ConfiguratorInstallDialog() {
       toast.success(`Test installed in ${label}.`, { position: 'bottom-right' });
       const isLast = remainingAfterCurrent === 0;
       advance();
-      if (isLast) navigate(`/projects/${engine.name ?? engine.pid}/plugins`);
+      // the name is the platform project's, free text: / # ? would end the route segment
+      if (isLast) navigate(`/projects/${encodeURIComponent(engine.name ?? engine.pid)}/plugins`);
     } catch (err) {
       console.error('Failed to install the test:', err);
       toast.error('Could not install the test. Is it in the local plugin registry?', {
@@ -326,7 +334,7 @@ function ConfiguratorInstallDialog() {
 
   let where: string;
   if (named) where = `Install into ${named.name}`;
-  else if (target && mine === null) where = 'Install into the project you came from';
+  else if (target && mine === null) where = `Install into project ${target}`;
   else where = 'Choose a project';
 
   return (
@@ -406,7 +414,7 @@ function ConfiguratorInstallDialog() {
 
 /**
  * Global dialog shown when the public catalogue routes install(s) to this app:
- * Sean's project picker standalone, the project you came from in the Configurator.
+ * Sean's project picker standalone, the tab's project (named) in the Configurator.
  */
 export default function PluginInstallDialog() {
   return isConfigurator() ? <ConfiguratorInstallDialog /> : <StandaloneInstallDialog />;

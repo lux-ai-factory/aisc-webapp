@@ -152,3 +152,25 @@ describe("a project that is not a pid", () => {
     expect(lastPlatformProject(browser)).toBeNull();
   });
 });
+
+
+describe("projectByNameUrl", () => {
+  it("names the project whole, encoded: the engine's project name is the platform's, free text", async () => {
+    const { projectByNameUrl } = await import("./currentProject");
+    expect(projectByNameUrl("/api/v1", "Bias audit #1?")).toBe(`/api/v1/projects/by-name?name=${encodeURIComponent("Bias audit #1?")}`);
+  });
+
+  it("asks with the name as a query parameter, so a / in it reaches the backend too", async () => {
+    const { projectByNameUrl } = await import("./currentProject");
+    expect(projectByNameUrl("/api/v1", "a/b")).toBe("/api/v1/projects/by-name?name=a%2Fb");
+    expect(projectByNameUrl("/api/v1", "a b")).toBe("/api/v1/projects/by-name?name=a%20b");
+    expect(projectByNameUrl("/api/v1", "a#b")).toBe("/api/v1/projects/by-name?name=a%23b");
+  });
+
+  it("is what the project pages ask with (MyApp's ProjectContextWrapper)", async () => {
+    const { readFileSync } = await import("node:fs");
+    const app = readFileSync("src/MyApp.tsx", "utf8");
+    expect(app).toContain("projectByNameUrl(API_URL, project_name)");
+    expect(app).not.toMatch(/projects\/by-name\/\$\{project_name\}/);
+  });
+});

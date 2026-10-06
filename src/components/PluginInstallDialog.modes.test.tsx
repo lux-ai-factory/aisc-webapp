@@ -18,6 +18,12 @@ vi.mock('../deployment', async (importOriginal) => ({
   isConfigurator: () => mode.configurator,
 }));
 
+// where the dialog goes after the last install
+const navigated = vi.hoisted(() => vi.fn());
+vi.mock('react-router-dom', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('react-router-dom')>()),
+  useNavigate: () => navigated,
+}));
 const toastError = vi.hoisted(() => vi.fn());
 const toastSuccess = vi.hoisted(() => vi.fn());
 vi.mock('react-hot-toast', () => ({
@@ -58,7 +64,7 @@ function headerOf(init: RequestInit | undefined, name: string): string | null {
 /** A fetch that records every call; `route` answers it. */
 /** What main.tsx does in the configurator: the start-up wrapper over this test's fetch. It
  *  consults the mode itself, so in standalone it passes every call through unchanged. */
-let uninstalls: (() => void)[] = [];
+const uninstalls: (() => void)[] = [];
 function stubFetchGlobal(fn: unknown) {
   vi.stubGlobal('fetch', fn);
   uninstalls.push(installProjectHeader(globalThis));
@@ -157,6 +163,22 @@ describe('configurator', () => {
     currentPlatformProject();
     expect(localStorage.getItem('aisc_last_platform_project')).toBe(LOANS.pid);
     expect(lastPlatformProject()).toBe(LOANS.pid);
+  });
+
+  it("after the last install it opens the project's plugins, its free-text name kept whole", async () => {
+    stubFetch((url, method) => {
+      if (url.endsWith('/platform/api/projects')) return json([DEMO]);
+      if (method === 'POST' && url.includes('/projects/for-platform/')) return json({ pid: 'engine-demo', name: 'MCAS v2/2026 #1?' });
+      if (method === 'POST' && url.endsWith('/plugins')) return json({ ok: true });
+      return json([]);
+    });
+    navigated.mockClear();
+    localStorage.setItem('aisc_last_platform_project', DEMO.pid);
+    renderWithInstall(<PluginInstallDialog />, { uri: ENABLE });
+    await waitFor(() => expect(installButton()?.disabled).toBe(false));
+    await click(installButton());
+    await waitFor(() => expect(navigated).toHaveBeenCalled());
+    expect(navigated).toHaveBeenCalledWith(`/projects/${encodeURIComponent('MCAS v2/2026 #1?')}/plugins`);
   });
 
   it('S8.1/I7.4 one Install: for-platform then the plugin, both naming the project', async () => {
@@ -277,6 +299,28 @@ describe('configurator: only a pid is a project', () => {
     const link = Array.from(document.querySelectorAll('a')).find((a) => /launcher/i.test(a.textContent ?? ''));
     expect(link?.getAttribute('href')).toBeTruthy();
     expect(installButton()?.disabled).toBe(true);
+  });
+
+  it('list unreadable, no project in the tab, only one opened elsewhere: refuses, never guesses', async () => {
+    // the last project opened in any tab is not where this install came from: without the list to name
+    // it, Install is refused instead of going there as "the project you came from" (review 2026-10-06)
+    stubFetch(() => json({ detail: 'Bad Gateway' }, 502));
+    localStorage.setItem('aisc_last_platform_project', DEMO.pid);
+    renderWithInstall(<PluginInstallDialog />, { uri: ENABLE });
+    await waitFor(() => expect(pageText()).toMatch(/could not be loaded/));
+    expect(pageText()).not.toMatch(/project you came from/);
+    expect(pageText()).not.toMatch(new RegExp(DEMO.pid));
+    expect(installButton()?.disabled).toBe(true);
+    await click(installButton());
+    expect(calls.filter((c) => c.method === 'POST')).toEqual([]);
+  });
+
+  it("list unreadable with the link's project: names it by its id", async () => {
+    stubFetch(() => json({ detail: 'Bad Gateway' }, 502));
+    renderWithInstall(<PluginInstallDialog />, { uri: ENABLE, search: `?project=${DEMO.pid}` });
+    await waitFor(() => expect(pageText()).toMatch(new RegExp(`Install into project ${DEMO.pid}`)));
+    expect(pageText()).not.toMatch(/project you came from/);
+    expect(installButton()?.disabled).toBe(false);
   });
 
   it('list unreadable with a pid target: the URL and the header name the same project', async () => {

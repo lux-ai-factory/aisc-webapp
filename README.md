@@ -113,7 +113,10 @@ the configurator mode and keeps standalone as on master (the list of files and r
 - **Project and session from the Configurator**: `src/platform/currentProject.ts`,
   `src/platform/gatewaySession.ts`, `src/api/projectHeader.ts`, `src/api/installProjectHeader.ts`,
   and the mode-dependent parts of `AuthContext.tsx`, `TopBar.tsx`, `LeftBar.tsx`, `MyApp.tsx` and
-  `GlobalHome.tsx` (the Tasks page and the project wizard are standalone only).
+  `GlobalHome.tsx` (the Tasks page and the project wizard are standalone only). The engine's project
+  is named after the platform's, free text, so its name is encoded wherever it goes into a URL (the
+  route, and `/projects/by-name/` through `projectByNameUrl`); a name with `/` still cannot be opened,
+  the backend's route takes one path segment.
 - **Plugins from the catalogue**: `PluginInstallDialog.tsx` installs into the project you came
   from and records the catalogue entry (`src/pluginCatalogue/installUri.ts`); `Plugins.tsx` lists
   only the project's installed tests in configurator mode.

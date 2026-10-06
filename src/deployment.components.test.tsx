@@ -31,6 +31,8 @@ const kc = vi.hoisted(() => ({
 vi.mock('./auth/keycloak', () => ({ ...kc, default: kc.keycloak }));
 
 type Call = { url: string; method: string; project: string | null };
+/** The engine's project name for-platform answers with: the platform project's name, free text. */
+let forPlatformName = 'launcher-project';
 let calls: Call[] = [];
 let container: HTMLElement;
 let root: Root;
@@ -44,7 +46,7 @@ async function configurator() {
 }
 
 function respond(url: string, method: string): unknown {
-  if (url.includes('/for-platform/')) return { pid: 'eng-1', name: 'launcher-project' };
+  if (url.includes('/for-platform/')) return { pid: 'eng-1', name: forPlatformName };
   if (/\/me$/.test(url)) return { username: 'gateway-user', roles: ['primary-user'] };
   if (url.includes('/display_icon')) return 'extension';
   if (/\/projects\/[^/?]+$/.test(url)) return { pid: 'eng-1', name: 'alpha', plugins: [] };
@@ -55,6 +57,7 @@ function respond(url: string, method: string): unknown {
 
 beforeEach(() => {
   calls = [];
+  forPlatformName = 'launcher-project';
   sessionStorage.clear();
   window.history.replaceState(null, '', '/');
   vi.resetModules();
@@ -137,6 +140,33 @@ describe('GlobalHome by mode', () => {
     expect(calls.some((c) => c.method === 'GET' && /\/projects$/.test(c.url))).toBe(false);
   });
 
+  it("configurator goes into a project whose name has / # ? or spaces (the platform's name is free text)", async () => {
+    await configurator();
+    forPlatformName = 'MCAS v2/2026 #1?';
+    window.history.replaceState(null, '', `/?project=${PID}`);
+    const { default: GlobalHome } = await import('./pages/GlobalHome');
+    const { useParams } = await import('react-router-dom');
+    const Probe = () => <p data-testid="opened">{useParams().name}</p>;
+    const { ProjectProvider } = await import('./context/ProjectContext');
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={client}>
+          <MemoryRouter initialEntries={['/']}>
+            <ProjectProvider>
+              <Routes>
+                <Route path="/" element={<GlobalHome />} />
+                <Route path="/projects/:name" element={<Probe />} />
+              </Routes>
+            </ProjectProvider>
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+    });
+    await until(() => container.querySelector('[data-testid="opened"]') !== null);
+    expect(container.querySelector('[data-testid="opened"]')!.textContent).toBe('MCAS v2/2026 #1?');
+  });
+
   it('configurator with no project points to the launcher and lists nothing', async () => {
     await configurator();
     vi.stubEnv('VITE_LAUNCHER_URL', 'http://launcher.test/');
@@ -178,6 +208,8 @@ describe('LeftBar by mode', () => {
     const { useEffect } = await import('react');
     function InProject() {
       const { setProjectName, setProjectUUID } = useProject();
+      // ProjectContext's setters are new functions on every render: listed, they would rerun this on every render
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       useEffect(() => { setProjectName('alpha'); setProjectUUID('eng-1'); }, []);
       return <LeftBar drawerWidth={320} expandedDrawerWidth={320} collapsed={false} />;
     }

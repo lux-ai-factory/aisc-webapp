@@ -126,9 +126,12 @@ const OpenTheProject = ({ project }: { project: string }) => {
             .then((opened: Project) => {
                 setProjectUUID(opened.pid);
                 setProjectName(opened.name);
-                navigate(`/projects/${opened.name}`, { replace: true });
+                // the name is the platform project's, free text: / # ? would end the route segment
+                navigate(`/projects/${encodeURIComponent(opened.name)}`, { replace: true });
             })
             .catch((err) => setError(err.message));
+        // ProjectContext's setters are new functions on every render: listed, they would rerun this on every render
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [project, navigate]);
 
     if (error) {
