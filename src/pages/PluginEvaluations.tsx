@@ -17,11 +17,13 @@ import {
     ToggleButtonGroup,
     Tooltip,
     Typography,
+    Alert,
 } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import DownloadIcon from '@mui/icons-material/Download';
 import {Plugin} from "../models/models.tsx";
 import EvaluationProgressList from "../components/EvaluationProgressList.tsx";
+import {evaluationOutcome, finishedEvaluationUrls, pluginErrorText} from './evaluationOutcome';
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -135,9 +137,14 @@ function formatTimestamp(date: Date): string {
 
 const getDoneEvaluations = async (uuid: string) => {
     if (!uuid) throw new Error('Invalid uuid');
-    const res = await fetch(`${API_URL}/projects/${uuid}/evaluations?status=Done`);
-    if (!res.ok) throw new Error('Network response was not ok');
-    return await res.json();
+    // Done and Failed: a failed run keeps its error and its log (an artifact), which only its page shows
+    const lists = await Promise.all(finishedEvaluationUrls(API_URL, uuid).map(async (url) => {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Network response was not ok');
+        const data = await res.json();
+        return Array.isArray(data) ? data : [];
+    }));
+    return lists.flat();
 };
 
 function PluginEvaluations() {
@@ -323,13 +330,15 @@ function PluginEvaluations() {
                                                     </Stack>
                                                     <Stack direction="row" alignItems="center" spacing={0.7}>
                                                         <Chip
-                                                            label="Finished"
+                                                            label={evaluationOutcome(evaluation)}
                                                             size="small"
                                                             sx={{
                                                                 height: 20,
                                                                 width: 72,
-                                                                bgcolor: finishedParts.date === 'Unknown date' ? 'grey.300' : 'success.light',
-                                                                color: finishedParts.date === 'Unknown date' ? 'text.secondary' : 'success.contrastText',
+                                                                bgcolor: evaluationOutcome(evaluation) === 'Failed' ? 'error.light'
+                                                                    : finishedParts.date === 'Unknown date' ? 'grey.300' : 'success.light',
+                                                                color: evaluationOutcome(evaluation) === 'Failed' ? 'error.contrastText'
+                                                                    : finishedParts.date === 'Unknown date' ? 'text.secondary' : 'success.contrastText',
                                                                 fontWeight: 700,
                                                             }}
                                                         />
@@ -405,6 +414,16 @@ function PluginEvaluations() {
                                                 </Tooltip>
                                             ))}
                                         </Box>
+
+                                        {(evaluation.evaluation_plugins || [])
+                                            .filter((plugin: Plugin) => pluginErrorText(plugin.error_message))
+                                            .map((plugin: Plugin) => (
+                                                <Alert key={`${evaluation.pid}-${plugin.pid || plugin.name}-error`}
+                                                       severity="error" sx={{py: 0, whiteSpace: 'pre-wrap', fontSize: 12}}>
+                                                    {plugin.display_name || plugin.name} failed: {pluginErrorText(plugin.error_message)}
+                                                    {'\n'}Open the results to read its log.
+                                                </Alert>
+                                            ))}
 
                                         <Box sx={{mt: 'auto'}} />
                                 </CardContent>
