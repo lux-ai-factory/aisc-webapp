@@ -63,14 +63,10 @@ const darkTheme = createTheme({
 
 const ProjectSelector: React.FC<{
     onAddProject: (wizardData: any) => void;
-    datasets: any[];
-    models: any[];
     plugins: any[];
-    fetchDatasets: () => void;
-    fetchModels: () => void;
     fetchPlugins: () => void;
     authenticated: boolean;
-}> = ({ onAddProject, datasets, models, plugins, fetchDatasets, fetchModels, fetchPlugins, authenticated }) => {
+}> = ({ onAddProject, plugins, fetchPlugins, authenticated }) => {
     const [wizardOpen, setWizardOpen] = useState(false);
 
     if (!authenticated) return null;
@@ -93,11 +89,7 @@ const ProjectSelector: React.FC<{
                 open={wizardOpen}
                 onClose={() => setWizardOpen(false)}
                 onFinish={onAddProject}
-                datasets={datasets}
-                models={models}
                 plugins={plugins}
-                fetchDatasets={fetchDatasets}
-                fetchModels={fetchModels}
                 fetchPlugins={fetchPlugins}
             />
         </>
@@ -106,19 +98,7 @@ const ProjectSelector: React.FC<{
 
 
 const TopBar: React.FC = () => {
-    const [datasets, setDatasets] = useState<any[]>([]);
-    const [models, setModels] = useState<any[]>([]);
     const [plugins, setPlugins] = useState<any[]>([]);
-
-    const fetchDatasets = async () => {
-        const data = null;
-        if (data) setDatasets(data);
-    };
-
-    const fetchModels = async () => {
-        const data = null;
-        if (data) setModels(data);
-    };
 
     const fetchPlugins = async () => {
         const data = await apiCall('/plugins');
@@ -173,7 +153,7 @@ const TopBar: React.FC = () => {
     };
 
     const addProject = async (wizardData: any) => {
-        const { name, datasets, models, plugins } = wizardData;
+        const { name, components, plugins } = wizardData;
 
         // 1. Create project
         const newProject = await apiCall('/projects', 'POST', { name });
@@ -183,65 +163,34 @@ const TopBar: React.FC = () => {
 
         const uploads: Promise<unknown>[] = [];
 
-        // 2. Create DATASET components
-        for (const ds of datasets) {
-            if (!ds.name || ds.name.trim().length < 1) continue;
+        // 2. Create COMPONENT rows (dataset/model) and schedule background file uploads
+        for (const c of components ?? []) {
+            if (!c.name || c.name.trim().length < 1) continue;
 
-            // 2a. Create dataset component row
             const created = await fetch(
                 `${API_URL}/projects/${newProject.pid}/components`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name: ds.name, component_type: "dataset" })
+                    body: JSON.stringify({ name: c.name, component_type: c.type })
                 }
             ).then(r => r.json());
 
-            ds.pid = created.pid;
+            c.pid = created.pid;
 
-            // 2b. Add dataset file to uploads
-            if (ds.file) {
-                addFileUploadingPid(ds.pid);
+            if (c.file) {
+                addFileUploadingPid(c.pid);
                 const formData = new FormData();
-                formData.append("file", ds.file);
+                formData.append("file", c.file);
                 uploads.push(
-                    fetch(`${API_URL}/components/${ds.pid}/data`, { method: "PUT", body: formData }).then(() => {
-                        toast.success(`Dataset \`${ds.name}\` uploaded`, { position: 'bottom-right' });
-                    }).finally(() => removeFileUploadingPid(ds.pid))
+                    fetch(`${API_URL}/components/${c.pid}/data`, { method: "PUT", body: formData }).then(() => {
+                        toast.success(`Component \`${c.name}\` uploaded`, { position: 'bottom-right' });
+                    }).finally(() => removeFileUploadingPid(c.pid))
                 );
             }
         }
 
-        // 3. Create MODEL components
-        for (const m of models) {
-            if (!m.name || m.name.trim().length < 1) continue;
-
-            // 3a. Create model component row
-            const created = await fetch(
-                `${API_URL}/projects/${newProject.pid}/components`,
-                {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name: m.name, component_type: "model" })
-                }
-            ).then(r => r.json());
-
-            m.pid = created.pid;
-
-            // 3b. Add model file to uploads
-            if (m.file) {
-                addFileUploadingPid(m.pid);
-                const formData = new FormData();
-                formData.append("file", m.file);
-                uploads.push(
-                    fetch(`${API_URL}/components/${m.pid}/data`, { method: "PUT", body: formData }).then(() => {
-                        toast.success(`Model \`${m.name}\` uploaded`, { position: 'bottom-right' });
-                    }).finally(() => removeFileUploadingPid(m.pid))
-                );
-            }
-        }
-
-        // 4. Enable all packages in parallel
+        // 3. Enable all packages in parallel
         await Promise.all(Object.keys(plugins).map(async (key) => {
             const pkg = plugins[key];
             await fetch(`${API_URL}/plugins`, {
@@ -347,11 +296,7 @@ const TopBar: React.FC = () => {
                     )}
                     <ProjectSelector
                         onAddProject={addProject}
-                        datasets={datasets}
-                        models={models}
                         plugins={plugins}
-                        fetchDatasets={fetchDatasets}
-                        fetchModels={fetchModels}
                         fetchPlugins={fetchPlugins}
                         authenticated={authenticated}
                     />

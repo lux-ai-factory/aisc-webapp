@@ -81,8 +81,8 @@ export const deleteProjectConfig = async (projectPid: string, settingPid: string
     if (!res.ok) throw new Error('Failed to delete project setting');
 };
 
-export const deriveFeaturesFromDataset = async (projectPid: string, data: object): Promise<ProjectConfig> => {
-    const res = await fetch(`${API_URL}/project/settings/${projectPid}/derive-features`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)});
+export const deriveFeaturesFromDataset = async (projectPid: string, sourceDatasetPid: string): Promise<{ features?: unknown[] }> => {
+    const res = await fetch(`${API_URL}/project/settings/${projectPid}/derive-features?source_dataset_pid=${sourceDatasetPid}`, {method: 'POST'});
     if (!res.ok) throw new Error('Failed to derive datashape');
     return await res.json();
 };

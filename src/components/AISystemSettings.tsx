@@ -1,19 +1,60 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
     Box, Button, Card, CardContent, Chip, CircularProgress, Dialog,
-    DialogContent, DialogTitle, Divider, IconButton, List, ListItem, ListItemText,
-    MenuItem, Stack, TextField, Typography,
+    DialogContent, DialogTitle, Divider, IconButton, List,
+    MenuItem, Stack, TextField, Tooltip, Typography,
 } from "@mui/material";
+import Grid from "@mui/material/Grid2";
 import AddIcon from "@mui/icons-material/Add";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import DeleteIcon from "@mui/icons-material/Delete";
+import DownloadIcon from "@mui/icons-material/Download";
 import EditIcon from "@mui/icons-material/Edit";
 import LinkIcon from "@mui/icons-material/Link";
+import toast from "react-hot-toast";
 import { useProject } from "../context/ProjectContext";
-import { getProjectConfigs } from "../api/api";
+import { deriveFeaturesFromDataset, getProjectConfigs } from "../api/api";
+import keycloak from "../auth/keycloak";
 import { API_VERSION_PREFIX } from "../config";
 import { AIComponent, AIComponentType, ProjectConfig } from "../models/models";
+import "../styles/common.css";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
+
+function formatBytes(bytes?: number | null): string {
+    if (bytes === null || bytes === undefined || bytes <= 0) return "";
+    const units = ["B", "KB", "MB", "GB", "TB"];
+    let value = bytes;
+    let unitIndex = 0;
+    while (value >= 1024 && unitIndex < units.length - 1) {
+        value /= 1024;
+        unitIndex++;
+    }
+    return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+async function uploadWithProgress(url: string, formData: FormData, onProgress: (percent: number) => void): Promise<void> {
+    await keycloak.updateToken(30);
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("PUT", url, true);
+        xhr.setRequestHeader("Authorization", `Bearer ${keycloak.token}`);
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+                onProgress(Math.round((e.loaded / e.total) * 100));
+            }
+        };
+        xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                resolve();
+            } else {
+                reject(new Error(`Upload failed (HTTP ${xhr.status})`));
+            }
+        };
+        xhr.onerror = () => reject(new Error("Upload network error"));
+        xhr.send(formData);
+    });
+}
 
 const COMPONENT_TYPES: { value: AIComponentType; label: string }[] = [
     { value: "model", label: "Model (file upload)" },
@@ -93,12 +134,13 @@ function DataShapeFeaturesEditor({ value, onChange }: {
 }
 
 export default function AISystemSettings() {
-    const { projectUUID } = useProject();
+    const { projectUUID, fileUploadingPids, addFileUploadingPid, removeFileUploadingPid } = useProject();
     const [systemInfo, setSystemInfo] = useState<{ pid: string; name: string } | null>(null);
     const [components, setComponents] = useState<AIComponent[]>([]);
     const [secrets, setSecrets] = useState<ProjectConfig[]>([]);
     const [loading, setLoading] = useState(true);
     const [open, setOpen] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
 
     // add-dialog state
     const [name, setName] = useState("");
@@ -108,8 +150,13 @@ export default function AISystemSettings() {
     const [addSecretKey, setAddSecretKey] = useState("");
     const [addResourceValue, setAddResourceValue] = useState("");
     const [sourceDatasetPid, setSourceDatasetPid] = useState("");
+    const [addJsonValue, setAddJsonValue] = useState<{ features?: FeatureDraft[] }>({});
+    const [addDeriving, setAddDeriving] = useState(false);
+    const [addDeriveError, setAddDeriveError] = useState<string | null>(null);
+    const [addImported, setAddImported] = useState(false);
     const [saving, setSaving] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const datashapeFileInputRef = useRef<HTMLInputElement>(null);
 
     // edit-dialog state
     const [editTarget, setEditTarget] = useState<AIComponent | null>(null);
@@ -125,24 +172,62 @@ export default function AISystemSettings() {
 
     const datasetComponents = components.filter(c => c.component_type === "dataset");
 
-    const refresh = useCallback(async () => {
+    const fetchData = useCallback(async () => {
         if (!projectUUID) return;
+        const res = await fetch(`${API_URL}/projects/${projectUUID}/aisystem`);
+        if (res.ok) {
+            const data = await res.json();
+            setSystemInfo({ pid: data.pid, name: data.name });
+            setComponents(data.components ?? []);
+        }
+        const settings = await getProjectConfigs(projectUUID);
+        setSecrets(settings.filter(s => s.category === "secrets"));
+    }, [projectUUID]);
+
+    const load = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await fetch(`${API_URL}/projects/${projectUUID}/aisystem`);
-            if (res.ok) {
-                const data = await res.json();
-                setSystemInfo({ pid: data.pid, name: data.name });
-                setComponents(data.components ?? []);
-            }
-            const settings = await getProjectConfigs(projectUUID);
-            setSecrets(settings.filter(s => s.category === "secrets"));
+            await fetchData();
         } finally {
             setLoading(false);
         }
-    }, [projectUUID]);
+    }, [fetchData]);
 
-    useEffect(() => { refresh(); }, [refresh]);
+    // Silent background refresh: only shows the spinner on the first load so
+    // that upload progress/cards are not replaced by a loading placeholder.
+    const refresh = useCallback(() => {
+        fetchData().catch(() => { /* keep current data on failure */ });
+    }, [fetchData]);
+
+    useEffect(() => { load(); }, [load]);
+
+    // When a source dataset is picked in the add-dialog (datashape), derive the
+    // data shape and let the user inspect/edit it BEFORE creating the component.
+    useEffect(() => {
+        if (addImported) return;
+        if (type !== "datashape" || !sourceDatasetPid || !projectUUID) {
+            setAddJsonValue({});
+            setAddDeriveError(null);
+            setAddDeriving(false);
+            return;
+        }
+        let cancelled = false;
+        setAddDeriving(true);
+        setAddDeriveError(null);
+        deriveFeaturesFromDataset(projectUUID, sourceDatasetPid)
+            .then((res) => {
+                if (cancelled) return;
+                setAddJsonValue({ features: (res.features ?? []) as FeatureDraft[] });
+            })
+            .catch(() => {
+                if (cancelled) return;
+                setAddDeriveError("Could not derive the data shape from this dataset.");
+            })
+            .finally(() => {
+                if (!cancelled) setAddDeriving(false);
+            });
+        return () => { cancelled = true; };
+    }, [type, sourceDatasetPid, projectUUID, addImported]);
 
     const openDialog = async () => {
         setName("");
@@ -152,6 +237,10 @@ export default function AISystemSettings() {
         setAddSecretKey("");
         setAddResourceValue("");
         setSourceDatasetPid("");
+        setAddJsonValue({});
+        setAddDeriveError(null);
+        setAddDeriving(false);
+        setAddImported(false);
         if (projectUUID) {
             try {
                 const settings = await getProjectConfigs(projectUUID);
@@ -159,6 +248,29 @@ export default function AISystemSettings() {
             } catch { /* keep current secrets on failure */ }
         }
         setOpen(true);
+    };
+
+    const handleDatashapeImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            try {
+                const text = String(reader.result ?? "");
+                const parsed = JSON.parse(text);
+                const features = Array.isArray((parsed as { features?: unknown })?.features) ? (parsed as { features: unknown[] }).features : Array.isArray(parsed) ? parsed : null;
+                if (!features) throw new Error("Missing features array");
+                setAddJsonValue({ features: features as FeatureDraft[] });
+                setAddDeriveError(null);
+                setAddImported(true);
+                toast.success("Datashape imported", { position: 'bottom-right' });
+            } catch {
+                toast.error("Invalid datashape JSON", { position: 'bottom-right' });
+            } finally {
+                e.target.value = "";
+            }
+        };
+        reader.readAsText(file);
     };
 
     const addComponent = async () => {
@@ -176,7 +288,10 @@ export default function AISystemSettings() {
             if (type === "resource") {
                 payload.json_value = { value: addResourceValue.trim() };
             }
-            if (type === "datashape") { payload.source_dataset_pid = sourceDatasetPid; }
+            if (type === "datashape") {
+                payload.source_dataset_pid = sourceDatasetPid;
+                payload.json_value = { features: addJsonValue.features ?? [] };
+            }
             const res = await fetch(`${API_URL}/projects/${projectUUID}/components`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -184,13 +299,28 @@ export default function AISystemSettings() {
             });
             if (!res.ok) return;
             const created = await res.json();
+            // Close the dialog immediately so the UI is not blocked while the
+            // file uploads in the background.
+            setOpen(false);
+            refresh();
             if ((type === "model" || type === "dataset") && file) {
                 const formData = new FormData();
                 formData.append("file", file);
-                await fetch(`${API_URL}/components/${created.pid}/data`, { method: "PUT", body: formData });
+                addFileUploadingPid(created.pid);
+                setUploadProgress(prev => ({ ...prev, [created.pid]: 0 }));
+                uploadWithProgress(
+                    `${API_URL}/components/${created.pid}/data`,
+                    formData,
+                    (percent) => setUploadProgress(prev => ({ ...prev, [created.pid]: percent })),
+                ).then(() => {
+                    removeFileUploadingPid(created.pid);
+                    refresh();
+                    toast.success(`Component \`${created.name}\` uploaded`, { position: 'bottom-right' });
+                }).catch(() => {
+                    removeFileUploadingPid(created.pid);
+                    toast.error(`Failed to upload \`${created.name}\``, { position: 'bottom-right' });
+                });
             }
-            setOpen(false);
-            refresh();
         } finally {
             setSaving(false);
         }
@@ -236,13 +366,29 @@ export default function AISystemSettings() {
                 body: JSON.stringify(payload),
             });
             if (!res.ok) return;
+            // Close the edit dialog immediately and stream any replacement
+            // file in the background so the UI is not blocked.
+            setEditTarget(null);
             if ((editTarget.component_type === "model" || editTarget.component_type === "dataset") && editFile) {
                 const formData = new FormData();
                 formData.append("file", editFile);
-                await fetch(`${API_URL}/components/${editTarget.pid}/data`, { method: "PUT", body: formData });
+                addFileUploadingPid(editTarget.pid);
+                setUploadProgress(prev => ({ ...prev, [editTarget.pid]: 0 }));
+                uploadWithProgress(
+                    `${API_URL}/components/${editTarget.pid}/data`,
+                    formData,
+                    (percent) => setUploadProgress(prev => ({ ...prev, [editTarget.pid]: percent })),
+                ).then(() => {
+                    removeFileUploadingPid(editTarget.pid);
+                    refresh();
+                    toast.success(`Component \`${editTarget.name}\` updated`, { position: 'bottom-right' });
+                }).catch(() => {
+                    removeFileUploadingPid(editTarget.pid);
+                    toast.error(`Failed to upload \`${editTarget.name}\``, { position: 'bottom-right' });
+                });
+            } else {
+                refresh();
             }
-            setEditTarget(null);
-            refresh();
         } finally {
             setEditSaving(false);
         }
@@ -250,15 +396,19 @@ export default function AISystemSettings() {
 
     if (loading) return <CircularProgress />;
 
-    const summary = (c: AIComponent) => {
+    const componentMetadata = (c: AIComponent) => {
         const json = (c.json_value ?? {}) as Record<string, unknown>;
         switch (c.component_type) {
             case "model": case "dataset":
-                return c.data ? "file uploaded" : "no file";
-            case "llm":
-                return `${json.endpoint_url || "no endpoint"} · key: ${json.secret_key ? (json.secret_key as string) : "none"}`;
+                return c.data
+                    ? `file: ${c.data}`
+                    : "no file";
+            case "llm": {
+                const secretName = secrets.find(s => s.key === json.secret_key)?.name ?? (json.secret_key ? String(json.secret_key) : null);
+                return `${json.endpoint_url || "no endpoint"}${secretName ? ` · key: ${secretName}` : " · no key"}`;
+            }
             case "resource":
-                return json.value ? String(json.value) : "no value";
+                return json.value ? `value: ${String(json.value)}` : "no value";
             case "datashape": {
                 const features = (json.features as unknown[]) ?? [];
                 return c.source_dataset_pid ? `${features.length} features from dataset` : "no source dataset";
@@ -268,11 +418,48 @@ export default function AISystemSettings() {
         }
     };
 
+    const componentTypeColor: Record<AIComponentType, { bg: string; fg: string }> = {
+        dataset: { bg: "#bbdefb", fg: "#0d47a1" },
+        model: { bg: "#f3e5f5", fg: "#7b1fa2" },
+        llm: { bg: "#c8e6c9", fg: "#1b5e20" },
+        datashape: { bg: "#ffe0b2", fg: "#e65100" },
+        resource: { bg: "#b2dfdb", fg: "#004d40" },
+    };
+
+    const handleCardDownload = async (c: AIComponent) => {
+        if (c.component_type === "datashape") {
+            const blob = new Blob([JSON.stringify(c.json_value ?? {}, null, 2)], { type: "application/json" });
+            const url = window.URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = `${c.name}.json`;
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            window.URL.revokeObjectURL(url);
+            return;
+        }
+        try {
+            const response = await fetch(`${API_URL}/components/${c.pid}/data`);
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = c.name;
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            window.URL.revokeObjectURL(url);
+        } catch {
+            toast.error('Download failed', { position: 'bottom-right' });
+        }
+    };
+
     const canAdd = name.trim().length > 0
         && !((type === "model" || type === "dataset") && !file)
         && !(type === "llm" && (!addLlmUrl.trim() || !addSecretKey))
         && !(type === "resource" && !addResourceValue.trim())
-        && !(type === "datashape" && !sourceDatasetPid);
+        && !(type === "datashape" && (!sourceDatasetPid || (!addImported && (addDeriving || addDeriveError !== null))));
 
     return (
         <Box>
@@ -302,34 +489,97 @@ export default function AISystemSettings() {
             {components.length === 0 ? (
                 <Typography color="text.secondary">No components yet. Add one to get started.</Typography>
             ) : (
-                <List>
-                    {components.map((c) => (
-                        <ListItem key={c.pid} secondaryAction={
-                            <Stack direction="row" spacing={0.5}>
-                                <IconButton edge="end" size="small" onClick={() => startEdit(c)}><EditIcon fontSize="small" /></IconButton>
-                                <IconButton edge="end" size="small" onClick={() => remove(c.pid)}><DeleteIcon fontSize="small" /></IconButton>
-                            </Stack>
-                        }>
-                            <ListItemText
-                                primary={<Stack direction="row" spacing={1} alignItems="center"><Typography variant="body1">{c.name}</Typography><Chip size="small" label={c.component_type} /></Stack>}
-                                secondary={summary(c)}
-                            />
-                        </ListItem>
-                    ))}
-                </List>
+                <Grid container spacing={2}>
+                    {components.map((c) => {
+                        const uploaded = Boolean(c.data);
+                        const uploading = fileUploadingPids.has(c.pid);
+                        const isFileComponent = c.component_type === "model" || c.component_type === "dataset";
+                        const progress = uploadProgress[c.pid];
+                        return (
+                            <Grid key={c.pid} size={{ xs: 12, md: 6, lg: 4 }}>
+                                <Card variant="outlined" className="gradient-card" sx={{ height: "100%" }}>
+                                    <CardContent sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+                                        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ gap: 1 }}>
+                                            <Tooltip title={c.pid} placement="top">
+                                                <Typography variant="subtitle1" fontWeight={600} noWrap>
+                                                    {c.name}
+                                                </Typography>
+                                            </Tooltip>
+                                            <Stack direction="row" sx={{ alignItems: "center", gap: 0.5 }}>
+                                                {(uploaded || c.component_type === "datashape") && (
+                                                    <Tooltip title="Download file" placement="top">
+                                                        <IconButton size="small" color="primary" onClick={() => handleCardDownload(c)}>
+                                                            <DownloadIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                )}
+                                                <IconButton size="small" onClick={() => startEdit(c)}><EditIcon fontSize="small" /></IconButton>
+                                                <IconButton size="small" color="error" onClick={() => remove(c.pid)}><DeleteIcon fontSize="small" /></IconButton>
+                                            </Stack>
+                                        </Stack>
+
+                                        <Typography variant="body2" color="text.secondary" sx={{ mt: "auto", pt: 2 }}>
+                                            {componentMetadata(c)}
+                                        </Typography>
+
+                                        <Stack direction="row" spacing={0.5} sx={{ mt: 1, flexWrap: "wrap", alignItems: "center" }}>
+                                            <Chip
+                                                label={c.component_type}
+                                                size="small"
+                                                variant="filled"
+                                                sx={{ height: 22, fontWeight: 600, bgcolor: componentTypeColor[c.component_type].bg, color: componentTypeColor[c.component_type].fg }}
+                                            />
+                                            {isFileComponent && (
+                                                <Chip
+                                                    label={uploading ? 'Uploading' : uploaded ? 'Uploaded' : 'Not uploaded'}
+                                                    size="small"
+                                                    color={uploading ? 'warning' : uploaded ? 'success' : 'default'}
+                                                    variant={uploaded || uploading ? 'filled' : 'outlined'}
+                                                    sx={{ height: 22, fontWeight: 600 }}
+                                                />
+                                            )}
+                                            {uploaded && c.file_size != null && (
+                                                <Chip label={formatBytes(c.file_size)} size="small" variant="filled" sx={{ height: 22, fontWeight: 500, bgcolor: "#fff9c4" }} />
+                                            )}
+                                            {c.component_type === "datashape" && c.source_dataset_pid && (
+                                                <Chip
+                                                    label={`source: ${datasetComponents.find(d => d.pid === c.source_dataset_pid)?.name ?? c.source_dataset_pid}`}
+                                                    size="small"
+                                                    variant="filled"
+                                                    sx={{ height: 22, fontWeight: 500, bgcolor: "grey.300", color: "text.secondary" }}
+                                                />
+                                            )}
+                                            {isFileComponent && uploading && (
+                                                <CircularProgress variant="determinate" value={progress ?? 0} size={20} />
+                                            )}
+                                        </Stack>
+                                    </CardContent>
+                                </Card>
+                            </Grid>
+                        );
+                    })}
+                </Grid>
             )}
 
             {/* Add dialog */}
-            <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
-                <DialogTitle>Add component</DialogTitle>
-                <DialogContent>
-                    <Stack spacing={2} sx={{ mt: 1 }}>
-                        <TextField select label="Type" value={type} onChange={(e) => setType(e.target.value as AIComponentType)}>
-                            {COMPONENT_TYPES.map(t => <MenuItem key={t.value} value={t.value}>{t.label}</MenuItem>)}
-                        </TextField>
-                        <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} required />
+            <Dialog
+                open={open}
+                onClose={() => setOpen(false)}
+                maxWidth="sm"
+                fullWidth
+                slotProps={{ paper: { className: "dialog-paper-blue" } }}
+            >
+                <DialogTitle sx={{ color: "white", fontWeight: 700 }}>Add component</DialogTitle>
+                <DialogContent className="dialog-content-white">
+                    <Stack spacing={2} sx={{ mt: 4 }}>
+                        <Stack direction="row" spacing={2}>
+                            <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} required autoFocus sx={{ flexGrow: 1, minWidth: 0 }} />
+                            <TextField select label="Type" value={type} onChange={(e) => setType(e.target.value as AIComponentType)} sx={{ minWidth: 140 }}>
+                                {COMPONENT_TYPES.map(t => <MenuItem key={t.value} value={t.value}>{t.label}</MenuItem>)}
+                            </TextField>
+                        </Stack>
                         {(type === "model" || type === "dataset") && (
-                            <Button variant="outlined" onClick={() => fileInputRef.current?.click()}>
+                            <Button variant="outlined" startIcon={<CloudUploadIcon />} onClick={() => fileInputRef.current?.click()}>
                                 {file ? file.name : "Choose file"}
                             </Button>
                         )}
@@ -346,14 +596,36 @@ export default function AISystemSettings() {
                                 placeholder="e.g. user/hf-model-name" />
                         )}
                         {type === "datashape" && (
-                            <TextField select label="Source dataset" value={sourceDatasetPid} onChange={(e) => setSourceDatasetPid(e.target.value)}>
-                                {datasetComponents.map(d => <MenuItem key={d.pid} value={d.pid}>{d.name}</MenuItem>)}
-                            </TextField>
+                            <>
+                                <Stack direction="row" spacing={1} alignItems="flex-start">
+                                    <TextField select label="Source dataset" value={sourceDatasetPid} onChange={(e) => { setAddImported(false); setSourceDatasetPid(e.target.value); }} sx={{ flexGrow: 1 }}>
+                                        {datasetComponents.map(d => <MenuItem key={d.pid} value={d.pid}>{d.name}</MenuItem>)}
+                                    </TextField>
+                                    <Button variant="outlined" startIcon={<CloudUploadIcon />} onClick={() => datashapeFileInputRef.current?.click()} sx={{ whiteSpace: "nowrap", height: 56 }}>
+                                        <Stack sx={{ alignItems: "center", lineHeight: 1.1 }}>
+                                            <span>Import JSON</span>
+                                            <Typography component="span" variant="caption" color="text.secondary">optional</Typography>
+                                        </Stack>
+                                    </Button>
+                                </Stack>
+                                <Divider />
+                                {addDeriving ? (
+                                    <Stack direction="row" spacing={1} alignItems="center">
+                                        <CircularProgress size={20} />
+                                        <Typography color="text.secondary" variant="body2">Deriving data shape...</Typography>
+                                    </Stack>
+                                ) : addDeriveError ? (
+                                    <Typography color="error" variant="body2">{addDeriveError}</Typography>
+                                ) : (
+                                    <DataShapeFeaturesEditor value={addJsonValue} onChange={setAddJsonValue} />
+                                )}
+                            </>
                         )}
                         <input ref={fileInputRef} hidden type="file" onChange={(e) => setFile(e.target.files?.[0])} />
+                        <input ref={datashapeFileInputRef} hidden type="file" accept=".json,application/json" onChange={handleDatashapeImport} />
                         <Stack direction="row" justifyContent="flex-end" spacing={1}>
                             <Button onClick={() => setOpen(false)}>Cancel</Button>
-                            <Button variant="contained" onClick={addComponent} disabled={saving || !canAdd}>
+                            <Button variant="contained" className="gradient-btn" onClick={addComponent} disabled={saving || !canAdd}>
                                 {saving ? "Adding..." : "Add"}
                             </Button>
                         </Stack>
@@ -362,14 +634,20 @@ export default function AISystemSettings() {
             </Dialog>
 
             {/* Edit dialog */}
-            <Dialog open={!!editTarget} onClose={() => setEditTarget(null)} maxWidth="md" fullWidth>
-                <DialogTitle>Edit component</DialogTitle>
-                <DialogContent>
+            <Dialog
+                open={!!editTarget}
+                onClose={() => setEditTarget(null)}
+                maxWidth="sm"
+                fullWidth
+                slotProps={{ paper: { className: "dialog-paper-blue" } }}
+            >
+                <DialogTitle sx={{ color: "white", fontWeight: 700 }}>Edit component</DialogTitle>
+                <DialogContent className="dialog-content-white">
                     {editTarget && (
-                        <Stack spacing={2} sx={{ mt: 1 }}>
+                        <Stack spacing={2} sx={{ mt: 4 }}>
                             <TextField label="Name" value={editName} onChange={(e) => setEditName(e.target.value)} required />
                             {(editTarget.component_type === "model" || editTarget.component_type === "dataset") && (
-                                <Button variant="outlined" onClick={() => editFileInputRef.current?.click()}>
+                                <Button variant="outlined" startIcon={<CloudUploadIcon />} onClick={() => editFileInputRef.current?.click()}>
                                     {editFile ? editFile.name : (editTarget.data ? "Replace file" : "Choose file")}
                                 </Button>
                             )}
@@ -397,7 +675,7 @@ export default function AISystemSettings() {
                             <input ref={editFileInputRef} hidden type="file" onChange={(e) => setEditFile(e.target.files?.[0])} />
                             <Stack direction="row" justifyContent="flex-end" spacing={1}>
                                 <Button onClick={() => setEditTarget(null)}>Cancel</Button>
-                                <Button variant="contained" onClick={saveEdit} disabled={editSaving || editName.trim().length < 1 || (editTarget.component_type === "datashape" && !editSourceDatasetPid)}>
+                                <Button variant="contained" className="gradient-btn" onClick={saveEdit} disabled={editSaving || editName.trim().length < 1 || (editTarget.component_type === "datashape" && !editSourceDatasetPid)}>
                                     {editSaving ? "Saving..." : "Save"}
                                 </Button>
                             </Stack>
