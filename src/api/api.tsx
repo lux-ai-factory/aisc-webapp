@@ -2,6 +2,7 @@ import {API_VERSION_PREFIX} from "../config.tsx";
 import {Project, PluginFeatureFlags, PluginInputDefinition, Package,
 ProjectStatsOverview,
     MetricScoreSummary,
+    AdapterCatalogItem,
     PluginUsageSummary,
     PluginRunDuration,} from "../models/models.tsx";
 import { ProjectConfig, ValidationReport } from "../models/models.tsx";
@@ -61,6 +62,12 @@ export const getEvaluationInputsTemplate = async (
 export const getProjectConfigs = async (projectPid: string): Promise<ProjectConfig[]> => {
     const res = await fetch(`${API_URL}/project/settings/${projectPid}`);
     if (!res.ok) throw new Error('Failed to fetch project settings');
+    return await res.json();
+};
+
+export const getAdapters = async (): Promise<AdapterCatalogItem[]> => {
+    const res = await fetch(`${API_URL}/plugins/adapters`);
+    if (!res.ok) throw new Error('Failed to fetch adapters');
     return await res.json();
 };
 

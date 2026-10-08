@@ -123,12 +123,26 @@ export interface PluginInputDefinition {
     required: boolean;
 }
 
+export interface InputAdapter {
+    adapter_class: string;
+    package_name?: string | null;
+    version?: string | null;
+}
+
+export interface AdapterCatalogItem {
+    package_name: string;
+    version: string;
+    adapter_class: string;
+    source: string;
+}
+
 export interface PluginInputValue {
     pid: string;
     name: string;
     input_type: string;
     datashape_pid?: string;
     value?: Record<string, unknown>;
+    adapter?: InputAdapter;
 }
 
 export interface Measurement {

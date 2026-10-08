@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { getPluginInputDefinitions, getProject, getComponentModels } from "../../api/api.tsx";
-import { Plugin, PluginConfig, PluginInputDefinition, AIComponent, PluginInputValue } from "../../models/models.tsx";
+import { getPluginInputDefinitions, getProject, getComponentModels, getAdapters } from "../../api/api.tsx";
+import { Plugin, PluginConfig, PluginInputDefinition, AIComponent, PluginInputValue, AdapterCatalogItem, InputAdapter } from "../../models/models.tsx";
 import { Box, Icon, FormControl, InputLabel, MenuItem, Select, TextField, Card, CardContent, Chip, Typography, Tooltip } from "@mui/material";
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
@@ -96,6 +96,11 @@ export default function PluginEvaluationForm({
         enabled: !!plugin.pid
     });
 
+    const { data: adapters } = useQuery({
+        queryKey: ['adapters'],
+        queryFn: getAdapters,
+    });
+
     const { data: project, isPending: isProjectPending } = useQuery({
         queryKey: ['project', projectUUID],
         queryFn: () => getProject(projectUUID!!),
@@ -174,6 +179,29 @@ export default function PluginEvaluationForm({
         const pool = componentOptions(def);
         const obj = pool?.find((o: AIComponent) => o.pid === sel.pid);
         return obj?.name ?? sel.pid.slice(0, 8);
+    };
+
+    const adapterKey = (adapter: InputAdapter | undefined | null): string =>
+        adapter ? `${adapter.package_name ?? ''}|${adapter.version ?? ''}|${adapter.adapter_class}` : '';
+
+    const adapterFromKey = (key: string): InputAdapter | null => {
+        if (!key) return null;
+        const [package_name = '', version = '', adapter_class = ''] = key.split('|');
+        if (!adapter_class) return null;
+        return { adapter_class, package_name, version };
+    };
+
+    const applyAdapter = (defName: string, key: string) => {
+        const current = selections.find(s => s.name === defName);
+        if (!current) return;
+        const adapter = adapterFromKey(key);
+        if (adapter) {
+            onSelectionChange({ ...current, adapter }, defName);
+        } else {
+            const cleared = { ...current };
+            delete cleared.adapter;
+            onSelectionChange(cleared, defName);
+        }
     };
 
     const selectMenuProps = {
@@ -269,7 +297,7 @@ export default function PluginEvaluationForm({
                             const label = findLabel(def!);
                             return (
                                 <Typography key={sel.name} variant="caption" color="text.secondary">
-                                    {sel.name}: {label}
+                                    {sel.name}: {label}{sel.adapter ? ` — adapter: ${sel.adapter.adapter_class}` : ''}
                                 </Typography>
                             );
                         })}
@@ -289,71 +317,119 @@ export default function PluginEvaluationForm({
                             const modelValue = (
                                 currentSelection?.value && typeof currentSelection.value.model === 'string'
                             ) ? currentSelection.value.model : '';
+                            const adapterValue = currentSelection?.adapter ? adapterKey(currentSelection.adapter) : '';
 
                             return (
                                 <Box key={def.name}>
-                                    <FormControl
-                                        fullWidth
-                                        size="small"
-                                        className="plugin-evaluation-form__form-control"
-                                        sx={{
-                                            '& .MuiOutlinedInput-root': {
-                                                borderRadius: 1.5,
-                                                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                                                    borderColor: 'primary.main',
+                                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                                        <FormControl
+                                            fullWidth
+                                            size="small"
+                                            className="plugin-evaluation-form__form-control"
+                                            sx={{
+                                                '& .MuiOutlinedInput-root': {
+                                                    borderRadius: 1.5,
+                                                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                                        borderColor: 'primary.main',
+                                                    },
                                                 },
-                                            },
-                                        }}
-                                    >
-                                        {Boolean(currentSelection?.pid) && (
-                                            <InputLabel
-                                                id={`label-${def.name}`}
-                                                className="plugin-evaluation-form__input-label"
-                                            >
-                                                {def.label || def.name}
-                                            </InputLabel>
-                                        )}
-                                        <Select
-                                            labelId={currentSelection?.pid ? `label-${def.name}` : undefined}
-                                            label={currentSelection?.pid ? (def.label || def.name) : undefined}
-                                            required={def.required}
-                                            MenuProps={selectMenuProps}
-                                            value={currentSelection?.pid || ""}
-                                            displayEmpty
-                                            renderValue={(value) => {
-                                                if (!value) {
-                                                    return (
-                                                        <Typography component="span" sx={{color: 'text.secondary'}}>
-                                                            {def.label || def.name}
-                                                        </Typography>
-                                                    );
-                                                }
-                                                const selectedObj = options?.find((o: AIComponent) => o.pid === value);
-                                                return selectedObj?.name || String(value);
-                                            }}
-                                            onChange={(e) => {
-                                                const val = e.target.value;
-                                                if (val === "") {
-                                                    onSelectionChange(null, def.name);
-                                                } else {
-                                                    const selectedObj = options?.find((o: AIComponent) => o.pid === val);
-                                                    if (selectedObj) {
-                                                        onSelectionChange({
-                                                            pid: selectedObj.pid,
-                                                            name: def.name,
-                                                            input_type: def.input_type,
-                                                            value: {},
-                                                        }, def.name);
-                                                    }
-                                                }
                                             }}
                                         >
-                                            {!def.required && <MenuItem value=""><em>None</em></MenuItem>}
-                                            {options?.map((item: AIComponent) => (
-                                                <MenuItem key={item.pid} value={item.pid}>{item.name}</MenuItem>
-                                            ))}
-                                        </Select>
-                                    </FormControl>
+                                            {Boolean(currentSelection?.pid) && (
+                                                <InputLabel
+                                                    id={`label-${def.name}`}
+                                                    className="plugin-evaluation-form__input-label"
+                                                >
+                                                    {def.label || def.name}
+                                                </InputLabel>
+                                            )}
+                                            <Select
+                                                labelId={currentSelection?.pid ? `label-${def.name}` : undefined}
+                                                label={currentSelection?.pid ? (def.label || def.name) : undefined}
+                                                required={def.required}
+                                                MenuProps={selectMenuProps}
+                                                value={currentSelection?.pid || ""}
+                                                displayEmpty
+                                                renderValue={(value) => {
+                                                    if (!value) {
+                                                        return (
+                                                            <Typography component="span" sx={{color: 'text.secondary'}}>
+                                                                {def.label || def.name}
+                                                            </Typography>
+                                                        );
+                                                    }
+                                                    const selectedObj = options?.find((o: AIComponent) => o.pid === value);
+                                                    return selectedObj?.name || String(value);
+                                                }}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    if (val === "") {
+                                                        onSelectionChange(null, def.name);
+                                                    } else {
+                                                        const selectedObj = options?.find((o: AIComponent) => o.pid === val);
+                                                        if (selectedObj) {
+                                                            onSelectionChange({
+                                                                pid: selectedObj.pid,
+                                                                name: def.name,
+                                                                input_type: def.input_type,
+                                                                value: {},
+                                                            }, def.name);
+                                                        }
+                                                    }
+                                                }}
+                                            >
+                                                {!def.required && <MenuItem value=""><em>None</em></MenuItem>}
+                                                {options?.map((item: AIComponent) => (
+                                                    <MenuItem key={item.pid} value={item.pid}>{item.name}</MenuItem>
+                                                ))}
+                                            </Select>
+                                        </FormControl>
+
+                                        <FormControl
+                                            fullWidth
+                                            size="small"
+                                            className="plugin-evaluation-form__form-control"
+                                            sx={{
+                                                '& .MuiOutlinedInput-root': {
+                                                    borderRadius: 1.5,
+                                                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                                        borderColor: 'primary.main',
+                                                    },
+                                                },
+                                            }}
+                                        >
+                                            <InputLabel id={`adapter-label-${def.name}`}>Adapter (optional)</InputLabel>
+                                            <Select
+                                                labelId={`adapter-label-${def.name}`}
+                                                label="Adapter (optional)"
+                                                disabled={!currentSelection?.pid}
+                                                MenuProps={selectMenuProps}
+                                                value={adapterValue}
+                                                renderValue={(value) => {
+                                                    if (!value) {
+                                                        return (
+                                                            <Typography component="span" sx={{color: 'text.secondary'}}>
+                                                                Adapter (optional)
+                                                            </Typography>
+                                                        );
+                                                    }
+                                                    const adapter = adapterFromKey(String(value));
+                                                    return adapter ? `${adapter.adapter_class} — ${adapter.package_name || 'plugin package'}` : String(value);
+                                                }}
+                                                onChange={(e) => applyAdapter(def.name, String(e.target.value))}
+                                            >
+                                                <MenuItem value=""><em>None</em></MenuItem>
+                                                {adapters?.map((adapter: AdapterCatalogItem) => (
+                                                    <MenuItem
+                                                        key={adapterKey({ adapter_class: adapter.adapter_class, package_name: adapter.package_name, version: adapter.version })}
+                                                        value={adapterKey({ adapter_class: adapter.adapter_class, package_name: adapter.package_name, version: adapter.version })}
+                                                    >
+                                                        {adapter.adapter_class} — {adapter.package_name}
+                                                    </MenuItem>
+                                                ))}
+                                            </Select>
+                                        </FormControl>
+                                    </Box>
                                     {!def.required && (
                                         <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
                                             (Optional)
