@@ -4,9 +4,6 @@ import {
     Card,
     CardContent,
     Chip,
-    Dialog,
-    DialogContent,
-    DialogTitle,
     MenuItem,
     Step,
     StepLabel,
@@ -26,6 +23,7 @@ import CloudDoneIcon from "@mui/icons-material/CloudDone";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { styled } from "@mui/material/styles";
 import { useEffect, useMemo, useState } from "react";
+import AppDialog from "./AppDialog";
 import "./addProjectWizard.css";
 import "../styles/common.css";
 
@@ -164,23 +162,41 @@ export default function AddProjectWizard({
 
 
     return (
-        <Dialog
+        <AppDialog
             open={open}
             onClose={onClose}
             maxWidth="md"
             fullWidth
-            slotProps={{
-                paper: {
-                    className: "dialog-paper-blue",
-                }
-            }}
-        >
-            <DialogTitle sx={{ color: "white" }}>
-                Create New Project
-            </DialogTitle>
+            title="Create New Project"
+            actionsSx={{ justifyContent: 'space-between' }}
+            actions={
+                <>
+                    <Button disabled={activeStep === 0} onClick={handleBack}>
+                        Back
+                    </Button>
 
-            <DialogContent className="dialog-content-white">
-                <Stepper activeStep={activeStep} sx={{ mb: 4, marginTop: 4 }}>
+                    {activeStep < steps.length - 1 ? (
+                        <Button
+                            onClick={handleNext}
+                            variant="contained"
+                            disabled={
+                                (activeStep === 0 && projectName.trim().length === 0) ||
+                                (activeStep === 1 && !componentsValid)
+                            }
+                        >
+                            Next
+                        </Button>
+
+                    ) : (
+                        <Button onClick={handleFinish} variant="contained">
+                            <Icon>check</Icon>
+                            Create
+                        </Button>
+                    )}
+                </>
+            }
+        >
+            <Stepper activeStep={activeStep} sx={{ mb: 4, marginTop: 4 }}>
                     {steps.map(label => (
                         <Step key={label}>
                             <StepLabel>{label}</StepLabel>
@@ -355,33 +371,6 @@ export default function AddProjectWizard({
                         })}
                     </Grid>
                 )}
-
-                {/* NAVIGATION */}
-                <Box className="wizard-nav">
-                    <Button disabled={activeStep === 0} onClick={handleBack}>
-                        Back
-                    </Button>
-
-                    {activeStep < steps.length - 1 ? (
-                        <Button
-                            onClick={handleNext}
-                            variant="contained"
-                            disabled={
-                                (activeStep === 0 && projectName.trim().length === 0) ||
-                                (activeStep === 1 && !componentsValid)
-                            }
-                        >
-                            Next
-                        </Button>
-
-                    ) : (
-                        <Button onClick={handleFinish} variant="contained">
-                            <Icon>check</Icon>
-                            Create
-                        </Button>
-                    )}
-                </Box>
-            </DialogContent>
-        </Dialog>
+            </AppDialog>
     );
 }

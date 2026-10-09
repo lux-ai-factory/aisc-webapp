@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-    Box, Button, Card, CardContent, Chip, CircularProgress, Dialog,
-    DialogContent, DialogTitle, Divider, IconButton, List,
+    Box, Button, Card, CardContent, Chip, CircularProgress,
+    Divider, IconButton, List,
     MenuItem, Stack, TextField, Tooltip, Typography,
 } from "@mui/material";
 import Grid from "@mui/material/Grid2";
@@ -17,6 +17,7 @@ import { deriveFeaturesFromDataset, getProjectConfigs } from "../api/api";
 import keycloak from "../auth/keycloak";
 import { API_VERSION_PREFIX } from "../config";
 import { AIComponent, AIComponentType, ProjectConfig } from "../models/models";
+import AppDialog from "./AppDialog";
 import "../styles/common.css";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
@@ -571,16 +572,22 @@ export default function AISystemSettings() {
             )}
 
             {/* Add dialog */}
-            <Dialog
+            <AppDialog
                 open={open}
                 onClose={() => setOpen(false)}
                 maxWidth="sm"
                 fullWidth
-                slotProps={{ paper: { className: "dialog-paper-blue" } }}
+                title="Add component"
+                actions={
+                    <>
+                        <Button onClick={() => setOpen(false)}>Cancel</Button>
+                        <Button variant="contained" className="gradient-btn" onClick={addComponent} disabled={saving || !canAdd}>
+                            {saving ? "Adding..." : "Add"}
+                        </Button>
+                    </>
+                }
             >
-                <DialogTitle sx={{ color: "white", fontWeight: 700 }}>Add component</DialogTitle>
-                <DialogContent className="dialog-content-white">
-                    <Stack spacing={2} sx={{ mt: 4 }}>
+                <Stack spacing={2} sx={{ mt: 4 }}>
                         <Stack direction="row" spacing={2}>
                             <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} required autoFocus sx={{ flexGrow: 1, minWidth: 0 }} />
                             <TextField select label="Type" value={type} onChange={(e) => setType(e.target.value as AIComponentType)} sx={{ minWidth: 140 }}>
@@ -632,26 +639,25 @@ export default function AISystemSettings() {
                         )}
                         <input ref={fileInputRef} hidden type="file" onChange={(e) => setFile(e.target.files?.[0])} />
                         <input ref={datashapeFileInputRef} hidden type="file" accept=".json,application/json" onChange={handleDatashapeImport} />
-                        <Stack direction="row" justifyContent="flex-end" spacing={1}>
-                            <Button onClick={() => setOpen(false)}>Cancel</Button>
-                            <Button variant="contained" className="gradient-btn" onClick={addComponent} disabled={saving || !canAdd}>
-                                {saving ? "Adding..." : "Add"}
-                            </Button>
-                        </Stack>
                     </Stack>
-                </DialogContent>
-            </Dialog>
+            </AppDialog>
 
             {/* Edit dialog */}
-            <Dialog
+            <AppDialog
                 open={!!editTarget}
                 onClose={() => setEditTarget(null)}
                 maxWidth="sm"
                 fullWidth
-                slotProps={{ paper: { className: "dialog-paper-blue" } }}
+                title="Edit component"
+                actions={
+                    <>
+                        <Button onClick={() => setEditTarget(null)}>Cancel</Button>
+                        <Button variant="contained" className="gradient-btn" onClick={saveEdit} disabled={editSaving || editName.trim().length < 1 || (editTarget?.component_type === "datashape" && !editSourceDatasetPid)}>
+                            {editSaving ? "Saving..." : "Save"}
+                        </Button>
+                    </>
+                }
             >
-                <DialogTitle sx={{ color: "white", fontWeight: 700 }}>Edit component</DialogTitle>
-                <DialogContent className="dialog-content-white">
                     {editTarget && (
                         <Stack spacing={2} sx={{ mt: 4 }}>
                             <TextField label="Name" value={editName} onChange={(e) => setEditName(e.target.value)} required />
@@ -682,16 +688,9 @@ export default function AISystemSettings() {
                                 </>
                             )}
                             <input ref={editFileInputRef} hidden type="file" onChange={(e) => setEditFile(e.target.files?.[0])} />
-                            <Stack direction="row" justifyContent="flex-end" spacing={1}>
-                                <Button onClick={() => setEditTarget(null)}>Cancel</Button>
-                                <Button variant="contained" className="gradient-btn" onClick={saveEdit} disabled={editSaving || editName.trim().length < 1 || (editTarget.component_type === "datashape" && !editSourceDatasetPid)}>
-                                    {editSaving ? "Saving..." : "Save"}
-                                </Button>
-                            </Stack>
                         </Stack>
                     )}
-                </DialogContent>
-            </Dialog>
+            </AppDialog>
         </Box>
     );
 }
