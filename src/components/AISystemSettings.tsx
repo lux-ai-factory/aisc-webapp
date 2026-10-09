@@ -34,11 +34,20 @@ function formatBytes(bytes?: number | null): string {
 }
 
 async function uploadWithProgress(url: string, formData: FormData, onProgress: (percent: number) => void): Promise<void> {
-    await keycloak.updateToken(30);
+    if (keycloak.authenticated) {
+        try {
+            await keycloak.updateToken(30);
+        } catch {
+            keycloak.authenticated = false;
+        }
+    }
+    const bearer = keycloak.authenticated && keycloak.token ? `Bearer ${keycloak.token}` : "";
     return new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open("PUT", url, true);
-        xhr.setRequestHeader("Authorization", `Bearer ${keycloak.token}`);
+        if (bearer) {
+            xhr.setRequestHeader("Authorization", bearer);
+        }
         xhr.upload.onprogress = (e) => {
             if (e.lengthComputable) {
                 onProgress(Math.round((e.loaded / e.total) * 100));
