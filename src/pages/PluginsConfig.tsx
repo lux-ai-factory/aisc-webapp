@@ -277,7 +277,7 @@ function PluginConfig() {
                         projectConfigDefinitions={configState.project_config_definitions ?? []}
                         projectSettings={configState.project_configs ?? []}
                         projectSettingSelections={configState.project_config_selections ?? []}
-                        onFormUpdate={(state) => setConfigOverride(state)}
+                        onFormUpdate={(state) => setConfigOverride(prev => ({ ...(prev ?? projectPluginConfigState), ...state }))}
                         onSubmit={onSubmit}
                     />
                 </Box>
