@@ -142,7 +142,7 @@ export interface PluginInputValue {
     input_type: string;
     datashape_pid?: string;
     value?: Record<string, unknown>;
-    adapter?: InputAdapter;
+    adapters?: InputAdapter[];
 }
 
 export interface Measurement {

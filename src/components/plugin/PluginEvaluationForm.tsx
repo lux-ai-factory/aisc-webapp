@@ -1,9 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { getPluginInputDefinitions, getProject, getComponentModels, getAdapters } from "../../api/api.tsx";
 import { Plugin, PluginConfig, PluginInputDefinition, AIComponent, PluginInputValue, AdapterCatalogItem, InputAdapter } from "../../models/models.tsx";
-import { Box, Icon, FormControl, InputLabel, MenuItem, Select, TextField, Card, CardContent, Chip, Typography, Tooltip } from "@mui/material";
+import { Box, Icon, IconButton, FormControl, InputLabel, MenuItem, Select, TextField, Card, CardContent, Chip, Typography, Tooltip } from "@mui/material";
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import CloseIcon from '@mui/icons-material/Close';
 import { useProject } from "../../context/ProjectContext.tsx";
 import { useState, useEffect, useRef } from "react";
 import './PluginEvaluationForm.css';
@@ -191,17 +194,43 @@ export default function PluginEvaluationForm({
         return { adapter_class, package_name, version };
     };
 
-    const applyAdapter = (defName: string, key: string) => {
+    const adapterChainOf = (sel: PluginInputValue | undefined): InputAdapter[] => {
+        if (!sel || !Array.isArray(sel.adapters)) return [];
+        return sel.adapters;
+    };
+
+    const applyAdapterChain = (defName: string, keys: string[]) => {
         const current = selections.find(s => s.name === defName);
         if (!current) return;
-        const adapter = adapterFromKey(key);
-        if (adapter) {
-            onSelectionChange({ ...current, adapter }, defName);
-        } else {
+        const chain = keys.map(adapterFromKey).filter((a): a is InputAdapter => a !== null);
+        if (chain.length === 0) {
             const cleared = { ...current };
-            delete cleared.adapter;
+            delete cleared.adapters;
             onSelectionChange(cleared, defName);
+        } else {
+            onSelectionChange({ ...current, adapters: chain }, defName);
         }
+    };
+
+    const chainKeysOf = (defName: string): string[] =>
+        adapterChainOf(selections.find(s => s.name === defName)).map(adapterKey);
+
+    const addAdapter = (defName: string, key: string) => {
+        if (!key || !adapterFromKey(key)) return;
+        applyAdapterChain(defName, [...chainKeysOf(defName), key]);
+    };
+
+    const moveAdapter = (defName: string, index: number, delta: -1 | 1) => {
+        const keys = chainKeysOf(defName);
+        const next = index + delta;
+        if (index < 0 || next < 0 || next >= keys.length) return;
+        const reordered = [...keys];
+        [reordered[index], reordered[next]] = [reordered[next], reordered[index]];
+        applyAdapterChain(defName, reordered);
+    };
+
+    const removeAdapterAt = (defName: string, index: number) => {
+        applyAdapterChain(defName, chainKeysOf(defName).filter((_, i) => i !== index));
     };
 
     const selectMenuProps = {
@@ -295,9 +324,10 @@ export default function PluginEvaluationForm({
                             const def = inputDefinitions?.find(d => d.name === sel.name);
                             if (!def) return null;
                             const label = findLabel(def!);
+                            const chain = adapterChainOf(sel);
                             return (
                                 <Typography key={sel.name} variant="caption" color="text.secondary">
-                                    {sel.name}: {label}{sel.adapter ? ` — adapter: ${sel.adapter.adapter_class}` : ''}
+                                    {sel.name}: {label}{chain.length > 0 ? ` — adapter${chain.length > 1 ? 's' : ''}: ${chain.map(a => a.adapter_class).join(' → ')}` : ''}
                                 </Typography>
                             );
                         })}
@@ -317,7 +347,8 @@ export default function PluginEvaluationForm({
                             const modelValue = (
                                 currentSelection?.value && typeof currentSelection.value.model === 'string'
                             ) ? currentSelection.value.model : '';
-                            const adapterValue = currentSelection?.adapter ? adapterKey(currentSelection.adapter) : '';
+                            const chain = adapterChainOf(currentSelection);
+                            const chainKeys = chain.map(adapterKey);
 
                             return (
                                 <Box key={def.name}>
@@ -398,38 +429,74 @@ export default function PluginEvaluationForm({
                                                 },
                                             }}
                                         >
-                                            <InputLabel id={`adapter-label-${def.name}`}>Adapter (optional)</InputLabel>
+                                            <InputLabel id={`adapter-label-${def.name}`}>Add adapter (optional)</InputLabel>
                                             <Select
                                                 labelId={`adapter-label-${def.name}`}
-                                                label="Adapter (optional)"
+                                                label="Add adapter (optional)"
                                                 disabled={!currentSelection?.pid}
                                                 MenuProps={selectMenuProps}
-                                                value={adapterValue}
-                                                renderValue={(value) => {
-                                                    if (!value) {
-                                                        return (
-                                                            <Typography component="span" sx={{color: 'text.secondary'}}>
-                                                                Adapter (optional)
-                                                            </Typography>
-                                                        );
-                                                    }
-                                                    const adapter = adapterFromKey(String(value));
-                                                    return adapter ? `${adapter.adapter_class} — ${adapter.package_name || 'plugin package'}` : String(value);
-                                                }}
-                                                onChange={(e) => applyAdapter(def.name, String(e.target.value))}
+                                                value=""
+                                                displayEmpty
+                                                renderValue={() => (
+                                                    <Typography component="span" sx={{color: 'text.secondary'}}>
+                                                        Add adapter (optional)
+                                                    </Typography>
+                                                )}
+                                                onChange={(e) => addAdapter(def.name, String(e.target.value))}
                                             >
-                                                <MenuItem value=""><em>None</em></MenuItem>
-                                                {adapters?.map((adapter: AdapterCatalogItem) => (
-                                                    <MenuItem
-                                                        key={adapterKey({ adapter_class: adapter.adapter_class, package_name: adapter.package_name, version: adapter.version })}
-                                                        value={adapterKey({ adapter_class: adapter.adapter_class, package_name: adapter.package_name, version: adapter.version })}
-                                                    >
-                                                        {adapter.adapter_class} — {adapter.package_name}
-                                                    </MenuItem>
-                                                ))}
+                                                {adapters?.map((adapter: AdapterCatalogItem) => {
+                                                    const key = adapterKey({ adapter_class: adapter.adapter_class, package_name: adapter.package_name, version: adapter.version });
+                                                    return (
+                                                        <MenuItem
+                                                            key={key}
+                                                            value={key}
+                                                            disabled={chainKeys.includes(key)}
+                                                        >
+                                                            {adapter.adapter_class} — {adapter.package_name}
+                                                        </MenuItem>
+                                                    );
+                                                })}
                                             </Select>
                                         </FormControl>
                                     </Box>
+                                    {chain.length > 0 && (
+                                        <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }} data-testid={`adapter-chain-${def.name}`}>
+                                            {chain.map((adapter, idx) => (
+                                                <Box key={`${adapterKey(adapter)}-${idx}`} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                    <Chip label={`${idx + 1}`} size="small" color="primary" />
+                                                    <Typography variant="body2" sx={{ flex: 1 }}>
+                                                        {adapter.adapter_class} — {adapter.package_name || 'plugin package'}
+                                                    </Typography>
+                                                    <IconButton
+                                                        size="small"
+                                                        disabled={idx === 0}
+                                                        onClick={() => moveAdapter(def.name, idx, -1)}
+                                                        aria-label={`Move ${adapter.adapter_class} up`}
+                                                    >
+                                                        <ArrowUpwardIcon fontSize="small" />
+                                                    </IconButton>
+                                                    <IconButton
+                                                        size="small"
+                                                        disabled={idx === chain.length - 1}
+                                                        onClick={() => moveAdapter(def.name, idx, 1)}
+                                                        aria-label={`Move ${adapter.adapter_class} down`}
+                                                    >
+                                                        <ArrowDownwardIcon fontSize="small" />
+                                                    </IconButton>
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => removeAdapterAt(def.name, idx)}
+                                                        aria-label={`Remove ${adapter.adapter_class}`}
+                                                    >
+                                                        <CloseIcon fontSize="small" />
+                                                    </IconButton>
+                                                </Box>
+                                            ))}
+                                            <Typography variant="caption" color="text.secondary">
+                                                Applied top to bottom — each step feeds the next.
+                                            </Typography>
+                                        </Box>
+                                    )}
                                     {!def.required && (
                                         <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
                                             (Optional)
