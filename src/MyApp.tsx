@@ -127,6 +127,16 @@ export default function PermanentDrawerLeft() {
         const values = theme.breakpoints.values;
         return createTheme({
             ...theme,
+            components: {
+                ...theme.components,
+                MuiDialog: {
+                    styleOverrides: {
+                        paper: {
+                            maxHeight: 'calc(100vh - 48px)',
+                        },
+                    },
+                },
+            },
             breakpoints: {
                 unit: theme.breakpoints.unit,
                 values: {

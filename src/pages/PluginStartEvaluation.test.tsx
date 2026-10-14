@@ -128,20 +128,14 @@ it('restores previously used values from session storage after remount', async (
     container.remove();
 });
 
-it('keeps a plugin unselected after the user deliberately unselects it', async () => {
+it('starts with empty plugin cards unless restored from this session', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     mountPage(container);
 
-    // Auto-restored from the last-used template.
-    await waitForHtml(el => (el.textContent || '').includes('Dataset A'), container);
-
-    // Unselect the (now ready/configured) plugin via the check-mark icon.
-    const unselect = container.querySelector('[data-testid="CheckCircleIcon"]') as HTMLElement;
-    expect(unselect).toBeTruthy();
-    await act(async () => { unselect.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
-
-    // The selection should be gone and must NOT be re-restored by the template.
-    await waitForHtml(el => !(el.textContent || '').includes('Dataset A'), container);
+    // The previous-run template must NOT pre-populate the cards.
+    await waitForHtml(el => !!el.querySelector('[data-plugin-card]'), container);
+    expect(container.textContent).not.toContain('Dataset A');
+    expect(container.textContent).not.toContain('Model A');
     container.remove();
 });

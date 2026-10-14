@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { getPluginInputDefinitions, getProject, getComponentModels, getEvaluationInputsTemplate } from "../../api/api.tsx";
+import { getPluginInputDefinitions, getProject, getComponentModels } from "../../api/api.tsx";
 import { Plugin, PluginConfig, PluginInputDefinition, AIComponent, PluginInputValue } from "../../models/models.tsx";
 import { Box, Icon, FormControl, InputLabel, MenuItem, Select, TextField, Card, CardContent, Chip, Typography, Tooltip } from "@mui/material";
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -108,12 +108,6 @@ export default function PluginEvaluationForm({
         enabled: !!plugin.pid && isActive,
     });
 
-    const { data: inputsTemplate } = useQuery({
-        queryKey: ['evaluationInputsTemplate', projectUUID],
-        queryFn: () => getEvaluationInputsTemplate(projectUUID!!),
-        enabled: !!projectUUID && isActive,
-    });
-
     const [modelsByComponent, setModelsByComponent] = useState<Record<string, string[]>>({});
     const [modelsError, setModelsError] = useState<Record<string, string>>({});
 
@@ -136,26 +130,6 @@ export default function PluginEvaluationForm({
         }
     }, [isActive, inputDefinitions, selections, modelsByComponent]);
 
-    useEffect(() => {
-        if (!isActive || !inputsTemplate || !inputDefinitions) return;
-        const template = inputsTemplate[plugin.name];
-        if (!template) return;
-        for (const def of inputDefinitions) {
-            const entry = template[def.name];
-            if (!entry) continue;
-            if (selections.some(s => s.name === def.name)) continue;
-            const component = (project?.components ?? []).find(
-                c => c.pid === entry.component_pid && c.component_type === def.input_type,
-            );
-            if (!component) continue;
-            onSelectionChange({
-                pid: component.pid,
-                name: def.name,
-                input_type: def.input_type,
-                value: entry.value ?? {},
-            }, def.name);
-        }
-    }, [isActive, inputsTemplate, inputDefinitions, project, plugin.name, selections, onSelectionChange]);
 
     const sortedConfigs = configs
         ? [...configs].sort(
@@ -185,10 +159,19 @@ export default function PluginEvaluationForm({
 
     if (isDefinitionsPending || isProjectPending) return <span>Loading...</span>;
 
+    // For file-based component types (model/dataset) only components with an
+    // uploaded file are runnable, so they are the only ones offered.
+    const componentOptions = (def: PluginInputDefinition) => {
+        const isFileType = def.input_type === 'model' || def.input_type === 'dataset';
+        return (project?.components ?? []).filter(c =>
+            c.component_type === def.input_type && (!isFileType || Boolean(c.data))
+        );
+    };
+
     const findLabel = (def: PluginInputDefinition): string => {
         const sel = selections.find(s => s.name === def.name);
         if (!sel) return '';
-        const pool = (project?.components ?? []).filter(c => c.component_type === def.input_type);
+        const pool = componentOptions(def);
         const obj = pool?.find((o: AIComponent) => o.pid === sel.pid);
         return obj?.name ?? sel.pid.slice(0, 8);
     };
@@ -298,7 +281,7 @@ export default function PluginEvaluationForm({
                         {/* Input definitions: one select per input, filtered by exact component type */}
                         {inputDefinitions?.map((def: PluginInputDefinition) => {
                             const isLLM = def.input_type === 'llm';
-                            const options = (project?.components ?? []).filter(c => c.component_type === def.input_type);
+                            const options = componentOptions(def);
                             const currentSelection = selections.find(s => s.name === def.name);
                             const selectedComponent = currentSelection?.pid
                                 ? options.find((o: AIComponent) => o.pid === currentSelection.pid)

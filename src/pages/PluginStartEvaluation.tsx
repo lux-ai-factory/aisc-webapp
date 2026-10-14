@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { Plugin, PluginInputValue } from "../models/models.tsx";
 import toast from "react-hot-toast";
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
-import { getProject, getEvaluationInputsTemplate } from "../api/api.tsx";
+import { getProject } from "../api/api.tsx";
 import { useNavigate } from "react-router-dom";
 import PluginEvaluationForm from "../components/plugin/PluginEvaluationForm.tsx";
 import './PluginStartEvaluation.css';
@@ -115,10 +115,11 @@ export default function PluginStartEvaluation() {
     };
 
     const handleUnselectPlugin = (pluginName: string) => {
-        setSelectionCache(prev => ({
-            ...prev,
-            [pluginName]: selectedPlugins[pluginName] ?? prev[pluginName] ?? []
-        }));
+        setSelectionCache(prev => {
+            const next = { ...prev };
+            delete next[pluginName];
+            return next;
+        });
         setSelectedPlugins(prev => {
             const next = {...prev};
             delete next[pluginName];
@@ -153,41 +154,37 @@ export default function PluginStartEvaluation() {
         saveState(selectedPlugins, selectionCache);
     }, [selectedPlugins, selectionCache]);
 
-    // Restore the last-used evaluation input values when the page is opened
-    // fresh (no in-session selections yet, e.g. after a run cleared session
-    // state). This lets the dropdowns show the previous run's values.
+    // Cards for plugins that are not backend-configured are disabled; clear any
+    // lingering selections so their fields never appear pre-filled.
     useEffect(() => {
-        if (!projectUUID || !project) return;
-        let cancelled = false;
-        getEvaluationInputsTemplate(projectUUID)
-            .then(template => {
-                if (cancelled) return;
-                setSelectedPlugins(prev => {
-                    if (Object.keys(prev).length > 0) return prev;
-                    const components = project?.components ?? [];
-                    const restored: SelectedPluginsState = {};
-                    for (const plugin of project?.plugins ?? []) {
-                        const entries = template[plugin.name];
-                        if (!entries) continue;
-                        const selections: PluginSelection[] = [];
-                        for (const [name, entry] of Object.entries(entries)) {
-                            const component = components.find(c => c.pid === entry.component_pid);
-                            if (!component) continue;
-                            selections.push({
-                                pid: component.pid,
-                                name,
-                                input_type: component.component_type,
-                                value: entry.value ?? {},
-                            });
-                        }
-                        if (selections.length) restored[plugin.name] = selections;
-                    }
-                    return restored;
-                });
-            })
-            .catch(() => { /* best-effort restore */ });
-        return () => { cancelled = true; };
-    }, [projectUUID, project]);
+        if (!project) return;
+        const disabledNames = (project.plugins ?? [])
+            .filter(p => p.enabled && p.config === null)
+            .map(p => p.name);
+        if (disabledNames.length === 0) return;
+        setSelectedPlugins(prev => {
+            const next = { ...prev };
+            let changed = false;
+            for (const name of disabledNames) {
+                if (next[name]) {
+                    delete next[name];
+                    changed = true;
+                }
+            }
+            return changed ? next : prev;
+        });
+        setValidPlugins(prev => {
+            const next = { ...prev };
+            let changed = false;
+            for (const name of disabledNames) {
+                if (next[name]) {
+                    delete next[name];
+                    changed = true;
+                }
+            }
+            return changed ? next : prev;
+        });
+    }, [project]);
 
     useEffect(() => {
         const onMouseDown = (event: MouseEvent) => {
