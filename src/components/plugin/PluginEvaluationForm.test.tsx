@@ -84,7 +84,7 @@ beforeEach(() => {
     });
 });
 
-it('prefills selection dropdowns from the last-used evaluation template on activation', async () => {
+it('leaves selection dropdowns empty on activation (no auto-prefill)', async () => {
     const container = createContainer();
     const onSelectionChange = vi.fn();
     const root = createRoot(container);
@@ -112,16 +112,11 @@ it('prefills selection dropdowns from the last-used evaluation template on activ
         await new Promise(r => setTimeout(r, 400));
     });
 
-    const datasetCall = onSelectionChange.mock.calls.find(
-        c => c[1] === 'dataset'
-    );
-    const modelCall = onSelectionChange.mock.calls.find(
-        c => c[1] === 'model'
-    );
-
-    expect(onSelectionChange).toHaveBeenCalled();
-    expect(datasetCall?.[0]).toMatchObject({ pid: 'comp-dataset', name: 'dataset' });
-    expect(modelCall?.[0]).toMatchObject({ pid: 'comp-model', name: 'model' });
+    // The template endpoint is not used for prefill anymore: dropdowns must
+    // stay empty until the user explicitly picks a value.
+    expect(onSelectionChange).not.toHaveBeenCalled();
+    expect(container.textContent).not.toContain('Dataset A');
+    expect(container.textContent).not.toContain('Model A');
 
     container.remove();
 });

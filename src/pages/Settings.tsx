@@ -233,10 +233,16 @@ function SettingDialog({
     };
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-            <DialogTitle>{setting ? 'Edit project config' : 'Add project config'}</DialogTitle>
-            <DialogContent>
-                <Stack spacing={2} sx={{ mt: 1 }}>
+        <Dialog
+            open={open}
+            onClose={onClose}
+            maxWidth="sm"
+            fullWidth
+            slotProps={{ paper: { className: "dialog-paper-blue" } }}
+        >
+            <DialogTitle sx={{ color: "white", fontWeight: 700 }}>{setting ? 'Edit project config' : 'Add project config'}</DialogTitle>
+            <DialogContent className="dialog-content-white">
+                <Stack spacing={2} sx={{ mt: 4 }}>
                     <TextField label="Config name" value={name} onChange={e => setName(e.target.value)} helperText={setting ? `Internal key: ${setting.key}` : `Internal key: ${generatedKey}`} />
                     {category === 'secrets' ? (
                         <>
@@ -263,7 +269,7 @@ function SettingDialog({
                     )}
                     <Stack direction="row" justifyContent="flex-end" spacing={1}>
                         <Button onClick={onClose}>Cancel</Button>
-                        <Button variant="contained" onClick={save} disabled={saving || !name.trim()}>{saving ? 'Saving...' : 'Save'}</Button>
+                        <Button variant="contained" className="gradient-btn" onClick={save} disabled={saving || !name.trim()}>{saving ? 'Saving...' : 'Save'}</Button>
                     </Stack>
                 </Stack>
             </DialogContent>
