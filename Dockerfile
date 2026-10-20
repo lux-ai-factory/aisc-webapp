@@ -20,6 +20,11 @@ COPY nginx-default.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY --from=build /app /app
 
+# Deployment mode (AISC_DEPLOYMENT): standalone unless the container is told
+# otherwise (the Configurator sets APP_DEPLOYMENT=configurator); env.sh writes it
+# into the bundle at start.
+ENV APP_DEPLOYMENT=standalone
+
 # Setup environment variable injection script
 COPY env.sh /docker-entrypoint.d/env.sh
 RUN chmod +x /docker-entrypoint.d/env.sh
