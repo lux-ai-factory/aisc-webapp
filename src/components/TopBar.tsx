@@ -35,6 +35,7 @@ interface Project {
 }
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
+const AUTH_ENABLED = String(import.meta.env.VITE_AUTH_ENABLED || "true").toLowerCase() !== "false";
 
 const apiCall = async (url: string, method: string = 'GET', body?: any) => {
     try {
@@ -354,7 +355,7 @@ const TopBar: React.FC = () => {
                         fetchPlugins={fetchPlugins}
                         authenticated={authenticated}
                     />
-                    {authenticated ? (
+                    {AUTH_ENABLED && (authenticated ? (
                         <Box className="auth-box">
                             <Button
                                 color="inherit"
@@ -385,7 +386,7 @@ const TopBar: React.FC = () => {
                                 onClick={login}>
                             Sign in
                         </Button>
-                    )}
+                    ))}
                 </Box>
                 {confirmOpen && (
                     <Dialog
