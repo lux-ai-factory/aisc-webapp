@@ -23,6 +23,7 @@ import { useProject } from '../context/ProjectContext';
 import {useQuery} from "@tanstack/react-query";
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {Project, Plugin} from "../models/models.tsx";
+import { showsCeleryTasks } from "../deployment";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -335,7 +336,8 @@ export default function LeftBar({ drawerWidth, expandedDrawerWidth, collapsed, m
                         items={[
                             { text: 'Start Evaluations', icon: <PlayCircleIcon />, target: `/projects/${projectName}/plugins/evaluation` },
                             { text: 'Evaluations', icon: <Icon>sports_score</Icon>, target: `/projects/${projectName}/plugins/evaluations` },
-                            ...(SHOW_CELERY_TASKS ? [{ text: 'Tasks', icon: <TaskAltIcon />, target: `/projects/${projectName}/tasks` }] : []),
+                            // Configurator: hidden, the page lists every project's tasks.
+                            ...(SHOW_CELERY_TASKS && showsCeleryTasks() ? [{ text: 'Tasks', icon: <TaskAltIcon />, target: `/projects/${projectName}/tasks` }] : []),
                         ]}
                     />
                     {!isCollapsedView && <Divider sx={{borderColor: '#e6e8ed'}} />}

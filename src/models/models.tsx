@@ -51,6 +51,8 @@ export interface Plugin {
     plugin_pid: string;
     enabled: boolean;
     status: string;
+    // a run's plugin entry: why it failed (the engine's answer, or the plugin's own error)
+    error_message?: string | null;
 }
 
 export interface TaskProgress {

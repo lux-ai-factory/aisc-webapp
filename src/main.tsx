@@ -15,12 +15,19 @@ import { ProjectProvider } from './context/ProjectContext.tsx'
 import { AuthProvider } from './context/AuthContext.tsx'
 import { PluginInstallProvider } from './pluginCatalogue/PluginInstallContext.tsx'
 import {Toaster} from "react-hot-toast";
+import { DeploymentGate } from './DeploymentGate.tsx'
+import { installProjectHeader } from './api/installProjectHeader'
+import { isConfigurator } from './deployment'
 
 const queryClient = new QueryClient()
+
+// Configurator: every engine API call names the open project (X-AISC-Project).
+try { if (isConfigurator()) installProjectHeader() } catch { /* a bad mode: DeploymentGate shows it */ }
 
 // Create and render the root application component
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
+    <DeploymentGate>
     <StyledEngineProvider injectFirst>
       <BrowserRouter>
           <QueryClientProvider client={queryClient}>
@@ -35,6 +42,7 @@ createRoot(document.getElementById('root')!).render(
           </QueryClientProvider>
       </BrowserRouter>
     </StyledEngineProvider>
+    </DeploymentGate>
 
   </StrictMode>,
 )

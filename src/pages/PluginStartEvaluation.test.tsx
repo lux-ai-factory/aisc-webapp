@@ -105,7 +105,7 @@ function mountPage(container: HTMLDivElement): Root {
 }
 
 it('restores previously used values from session storage after remount', async () => {
-    sessionStorage.setItem('start-eval-state', JSON.stringify({
+    sessionStorage.setItem('start-eval-state:proj-1', JSON.stringify({
         selectedPlugins: {
             DemoPlugin: [
                 { pid: 'comp-model', name: 'model', input_type: 'model', value: {} },
@@ -143,5 +143,26 @@ it('keeps a plugin unselected after the user deliberately unselects it', async (
 
     // The selection should be gone and must NOT be re-restored by the template.
     await waitForHtml(el => !(el.textContent || '').includes('Dataset A'), container);
+    container.remove();
+});
+
+it("never restores another project's selections in this tab", async () => {
+    // the saved selections have one key per project: with one key for every project, after switching
+    // projects in a tab the page would restore project A's selections (A's component pids) on project B's
+    // evaluation page, keep them over B's last-used values, and Launch would send them
+    const foreign = JSON.stringify({
+        selectedPlugins: { DemoPlugin: [{ pid: 'comp-of-another-project', name: 'model', input_type: 'model', value: {} }] },
+        selectionCache: {},
+    });
+    sessionStorage.setItem('start-eval-state', foreign);
+    sessionStorage.setItem('start-eval-state:proj-other', foreign);
+
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    mountPage(container);
+
+    // this project's own last-used values come back (the template), not the other project's
+    await waitForHtml(el => (el.textContent || '').includes('Dataset A'), container);
+    expect(sessionStorage.getItem('start-eval-state:proj-1') ?? '').not.toContain('comp-of-another-project');
     container.remove();
 });

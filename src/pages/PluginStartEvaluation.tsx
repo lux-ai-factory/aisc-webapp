@@ -3,7 +3,7 @@ import { API_VERSION_PREFIX } from "../config.tsx";
 import { useProject } from "../context/ProjectContext.tsx";
 import {Button, Typography, Box, Tooltip, Alert, Stack} from "@mui/material";
 import Grid from "@mui/material/Grid2";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plugin, PluginInputValue } from "../models/models.tsx";
 import toast from "react-hot-toast";
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
@@ -46,34 +46,43 @@ const createEvaluation = async (project_uuid: string, selectedPlugins: SelectedP
             const errorData = await response.json();
             throw new Error(JSON.stringify(errorData.detail));
         }
-        toast.error('Failed to create evaluation', { position: "bottom-right" });
-        throw new Error('Failed to create evaluation');
+        toast.error('Failed to launch evaluation', { position: "bottom-right" });
+        throw new Error('Failed to launch evaluation');
     }
     toast.success('Evaluation created', { position: "bottom-right" });
-    sessionStorage.removeItem(STORAGE_KEY);
+    sessionStorage.removeItem(storageKey(project_uuid));
     return await response.json();
 };
 
 const STORAGE_KEY = 'start-eval-state';
 
-function loadState(): { selectedPlugins: SelectedPluginsState; selectionCache: SelectedPluginsState } {
+// One key per project: with one key for every project, switching projects in a tab would restore
+// project A's selections, A's component pids, on project B's page, and Launch would send them.
+function storageKey(projectUUID: string | null): string {
+    return `${STORAGE_KEY}:${projectUUID ?? ''}`;
+}
+
+function loadState(projectUUID: string | null): { selectedPlugins: SelectedPluginsState; selectionCache: SelectedPluginsState } {
     try {
-        const saved = sessionStorage.getItem(STORAGE_KEY);
+        const saved = projectUUID ? sessionStorage.getItem(storageKey(projectUUID)) : null;
         if (saved) return JSON.parse(saved);
     } catch {}
     return { selectedPlugins: {}, selectionCache: {} };
 }
 
-function saveState(selectedPlugins: SelectedPluginsState, selectionCache: SelectedPluginsState) {
+function saveState(projectUUID: string | null, selectedPlugins: SelectedPluginsState, selectionCache: SelectedPluginsState) {
+    if (!projectUUID) return;
     try {
-        sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ selectedPlugins, selectionCache }));
+        sessionStorage.setItem(storageKey(projectUUID), JSON.stringify({ selectedPlugins, selectionCache }));
     } catch {}
 }
 
 export default function PluginStartEvaluation() {
     const { projectUUID } = useProject();
-    const [selectedPlugins, setSelectedPlugins] = useState<SelectedPluginsState>(loadState().selectedPlugins);
-    const [selectionCache, setSelectionCache] = useState<SelectedPluginsState>(loadState().selectionCache);
+    const [selectedPlugins, setSelectedPlugins] = useState<SelectedPluginsState>(() => loadState(projectUUID).selectedPlugins);
+    const [selectionCache, setSelectionCache] = useState<SelectedPluginsState>(() => loadState(projectUUID).selectionCache);
+    // the project the selections in state belong to: saved only under it, reloaded when the project changes
+    const selectionsOf = useRef(projectUUID);
     const [activePlugin, setActivePlugin] = useState<string | null>(null);
     const [validPlugins, setValidPlugins] = useState<Record<string, boolean>>({});
     const [dispatchError, setDispatchError] = useState<{ message: string; missing: Array<Record<string, string>>; invalid: Array<Record<string, string>>; ambiguous: Array<Record<string, string>> } | null>(null);
@@ -145,13 +154,23 @@ export default function PluginStartEvaluation() {
                     return;
                 }
             } catch { /* display the generic error below */ }
-            toast.error(error instanceof Error ? error.message : 'Failed to create evaluation', { position: 'bottom-right' });
+            toast.error(error instanceof Error ? error.message : 'Failed to launch evaluation', { position: 'bottom-right' });
         }
     };
 
     useEffect(() => {
-        saveState(selectedPlugins, selectionCache);
-    }, [selectedPlugins, selectionCache]);
+        // before the reload below: on a change of project the state still holds the previous one's
+        if (selectionsOf.current !== projectUUID) return;
+        saveState(projectUUID, selectedPlugins, selectionCache);
+    }, [projectUUID, selectedPlugins, selectionCache]);
+
+    useEffect(() => {
+        if (selectionsOf.current === projectUUID) return;
+        selectionsOf.current = projectUUID;
+        const saved = loadState(projectUUID);
+        setSelectedPlugins(saved.selectedPlugins);
+        setSelectionCache(saved.selectionCache);
+    }, [projectUUID]);
 
     // Restore the last-used evaluation input values when the page is opened
     // fresh (no in-session selections yet, e.g. after a run cleared session
@@ -220,7 +239,7 @@ export default function PluginStartEvaluation() {
                     Start an Evaluation
                 </Typography>
 
-                <Tooltip title="Create Evaluation">
+                <Tooltip title="Launch Evaluation">
                     <Button
                         variant="contained"
                         className="gradient-btn"
@@ -233,7 +252,7 @@ export default function PluginStartEvaluation() {
                     >
                         <PlayCircleIcon />
                         <Box component="span" sx={{display: {xs: 'none', md: 'inline'}}}>
-                            Create Evaluation
+                            Launch Evaluation
                         </Box>
                     </Button>
                 </Tooltip>

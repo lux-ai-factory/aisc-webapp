@@ -27,6 +27,12 @@ import "./addProjectButton.css";
 import AddProjectWizard from "./addProjectWizard.tsx";
 import { openPublicCatalogue, isProtocolHandlerSupported } from "../pluginCatalogue/installUri.ts";
 import { usePluginInstall } from "../pluginCatalogue/PluginInstallContext.tsx";
+import { canCreateProjects, isConfigurator, showsLauncher } from "../deployment";
+import {
+    currentPlatformProject,
+    projectsUrl,
+    sandboxPageUrl,
+} from "../platform/currentProject.ts";
 
 
 interface Project {
@@ -35,6 +41,11 @@ interface Project {
 }
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
+
+// The launcher (configurator only): where the project was chosen and where the
+// other steps are. Substituted into the bundle at container start, like every
+// other URL this app is told about.
+const launcherUrl = (): string => (import.meta.env.VITE_LAUNCHER_URL as string) || 'http://localhost:8100/';
 
 const apiCall = async (url: string, method: string = 'GET', body?: any) => {
     try {
@@ -140,7 +151,8 @@ const TopBar: React.FC = () => {
     const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
     const [confirmOpen, setConfirmOpen] = useState(false);
 
-    // Keycloak auth: who is logged in + login/logout actions
+    // Who is signed in + sign in/out: the upstream Keycloak login standalone, the
+    // gateway's session in the configurator (AuthContext decides).
     const {authenticated, username, login, logout} = useAuth();
     const {registerProtocol} = usePluginInstall();
     const [registering, setRegistering] = useState(false);
@@ -151,7 +163,9 @@ const TopBar: React.FC = () => {
     const isRootPage = location.pathname === '/';
 
     const fetchProjects = async () => {
-        const data = await apiCall('/projects');
+        // Configurator: only this project's workspaces, the launcher already
+        // decided which project is being worked on.
+        const data = await apiCall(isConfigurator() ? projectsUrl('', currentPlatformProject()) : '/projects');
         if (data) setProjects(data);
     };
 
@@ -317,6 +331,19 @@ const TopBar: React.FC = () => {
 
                 <div style={{flexGrow: 1}}/>
                 <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
+                    {showsLauncher() && (
+                        <Button
+                            color="inherit"
+                            variant="outlined"
+                            size="small"
+                            href={sandboxPageUrl(launcherUrl())}
+                            aria-label="Back to the AI Assessment Sandbox"
+                            sx={{textTransform: 'none'}}
+                        >
+                            <Icon sx={{fontSize: 18, mr: 0.5}}>arrow_back</Icon>
+                            Back
+                        </Button>
+                    )}
                     <Button
                         color="inherit"
                         variant="outlined"
@@ -344,16 +371,19 @@ const TopBar: React.FC = () => {
                             </span>
                         </Tooltip>
                     )}
-                    <ProjectSelector
-                        onAddProject={addProject}
-                        datasets={datasets}
-                        models={models}
-                        plugins={plugins}
-                        fetchDatasets={fetchDatasets}
-                        fetchModels={fetchModels}
-                        fetchPlugins={fetchPlugins}
-                        authenticated={authenticated}
-                    />
+                    {/* Configurator: projects are created on the launcher, never here. */}
+                    {canCreateProjects() && (
+                        <ProjectSelector
+                            onAddProject={addProject}
+                            datasets={datasets}
+                            models={models}
+                            plugins={plugins}
+                            fetchDatasets={fetchDatasets}
+                            fetchModels={fetchModels}
+                            fetchPlugins={fetchPlugins}
+                            authenticated={authenticated}
+                        />
+                    )}
                     {authenticated ? (
                         <Box className="auth-box">
                             <Button

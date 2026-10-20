@@ -181,3 +181,33 @@ export async function unregisterProtocolHandler(): Promise<void> {
     // Nothing registered; ignore.
   }
 }
+
+/**
+ * The catalogue entry (`slug`) an install came from, when its link names one.
+ *
+ * The query string is walked in order: a `slug` belongs to the `package` before
+ * it, so in a batch each package gets its own slug, or none.
+ */
+export function catalogueSlugOf(install: CatalogInstallPayload): string | undefined {
+  let query: string;
+  try {
+    query = new URL(install.uri).search;
+  } catch {
+    const at = install.uri.indexOf('?');
+    query = at < 0 ? '' : install.uri.slice(at);
+  }
+  let current: { package: string; version?: string; slug?: string } | null = null;
+  const entries: { package: string; version?: string; slug?: string }[] = [];
+  for (const [key, value] of new URLSearchParams(query)) {
+    if (key === 'package') {
+      current = { package: value };
+      entries.push(current);
+    } else if (current && key === 'version' && current.version === undefined) {
+      current.version = value;
+    } else if (current && key === 'slug' && current.slug === undefined) {
+      current.slug = value;
+    }
+  }
+  const match = entries.find((e) => e.package === install.package && e.version === install.version);
+  return match?.slug || undefined;
+}

@@ -3,6 +3,7 @@ import {API_VERSION_PREFIX} from "../config.tsx";
 import {useProject} from '../context/ProjectContext';
 import {
     Box,
+    Button,
     Card,
     CardContent,
     Chip,
@@ -20,6 +21,9 @@ import React, {useState} from "react";
 import {getPlugins, getProject} from "../api/api.tsx";
 import toast from "react-hot-toast";
 import "./Plugins.css";
+import {listsPackageIndex} from "../deployment";
+import {openPublicCatalogue} from "../pluginCatalogue/installUri";
+import { ADMIN_TO_TOGGLE, updatePluginEnabled } from "./pluginToggle";
 
 class PluginErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
     constructor(props: {children: React.ReactNode}) {
@@ -73,17 +77,6 @@ const deleteProjectPlugins = async (project_uuid: string, package_name: string, 
 };
 
 // Plugin toggle
-const updatePluginEnabled = async (plugin_pid: string, enabled: boolean) => {
-    if (!plugin_pid) throw new Error('Invalid plugin pid');
-
-    const res = await fetch(`${API_URL}/plugins/${plugin_pid}/enabled`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled }),
-    });
-
-    return await res.json();
-};
 
 const refreshPackage = async (project_uuid: string, package_name: string, version: string) => {
     const res = await fetch(`${API_URL}/plugins/refresh`, {
@@ -102,21 +95,34 @@ function Plugins() {
     const [pendingPlugins, setPendingPlugins] = useState<Record<string, boolean>>({});
     const [refreshingPackages, setRefreshingPackages] = useState<Record<string, boolean>>({});
 
+    // Configurator: the catalogue is the only place tests are found, so the page shows only
+    // what the project has installed and never lists the package index.
+    const fromIndex = listsPackageIndex();
     const {data: packages, isPending, error} = useQuery({
-        queryKey: ['packages', projectUUID],
-        queryFn: getPlugins,
+        queryKey: ['packages', projectUUID, fromIndex],
+        queryFn: fromIndex ? getPlugins : async () => [] as Package[],
     })
 
-    const {data: project} = useQuery({
+    const {data: project, error: projectError} = useQuery({
         queryKey: ['project', projectUUID],
         queryFn: () => getProject(projectUUID ?? ""),
         enabled: !!projectUUID,
     })
 
-    if (isPending) return <span>Loading...</span>
-    if (error) return <span>Oops!</span>
+    // a project that cannot be read says so, rather than waiting on it for ever
+    if (error || (!fromIndex && projectError)) return <span>Oops!</span>
+    if (isPending || (!fromIndex && !project)) return <span>Loading...</span>
 
-    const projectPackages: ProjectPackage[] = packages.map((pkg: Package) => {
+    const installedPackages = (): Package[] => {
+        const seen = new Map<string, Package>();
+        for (const pl of project?.plugins ?? []) {
+            const key = `${pl.package_name}::${pl.version}`;
+            if (!seen.has(key)) seen.set(key, {package_name: pl.package_name, version: pl.version, source: 'installed'});
+        }
+        return Array.from(seen.values());
+    };
+
+    const projectPackages: ProjectPackage[] = (fromIndex ? packages : installedPackages()).map((pkg: Package) => {
         const packagePlugins = project?.plugins?.filter((projectPkg: any) => {
             return (
                 projectPkg.package_name === pkg.package_name &&
@@ -175,9 +181,10 @@ function Plugins() {
         setPendingPlugins(prev => ({...prev, [plugin.pid]: true}));
 
         try {
-            await updatePluginEnabled(plugin.pid, !plugin.enabled);
+            await updatePluginEnabled(API_URL, plugin.pid, !plugin.enabled);
         } catch (err) {
-            const message = 'Could not update plugin state.';
+            const message = err instanceof Error && err.message === ADMIN_TO_TOGGLE
+                ? ADMIN_TO_TOGGLE : 'Could not update plugin state.';
             toast.error(message, { position: 'bottom-right' });
         } finally {
             setPendingPlugins(prev => ({...prev, [plugin.pid]: false}));
@@ -203,9 +210,26 @@ function Plugins() {
 
     return (
         <>
-            <Typography component="h2" variant="h4" gutterBottom>
-                Available Packages
-            </Typography>
+            {fromIndex ? (
+                <Typography component="h2" variant="h4" gutterBottom>
+                    Available Packages
+                </Typography>
+            ) : (
+                <Box sx={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, mb: 1, flexWrap: 'wrap'}}>
+                    <Typography component="h2" variant="h4">
+                        Installed tests
+                    </Typography>
+                    <Button variant="outlined" size="small" onClick={openPublicCatalogue} sx={{textTransform: 'none'}}>
+                        <Icon sx={{fontSize: 18, mr: 0.5}}>storefront</Icon>
+                        Add tests from the Public Catalogue
+                    </Button>
+                </Box>
+            )}
+            {!fromIndex && projectPackages.length === 0 && (
+                <Typography color="text.secondary" sx={{mb: 2}}>
+                    No tests are installed in this project yet.
+                </Typography>
+            )}
 
             <Grid
                 container
