@@ -25,9 +25,7 @@ Any other value shows an error page (`src/DeploymentGate.tsx`).
 ## In the AISC stack
 
 From the root of the [aisc](https://github.com/lux-ai-factory/aisc) repository, follow its
-README (`./scripts/secrets.sh` once, then Docker Compose with
-`docker-compose.plugin_downloader.yml`, `docker-compose-infra.development.yml` and
-`docker-compose.development.yml`). This repo is built (production `Dockerfile`) into the
+README: `uv run scripts/aisc.py start` makes the secrets, builds and starts the stack. This repo is built (production `Dockerfile`) into the
 service **`aisc-webapp`**, with `APP_DEPLOYMENT: configurator`, and served through the gateway at
 http://localhost/. The aisc repo's `docker-compose.engine-standalone.yml` runs it standalone on
 http://localhost:8080.
