@@ -78,27 +78,16 @@ function ModelSelect({ def, value, models, error, selectMenuProps, onChange }: M
     );
 }
 
-/** The host a component is reached at, when its value says so: the endpoint's host, else its URL's. */
-function hostOf(component: AIComponent | undefined): string {
-    const json = (component?.json_value ?? {}) as Record<string, unknown>;
-    if (typeof json.endpoint_host === 'string' && json.endpoint_host) return json.endpoint_host.toLowerCase();
-    if (typeof json.endpoint_url === 'string') {
-        try { return new URL(json.endpoint_url).host.toLowerCase(); } catch { /* not a URL: no host */ }
-    }
-    return '';
-}
-
 interface HelperInputProps {
     def: PluginInputDefinition;
     projectUUID: string;
     selection: PluginInputValue | undefined;
-    targetHost: string;
     selectMenuProps: object;
     onSelectionChange: (item: PluginInputValue | null, inputName: string) => void;
 }
 
 /** A helper model's input: one of the project's helper models allowed for the role, and the model it runs. */
-function HelperInput({ def, projectUUID, selection, targetHost, selectMenuProps, onSelectionChange }: HelperInputProps) {
+function HelperInput({ def, projectUUID, selection, selectMenuProps, onSelectionChange }: HelperInputProps) {
     const role = def.name.slice(HELPER_PREFIX.length);
     const { data: helpers, isPending, isError } = useQuery({
         queryKey: ['projectHelpers', projectUUID, role],
@@ -119,7 +108,6 @@ function HelperInput({ def, projectUUID, selection, targetHost, selectMenuProps,
     }
     const chosen = helpers.find(h => h.ref === selection?.helper_ref);
     const model = typeof selection?.value?.model === 'string' ? selection.value.model : '';
-    const sameEndpoint = Boolean(chosen && targetHost && chosen.endpoint_host.toLowerCase() === targetHost);
 
     return (
         <Box>
@@ -158,11 +146,6 @@ function HelperInput({ def, projectUUID, selection, targetHost, selectMenuProps,
                     helperText={`The model this helper runs at ${chosen.endpoint_host}`}
                     sx={{ mt: 1 }}
                 />
-            )}
-            {sameEndpoint && (
-                <Typography variant="caption" color="warning.main" sx={{ display: 'block', mt: 0.5 }}>
-                    This helper model is the same endpoint as the system being assessed.
-                </Typography>
             )}
         </Box>
     );
@@ -401,15 +384,12 @@ export default function PluginEvaluationForm({
                         {/* Input definitions: one select per input, filtered by exact component type */}
                         {inputDefinitions?.map((def: PluginInputDefinition) => {
                             if (def.input_type === HELPER_INPUT) {
-                                const targetSelection = selections.find(s => s.name === 'target');
-                                const targetComponent = (project?.components ?? []).find(c => c.pid === targetSelection?.pid);
                                 return (
                                     <HelperInput
                                         key={def.name}
                                         def={def}
                                         projectUUID={projectUUID!!}
                                         selection={selections.find(s => s.name === def.name)}
-                                        targetHost={hostOf(targetComponent)}
                                         selectMenuProps={selectMenuProps}
                                         onSelectionChange={onSelectionChange}
                                     />

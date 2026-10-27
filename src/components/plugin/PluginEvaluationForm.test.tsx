@@ -247,33 +247,3 @@ it('points to Manage when no helper allows the role', async () => {
     expect(link?.getAttribute('href')).toContain(`/helpers.html?project=${HELPER_PROJECT}`);
     container.remove();
 });
-
-it('warns when the helper is the assessed endpoint', async () => {
-    mockEngine({
-        helpers: [judgeA],
-        components: [{
-            pid: 'tgt-1', name: 'Assistant', component_type: 'resource',
-            json_value: { value: 'target:p/system', endpoint_host: 'API.example.com' },
-        }],
-    });
-    const picked = { name: 'helper:judge', input_type: 'helper', helper_ref: JUDGE_REF, value: { model: 'm' } };
-    const target = { pid: 'tgt-1', name: 'target', input_type: 'resource', value: {} };
-    const { container } = await renderForm([target, picked]);
-    expect(container.textContent).toContain('This helper model is the same endpoint as the system being assessed.');
-    container.remove();
-});
-
-it('shows no warning when the helper is another endpoint', async () => {
-    mockEngine({
-        helpers: [judgeA],
-        components: [{
-            pid: 'tgt-1', name: 'Assistant', component_type: 'resource',
-            json_value: { value: 'target:p/system', endpoint_host: 'other.example.org' },
-        }],
-    });
-    const picked = { name: 'helper:judge', input_type: 'helper', helper_ref: JUDGE_REF, value: { model: 'm' } };
-    const target = { pid: 'tgt-1', name: 'target', input_type: 'resource', value: {} };
-    const { container } = await renderForm([target, picked]);
-    expect(container.textContent).not.toContain('same endpoint');
-    container.remove();
-});
