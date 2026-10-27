@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useEffect } from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -132,7 +132,7 @@ it('prefills selection dropdowns from the last-used evaluation template on activ
 const HELPER_PROJECT = '11111111-2222-4333-8444-555555555555';
 const JUDGE_REF = `helper:${HELPER_PROJECT}/judge-a`;
 
-function mockEngine(opts: { helpers: object[]; components: object[] }) {
+function mockEngine(opts: { helpers: object[]; components: object[]; required?: boolean }) {
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input);
         if (url.includes('/display_icon')) return { ok: true, json: async () => 'extension' } as Response;
@@ -141,7 +141,7 @@ function mockEngine(opts: { helpers: object[]; components: object[] }) {
                 ok: true,
                 json: async () => [
                     { name: 'target', label: 'Target', input_type: 'resource', required: false },
-                    { name: 'helper:judge', label: 'Helper model · Judge (not assessed)', input_type: 'helper', required: true },
+                    { name: 'helper:judge', label: 'Helper model · Judge (not assessed)', input_type: 'helper', required: opts.required ?? true },
                 ],
             } as Response;
         }
@@ -160,7 +160,7 @@ function mockEngine(opts: { helpers: object[]; components: object[] }) {
 
 const judgeA = { ref: JUDGE_REF, label: 'judge-a', roles: ['judge'], endpoint_host: 'api.example.com' };
 
-async function renderForm(selections: object[], onSelectionChange = vi.fn()) {
+async function renderForm(selections: object[], onSelectionChange = vi.fn(), onValidationChange = vi.fn()) {
     const container = createContainer();
     const root = createRoot(container);
     await act(async () => {
@@ -175,6 +175,7 @@ async function renderForm(selections: object[], onSelectionChange = vi.fn()) {
                         selections={selections as never}
                         onToggle={() => {}}
                         onSelectionChange={onSelectionChange}
+                        onValidationChange={onValidationChange}
                     />
                 </ProjectProvider>
             </QueryClientProvider>,
@@ -186,7 +187,7 @@ async function renderForm(selections: object[], onSelectionChange = vi.fn()) {
         const text = container.textContent ?? '';
         if (text.includes('Helper model') && !text.includes('Loading')) break;
     }
-    return { container, onSelectionChange };
+    return { container, onSelectionChange, onValidationChange };
 }
 
 const openSelect = async (container: HTMLElement, index: number) => {
@@ -246,4 +247,30 @@ it('points to Manage when no helper allows the role', async () => {
     const link = container.querySelector('a[href*="/helpers.html?project="]');
     expect(link?.getAttribute('href')).toContain(`/helpers.html?project=${HELPER_PROJECT}`);
     container.remove();
+});
+
+describe('a helper input is complete only with a model', () => {
+    const emptyModel = { name: 'helper:judge', input_type: 'helper', helper_ref: JUDGE_REF, value: { model: '' } };
+    const lastValidity = (fn: ReturnType<typeof vi.fn>) => fn.mock.calls.at(-1)?.[0];
+
+    it.each([true, false])('is not filled when the helper is picked with no model (required: %s)', async (required) => {
+        mockEngine({ helpers: [judgeA], components: [], required });
+        const { container, onValidationChange } = await renderForm([emptyModel]);
+        expect(lastValidity(onValidationChange)).toBe(false);
+        container.remove();
+    });
+
+    it('is filled once the picked helper has a model', async () => {
+        mockEngine({ helpers: [judgeA], components: [], required: false });
+        const { container, onValidationChange } = await renderForm([{ ...emptyModel, value: { model: 'gpt-4o-mini' } }]);
+        expect(lastValidity(onValidationChange)).toBe(true);
+        container.remove();
+    });
+
+    it('stays fine on an optional role with nothing picked', async () => {
+        mockEngine({ helpers: [judgeA], components: [], required: false });
+        const { container, onValidationChange } = await renderForm([]);
+        expect(lastValidity(onValidationChange)).toBe(true);
+        container.remove();
+    });
 });

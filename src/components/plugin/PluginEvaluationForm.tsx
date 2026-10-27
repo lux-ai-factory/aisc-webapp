@@ -251,8 +251,11 @@ export default function PluginEvaluationForm({
     // a helper model's input is filled once it names the model the helper runs
     const isFilled = (def: PluginInputDefinition) => selections.some(s => s.name === def.name
         && (def.input_type !== HELPER_INPUT || (typeof s.value?.model === 'string' && s.value.model.trim() !== '')));
+    // a helper picked with no model is unfinished whether or not its role is required
+    const isHelperWithoutModel = (def: PluginInputDefinition) => def.input_type === HELPER_INPUT
+        && selections.some(s => s.name === def.name) && !isFilled(def);
     const allMandatoryFilled = !!inputDefinitions && inputDefinitions.every(
-        def => !def.required || isFilled(def)
+        def => (def.required ? isFilled(def) : !isHelperWithoutModel(def))
     );
     const onValidationChangeRef = useRef(onValidationChange);
     onValidationChangeRef.current = onValidationChange;
