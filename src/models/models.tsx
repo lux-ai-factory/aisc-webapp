@@ -126,7 +126,10 @@ export interface PluginInputDefinition {
 }
 
 export interface PluginInputValue {
-    pid: string;
+    /** The component filling the input; a helper model's input has none (it names `helper_ref` instead). */
+    pid?: string;
+    /** The platform's helper model (`helper:<platform pid>/<name>`) filling a helper model's input. */
+    helper_ref?: string;
     name: string;
     input_type: string;
     datashape_pid?: string;

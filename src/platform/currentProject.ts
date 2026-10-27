@@ -152,3 +152,15 @@ export function sandboxPageUrl(
   const launcher = launcherUrl.replace(/\/+$/, "");
   return project ? `${launcher}/evidence.html?project=${encodeURIComponent(project)}` : launcher;
 }
+
+/**
+ * The project's Helper models page under Manage on the launcher: where a helper model (a judge, an
+ * attacker) is added once, with its key, for every tool that needs one. Without a project, the launcher.
+ */
+export function helperModelsPageUrl(
+  launcherUrl: string,
+  project: string | null = currentPlatformProject(),
+): string {
+  const launcher = launcherUrl.replace(/\/+$/, "");
+  return project ? `${launcher}/helpers.html?project=${encodeURIComponent(project)}` : launcher;
+}

@@ -11,6 +11,7 @@ import LinkIcon from "@mui/icons-material/Link";
 import { useProject } from "../context/ProjectContext";
 import { getProjectConfigs } from "../api/api";
 import { API_VERSION_PREFIX } from "../config";
+import { isConfigurator } from "../deployment";
 import { AIComponent, AIComponentType, ProjectConfig } from "../models/models";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
@@ -22,6 +23,10 @@ const COMPONENT_TYPES: { value: AIComponentType; label: string }[] = [
     { value: "datashape", label: "DataShape (from dataset)" },
     { value: "resource", label: "Resource (generic reference)" },
 ];
+
+// A judge or other helper model is never a component of the assessed system: in the Configurator it
+// is added once under Manage > Helper models, so the system has no LLM type.
+const offeredTypes = () => COMPONENT_TYPES.filter(t => !(isConfigurator() && t.value === "llm"));
 
 const SEMANTIC_TYPES = ["numeric", "categorical", "datetime", "text", "boolean"];
 const ROLES = ["feature", "target", "date", "ignore"];
@@ -133,7 +138,7 @@ export default function AISystemSettings() {
             if (res.ok) {
                 const data = await res.json();
                 setSystemInfo({ pid: data.pid, name: data.name });
-                setComponents(data.components ?? []);
+                setComponents((data.components ?? []).filter((c: AIComponent) => !(isConfigurator() && c.component_type === "llm")));
             }
             const settings = await getProjectConfigs(projectUUID);
             setSecrets(settings.filter(s => s.category === "secrets"));
@@ -325,7 +330,7 @@ export default function AISystemSettings() {
                 <DialogContent>
                     <Stack spacing={2} sx={{ mt: 1 }}>
                         <TextField select label="Type" value={type} onChange={(e) => setType(e.target.value as AIComponentType)}>
-                            {COMPONENT_TYPES.map(t => <MenuItem key={t.value} value={t.value}>{t.label}</MenuItem>)}
+                            {offeredTypes().map(t => <MenuItem key={t.value} value={t.value}>{t.label}</MenuItem>)}
                         </TextField>
                         <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} required />
                         {(type === "model" || type === "dataset") && (

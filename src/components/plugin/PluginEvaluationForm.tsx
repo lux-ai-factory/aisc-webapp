@@ -1,14 +1,22 @@
 import { useQuery } from '@tanstack/react-query';
 import { getPluginInputDefinitions, getProject, getComponentModels, getEvaluationInputsTemplate } from "../../api/api.tsx";
+import { getProjectHelpers } from "../../api/projectHelpers.ts";
 import { Plugin, PluginConfig, PluginInputDefinition, AIComponent, PluginInputValue } from "../../models/models.tsx";
 import { Box, Icon, FormControl, InputLabel, MenuItem, Select, TextField, Card, CardContent, Chip, Typography, Tooltip } from "@mui/material";
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
 import { useProject } from "../../context/ProjectContext.tsx";
+import { currentPlatformProject, helperModelsPageUrl } from "../../platform/currentProject.ts";
 import { useState, useEffect, useRef } from "react";
 import './PluginEvaluationForm.css';
 
 const API_URL = import.meta.env.VITE_API_URL + '/api/v1';
+
+// The launcher, where Manage > Helper models is (substituted into the bundle at container start).
+const launcherUrl = (): string => (import.meta.env.VITE_LAUNCHER_URL as string) || 'http://localhost:8100/';
+
+const HELPER_INPUT = 'helper';
+const HELPER_PREFIX = 'helper:';
 
 interface PluginEvaluationFormProps {
     plugin: Plugin;
@@ -70,6 +78,96 @@ function ModelSelect({ def, value, models, error, selectMenuProps, onChange }: M
     );
 }
 
+/** The host a component is reached at, when its value says so: the endpoint's host, else its URL's. */
+function hostOf(component: AIComponent | undefined): string {
+    const json = (component?.json_value ?? {}) as Record<string, unknown>;
+    if (typeof json.endpoint_host === 'string' && json.endpoint_host) return json.endpoint_host.toLowerCase();
+    if (typeof json.endpoint_url === 'string') {
+        try { return new URL(json.endpoint_url).host.toLowerCase(); } catch { /* not a URL: no host */ }
+    }
+    return '';
+}
+
+interface HelperInputProps {
+    def: PluginInputDefinition;
+    projectUUID: string;
+    selection: PluginInputValue | undefined;
+    targetHost: string;
+    selectMenuProps: object;
+    onSelectionChange: (item: PluginInputValue | null, inputName: string) => void;
+}
+
+/** A helper model's input: one of the project's helper models allowed for the role, and the model it runs. */
+function HelperInput({ def, projectUUID, selection, targetHost, selectMenuProps, onSelectionChange }: HelperInputProps) {
+    const role = def.name.slice(HELPER_PREFIX.length);
+    const { data: helpers, isPending, isError } = useQuery({
+        queryKey: ['projectHelpers', projectUUID, role],
+        queryFn: () => getProjectHelpers(projectUUID, role),
+    });
+
+    if (isPending) return <Typography variant="caption" color="text.secondary">Loading helper models...</Typography>;
+    if (isError) {
+        return <Typography variant="caption" color="error">Helper models could not be loaded.</Typography>;
+    }
+    if (helpers.length === 0) {
+        return (
+            <Typography variant="body2" color="text.secondary">
+                {def.label || def.name}: No helper model allows this role yet. Add one under Manage &gt; Helper models.{' '}
+                <a href={helperModelsPageUrl(launcherUrl(), currentPlatformProject())}>Open Helper models</a>
+            </Typography>
+        );
+    }
+    const chosen = helpers.find(h => h.ref === selection?.helper_ref);
+    const model = typeof selection?.value?.model === 'string' ? selection.value.model : '';
+    const sameEndpoint = Boolean(chosen && targetHost && chosen.endpoint_host.toLowerCase() === targetHost);
+
+    return (
+        <Box>
+            <FormControl fullWidth size="small">
+                <InputLabel id={`label-${def.name}`}>{def.label || def.name}</InputLabel>
+                <Select
+                    labelId={`label-${def.name}`}
+                    label={def.label || def.name}
+                    required={def.required}
+                    MenuProps={selectMenuProps}
+                    value={chosen?.ref ?? ''}
+                    onChange={(e) => {
+                        const ref = e.target.value;
+                        if (ref === '') {
+                            onSelectionChange(null, def.name);
+                        } else {
+                            onSelectionChange({ name: def.name, input_type: HELPER_INPUT, helper_ref: ref, value: { model: '' } }, def.name);
+                        }
+                    }}
+                >
+                    {!def.required && <MenuItem value=""><em>None</em></MenuItem>}
+                    {helpers.map(h => <MenuItem key={h.ref} value={h.ref}>{h.label}</MenuItem>)}
+                </Select>
+            </FormControl>
+            {chosen && (
+                <TextField
+                    fullWidth
+                    size="small"
+                    label="Model"
+                    value={model}
+                    required
+                    onChange={(e) => onSelectionChange(
+                        { name: def.name, input_type: HELPER_INPUT, helper_ref: chosen.ref, value: { model: e.target.value } },
+                        def.name,
+                    )}
+                    helperText={`The model this helper runs at ${chosen.endpoint_host}`}
+                    sx={{ mt: 1 }}
+                />
+            )}
+            {sameEndpoint && (
+                <Typography variant="caption" color="warning.main" sx={{ display: 'block', mt: 0.5 }}>
+                    This helper model is the same endpoint as the system being assessed.
+                </Typography>
+            )}
+        </Box>
+    );
+}
+
 export default function PluginEvaluationForm({
     plugin,
     isConfigured,
@@ -122,16 +220,17 @@ export default function PluginEvaluationForm({
         for (const def of inputDefinitions) {
             if (def.input_type !== 'llm') continue;
             const sel = selections.find(s => s.name === def.name);
-            if (!sel?.pid) continue;
-            if (modelsByComponent[sel.pid] !== undefined) continue;
-            getComponentModels(sel.pid)
+            const pid = sel?.pid;
+            if (!pid) continue;
+            if (modelsByComponent[pid] !== undefined) continue;
+            getComponentModels(pid)
                 .then(res => {
-                    setModelsByComponent(prev => ({ ...prev, [sel.pid]: res.models }));
-                    setModelsError(prev => ({ ...prev, [sel.pid]: res.error ?? '' }));
+                    setModelsByComponent(prev => ({ ...prev, [pid]: res.models }));
+                    setModelsError(prev => ({ ...prev, [pid]: res.error ?? '' }));
                 })
                 .catch(() => {
-                    setModelsByComponent(prev => ({ ...prev, [sel.pid]: [] }));
-                    setModelsError(prev => ({ ...prev, [sel.pid]: 'Failed to list models' }));
+                    setModelsByComponent(prev => ({ ...prev, [pid]: [] }));
+                    setModelsError(prev => ({ ...prev, [pid]: 'Failed to list models' }));
                 });
         }
     }, [isActive, inputDefinitions, selections, modelsByComponent]);
@@ -166,8 +265,11 @@ export default function PluginEvaluationForm({
     const latestConfig = sortedConfigs.length > 0 ? sortedConfigs[sortedConfigs.length - 1] : null;
     const configValue = selectedConfig ?? latestConfig?.id ?? '';
 
+    // a helper model's input is filled once it names the model the helper runs
+    const isFilled = (def: PluginInputDefinition) => selections.some(s => s.name === def.name
+        && (def.input_type !== HELPER_INPUT || (typeof s.value?.model === 'string' && s.value.model.trim() !== '')));
     const allMandatoryFilled = !!inputDefinitions && inputDefinitions.every(
-        def => !def.required || selections.some(s => s.name === def.name)
+        def => !def.required || isFilled(def)
     );
     const onValidationChangeRef = useRef(onValidationChange);
     onValidationChangeRef.current = onValidationChange;
@@ -177,7 +279,7 @@ export default function PluginEvaluationForm({
     }, [allMandatoryFilled]);
 
     const someMandatoryFilled = !!inputDefinitions && inputDefinitions.some(
-        def => def.required && selections.some(s => s.name === def.name)
+        def => def.required && isFilled(def)
     );
 
     const isReady = isConfigured && allMandatoryFilled;
@@ -188,9 +290,10 @@ export default function PluginEvaluationForm({
     const findLabel = (def: PluginInputDefinition): string => {
         const sel = selections.find(s => s.name === def.name);
         if (!sel) return '';
+        if (sel.helper_ref) return `${sel.helper_ref.split('/').pop()} (${String(sel.value?.model ?? '')})`;
         const pool = (project?.components ?? []).filter(c => c.component_type === def.input_type);
         const obj = pool?.find((o: AIComponent) => o.pid === sel.pid);
-        return obj?.name ?? sel.pid.slice(0, 8);
+        return obj?.name ?? (sel.pid ?? '').slice(0, 8);
     };
 
     const selectMenuProps = {
@@ -297,6 +400,21 @@ export default function PluginEvaluationForm({
                     <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }} onClick={e => e.stopPropagation()}>
                         {/* Input definitions: one select per input, filtered by exact component type */}
                         {inputDefinitions?.map((def: PluginInputDefinition) => {
+                            if (def.input_type === HELPER_INPUT) {
+                                const targetSelection = selections.find(s => s.name === 'target');
+                                const targetComponent = (project?.components ?? []).find(c => c.pid === targetSelection?.pid);
+                                return (
+                                    <HelperInput
+                                        key={def.name}
+                                        def={def}
+                                        projectUUID={projectUUID!!}
+                                        selection={selections.find(s => s.name === def.name)}
+                                        targetHost={hostOf(targetComponent)}
+                                        selectMenuProps={selectMenuProps}
+                                        onSelectionChange={onSelectionChange}
+                                    />
+                                );
+                            }
                             const isLLM = def.input_type === 'llm';
                             const options = (project?.components ?? []).filter(c => c.component_type === def.input_type);
                             const currentSelection = selections.find(s => s.name === def.name);
