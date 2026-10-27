@@ -251,7 +251,7 @@ it('points to Manage when no helper allows the role', async () => {
 
 describe('a helper input is complete only with a model', () => {
     const emptyModel = { name: 'helper:judge', input_type: 'helper', helper_ref: JUDGE_REF, value: { model: '' } };
-    const lastValidity = (fn: ReturnType<typeof vi.fn>) => fn.mock.calls.at(-1)?.[0];
+    const lastValidity = (fn: ReturnType<typeof vi.fn>) => fn.mock.lastCall?.[0];
 
     it.each([true, false])('is not filled when the helper is picked with no model (required: %s)', async (required) => {
         mockEngine({ helpers: [judgeA], components: [], required });
