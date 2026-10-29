@@ -99,9 +99,9 @@ Two Dockerfiles are provided:
 - **Dockerfile**: multi-stage build for production: builds with Node.js, serves with Nginx
 - **Dockerfile.dev**: development-specific Docker build
 
-## Changes on feat/unified-modules
+## Changes on pilot
 
-`feat/unified-modules` is the branch the Configurator uses. Compared with `origin/master` it adds
+`pilot` is the branch the Configurator uses. Compared with `origin/master` it adds
 the configurator mode and keeps standalone as on master (the list of files and reasons is
 `scripts/guard-frozen-intended.txt` in the aisc repo):
 
