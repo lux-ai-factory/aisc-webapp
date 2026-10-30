@@ -18,17 +18,24 @@ const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
 type PluginSelection = PluginInputValue;
 
+// keyed by pluginKey: two packages may ship a plugin of the same name (a copy of a test)
 type SelectedPluginsState = {
-    [pluginName: string]: PluginSelection[];
+    [pluginKey: string]: PluginSelection[];
 }
 
-const createEvaluation = async (project_uuid: string, selectedPlugins: SelectedPluginsState) => {
+// a plugin's own key, "<package>/<name>": its name alone is shared by a copy of the same test
+export function pluginKey(plugin: Pick<Plugin, 'package_name' | 'name'>): string {
+    return `${plugin.package_name}/${plugin.name}`;
+}
+
+const createEvaluation = async (project_uuid: string, selectedPlugins: SelectedPluginsState, plugins: Plugin[]) => {
     if (!project_uuid) throw new Error('Invalid uuid');
 
-    const plugins_to_run = Object.entries(selectedPlugins).map(([name, inputs]) => ({
-        name,
-        inputs,
-    }));
+    // each plugin is named with its package, so the engine runs the one picked, not another of that name
+    const plugins_to_run = Object.entries(selectedPlugins).flatMap(([key, inputs]) => {
+        const plugin = plugins.find(p => pluginKey(p) === key);
+        return plugin ? [{ name: plugin.name, package_name: plugin.package_name, inputs }] : [];
+    });
 
     const data = {
         project_pid: project_uuid,
@@ -54,7 +61,8 @@ const createEvaluation = async (project_uuid: string, selectedPlugins: SelectedP
     return await response.json();
 };
 
-const STORAGE_KEY = 'start-eval-state';
+// selections keyed by package and name; those saved under 'start-eval-state', by name alone, are left behind
+const STORAGE_KEY = 'start-eval-selections';
 
 // One key per project: with one key for every project, switching projects in a tab would restore
 // project A's selections, A's component pids, on project B's page, and Launch would send them.
@@ -145,7 +153,7 @@ export default function PluginStartEvaluation() {
         if (validEntries.length === 0) return;
         setDispatchError(null);
         try {
-            await createEvaluation(projectUUID, Object.fromEntries(validEntries));
+            await createEvaluation(projectUUID, Object.fromEntries(validEntries), project?.plugins ?? []);
         } catch (error) {
             try {
                 const detail = JSON.parse(error instanceof Error ? error.message : '');
@@ -185,7 +193,11 @@ export default function PluginStartEvaluation() {
                     if (Object.keys(prev).length > 0) return prev;
                     const components = project?.components ?? [];
                     const restored: SelectedPluginsState = {};
-                    for (const plugin of project?.plugins ?? []) {
+                    const plugins = project?.plugins ?? [];
+                    for (const plugin of plugins) {
+                        // the last-used values are kept by plugin name: a name two plugins share says
+                        // nothing about which of them was used, so neither is restored
+                        if (plugins.filter(p => p.name === plugin.name).length > 1) continue;
                         const entries = template[plugin.name];
                         if (!entries) continue;
                         const selections: PluginSelection[] = [];
@@ -199,7 +211,7 @@ export default function PluginStartEvaluation() {
                                 value: entry.value ?? {},
                             });
                         }
-                        if (selections.length) restored[plugin.name] = selections;
+                        if (selections.length) restored[pluginKey(plugin)] = selections;
                     }
                     return restored;
                 });
@@ -284,15 +296,15 @@ export default function PluginStartEvaluation() {
                         <PluginEvaluationForm
                             className="start-eval-card"
                             plugin={projectPlugin}
-                                isConfigured={!!selectedPlugins[projectPlugin.name]}
-                                isActive={activePlugin === projectPlugin.name}
-                                selections={selectedPlugins[projectPlugin.name] || []}
-                                onToggle={() => handleTogglePlugin(projectPlugin.name)}
-                                onUnselect={() => handleUnselectPlugin(projectPlugin.name)}
+                                isConfigured={!!selectedPlugins[pluginKey(projectPlugin)]}
+                                isActive={activePlugin === pluginKey(projectPlugin)}
+                                selections={selectedPlugins[pluginKey(projectPlugin)] || []}
+                                onToggle={() => handleTogglePlugin(pluginKey(projectPlugin))}
+                                onUnselect={() => handleUnselectPlugin(pluginKey(projectPlugin))}
                                 onSelectionChange={(item, inputName) =>
-                                    handleUpdateSetting(projectPlugin.name, item, inputName)
+                                    handleUpdateSetting(pluginKey(projectPlugin), item, inputName)
                                 }
-                                onValidationChange={(valid) => setValidPlugins(prev => ({ ...prev, [projectPlugin.name]: valid }))}
+                                onValidationChange={(valid) => setValidPlugins(prev => ({ ...prev, [pluginKey(projectPlugin)]: valid }))}
                             />
                         </Grid>
                     ))}

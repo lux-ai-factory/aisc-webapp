@@ -105,9 +105,9 @@ function mountPage(container: HTMLDivElement): Root {
 }
 
 it('restores previously used values from session storage after remount', async () => {
-    sessionStorage.setItem('start-eval-state:proj-1', JSON.stringify({
+    sessionStorage.setItem('start-eval-selections:proj-1', JSON.stringify({
         selectedPlugins: {
-            DemoPlugin: [
+            'demo-pkg/DemoPlugin': [
                 { pid: 'comp-model', name: 'model', input_type: 'model', value: {} },
             ],
         },
@@ -151,11 +151,11 @@ it("never restores another project's selections in this tab", async () => {
     // projects in a tab the page would restore project A's selections (A's component pids) on project B's
     // evaluation page, keep them over B's last-used values, and Launch would send them
     const foreign = JSON.stringify({
-        selectedPlugins: { DemoPlugin: [{ pid: 'comp-of-another-project', name: 'model', input_type: 'model', value: {} }] },
+        selectedPlugins: { 'demo-pkg/DemoPlugin': [{ pid: 'comp-of-another-project', name: 'model', input_type: 'model', value: {} }] },
         selectionCache: {},
     });
-    sessionStorage.setItem('start-eval-state', foreign);
-    sessionStorage.setItem('start-eval-state:proj-other', foreign);
+    sessionStorage.setItem('start-eval-selections', foreign);
+    sessionStorage.setItem('start-eval-selections:proj-other', foreign);
 
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -163,6 +163,6 @@ it("never restores another project's selections in this tab", async () => {
 
     // this project's own last-used values come back (the template), not the other project's
     await waitForHtml(el => (el.textContent || '').includes('Dataset A'), container);
-    expect(sessionStorage.getItem('start-eval-state:proj-1') ?? '').not.toContain('comp-of-another-project');
+    expect(sessionStorage.getItem('start-eval-selections:proj-1') ?? '').not.toContain('comp-of-another-project');
     container.remove();
 });
