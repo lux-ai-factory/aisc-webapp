@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { deploymentFrom } from "./deployment";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { deploymentFrom, launcherUrl } from "./deployment";
 
 describe("the web app's deployment mode", () => {
   it("is standalone when the build says so or says nothing", () => {
@@ -12,6 +12,18 @@ describe("the web app's deployment mode", () => {
   it("refuses anything else, and an unsubstituted placeholder", () => {
     expect(() => deploymentFrom("APP_DEPLOYMENT")).toThrow(/AISC_DEPLOYMENT/);
     expect(() => deploymentFrom("config")).toThrow(/standalone or configurator/);
+  });
+});
+
+describe("the launcher's address", () => {
+  afterEach(() => vi.unstubAllEnvs());
+  it("is the one env.sh wrote into the bundle, read when asked", () => {
+    vi.stubEnv("VITE_LAUNCHER_URL", "http://launcher.test/");
+    expect(launcherUrl()).toBe("http://launcher.test/");
+  });
+  it("falls back to the dev launcher when the build says nothing", () => {
+    vi.stubEnv("VITE_LAUNCHER_URL", "");
+    expect(launcherUrl()).toBe("http://localhost:8100/");
   });
 });
 

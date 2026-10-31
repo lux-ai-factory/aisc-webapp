@@ -21,7 +21,7 @@ import { useProject } from '../context/ProjectContext';
 import { usePluginInstall } from '../pluginCatalogue/PluginInstallContext';
 import { catalogueSlugOf } from '../pluginCatalogue/installUri';
 import { PROJECT_HEADER } from '../api/projectHeader';
-import { isConfigurator } from '../deployment';
+import { isConfigurator, launcherUrl } from '../deployment';
 import {
   currentPlatformProject,
   isPlatformPid,
@@ -188,8 +188,6 @@ interface PlatformProject {
 
 /** The caller's platform projects, served by the gateway (not the engine). */
 const PLATFORM_PROJECTS_URL = '/platform/api/projects';
-
-const launcherUrl = (): string => (import.meta.env.VITE_LAUNCHER_URL as string) || 'http://localhost:8100/';
 
 /** The engine's 403 on an install: installing a test is an admin's job. */
 const NOT_ADMIN = 'Installing a test takes the admin role.';

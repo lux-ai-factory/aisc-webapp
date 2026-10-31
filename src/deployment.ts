@@ -28,3 +28,11 @@ export const showsCeleryTasks = (): boolean => deployment() === "standalone";
 /** Standalone: the Plugins page lists every package on the index. Configurator: only what the
  *  project has installed; the hosted catalogue is the only place tests are found. */
 export const listsPackageIndex = (): boolean => deployment() === "standalone";
+
+/**
+ * The launcher (configurator only): where the project was chosen and where the other steps are,
+ * Manage > Helper models among them. env.sh writes it into the bundle (VITE_LAUNCHER_URL); unset
+ * in a dev build means the dev launcher.
+ */
+export const launcherUrl = (): string =>
+  (import.meta.env.VITE_LAUNCHER_URL as string) || "http://localhost:8100/";

@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { API_VERSION_PREFIX } from "../config";
 import { useAuth } from "../context/AuthContext";
 import { useProject } from "../context/ProjectContext";
-import { isConfigurator } from "../deployment";
+import { isConfigurator, launcherUrl } from "../deployment";
 import {
     currentPlatformProject,
     projectForPlatformUrl,
@@ -19,7 +19,6 @@ import "./GlobalHome.css";
 
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
-const launcherUrl = (): string => (import.meta.env.VITE_LAUNCHER_URL as string) || 'http://localhost:8100/';
 
 interface Project {
     pid: string;

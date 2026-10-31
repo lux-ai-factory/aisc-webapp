@@ -27,7 +27,7 @@ import "./addProjectButton.css";
 import AddProjectWizard from "./addProjectWizard.tsx";
 import { openPublicCatalogue, isProtocolHandlerSupported } from "../pluginCatalogue/installUri.ts";
 import { usePluginInstall } from "../pluginCatalogue/PluginInstallContext.tsx";
-import { canCreateProjects, isConfigurator, showsLauncher } from "../deployment";
+import { canCreateProjects, isConfigurator, launcherUrl, showsLauncher } from "../deployment";
 import {
     currentPlatformProject,
     projectsUrl,
@@ -41,11 +41,6 @@ interface Project {
 }
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
-
-// The launcher (configurator only): where the project was chosen and where the
-// other steps are. Substituted into the bundle at container start, like every
-// other URL this app is told about.
-const launcherUrl = (): string => (import.meta.env.VITE_LAUNCHER_URL as string) || 'http://localhost:8100/';
 
 const apiCall = async (url: string, method: string = 'GET', body?: any) => {
     try {

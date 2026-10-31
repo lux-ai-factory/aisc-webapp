@@ -7,13 +7,11 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
 import { useProject } from "../../context/ProjectContext.tsx";
 import { currentPlatformProject, helperModelsPageUrl } from "../../platform/currentProject.ts";
+import { launcherUrl } from "../../deployment";
 import { useState, useEffect, useRef } from "react";
 import './PluginEvaluationForm.css';
 
 const API_URL = import.meta.env.VITE_API_URL + '/api/v1';
-
-// The launcher, where Manage > Helper models is (substituted into the bundle at container start).
-const launcherUrl = (): string => (import.meta.env.VITE_LAUNCHER_URL as string) || 'http://localhost:8100/';
 
 const HELPER_INPUT = 'helper';
 const HELPER_PREFIX = 'helper:';
