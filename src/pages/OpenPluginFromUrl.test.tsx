@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Step 4's test tiles: E links to /projects/<name>/plugins/evaluation?plugin=<plugin name>, and that
-// test's card opens. The upstream page (PluginStartEvaluation.tsx) stays as on master, so the wrapper opens the
-// card the way a click does; this renders the real page through it.
+// test's card opens. The upstream page (PluginStartEvaluation.tsx) reads nothing from the URL, so the wrapper opens
+// the card the way a click does; this renders the real page through it.
 import { it, expect, vi, beforeEach } from 'vitest';
 import { useEffect } from 'react';
 import { act } from 'react';

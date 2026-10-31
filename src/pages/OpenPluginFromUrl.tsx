@@ -1,6 +1,6 @@
 // Step 4's test tiles: the launcher's E link opens the execution page with one test's card open,
-// /projects/<name>/plugins/evaluation?plugin=<plugin name>. The upstream page (PluginStartEvaluation.tsx) stays
-// as on master and reads nothing from the URL, so this wraps it and opens the card the way a click does: that page
+// /projects/<name>/plugins/evaluation?plugin=<plugin name>. The upstream page (PluginStartEvaluation.tsx) reads
+// nothing from the URL, so this wraps it and opens the card the way a click does: that page
 // draws one card per enabled plugin in the project's order, and a closed card opens on a click once its plugin is
 // configured. A plugin the page does not list (unknown, disabled) opens nothing.
 import { ReactNode, useEffect } from 'react';
