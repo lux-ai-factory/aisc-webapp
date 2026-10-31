@@ -7,7 +7,7 @@
  *
  * The container writes the value into the bundle at start (env.sh substitutes
  * the placeholder .env gives VITE_DEPLOYMENT), so it is read when asked, not at import: a bad value then
- * reaches MyApp, which shows it on a blocking error page instead of a blank one.
+ * reaches DeploymentGate, which shows it on a blocking error page instead of a blank one.
  */
 export type Deployment = "standalone" | "configurator";
 
