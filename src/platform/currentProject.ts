@@ -82,7 +82,9 @@ export function currentPlatformProject(
     return fromUrl;
   }
   try {
-    return storage?.getItem(STORAGE_KEY) ?? null;
+    // what the tab stored is read as the URL is: a value that is not a pid is no project
+    const stored = storage?.getItem(STORAGE_KEY) ?? null;
+    return isPlatformPid(stored) ? stored : null;
   } catch {
     return null;
   }

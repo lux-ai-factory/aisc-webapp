@@ -157,6 +157,12 @@ describe("a project that is not a pid", () => {
     expect(lastPlatformProject(browser)).toBe(A);
   });
 
+  it("stored as the tab's project is no project", () => {
+    const tab = store();
+    tab.setItem("aisc_platform_project", "foo");
+    expect(currentPlatformProject("", tab, store())).toBeNull();
+  });
+
   it("stored as the browser's last project is no last project", () => {
     const browser = store();
     browser.setItem("aisc_last_platform_project", "foo");
