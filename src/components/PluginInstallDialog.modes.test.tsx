@@ -220,7 +220,7 @@ describe('configurator', () => {
     expect(JSON.parse(sent[1].body!).project_uuid).toBe('engine-loans');
   });
 
-  it('Review Focus 4: a 404 from for-platform says "not in this project" and installs nothing', async () => {
+  it('a 404 from for-platform says "not in this project" and installs nothing', async () => {
     configuratorBackend([DEMO], 404);
     localStorage.setItem('aisc_last_platform_project', DEMO.pid);
     renderWithInstall(<PluginInstallDialog />, { uri: ENABLE });

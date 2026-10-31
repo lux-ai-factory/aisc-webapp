@@ -26,7 +26,7 @@ describe('the start-up wrapper', () => {
     await fetch(`${API}/projects/abc`);
     expect(seen[0].header).toBe(PID);
   });
-  it('leaves other hosts alone (Review Focus 4)', async () => {
+  it('leaves other hosts alone', async () => {
     await fetch('https://sandboxconfigurator.aifactory.lu/api/api/tool/');
     await fetch('http://localhost:9000/bucket/object');
     expect(seen.map((s) => s.header)).toEqual([null, null]);
