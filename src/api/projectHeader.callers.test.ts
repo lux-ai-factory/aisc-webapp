@@ -164,3 +164,40 @@ describe('standalone: projectFetch is the base fetch, unchanged', () => {
     expect(calls.every((c) => c.project === null)).toBe(true);
   });
 });
+
+// The door's list is exact (apps/backend project_door.py EXEMPT and EXEMPT_FOR): a route that only
+// ends like one of them, /projects/<pid>/audit say, belongs to a project.
+describe('the routes that need no project are the door\'s, exactly', () => {
+  const API = 'APP_API_URL/api/v1';
+
+  it.each([
+    ['GET', '/plugins'],
+    ['HEAD', '/plugins'],
+    ['GET', '/me'],
+    ['GET', '/me/admin'],
+    ['GET', '/app/app-name'],
+    ['GET', '/audit'],
+    ['POST', '/audit'],
+  ])('%s %s needs none, under either base and with a query', async (method, route) => {
+    vi.stubEnv('VITE_API_URL', 'APP_API_URL');
+    const { isProjectLess } = await import('./projectHeader');
+    expect(isProjectLess(method, `${API}${route}`)).toBe(true);
+    expect(isProjectLess(method, `/api/v1${route}?x=1`)).toBe(true);
+  });
+
+  it.each([
+    ['POST', '/plugins'],
+    ['GET', '/evaluations/x-1/plugins'],
+    ['GET', '/projects/x-1/audit'],
+    ['GET', '/other/me'],
+    ['GET', '/users/me/admin'],
+    ['GET', '/app-name'],
+    ['GET', '/me/'],
+    ['GET', '/projects/x-1/docs'],
+  ])('%s %s belongs to a project', async (method, route) => {
+    vi.stubEnv('VITE_API_URL', 'APP_API_URL');
+    const { isProjectLess } = await import('./projectHeader');
+    expect(isProjectLess(method, `${API}${route}`)).toBe(false);
+    expect(isProjectLess(method, `/api/v1${route}`)).toBe(false);
+  });
+});

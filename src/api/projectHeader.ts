@@ -45,12 +45,27 @@ function isApiRoute(url: string): boolean {
   return url.startsWith(apiBase()) || url.startsWith(API_VERSION_PREFIX);
 }
 
+/**
+ * The API routes the engine's door lets through without a project, under the API base, exactly
+ * as the door lists them (apps/backend project_door.py EXEMPT and EXEMPT_FOR). The door's
+ * /api/docs and /api/openapi.json are outside the API base, so they are never held back here.
+ */
+const PROJECT_LESS = new Set(["/me", "/me/admin", "/app/app-name", "/audit"]);
+const PROJECT_LESS_TO_READ = "/plugins";
+
+/** The path of an API route under the API base: /api/v1/me gives /me. */
+function routeOf(url: string): string {
+  const path = pathOf(url);
+  const base = [apiBase(), API_VERSION_PREFIX].find((prefix) => path.startsWith(prefix));
+  return base ? path.slice(base.length) : path;
+}
+
 /** The routes the engine's door lets through without a project. */
 export function isProjectLess(method: string, url: string): boolean {
-  const path = pathOf(url);
+  const route = routeOf(url);
   const verb = method.toUpperCase();
-  if ((verb === "GET" || verb === "HEAD") && /\/plugins$/.test(path)) return true;
-  return /\/(me|me\/admin|app-name|docs|openapi\.json|audit)$/.test(path);
+  if ((verb === "GET" || verb === "HEAD") && route === PROJECT_LESS_TO_READ) return true;
+  return PROJECT_LESS.has(route);
 }
 
 /** The current platform project, when it is a pid; anything else counts as none. */
