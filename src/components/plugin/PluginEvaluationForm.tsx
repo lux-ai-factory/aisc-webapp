@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { getPluginInputDefinitions, getProject, getComponentModels, getAdapters } from "../../api/api.tsx";
 import { Plugin, PluginConfig, PluginInputDefinition, AIComponent, PluginInputValue, AdapterCatalogItem, InputAdapter } from "../../models/models.tsx";
-import { Box, Icon, IconButton, FormControl, InputLabel, MenuItem, Select, TextField, Card, CardContent, Chip, Typography, Tooltip } from "@mui/material";
+import { Alert, Box, Icon, IconButton, FormControl, InputLabel, MenuItem, Select, TextField, Card, CardContent, Chip, Typography, Tooltip } from "@mui/material";
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
@@ -9,6 +9,7 @@ import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import CloseIcon from '@mui/icons-material/Close';
 import { useProject } from "../../context/ProjectContext.tsx";
 import { useState, useEffect, useRef } from "react";
+import { describeTypeHints, findCatalogAdapter, formatTypeList, validateAdapterChain } from "../../util/adapterTypes.ts";
 import './PluginEvaluationForm.css';
 
 const API_URL = import.meta.env.VITE_API_URL + '/api/v1';
@@ -106,7 +107,7 @@ export default function PluginEvaluationForm({
 
     const { data: project, isPending: isProjectPending } = useQuery({
         queryKey: ['project', projectUUID],
-        queryFn: () => getProject(projectUUID!!),
+        queryFn: () => getProject(projectUUID!),
         enabled: !!projectUUID
     });
 
@@ -349,6 +350,12 @@ export default function PluginEvaluationForm({
                             ) ? currentSelection.value.model : '';
                             const chain = adapterChainOf(currentSelection);
                             const chainKeys = chain.map(adapterKey);
+                            const chainWarnings = validateAdapterChain({
+                                inputDefinition: def,
+                                adapters: chain,
+                                catalog: adapters,
+                                selectedComponent,
+                            });
 
                             return (
                                 <Box key={def.name}>
@@ -446,13 +453,23 @@ export default function PluginEvaluationForm({
                                             >
                                                 {adapters?.map((adapter: AdapterCatalogItem) => {
                                                     const key = adapterKey({ adapter_class: adapter.adapter_class, package_name: adapter.package_name, version: adapter.version });
+                                                    const hints = describeTypeHints(adapter);
                                                     return (
                                                         <MenuItem
                                                             key={key}
                                                             value={key}
                                                             disabled={chainKeys.includes(key)}
                                                         >
-                                                            {adapter.adapter_class} — {adapter.package_name}
+                                                            <Box>
+                                                                <Typography variant="body2">
+                                                                    {adapter.adapter_class} — {adapter.package_name}
+                                                                </Typography>
+                                                                {hints && (
+                                                                    <Typography variant="caption" color="text.secondary">
+                                                                        {hints}
+                                                                    </Typography>
+                                                                )}
+                                                            </Box>
                                                         </MenuItem>
                                                     );
                                                 })}
@@ -461,41 +478,66 @@ export default function PluginEvaluationForm({
                                     </Box>
                                     {chain.length > 0 && (
                                         <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }} data-testid={`adapter-chain-${def.name}`}>
-                                            {chain.map((adapter, idx) => (
-                                                <Box key={`${adapterKey(adapter)}-${idx}`} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                    <Chip label={`${idx + 1}`} size="small" color="primary" />
-                                                    <Typography variant="body2" sx={{ flex: 1 }}>
-                                                        {adapter.adapter_class} — {adapter.package_name || 'plugin package'}
-                                                    </Typography>
-                                                    <IconButton
-                                                        size="small"
-                                                        disabled={idx === 0}
-                                                        onClick={() => moveAdapter(def.name, idx, -1)}
-                                                        aria-label={`Move ${adapter.adapter_class} up`}
-                                                    >
-                                                        <ArrowUpwardIcon fontSize="small" />
-                                                    </IconButton>
-                                                    <IconButton
-                                                        size="small"
-                                                        disabled={idx === chain.length - 1}
-                                                        onClick={() => moveAdapter(def.name, idx, 1)}
-                                                        aria-label={`Move ${adapter.adapter_class} down`}
-                                                    >
-                                                        <ArrowDownwardIcon fontSize="small" />
-                                                    </IconButton>
-                                                    <IconButton
-                                                        size="small"
-                                                        onClick={() => removeAdapterAt(def.name, idx)}
-                                                        aria-label={`Remove ${adapter.adapter_class}`}
-                                                    >
-                                                        <CloseIcon fontSize="small" />
-                                                    </IconButton>
-                                                </Box>
-                                            ))}
+                                            {chain.map((adapter, idx) => {
+                                                const hints = describeTypeHints(findCatalogAdapter(adapters, adapter));
+                                                return (
+                                                    <Box key={`${adapterKey(adapter)}-${idx}`} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                        <Chip label={`${idx + 1}`} size="small" color="primary" />
+                                                        <Box sx={{ flex: 1 }}>
+                                                            <Typography variant="body2">
+                                                                {adapter.adapter_class} — {adapter.package_name || 'plugin package'}
+                                                            </Typography>
+                                                            {hints && (
+                                                                <Typography variant="caption" color="text.secondary">
+                                                                    {hints}
+                                                                </Typography>
+                                                            )}
+                                                        </Box>
+                                                        <IconButton
+                                                            size="small"
+                                                            disabled={idx === 0}
+                                                            onClick={() => moveAdapter(def.name, idx, -1)}
+                                                            aria-label={`Move ${adapter.adapter_class} up`}
+                                                        >
+                                                            <ArrowUpwardIcon fontSize="small" />
+                                                        </IconButton>
+                                                        <IconButton
+                                                            size="small"
+                                                            disabled={idx === chain.length - 1}
+                                                            onClick={() => moveAdapter(def.name, idx, 1)}
+                                                            aria-label={`Move ${adapter.adapter_class} down`}
+                                                        >
+                                                            <ArrowDownwardIcon fontSize="small" />
+                                                        </IconButton>
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={() => removeAdapterAt(def.name, idx)}
+                                                            aria-label={`Remove ${adapter.adapter_class}`}
+                                                        >
+                                                            <CloseIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Box>
+                                                );
+                                            })}
                                             <Typography variant="caption" color="text.secondary">
                                                 Applied top to bottom — each step feeds the next.
                                             </Typography>
                                         </Box>
+                                    )}
+                                    {chainWarnings.length > 0 && (
+                                        <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }} data-testid={`adapter-chain-warnings-${def.name}`}>
+                                            {chainWarnings.map((warning, idx) => (
+                                                <Alert key={`${warning.stage}-${warning.index ?? idx}`} severity="warning" sx={{ py: 0 }}>
+                                                    {warning.message}
+                                                </Alert>
+                                            ))}
+                                        </Box>
+                                    )}
+                                    {(def.input_types?.length || def.output_type) && (
+                                        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }} data-testid={`input-type-hints-${def.name}`}>
+                                            Input expects {formatTypeList(def.input_types)}
+                                            {def.output_type ? ` → plugin receives ${def.output_type}` : ''}
+                                        </Typography>
                                     )}
                                     {!def.required && (
                                         <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>

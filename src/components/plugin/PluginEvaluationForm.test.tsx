@@ -47,7 +47,7 @@ beforeEach(() => {
             return {
                 ok: true,
                 json: async () => [
-                    { name: 'dataset', label: 'Dataset', input_type: 'dataset', required: true },
+                    { name: 'dataset', label: 'Dataset', input_type: 'dataset', required: true, input_types: ['*.txt', 'bytes', 'str'], output_type: 'str' },
                     { name: 'model', label: 'Model', input_type: 'model', required: true },
                 ],
             } as Response;
@@ -70,8 +70,9 @@ beforeEach(() => {
             return {
                 ok: true,
                 json: async () => [
-                    { package_name: 'demo-pkg', version: '0.1.0', adapter_class: 'UppercaseAdapter', source: 'local' },
-                    { package_name: 'demo-pkg', version: '0.1.0', adapter_class: 'ExclaimSuffixAdapter', source: 'local' },
+                    { package_name: 'demo-pkg', version: '0.1.0', adapter_class: 'UppercaseAdapter', source: 'local', input_types: ['*.txt', 'bytes', 'str'], output_type: 'bytes' },
+                    { package_name: 'demo-pkg', version: '0.1.0', adapter_class: 'ExclaimSuffixAdapter', source: 'local', input_types: ['*.txt', 'bytes', 'str'], output_type: 'bytes' },
+                    { package_name: 'demo-pkg', version: '0.1.0', adapter_class: 'JsonAdapter', source: 'local', input_types: ['*.txt', 'bytes', 'str'], output_type: 'dict' },
                 ],
             } as Response;
         }
@@ -83,7 +84,7 @@ beforeEach(() => {
                     name: 'P',
                     plugins: [plugin],
                     components: [
-                        { pid: 'comp-dataset', name: 'Dataset A', component_type: 'dataset' },
+                        { pid: 'comp-dataset', name: 'Dataset A', component_type: 'dataset', data: 'uuid-dataset.txt' },
                         { pid: 'comp-model', name: 'Model A', component_type: 'model' },
                     ],
                 }),
@@ -132,6 +133,7 @@ it('leaves selection dropdowns empty on activation (no auto-prefill)', async () 
 
 const upper: InputAdapter = { adapter_class: 'UppercaseAdapter', package_name: 'demo-pkg', version: '0.1.0' };
 const exclaim: InputAdapter = { adapter_class: 'ExclaimSuffixAdapter', package_name: 'demo-pkg', version: '0.1.0' };
+const jsonAdapter: InputAdapter = { adapter_class: 'JsonAdapter', package_name: 'demo-pkg', version: '0.1.0' };
 
 function datasetSelection(extra?: Partial<PluginInputValue>): PluginInputValue {
     return { pid: 'comp-dataset', name: 'dataset', input_type: 'dataset', value: {}, ...extra };
@@ -184,6 +186,29 @@ it('renders an adapter chain as numbered steps in order', async () => {
     const text = chain!.textContent ?? '';
     expect(text.indexOf('UppercaseAdapter')).toBeLessThan(text.indexOf('ExclaimSuffixAdapter'));
     expect(text).toContain('Applied top to bottom');
+
+    await cleanup(container, root);
+});
+
+it('shows type hints without warnings for a compatible chain', async () => {
+    const { container, root } = await renderForm([datasetSelection({ adapters: [upper, exclaim] })], vi.fn());
+
+    expect(container.textContent).toContain('accepts *.txt, bytes or str');
+    expect(container.textContent).toContain('produces bytes');
+    expect(container.querySelector('[data-testid="adapter-chain-warnings-dataset"]')).toBeNull();
+
+    await cleanup(container, root);
+});
+
+it('warns when an adapter output does not match the plugin input type', async () => {
+    const sel = datasetSelection({ adapters: [upper, jsonAdapter] });
+    const { container, root } = await renderForm([sel], vi.fn());
+
+    const warnings = container.querySelector('[data-testid="adapter-chain-warnings-dataset"]');
+    expect(warnings).not.toBeNull();
+    expect(warnings!.textContent).toContain('produces "dict"');
+    expect(warnings!.textContent).toContain('Dataset');
+    expect(warnings!.textContent).toContain('*.txt');
 
     await cleanup(container, root);
 });

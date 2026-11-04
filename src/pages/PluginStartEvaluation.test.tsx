@@ -66,8 +66,8 @@ beforeEach(() => {
                     name: 'P',
                     plugins: [plugin],
                     components: [
-                        { pid: 'comp-dataset', name: 'Dataset A', component_type: 'dataset' },
-                        { pid: 'comp-model', name: 'Model A', component_type: 'model' },
+                        { pid: 'comp-dataset', name: 'Dataset A', component_type: 'dataset', data: 'uuid-dataset.csv' },
+                        { pid: 'comp-model', name: 'Model A', component_type: 'model', data: 'uuid-model.onnx' },
                     ],
                 }),
             } as Response;

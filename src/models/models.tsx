@@ -121,6 +121,8 @@ export interface PluginInputDefinition {
     label: string;
     input_type: string;
     required: boolean;
+    input_types?: string[] | null;
+    output_type?: string | null;
 }
 
 export interface InputAdapter {
@@ -134,6 +136,8 @@ export interface AdapterCatalogItem {
     version: string;
     adapter_class: string;
     source: string;
+    input_types?: string[] | null;
+    output_type?: string | null;
 }
 
 export interface PluginInputValue {
