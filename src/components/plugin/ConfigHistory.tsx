@@ -86,7 +86,7 @@ export default function ConfigHistory({ pluginPID, plugin_config_id, onRestore }
                 >
                     {history?.map((c) => (
                         <MenuItem key={c.id} value={c.id}>
-                            {new Date(c.created_at).toLocaleString()} {c.id === selectedConfig?.id ? '(Current)' : ''}
+                            {c.name ? `${c.name} · ` : ''}{new Date(c.created_at).toLocaleString()} {c.id === selectedConfig?.id ? '(Current)' : ''}
                         </MenuItem>
                     ))}
                 </Select>

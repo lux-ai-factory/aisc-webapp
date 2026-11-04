@@ -193,7 +193,8 @@ export default function PluginStartEvaluation() {
                     if (Object.keys(prev).length > 0) return prev;
                     const components = project?.components ?? [];
                     const restored: SelectedPluginsState = {};
-                    const plugins = project?.plugins ?? [];
+                    // only the plugins on: a version of a package that is off shows no card and shares no name
+                    const plugins = (project?.plugins ?? []).filter(p => p.enabled);
                     for (const plugin of plugins) {
                         // the last-used values are kept by plugin name: a name two plugins share says
                         // nothing about which of them was used, so neither is restored

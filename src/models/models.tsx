@@ -62,6 +62,8 @@ export interface TaskProgress {
 
 export interface ProjectPluginConfigState {
     plugin_config_id?: number | null;
+    /** the name its author gave the saved configuration ("" for none) */
+    name?: string;
     config?: object | null;
     formSchema: object;
     uiSchema: object
@@ -108,6 +110,8 @@ export interface ValidationReport {
 
 export interface PluginConfig {
     id: number;
+    /** the name its author gave it at save time ("" for none) */
+    name?: string;
     config: object;
     created_at: string;
 }

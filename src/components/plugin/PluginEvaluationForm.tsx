@@ -528,13 +528,13 @@ export default function PluginEvaluationForm({
                                         if (!selected) {
                                             return 'Config';
                                         }
-                                        return `Config #${configLocalIndex.get(selected.id) ?? selected.id} (${new Date(selected.created_at).toLocaleDateString()})`;
+                                        return `${selected.name || `Config #${configLocalIndex.get(selected.id) ?? selected.id}`} (${new Date(selected.created_at).toLocaleDateString()})`;
                                     }}
                                     onChange={(e) => setSelectedConfig(e.target.value ? Number(e.target.value) : null)}
                                 >
                                     {configs.map((cfg: PluginConfig) => (
                                         <MenuItem key={cfg.id} value={cfg.id}>
-                                            Config #{configLocalIndex.get(cfg.id) ?? cfg.id} ({new Date(cfg.created_at).toLocaleDateString()})
+                                            {cfg.name || `Config #${configLocalIndex.get(cfg.id) ?? cfg.id}`} ({new Date(cfg.created_at).toLocaleDateString()})
                                         </MenuItem>
                                     ))}
                                 </Select>

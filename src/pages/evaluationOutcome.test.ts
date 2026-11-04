@@ -54,3 +54,24 @@ describe('the pages use them', () => {
         expect(read('PluginEvaluations.tsx')).toContain('pluginErrorText(plugin.error_message)');
     });
 });
+
+describe('a failed run stored with its whole log reads as its reason', () => {
+    const logged = 'Plugin failed: ====== Step 1: Venv Creation ======\nUsing CPython 3.12.12\n\n\n' +
+        '====== Step 2: Plugin Install ======\nResolved 71 packages in 990ms\n + aiohttp==3.14.5\n\n\n' +
+        '====== Step 3: Plugin Run ======\n❌ Plugin execution failed: evaluator needs a judge model\n' +
+        'Traceback (most recent call last):\n  File "plugin.py", line 293, in _run\n' +
+        "aisc_plugin_strongreject_mijke.plugin.RunRefused: evaluator 'strongreject_rubric' needs a judge model: " +
+        'bind one to the helper model \'Judge\', or choose evaluator=string_matching.\n\n\n';
+
+    it('shows what the plugin said last, without the setup, the installs or the exception class', () => {
+        expect(pluginErrorText(logged)).toBe(
+            "Plugin failed: evaluator 'strongreject_rubric' needs a judge model: bind one to the helper model " +
+            "'Judge', or choose evaluator=string_matching.");
+    });
+
+    it('cuts a reason that is still too long for a card', () => {
+        const long = pluginErrorText('Plugin failed: ' + 'x'.repeat(2000))!;
+        expect(long.length).toBeLessThanOrEqual(520);
+        expect(long.endsWith('…')).toBe(true);
+    });
+});

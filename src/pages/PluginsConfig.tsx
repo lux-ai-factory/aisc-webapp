@@ -7,8 +7,7 @@ import {useEffect, useLayoutEffect, useRef, useState} from "react";
 import {AIComponent, ProjectPluginConfigState} from "../models/models.tsx";
 import toast from 'react-hot-toast';
 import {getPluginFeatureFlags, getProject} from "../api/api.tsx";
-import {InputLabel, MenuItem, Select, SelectChangeEvent, Typography, Box, Button, Icon, Tooltip, Divider} from "@mui/material";
-import InfoBanner from "../components/InfoBanner.tsx";
+import {InputLabel, MenuItem, Select, SelectChangeEvent, Typography, Box, Button, Icon, Tooltip, Divider, TextField} from "@mui/material";
 import ConfigHistory from "../components/plugin/ConfigHistory.tsx";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -19,12 +18,13 @@ import '../styles/common.css';
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
 
-const postPluginConfig = async (plugin_pid: string, formData: object, projectSettingSelections: object[]) => {
+const postPluginConfig = async (plugin_pid: string, formData: object, projectSettingSelections: object[], name: string) => {
     if (!plugin_pid) throw new Error("Plugin name is required");
 
     const data = {
         config: formData,
         project_config_selections: projectSettingSelections,
+        name,
     }
     const response = await fetch(`${API_URL}/plugins/${plugin_pid}/config`, {
         method: 'POST',
@@ -72,6 +72,8 @@ function PluginConfig() {
     const queryClient = useQueryClient();
 
     const [configOverride, setConfigOverride] = useState<ProjectPluginConfigState | null>(null);
+    // the name the next Save gives the configuration: the current one's, until its author changes it
+    const [configName, setConfigName] = useState('');
     const [selectedDataset, setSelectedDataset] = useState('');
     const lastDatasetPluginPid = useRef<string | undefined>();
 
@@ -95,10 +97,9 @@ function PluginConfig() {
 
     const {data: projectPluginConfigState, isPending: isProjectPluginConfigStatePending, error} = useQuery({
         queryKey: ['projectPluginConfig', projectUUID, plugin_pid],
-        queryFn: async () => {
-            const state = await getProjectPluginConfigState(plugin_pid!!);
-            return { ...state, config: {} };
-        },
+        // the form opens with the current configuration (keys come back withheld), as a restore fills it:
+        // an empty form would show the defaults, and Save would store them as if chosen
+        queryFn: () => getProjectPluginConfigState(plugin_pid!!),
         enabled: !!projectUUID && !!plugin_pid,
     })
 
@@ -109,6 +110,12 @@ function PluginConfig() {
     })
 
     const configState = configOverride ?? projectPluginConfigState;
+
+    // a saved or restored configuration becomes current: its name is offered again
+    const currentConfigId = projectPluginConfigState?.plugin_config_id;
+    useEffect(() => {
+        setConfigName(projectPluginConfigState?.name ?? '');
+    }, [currentConfigId, projectPluginConfigState?.name]);
 
     useLayoutEffect(() => {
         if (lastDatasetPluginPid.current && lastDatasetPluginPid.current !== plugin_pid) {
@@ -140,10 +147,11 @@ function PluginConfig() {
     };
 
     const onSubmit = async (data: object, projectSettingSelections: object[]) => {
-        await postPluginConfig(plugin_pid ?? "", data, projectSettingSelections);
+        await postPluginConfig(plugin_pid ?? "", data, projectSettingSelections, configName.trim());
 
-        // Refresh config history
+        // Refresh config history, and the saved state that names the current configuration
         await queryClient.invalidateQueries({ queryKey: ['pluginConfigHistory', plugin_pid] });
+        await queryClient.invalidateQueries({ queryKey: ['projectPluginConfig', projectUUID, plugin_pid] });
 
         // Refresh project so LeftBar updates instantly
         await queryClient.invalidateQueries({ queryKey: ['project', projectUUID] });
@@ -228,18 +236,30 @@ function PluginConfig() {
             )}
 
             <Box sx={{ mt: 2, mb: 3 }}>
+                {/* the saved state's: the form's live preview is not a saved configuration and names none */}
                 <ConfigHistory
                     pluginPID={plugin_pid ?? ""}
-                    plugin_config_id={configState?.plugin_config_id}
+                    plugin_config_id={projectPluginConfigState?.plugin_config_id}
                     onRestore={handleRestore}
+                />
+                <TextField
+                    name="configuration-name"
+                    label="Configuration name"
+                    helperText="Saved with the configuration when you press Save; the run form and Config History show it."
+                    value={configName}
+                    onChange={(e) => setConfigName(e.target.value)}
+                    inputProps={{ maxLength: 255 }}
+                    fullWidth
+                    size="small"
+                    sx={{ mt: 2 }}
                 />
             </Box>
             <Divider sx={{ mb: 3, borderBottomWidth: 2, borderColor: 'rgba(25, 87, 191, 0.25)' }} />
 
             {featureFlags?.can_parse_config_from_dataset &&
                 <Box sx={{ mt: 2 }}>
-                    <InfoBanner message={"Select a dataset to derive the plugin config from."}/>
-                    <InputLabel id="dataset-select-label">Dataset</InputLabel>
+                    {/* fills the form below once; the data the test runs on is chosen on Start Evaluations */}
+                    <InputLabel id="dataset-select-label">Load settings from Test data</InputLabel>
                     <Select
                         labelId="dataset-select-label"
                         fullWidth

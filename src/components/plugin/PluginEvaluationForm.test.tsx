@@ -38,7 +38,11 @@ const plugin: Plugin = {
     status: 'ok',
 };
 
+// the plugin's saved configurations, as GET /plugins/{pid}/configs answers them
+let savedConfigs: object[] = [];
+
 beforeEach(() => {
+    savedConfigs = [];
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input);
         if (url.includes('/display_icon')) {
@@ -54,7 +58,7 @@ beforeEach(() => {
             } as Response;
         }
         if (url.includes('/configs')) {
-            return { ok: true, json: async () => [] } as Response;
+            return { ok: true, json: async () => savedConfigs } as Response;
         }
         if (url.includes('/evaluation-inputs-template')) {
             return {
@@ -273,4 +277,33 @@ describe('a helper input is complete only with a model', () => {
         expect(lastValidity(onValidationChange)).toBe(true);
         container.remove();
     });
+});
+
+
+it('names the configuration a run will use by the name its author gave it', async () => {
+    savedConfigs = [
+        { id: 2, name: '', config: {}, created_at: '2026-10-28T16:03:01Z' },
+        { id: 3, name: 'debts pilot, 3 reps', config: {}, created_at: '2026-11-02T15:06:36Z' },
+    ];
+    const container = createContainer();
+    const root = createRoot(container);
+    await act(async () => {
+        root.render(
+            <QueryClientProvider client={qc()}>
+                <ProjectProvider>
+                    <ProjectUUIDSetter uuid="proj-1" />
+                    <PluginEvaluationForm plugin={plugin} isConfigured isActive selections={[]}
+                                          onToggle={() => {}} onSelectionChange={vi.fn()} />
+                </ProjectProvider>
+            </QueryClientProvider>,
+        );
+    });
+    for (let i = 0; i < 40 && !/debts pilot/.test(container.textContent ?? ''); i++) {
+        await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
+    }
+    // the latest is chosen: shown by its name, not by its number
+    expect(container.textContent).toContain('debts pilot, 3 reps');
+    expect(container.textContent).not.toContain('Config #2');
+    act(() => root.unmount());
+    container.remove();
 });

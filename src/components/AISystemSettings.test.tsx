@@ -25,6 +25,11 @@ beforeEach(() => {
                     components: [
                         { pid: 'c-1', name: 'Legacy judge', component_type: 'llm', json_value: { endpoint_url: 'https://x' } },
                         { pid: 'c-2', name: 'Weights', component_type: 'model', data: 'f' },
+                        { pid: 'c-3', name: 'Holdout set', component_type: 'dataset', data: 'h.csv' },
+                        { pid: 'c-4', name: 'AI card · System: Scoring', component_type: 'resource',
+                          json_value: { value: 'target:p/system' } },
+                        { pid: 'c-5', name: 'AI card · Component: Scoring model (model) · uploaded file',
+                          component_type: 'model', data: 'm.onnx', json_value: { card_target: 'target:p/component:k' } },
                     ],
                 }),
             } as Response;
@@ -51,7 +56,7 @@ async function renderSettings() {
 }
 
 async function typeOptions(container: HTMLElement): Promise<string[]> {
-    const add = [...container.querySelectorAll('button')].find(b => b.textContent?.includes('Add component'))!;
+    const add = [...container.querySelectorAll('button')].find(b => /Add (component|test data)/.test(b.textContent ?? ''))!;
     await act(async () => { add.click(); });
     const select = document.querySelector('[role="dialog"] [role="combobox"]')!;
     await act(async () => { select.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); });
@@ -74,4 +79,37 @@ it('standalone still offers the LLM type', async () => {
     expect(container.textContent).toContain('Legacy judge');
     const options = await typeOptions(container);
     expect(options.some(o => o.startsWith('LLM'))).toBe(true);
+});
+
+it('configurator calls the panel Test data and points to Manage for what is assessed', async () => {
+    vi.stubEnv('VITE_DEPLOYMENT', 'configurator');
+    const container = await renderSettings();
+    expect(container.querySelector('h3')?.textContent).toBe('Test data');
+    expect(container.textContent).toContain('Manage › Components and connections');
+    expect([...container.querySelectorAll('button')].some(b => b.textContent?.includes('Add test data'))).toBe(true);
+});
+
+it('configurator adds only test data: a dataset or a datashape', async () => {
+    vi.stubEnv('VITE_DEPLOYMENT', 'configurator');
+    const container = await renderSettings();
+    expect(await typeOptions(container)).toEqual(['Dataset (file upload)', 'DataShape (from dataset)']);
+});
+
+it('configurator leaves out what the platform makes from the AI card', async () => {
+    vi.stubEnv('VITE_DEPLOYMENT', 'configurator');
+    const container = await renderSettings();
+    expect(container.textContent).toContain('Holdout set');
+    expect(container.textContent).toContain('Weights');
+    expect(container.textContent).not.toContain('AI card · System');
+    expect(container.textContent).not.toContain('uploaded file');
+});
+
+it('standalone keeps the AI System panel with every type and component', async () => {
+    vi.stubEnv('VITE_DEPLOYMENT', 'standalone');
+    const container = await renderSettings();
+    expect(container.querySelector('h3')?.textContent).toBe('AI System');
+    expect(container.textContent).toContain('AI card · System');
+    const options = await typeOptions(container);
+    expect(options.some(o => o.startsWith('Model'))).toBe(true);
+    expect(options.some(o => o.startsWith('Resource'))).toBe(true);
 });

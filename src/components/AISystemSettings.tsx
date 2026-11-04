@@ -24,9 +24,19 @@ const COMPONENT_TYPES: { value: AIComponentType; label: string }[] = [
     { value: "resource", label: "Resource (generic reference)" },
 ];
 
-// A judge or other helper model is never a component of the assessed system: in the Configurator it
-// is added once under Manage > Helper models, so the system has no LLM type.
-const offeredTypes = () => COMPONENT_TYPES.filter(t => !(isConfigurator() && t.value === "llm"));
+// In the Configurator this panel holds only test data (what the tests run on): what is assessed comes
+// from the AI card, and Manage > Components and connections says how each part is reached (an endpoint,
+// or an uploaded model file or dataset). A judge or other helper model is added under Manage > Helper
+// models. So it offers a dataset and a datashape only.
+const TEST_DATA_TYPES: AIComponentType[] = ["dataset", "datashape"];
+const offeredTypes = () => COMPONENT_TYPES.filter(t => !isConfigurator() || TEST_DATA_TYPES.includes(t.value));
+const defaultType = (): AIComponentType => (isConfigurator() ? "dataset" : "model");
+
+/** Whether the Configurator lists this component here: not a helper model, nor what the platform makes
+ *  from the AI card (a target's `resource` mirror, a target's uploaded file). */
+const listed = (c: AIComponent): boolean =>
+    !isConfigurator() || !(c.component_type === "llm" || c.component_type === "resource"
+        || (c.json_value != null && "card_target" in c.json_value));
 
 const SEMANTIC_TYPES = ["numeric", "categorical", "datetime", "text", "boolean"];
 const ROLES = ["feature", "target", "date", "ignore"];
@@ -107,7 +117,7 @@ export default function AISystemSettings() {
 
     // add-dialog state
     const [name, setName] = useState("");
-    const [type, setType] = useState<AIComponentType>("model");
+    const [type, setType] = useState<AIComponentType>(defaultType);
     const [file, setFile] = useState<File | undefined>();
     const [addLlmUrl, setAddLlmUrl] = useState("");
     const [addSecretKey, setAddSecretKey] = useState("");
@@ -138,7 +148,7 @@ export default function AISystemSettings() {
             if (res.ok) {
                 const data = await res.json();
                 setSystemInfo({ pid: data.pid, name: data.name });
-                setComponents((data.components ?? []).filter((c: AIComponent) => !(isConfigurator() && c.component_type === "llm")));
+                setComponents((data.components ?? []).filter(listed));
             }
             const settings = await getProjectConfigs(projectUUID);
             setSecrets(settings.filter(s => s.category === "secrets"));
@@ -151,7 +161,7 @@ export default function AISystemSettings() {
 
     const openDialog = async () => {
         setName("");
-        setType("model");
+        setType(defaultType());
         setFile(undefined);
         setAddLlmUrl("");
         setAddSecretKey("");
@@ -279,18 +289,33 @@ export default function AISystemSettings() {
         && !(type === "resource" && !addResourceValue.trim())
         && !(type === "datashape" && !sourceDatasetPid);
 
+    const testData = isConfigurator();
+
     return (
         <Box>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 6, mb: 1 }}>
                 <Box>
-                    <Typography component="h3" variant="h5" gutterBottom sx={{ mb: 0 }}>AI System</Typography>
+                    <Typography component="h3" variant="h5" gutterBottom sx={{ mb: 0 }}>{testData ? "Test data" : "AI System"}</Typography>
                     <Typography variant="body1" sx={{ mt: 1 }}>
-                        The assessed AI product/system and its components.
+                        {testData
+                            ? "The data the tests run on: test sets, prompts, benchmarks. It is not part of the assessed system."
+                            : "The assessed AI product/system and its components."}
                     </Typography>
                 </Box>
-                <Button variant="contained" startIcon={<AddIcon />} onClick={openDialog} className="gradient-btn">Add component</Button>
+                <Button variant="contained" startIcon={<AddIcon />} onClick={openDialog} className="gradient-btn">{testData ? "Add test data" : "Add component"}</Button>
             </Box>
 
+            {testData ? (
+                <Card variant="outlined" sx={{ mb: 2 }}>
+                    <CardContent>
+                        <Typography variant="body2">
+                            What is assessed comes from the AI card. How each of its parts is reached (an endpoint, an
+                            uploaded model file or dataset) is set in Manage › Components and connections; the tests then
+                            list them as they list the data here.
+                        </Typography>
+                    </CardContent>
+                </Card>
+            ) : (
             <Card variant="outlined" className="gradient-card" sx={{ mb: 2 }}>
                 <CardContent>
                     <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
@@ -303,9 +328,10 @@ export default function AISystemSettings() {
                     </Typography>
                 </CardContent>
             </Card>
+            )}
 
             {components.length === 0 ? (
-                <Typography color="text.secondary">No components yet. Add one to get started.</Typography>
+                <Typography color="text.secondary">{testData ? "No test data yet." : "No components yet. Add one to get started."}</Typography>
             ) : (
                 <List>
                     {components.map((c) => (
@@ -326,7 +352,7 @@ export default function AISystemSettings() {
 
             {/* Add dialog */}
             <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
-                <DialogTitle>Add component</DialogTitle>
+                <DialogTitle>{testData ? "Add test data" : "Add component"}</DialogTitle>
                 <DialogContent>
                     <Stack spacing={2} sx={{ mt: 1 }}>
                         <TextField select label="Type" value={type} onChange={(e) => setType(e.target.value as AIComponentType)}>
