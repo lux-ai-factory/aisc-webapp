@@ -143,6 +143,7 @@ it('Launch names the package of the plugin it runs', async () => {
             name: 'LangBiteEvaluationPlugin', package_name: 'aisc-plugin-langbite-mijke',
             inputs: [{ pid: 'comp-dataset', name: 'dataset', input_type: 'dataset', value: {} }],
         }],
+        name: '',                                  // no run name typed: the automatic one
     });
     container.remove();
 });

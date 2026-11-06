@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { getPluginInputDefinitions, getProject, getComponentModels, getEvaluationInputsTemplate } from "../../api/api.tsx";
-import { getProjectHelpers } from "../../api/projectHelpers.ts";
+import { getHelperModels, getProjectHelpers } from "../../api/projectHelpers.ts";
 import { Plugin, PluginConfig, PluginInputDefinition, AIComponent, PluginInputValue } from "../../models/models.tsx";
 import { Box, Icon, FormControl, InputLabel, MenuItem, Select, TextField, Card, CardContent, Chip, Typography, Tooltip } from "@mui/material";
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -30,7 +30,7 @@ interface PluginEvaluationFormProps {
 
 interface ModelSelectProps {
     def: PluginInputDefinition;
-    component: AIComponent;
+    component?: AIComponent;
     value: string;
     models: string[];
     error: string;
@@ -91,6 +91,13 @@ function HelperInput({ def, projectUUID, selection, selectMenuProps, onSelection
         queryKey: ['projectHelpers', projectUUID, role],
         queryFn: () => getProjectHelpers(projectUUID, role),
     });
+    const chosenRef = selection?.helper_ref ?? '';
+    // the chosen tool's models, listed live by the platform with its own connection
+    const modelsOfChosen = useQuery({
+        queryKey: ['helperModels', projectUUID, chosenRef],
+        queryFn: () => getHelperModels(projectUUID, chosenRef),
+        enabled: chosenRef !== '',
+    });
 
     if (isPending) return <Typography variant="caption" color="text.secondary">Loading helper models...</Typography>;
     if (isError) {
@@ -106,6 +113,7 @@ function HelperInput({ def, projectUUID, selection, selectMenuProps, onSelection
     }
     const chosen = helpers.find(h => h.ref === selection?.helper_ref);
     const model = typeof selection?.value?.model === 'string' ? selection.value.model : '';
+    const listed = modelsOfChosen.data;
 
     return (
         <Box>
@@ -130,19 +138,20 @@ function HelperInput({ def, projectUUID, selection, selectMenuProps, onSelection
                     {helpers.map(h => <MenuItem key={h.ref} value={h.ref}>{h.label}</MenuItem>)}
                 </Select>
             </FormControl>
-            {chosen && (
-                <TextField
-                    fullWidth
-                    size="small"
-                    label="Model"
+            {chosen && modelsOfChosen.isPending && (
+                <Typography variant="caption" color="text.secondary">Listing the models at {chosen.endpoint_host}...</Typography>
+            )}
+            {chosen && !modelsOfChosen.isPending && (
+                <ModelSelect
+                    def={def}
                     value={model}
-                    required
-                    onChange={(e) => onSelectionChange(
-                        { name: def.name, input_type: HELPER_INPUT, helper_ref: chosen.ref, value: { model: e.target.value } },
+                    models={listed?.models ?? []}
+                    error={listed?.error ?? (modelsOfChosen.isError ? 'The models could not be listed' : '')}
+                    selectMenuProps={selectMenuProps}
+                    onChange={(value) => onSelectionChange(
+                        { name: def.name, input_type: HELPER_INPUT, helper_ref: chosen.ref, value: { model: value } },
                         def.name,
                     )}
-                    helperText={`The model this helper runs at ${chosen.endpoint_host}`}
-                    sx={{ mt: 1 }}
                 />
             )}
         </Box>

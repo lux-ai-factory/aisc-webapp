@@ -1,6 +1,7 @@
 import {
     alpha,
     Box,
+    Button,
     Card,
     CardContent,
     Collapse,
@@ -24,6 +25,7 @@ import {API_VERSION_PREFIX} from '../config.tsx';
 import './EvaluationProgressList.css';
 import {Evaluation, Plugin, TaskProgress} from '../models/models.tsx';
 import {useEffect, useState} from 'react';
+import {progressTitle, stopRun} from './runStop';
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -175,6 +177,22 @@ function EvalProgressRow({
     const taskPid = evaluation.task;
     const [pluginStatuses, setPluginStatuses] = useState<Record<string, TaskProgress & {plugin_name?: string}> | null>(null);
     const [evaluationPluginStatuses, setEvaluationPluginStatuses] = useState<Record<string, string> | null>(null);
+    // Stop asks to confirm on the page first; the run leaves the bar at the next poll once stopped
+    const [askingToStop, setAskingToStop] = useState(false);
+    const [stopping, setStopping] = useState(false);
+    const [stopError, setStopError] = useState<string | null>(null);
+
+    const stop = async () => {
+        setStopping(true);
+        setStopError(null);
+        try {
+            await stopRun(API_URL, evaluation.pid);
+        } catch (e) {
+            setStopError(e instanceof Error ? e.message : 'The run could not be stopped');
+            setStopping(false);
+        }
+        setAskingToStop(false);
+    };
 
     useEffect(() => {
         if (!taskPid) {
@@ -276,7 +294,7 @@ function EvalProgressRow({
                                     <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
                                         <HourglassTopIcon color="primary" fontSize="small" />
                                         <Typography variant="body2" fontWeight={700}>
-                                            Evaluation Progress
+                                            {progressTitle(evaluation)}
                                         </Typography>
                                         <Typography
                                             className="eval-pid"
@@ -287,16 +305,42 @@ function EvalProgressRow({
                                             {evaluation.pid}
                                         </Typography>
                                     </Box>
-                                    <Typography
-                                        variant="caption"
-                                        sx={{
-                                            fontWeight: 700,
-                                            color: failedPlugins > 0 ? 'error.main' : 'primary.main',
-                                        }}
-                                    >
-                                        {failedPlugins > 0 ? 'Attention needed' : 'In progress'}
-                                    </Typography>
+                                    <Stack direction="row" alignItems="center" spacing={1}
+                                           onClick={(e) => e.stopPropagation()}>
+                                        <Typography
+                                            variant="caption"
+                                            sx={{
+                                                fontWeight: 700,
+                                                color: failedPlugins > 0 ? 'error.main' : 'primary.main',
+                                            }}
+                                        >
+                                            {stopping ? 'Stopping...' : failedPlugins > 0 ? 'Attention needed' : 'In progress'}
+                                        </Typography>
+                                        {askingToStop ? (
+                                            <>
+                                                <Typography variant="caption">Stop this run?</Typography>
+                                                <Button size="small" color="error" variant="contained"
+                                                        disabled={stopping} onClick={stop}>
+                                                    Yes, stop
+                                                </Button>
+                                                <Button size="small" disabled={stopping}
+                                                        onClick={() => setAskingToStop(false)}>
+                                                    No
+                                                </Button>
+                                            </>
+                                        ) : (
+                                            <Button size="small" color="error" variant="outlined"
+                                                    disabled={stopping} onClick={() => setAskingToStop(true)}>
+                                                Stop
+                                            </Button>
+                                        )}
+                                    </Stack>
                                 </Stack>
+                                {stopError && (
+                                    <Typography variant="caption" color="error.main">
+                                        {stopError}
+                                    </Typography>
+                                )}
 
                                 {Object.keys(statuses).length === 0 && completedPlugins === 0 ? (
                                     <Stack direction="row" alignItems="center" spacing={1}>

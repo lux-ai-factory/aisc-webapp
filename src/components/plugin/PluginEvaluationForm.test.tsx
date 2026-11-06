@@ -136,7 +136,7 @@ it('prefills selection dropdowns from the last-used evaluation template on activ
 const HELPER_PROJECT = '11111111-2222-4333-8444-555555555555';
 const JUDGE_REF = `helper:${HELPER_PROJECT}/judge-a`;
 
-function mockEngine(opts: { helpers: object[]; components: object[]; required?: boolean }) {
+function mockEngine(opts: { helpers: object[]; components: object[]; required?: boolean; models?: object }) {
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input);
         if (url.includes('/display_icon')) return { ok: true, json: async () => 'extension' } as Response;
@@ -151,6 +151,9 @@ function mockEngine(opts: { helpers: object[]; components: object[]; required?: 
         }
         if (url.includes('/configs')) return { ok: true, json: async () => [] } as Response;
         if (url.includes('/evaluation-inputs-template')) return { ok: true, json: async () => ({}) } as Response;
+        if (url.includes('/helpers/models')) {
+            return { ok: true, json: async () => opts.models ?? { models: [], error: 'the endpoint lists no models' } } as Response;
+        }
         if (url.includes('/helpers')) return { ok: true, json: async () => opts.helpers } as Response;
         if (url.includes('/projects/')) {
             return {
@@ -239,6 +242,38 @@ it('submits the model typed for the chosen helper, with no pid', async () => {
     const sent = onSelectionChange.mock.calls.find(c => c[1] === 'helper:judge')?.[0];
     expect(sent).toEqual({ ...picked, value: { model: 'gpt-4o-mini' } });
     expect('pid' in sent).toBe(false);
+    container.remove();
+});
+
+it("offers the chosen helper's models in a list and sends the one picked", async () => {
+    mockEngine({ helpers: [judgeA], components: [], models: { models: ['gpt-4o', 'gpt-4o-mini'], error: null } });
+    const picked = { name: 'helper:judge', input_type: 'helper', helper_ref: JUDGE_REF, value: { model: '' } };
+    const { container, onSelectionChange } = await renderForm([picked]);
+    for (let i = 0; i < 100 && container.querySelectorAll('[role="combobox"]').length < 3; i++) {
+        await act(async () => { await new Promise(r => setTimeout(r, 20)); });
+    }
+
+    expect(String((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.map(c => c[0]))).toContain(
+        `/projects/${HELPER_PROJECT}/helpers/models?ref=${encodeURIComponent(JUDGE_REF)}`);
+    await openSelect(container, 2);
+    const options = [...document.querySelectorAll('[role="option"]')].map(o => o.textContent);
+    expect(options).toEqual(['gpt-4o', 'gpt-4o-mini']);
+    await act(async () => {
+        (([...document.querySelectorAll('[role="option"]')].find(o => o.textContent === 'gpt-4o-mini')) as HTMLElement).click();
+    });
+    const sent = onSelectionChange.mock.calls.filter(c => c[1] === 'helper:judge').pop()?.[0];
+    expect(sent).toEqual({ ...picked, value: { model: 'gpt-4o-mini' } });
+    container.remove();
+});
+
+it('asks for the model by name, with the reason, when the helper lists none', async () => {
+    mockEngine({ helpers: [judgeA], components: [] });
+    const picked = { name: 'helper:judge', input_type: 'helper', helper_ref: JUDGE_REF, value: { model: '' } };
+    const { container } = await renderForm([picked]);
+    for (let i = 0; i < 100 && !(container.textContent ?? '').includes('lists no models'); i++) {
+        await act(async () => { await new Promise(r => setTimeout(r, 20)); });
+    }
+    expect(container.textContent).toContain('the endpoint lists no models');
     container.remove();
 });
 

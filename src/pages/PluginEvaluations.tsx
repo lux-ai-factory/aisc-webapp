@@ -24,6 +24,8 @@ import DownloadIcon from '@mui/icons-material/Download';
 import {Plugin} from "../models/models.tsx";
 import EvaluationProgressList from "../components/EvaluationProgressList.tsx";
 import {evaluationOutcome, finishedEvaluationUrls, pluginErrorText} from './evaluationOutcome';
+import {runTitle} from './runName';
+import RenameRun from '../components/RenameRun';
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -304,7 +306,7 @@ function PluginEvaluations() {
                                             <Box sx={{minWidth: 0}}>
                                                 <Tooltip title={evaluation.pid} placement="top">
                                                     <Typography variant="subtitle1" fontWeight={600} color="text.primary">
-                                                        Results
+                                                        {runTitle(evaluation)}
                                                     </Typography>
                                                 </Tooltip>
 
@@ -356,6 +358,13 @@ function PluginEvaluations() {
 
                                         <Divider sx={{my: 0.25}} />
                                     </CardActionArea>
+
+                                    <RenameRun
+                                        apiUrl={API_URL}
+                                        evaluationPid={evaluation.pid}
+                                        current={runTitle(evaluation) === 'Results' ? '' : runTitle(evaluation)}
+                                        onRenamed={() => fetchDoneEvaluations()}
+                                    />
 
                                     <Stack direction="row" justifyContent="space-between" alignItems="center">
                                             <Typography variant="caption" color="text.secondary" sx={{fontWeight: 600}}>

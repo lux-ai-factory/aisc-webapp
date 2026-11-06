@@ -1,13 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { API_VERSION_PREFIX } from "../config.tsx";
 import { useProject } from "../context/ProjectContext.tsx";
-import {Button, Typography, Box, Tooltip, Alert, Stack} from "@mui/material";
+import {Button, Typography, Box, Tooltip, Alert, Stack, TextField} from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import { useEffect, useRef, useState } from "react";
 import { Plugin, PluginInputValue } from "../models/models.tsx";
 import toast from "react-hot-toast";
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
 import { getProject, getEvaluationInputsTemplate } from "../api/api.tsx";
+import { launchBody } from "./runName";
 import { useNavigate } from "react-router-dom";
 import PluginEvaluationForm from "../components/plugin/PluginEvaluationForm.tsx";
 import './PluginStartEvaluation.css';
@@ -28,7 +29,8 @@ export function pluginKey(plugin: Pick<Plugin, 'package_name' | 'name'>): string
     return `${plugin.package_name}/${plugin.name}`;
 }
 
-const createEvaluation = async (project_uuid: string, selectedPlugins: SelectedPluginsState, plugins: Plugin[]) => {
+const createEvaluation = async (project_uuid: string, selectedPlugins: SelectedPluginsState, plugins: Plugin[],
+                                runName?: string) => {
     if (!project_uuid) throw new Error('Invalid uuid');
 
     // each plugin is named with its package, so the engine runs the one picked, not another of that name
@@ -37,10 +39,7 @@ const createEvaluation = async (project_uuid: string, selectedPlugins: SelectedP
         return plugin ? [{ name: plugin.name, package_name: plugin.package_name, inputs }] : [];
     });
 
-    const data = {
-        project_pid: project_uuid,
-        plugins_to_run
-    };
+    const data = launchBody(project_uuid, plugins_to_run, runName);
 
     const response = await fetch(`${API_URL}/evaluations/task`, {
         method: 'POST',
@@ -92,6 +91,8 @@ export default function PluginStartEvaluation() {
     // the project the selections in state belong to: saved only under it, reloaded when the project changes
     const selectionsOf = useRef(projectUUID);
     const [activePlugin, setActivePlugin] = useState<string | null>(null);
+    // what the run is called in the results (optional: empty gives the automatic name)
+    const [runName, setRunName] = useState('');
     const [validPlugins, setValidPlugins] = useState<Record<string, boolean>>({});
     const [dispatchError, setDispatchError] = useState<{ message: string; missing: Array<Record<string, string>>; invalid: Array<Record<string, string>>; ambiguous: Array<Record<string, string>> } | null>(null);
     const navigate = useNavigate();
@@ -153,7 +154,8 @@ export default function PluginStartEvaluation() {
         if (validEntries.length === 0) return;
         setDispatchError(null);
         try {
-            await createEvaluation(projectUUID, Object.fromEntries(validEntries), project?.plugins ?? []);
+            await createEvaluation(projectUUID, Object.fromEntries(validEntries), project?.plugins ?? [], runName);
+            setRunName('');
         } catch (error) {
             try {
                 const detail = JSON.parse(error instanceof Error ? error.message : '');
@@ -252,6 +254,15 @@ export default function PluginStartEvaluation() {
                     Start an Evaluation
                 </Typography>
 
+                <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
+                <TextField
+                    size="small"
+                    label="Run name (optional)"
+                    value={runName}
+                    onChange={(e) => setRunName(e.target.value)}
+                    inputProps={{maxLength: 255}}
+                    sx={{minWidth: {xs: 140, md: 260}}}
+                />
                 <Tooltip title="Launch Evaluation">
                     <Button
                         variant="contained"
@@ -269,6 +280,7 @@ export default function PluginStartEvaluation() {
                         </Box>
                     </Button>
                 </Tooltip>
+                </Box>
             </Box>
 
             {dispatchError && (

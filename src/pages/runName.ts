@@ -1,0 +1,33 @@
+// A run's name: given at launch, changed afterwards, shown as the run card's title and in the results
+// dashboard (empty: the automatic name). The engine keeps it on each plugin run (run_name).
+
+type NamedRun = { evaluation_plugins?: Array<{ run_name?: string | null }> | null };
+
+/** The run card's title: the run's name, or "Results" when it has none. */
+export function runTitle(evaluation: NamedRun): string {
+    const named = (evaluation.evaluation_plugins || []).map((p) => (p.run_name || '').trim()).find(Boolean);
+    return named || 'Results';
+}
+
+/** The launch request: the project, the plugins to run and the run's name (trimmed; empty when none). */
+export function launchBody<T>(projectPid: string, pluginsToRun: T[], name: string | undefined) {
+    return { project_pid: projectPid, plugins_to_run: pluginsToRun, name: (name || '').trim() };
+}
+
+/** Renames a run; answers the name the engine kept, or throws with the engine's reason. */
+export async function renameRun(apiUrl: string, evaluationPid: string, name: string): Promise<string> {
+    const res = await fetch(`${apiUrl}/evaluations/${evaluationPid}/name`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+    });
+    if (!res.ok) {
+        let reason = 'The run could not be renamed';
+        try {
+            const body = await res.json();
+            if (typeof body?.detail === 'string') reason = body.detail;
+        } catch { /* no body: the general reason */ }
+        throw new Error(reason);
+    }
+    return ((await res.json()) as { name: string }).name;
+}

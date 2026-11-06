@@ -3,7 +3,9 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const UNCHANGED = [
-  'src/api/api.tsx', 'src/components/EvaluationProgressList.tsx',
+  'src/api/api.tsx',
+  // EvaluationProgressList.tsx is not on this list: the progress bar titles each run with its name and offers
+  // to stop it (components/runStop.test.ts).
   'src/components/GenericTextDataGrid.tsx', 'src/components/SummaryTable.tsx', 'src/components/UploadFileField.tsx',
   'src/components/plugin/CSVDataGridChart.tsx',
   'src/components/plugin/PluginConfigForm.tsx',
