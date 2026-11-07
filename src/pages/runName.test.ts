@@ -1,7 +1,11 @@
+// @vitest-environment jsdom
 // A run can be named at launch and renamed afterwards; the results list shows the name (runName.ts).
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { act, createElement } from 'react';
+import { createRoot, Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import RenameRun from '../components/RenameRun';
 import { engineError, launchBody, renameRun, runName, runTitle } from './runName';
 
 describe('the title a run card shows', () => {
@@ -84,17 +88,86 @@ describe('the pages', () => {
     const start = readFileSync(join(__dirname, 'PluginStartEvaluation.tsx'), 'utf8');
 
     it('the results list titles each run with its name and offers to rename it', () => {
-        const rename = readFileSync(join(__dirname, '../components/RenameRun.tsx'), 'utf8');
         expect(list).toContain('runTitle(evaluation)');
         expect(list).toContain('<RenameRun');
         // the rename box opens on the stored name, not on the card's title
         expect(list).toContain('current={runName(evaluation)}');
-        expect(rename).toContain('renameRun(');
-        expect(rename).toMatch(/>\s*Rename\s*</);
     });
 
     it('the launch page asks for an optional name and sends it', () => {
         expect(start).toMatch(/label="Run name \(optional\)"/);
         expect(start).toContain('launchBody(');
+    });
+});
+
+describe('the Rename control on a run card', () => {
+    let root: Root | null = null;
+    let container: HTMLElement | null = null;
+    afterEach(() => {
+        act(() => root?.unmount());
+        container?.remove();
+        vi.unstubAllGlobals();
+    });
+
+    async function show(current: string, answer: { ok: boolean; body: unknown }) {
+        const fetchMock = vi.fn(async () => ({ ok: answer.ok, status: answer.ok ? 200 : 400,
+                                               json: async () => answer.body }) as Response);
+        vi.stubGlobal('fetch', fetchMock);
+        const onRenamed = vi.fn();
+        container = document.createElement('div');
+        document.body.appendChild(container);
+        root = createRoot(container);
+        await act(async () => {
+            root!.render(createElement(RenameRun, { apiUrl: 'http://api', evaluationPid: 'e1', current, onRenamed }));
+        });
+        return { fetchMock, onRenamed };
+    }
+
+    const button = (text: string) =>
+        [...container!.querySelectorAll('button')].find((b) => b.textContent?.trim() === text) as HTMLButtonElement | undefined;
+    const press = async (text: string) => {
+        await act(async () => { button(text)!.click(); });
+        await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    };
+    const field = () => container!.querySelector('input') as HTMLInputElement | null;
+    const type = async (value: string) => {
+        const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+        await act(async () => {
+            set.call(field(), value);
+            field()!.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+    };
+
+    it('opens on the current name, saves the new one and asks for the runs again', async () => {
+        const { fetchMock, onRenamed } = await show('Results', { ok: true, body: { pid: 'e1', name: 'Local' } });
+        expect(field()).toBeNull();
+        await press('Rename');
+        expect(field()?.value).toBe('Results');
+        await type('Local');
+        await press('Save');
+        expect(fetchMock).toHaveBeenCalledWith('http://api/evaluations/e1/name', expect.objectContaining({
+            method: 'PATCH', body: JSON.stringify({ name: 'Local' }) }));
+        expect(onRenamed).toHaveBeenCalledOnce();
+        expect(field()).toBeNull();
+        expect(button('Rename')).toBeDefined();
+    });
+
+    it('Cancel closes the box without saving', async () => {
+        const { fetchMock, onRenamed } = await show('Old', { ok: true, body: {} });
+        await press('Rename');
+        await type('New');
+        await press('Cancel');
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(onRenamed).not.toHaveBeenCalled();
+        expect(field()).toBeNull();
+    });
+
+    it("keeps the box open with the engine's reason when it refuses", async () => {
+        const { onRenamed } = await show('Old', { ok: false, body: { detail: "A run's name is at most 255 characters" } });
+        await press('Rename');
+        await press('Save');
+        expect(container!.textContent).toContain("A run's name is at most 255 characters");
+        expect(field()?.value).toBe('Old');
+        expect(onRenamed).not.toHaveBeenCalled();
     });
 });

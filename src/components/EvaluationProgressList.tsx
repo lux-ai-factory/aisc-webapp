@@ -161,7 +161,7 @@ function resolvePluginDescription(
     return 'running';
 }
 
-function EvalProgressRow({
+export function EvalProgressRow({
     evaluation,
     collapseSignal,
     expandSignal,

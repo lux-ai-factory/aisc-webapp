@@ -1,7 +1,9 @@
+// @vitest-environment jsdom
 // The progress bar titles each run with its name and offers to stop it (runStop.ts does the call).
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { act, createElement } from 'react';
+import { createRoot, Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { EvalProgressRow } from './EvaluationProgressList';
 import { progressTitle, stopRun } from './runStop';
 
 describe('the title of a run in the progress bar', () => {
@@ -38,17 +40,81 @@ describe('stopping a run', () => {
 });
 
 describe('the progress bar', () => {
-    const bar = readFileSync(join(__dirname, 'EvaluationProgressList.tsx'), 'utf8');
-
-    it('titles each run with progressTitle', () => {
-        expect(bar).toContain('progressTitle(evaluation)');
-        expect(bar).not.toMatch(/>\s*Evaluation Progress\s*</);
+    let root: Root | null = null;
+    let container: HTMLElement | null = null;
+    afterEach(() => {
+        act(() => root?.unmount());
+        container?.remove();
+        vi.unstubAllGlobals();
     });
 
-    it('offers Stop, asks to confirm on the page and calls stopRun', () => {
-        expect(bar).toMatch(/>\s*Stop\s*</);
-        expect(bar).toContain('stopRun(');
-        expect(bar).toMatch(/Stop this run\?/);
-        expect(bar).not.toMatch(/window\.confirm|\bconfirm\(/);
+    /** The bar's row for run e1, with the engine answering Stop with `stopAnswer`; every call is recorded. */
+    async function showRow(stopAnswer: { ok: boolean; status: number; body: unknown }) {
+        const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+            const url = String(input);
+            if (url.endsWith('/evaluations/e1/stop')) {
+                return { ok: stopAnswer.ok, status: stopAnswer.status, json: async () => stopAnswer.body } as Response;
+            }
+            if (url.includes('/tasks/')) return { ok: true, json: async () => ({}) } as Response;
+            if (url.includes('/evaluations/e1?include=plugin')) {
+                return { ok: true, json: async () => ({ evaluation_plugins: [] }) } as Response;
+            }
+            throw new Error(`Unexpected fetch: ${url}`);
+        });
+        vi.stubGlobal('fetch', fetchMock);
+        container = document.createElement('div');
+        document.body.appendChild(container);
+        root = createRoot(container);
+        const evaluation = { pid: 'e1', task: 't1', status: 'Processing',
+                             evaluation_plugins: [{ pid: 'ep1', name: 'P', run_name: 'GENDER on local' }] };
+        await act(async () => {
+            root!.render(createElement(EvalProgressRow, {
+                evaluation: evaluation as never, collapseSignal: 0, expandSignal: 0, pluginIcons: {} }));
+        });
+        return fetchMock;
+    }
+
+    const button = (text: string) =>
+        [...container!.querySelectorAll('button')].find((b) => b.textContent?.trim() === text) as HTMLButtonElement | undefined;
+    const press = async (text: string) => {
+        await act(async () => { button(text)!.click(); });
+        await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    };
+    const stopCalls = (fetchMock: ReturnType<typeof vi.fn>) =>
+        fetchMock.mock.calls.filter((c) => String(c[0]).endsWith('/evaluations/e1/stop'));
+
+    it("titles the run with its name", async () => {
+        await showRow({ ok: true, status: 200, body: { pid: 'e1', status: 'Failed' } });
+        expect(container!.textContent).toContain('GENDER on local');
+        expect(container!.textContent).not.toContain('Evaluation Progress');
+    });
+
+    it('asks to confirm on the page, then stops the run and says it is stopping', async () => {
+        const fetchMock = await showRow({ ok: true, status: 200, body: { pid: 'e1', status: 'Failed' } });
+        await press('Stop');
+        expect(container!.textContent).toContain('Stop this run?');
+        expect(stopCalls(fetchMock)).toEqual([]);
+        await press('Yes, stop');
+        expect(stopCalls(fetchMock)).toEqual([[expect.stringMatching(/\/evaluations\/e1\/stop$/), { method: 'POST' }]]);
+        expect(container!.textContent).toContain('Stopping...');
+        expect(container!.textContent).not.toContain('Stop this run?');
+    });
+
+    it('No goes back to the Stop button without stopping', async () => {
+        const fetchMock = await showRow({ ok: true, status: 200, body: {} });
+        await press('Stop');
+        await press('No');
+        expect(stopCalls(fetchMock)).toEqual([]);
+        expect(button('Stop')).toBeDefined();
+        expect(container!.textContent).not.toContain('Stop this run?');
+    });
+
+    it("shows the engine's reason when it refuses, and offers Stop again", async () => {
+        await showRow({ ok: false, status: 409, body: { detail: 'The run has already ended (Done)' } });
+        await press('Stop');
+        await press('Yes, stop');
+        expect(container!.textContent).toContain('The run has already ended (Done)');
+        expect(container!.textContent).not.toContain('Stopping...');
+        expect(button('Stop')?.disabled).toBe(false);
     });
 });
