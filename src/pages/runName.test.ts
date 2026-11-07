@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { launchBody, renameRun, runTitle } from './runName';
+import { launchBody, renameRun, runName, runTitle } from './runName';
 
 describe('the title a run card shows', () => {
     it('is the run name when the run has one', () => {
@@ -13,6 +13,17 @@ describe('the title a run card shows', () => {
         expect(runTitle({ evaluation_plugins: [{ run_name: '' }] })).toBe('Results');
         expect(runTitle({ evaluation_plugins: [] })).toBe('Results');
         expect(runTitle({})).toBe('Results');
+    });
+});
+
+describe('the name a run is stored under', () => {
+    it('is the name even when the name is "Results", the title of a run with none', () => {
+        expect(runName({ evaluation_plugins: [{ run_name: 'Results' }] })).toBe('Results');
+    });
+
+    it('is empty when the run has the automatic name', () => {
+        expect(runName({ evaluation_plugins: [{ run_name: '' }, { run_name: null }] })).toBe('');
+        expect(runName({})).toBe('');
     });
 });
 
@@ -55,6 +66,8 @@ describe('the pages', () => {
         const rename = readFileSync(join(__dirname, '../components/RenameRun.tsx'), 'utf8');
         expect(list).toContain('runTitle(evaluation)');
         expect(list).toContain('<RenameRun');
+        // the rename box opens on the stored name, not on the card's title
+        expect(list).toContain('current={runName(evaluation)}');
         expect(rename).toContain('renameRun(');
         expect(rename).toMatch(/>\s*Rename\s*</);
     });

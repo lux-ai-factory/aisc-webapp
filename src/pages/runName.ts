@@ -3,10 +3,14 @@
 
 type NamedRun = { evaluation_plugins?: Array<{ run_name?: string | null }> | null };
 
+/** The name the run is stored under: the first non-empty run_name of its plugin runs, '' for the automatic one. */
+export function runName(evaluation: NamedRun): string {
+    return (evaluation.evaluation_plugins || []).map((p) => (p.run_name || '').trim()).find(Boolean) ?? '';
+}
+
 /** The run card's title: the run's name, or "Results" when it has none. */
 export function runTitle(evaluation: NamedRun): string {
-    const named = (evaluation.evaluation_plugins || []).map((p) => (p.run_name || '').trim()).find(Boolean);
-    return named || 'Results';
+    return runName(evaluation) || 'Results';
 }
 
 /** The launch request: the project, the plugins to run and the run's name (trimmed; empty when none). */

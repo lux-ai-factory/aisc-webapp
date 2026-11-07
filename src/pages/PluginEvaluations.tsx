@@ -24,7 +24,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import {Plugin} from "../models/models.tsx";
 import EvaluationProgressList from "../components/EvaluationProgressList.tsx";
 import {evaluationOutcome, finishedEvaluationUrls, pluginErrorText} from './evaluationOutcome';
-import {runTitle} from './runName';
+import {runName, runTitle} from './runName';
 import RenameRun from '../components/RenameRun';
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
@@ -362,7 +362,7 @@ function PluginEvaluations() {
                                     <RenameRun
                                         apiUrl={API_URL}
                                         evaluationPid={evaluation.pid}
-                                        current={runTitle(evaluation) === 'Results' ? '' : runTitle(evaluation)}
+                                        current={runName(evaluation)}
                                         onRenamed={() => fetchDoneEvaluations()}
                                     />
 
