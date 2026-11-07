@@ -1,16 +1,27 @@
-// A run's name: given at launch, changed afterwards, shown as the run card's title and in the results
-// dashboard (empty: the automatic name). The engine keeps it on each plugin run (run_name).
+// A run's name: given at launch, changed afterwards, shown as the run card's title, the progress bar's title and
+// in the results dashboard (empty: the automatic name). The engine keeps it on each plugin run (run_name).
 
-type NamedRun = { evaluation_plugins?: Array<{ run_name?: string | null }> | null };
+// any run as the engine lists it: its plugin runs carry run_name, which not every webapp model declares
+type NamedRun = { evaluation_plugins?: ReadonlyArray<object> | null };
 
 /** The name the run is stored under: the first non-empty run_name of its plugin runs, '' for the automatic one. */
 export function runName(evaluation: NamedRun): string {
-    return (evaluation.evaluation_plugins || []).map((p) => (p.run_name || '').trim()).find(Boolean) ?? '';
+    return (evaluation.evaluation_plugins || [])
+        .map((p) => String((p as { run_name?: unknown }).run_name ?? '').trim()).find(Boolean) ?? '';
 }
 
 /** The run card's title: the run's name, or "Results" when it has none. */
 export function runTitle(evaluation: NamedRun): string {
     return runName(evaluation) || 'Results';
+}
+
+/** An engine refusal as an error: the engine's own reason (its detail) when it gives one, else `fallback`. */
+export async function engineError(res: Response, fallback: string): Promise<Error> {
+    try {
+        const body = await res.json();
+        if (typeof body?.detail === 'string') return new Error(body.detail);
+    } catch { /* no body: the general reason */ }
+    return new Error(fallback);
 }
 
 /** The launch request: the project, the plugins to run and the run's name (trimmed; empty when none). */
@@ -25,13 +36,6 @@ export async function renameRun(apiUrl: string, evaluationPid: string, name: str
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name }),
     });
-    if (!res.ok) {
-        let reason = 'The run could not be renamed';
-        try {
-            const body = await res.json();
-            if (typeof body?.detail === 'string') reason = body.detail;
-        } catch { /* no body: the general reason */ }
-        throw new Error(reason);
-    }
+    if (!res.ok) throw await engineError(res, 'The run could not be renamed');
     return ((await res.json()) as { name: string }).name;
 }

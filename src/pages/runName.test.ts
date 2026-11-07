@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { launchBody, renameRun, runName, runTitle } from './runName';
+import { engineError, launchBody, renameRun, runName, runTitle } from './runName';
 
 describe('the title a run card shows', () => {
     it('is the run name when the run has one', () => {
@@ -24,6 +24,27 @@ describe('the name a run is stored under', () => {
     it('is empty when the run has the automatic name', () => {
         expect(runName({ evaluation_plugins: [{ run_name: '' }, { run_name: null }] })).toBe('');
         expect(runName({})).toBe('');
+    });
+});
+
+describe("the reason an engine refusal is shown with", () => {
+    it("is the engine's detail when it gives one", async () => {
+        const res = { ok: false, json: async () => ({ detail: 'The run has already ended (Done)' }) } as Response;
+        expect((await engineError(res, 'The run could not be stopped')).message).toBe('The run has already ended (Done)');
+    });
+
+    it('is the general reason when the answer has no detail or no body', async () => {
+        const noDetail = { ok: false, json: async () => ({}) } as Response;
+        const noBody = { ok: false, json: async () => { throw new Error('no json'); } } as unknown as Response;
+        expect((await engineError(noDetail, 'general')).message).toBe('general');
+        expect((await engineError(noBody, 'general')).message).toBe('general');
+    });
+});
+
+describe('the name of a run as the engine lists it in progress', () => {
+    it('is read from plugin runs the webapp models do not type', () => {
+        const listed: ReadonlyArray<object> = [{ status: 'Running' }, { run_name: ' GENDER ' }];
+        expect(runName({ evaluation_plugins: listed })).toBe('GENDER');
     });
 });
 
