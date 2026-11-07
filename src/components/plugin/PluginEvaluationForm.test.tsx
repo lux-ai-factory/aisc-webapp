@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import PluginEvaluationForm from './PluginEvaluationForm';
@@ -242,6 +242,54 @@ it('submits the model typed for the chosen helper, with no pid', async () => {
     const sent = onSelectionChange.mock.calls.find(c => c[1] === 'helper:judge')?.[0];
     expect(sent).toEqual({ ...picked, value: { model: 'gpt-4o-mini' } });
     expect('pid' in sent).toBe(false);
+    container.remove();
+});
+
+it('keeps a text box for the model while it is typed, when the helper lists no models', async () => {
+    mockEngine({ helpers: [judgeA], components: [] });
+    const picked = { name: 'helper:judge', input_type: 'helper', helper_ref: JUDGE_REF, value: { model: '' } };
+    const sent: object[] = [];
+    // the run page keeps what the form sends and hands it back as the form's selections
+    function FedBack() {
+        const [selections, setSelections] = useState<object[]>([picked]);
+        return (
+            <PluginEvaluationForm
+                plugin={plugin}
+                isConfigured
+                isActive
+                selections={selections as never}
+                onToggle={() => {}}
+                onSelectionChange={(item) => { sent.push(item as object); setSelections(item ? [item] : []); }}
+            />
+        );
+    }
+    const container = createContainer();
+    await act(async () => {
+        createRoot(container).render(
+            <QueryClientProvider client={qc()}>
+                <ProjectProvider>
+                    <ProjectUUIDSetter uuid={HELPER_PROJECT} />
+                    <FedBack />
+                </ProjectProvider>
+            </QueryClientProvider>,
+        );
+    });
+    for (let i = 0; i < 100 && !(container.textContent ?? '').includes('lists no models'); i++) {
+        await act(async () => { await new Promise(r => setTimeout(r, 20)); });
+    }
+    const modelBox = () => [...container.querySelectorAll('label')].find(l => l.textContent?.startsWith('Model'))
+        ?.parentElement?.querySelector('input:not([aria-hidden])') as HTMLInputElement | null;
+    const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    for (const typed of ['g', 'gp']) {
+        const field = modelBox();
+        expect(field, `a text box before typing ${typed}`).not.toBeNull();
+        await act(async () => {
+            set.call(field, typed);
+            field!.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+    }
+    expect(modelBox()?.value).toBe('gp');
+    expect(sent[sent.length - 1]).toEqual({ ...picked, value: { model: 'gp' } });
     container.remove();
 });
 

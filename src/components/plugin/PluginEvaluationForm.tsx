@@ -40,7 +40,8 @@ interface ModelSelectProps {
 
 function ModelSelect({ def, value, models, error, selectMenuProps, onChange }: ModelSelectProps) {
     const options = [...new Set([...(value ? [value] : []), ...models])];
-    if (models.length > 0 || value) {
+    // a list only when the endpoint listed models: a name typed into the text box is not a list to pick from
+    if (models.length > 0) {
         return (
             <FormControl fullWidth size="small" sx={{ mt: 1 }}>
                 <InputLabel>Model</InputLabel>
