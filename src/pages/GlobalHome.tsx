@@ -90,7 +90,7 @@ const GlobalHome = () => {
         return (
             <Box className="auth-message">
                 <Typography variant="h4" fontWeight={700} gutterBottom>
-                    AI Assessment Sandbox
+                    AISC
                 </Typography>
                 <Typography variant="body1" color="text.secondary">
                     Please sign in to get started.

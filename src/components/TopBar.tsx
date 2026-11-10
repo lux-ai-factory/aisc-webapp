@@ -249,7 +249,7 @@ const TopBar: React.FC = () => {
                                 component="div"
                                 sx={{ ml: 0 }}
                             >
-                                AI Assessment Sandbox
+                                AISC
                             </Typography>
                         </Box>
                     </NavLink>
