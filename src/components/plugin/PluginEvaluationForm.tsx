@@ -19,6 +19,7 @@ interface PluginEvaluationFormProps {
     onToggle: () => void;
     onUnselect?: () => void;
     onSelectionChange: (item: PluginInputValue | null, inputName: string) => void;
+    onConfigChange?: (configId: number | null) => void;
     onValidationChange?: (valid: boolean) => void;
 }
 
@@ -79,6 +80,7 @@ export default function PluginEvaluationForm({
     onToggle,
     onUnselect,
     onSelectionChange,
+    onConfigChange,
     onValidationChange,
 }: PluginEvaluationFormProps) {
     const { projectUUID } = useProject();
@@ -414,7 +416,11 @@ export default function PluginEvaluationForm({
                                         }
                                         return `Config #${configLocalIndex.get(selected.id) ?? selected.id} (${new Date(selected.created_at).toLocaleDateString()})`;
                                     }}
-                                    onChange={(e) => setSelectedConfig(e.target.value ? Number(e.target.value) : null)}
+                                    onChange={(e) => {
+                                        const next = e.target.value ? Number(e.target.value) : null;
+                                        setSelectedConfig(next);
+                                        onConfigChange?.(next);
+                                    }}
                                 >
                                     {configs.map((cfg: PluginConfig) => (
                                         <MenuItem key={cfg.id} value={cfg.id}>
