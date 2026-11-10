@@ -1,8 +1,8 @@
-import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query'
-import {API_VERSION_PREFIX} from "../../config.tsx";
-import {MenuItem, Select, SelectChangeEvent, FormControl, Box, Typography} from "@mui/material";
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { API_VERSION_PREFIX } from "../../config.tsx";
+import { MenuItem, Select, Box } from "@mui/material";
 import HistoryIcon from '@mui/icons-material/History';
-import {PluginConfig, Plugin} from "../../models/models.tsx";
+import { PluginConfig } from "../../models/models.tsx";
 import toast from "react-hot-toast";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
@@ -13,7 +13,9 @@ const fetchConfigHistory = async (plugin_pid: string): Promise<PluginConfig[]> =
     return await res.json();
 };
 
-const restoreConfig = async (plugin_pid: string, config_id: number): Promise<Plugin> => {
+/** Adapter of the previous restore flow: picking a config makes it the
+ *  plugin's current config, and the parent then reloads the form state. */
+const restoreConfig = async (plugin_pid: string, config_id: number) => {
     const res = await fetch(`${API_URL}/plugins/${plugin_pid}/configs/${config_id}/restore`, {
         method: 'POST',
     });
@@ -23,14 +25,14 @@ const restoreConfig = async (plugin_pid: string, config_id: number): Promise<Plu
 
 interface ConfigHistoryProps {
     pluginPID: string;
-    plugin_config_id?: number | null;
-    onRestore?: () => void;
+    /** reload the form after the picked config is restored */
+    onRestore: () => void;
 }
 
-export default function ConfigHistory({ pluginPID, plugin_config_id, onRestore }: ConfigHistoryProps) {
+export default function ConfigHistory({ pluginPID, onRestore }: ConfigHistoryProps) {
     const queryClient = useQueryClient();
 
-    const { data: history, isPending } = useQuery({
+    const { data: history } = useQuery({
         queryKey: ['pluginConfigHistory', pluginPID],
         queryFn: () => fetchConfigHistory(pluginPID),
         enabled: !!pluginPID
@@ -40,57 +42,47 @@ export default function ConfigHistory({ pluginPID, plugin_config_id, onRestore }
         mutationFn: (configId: number) => restoreConfig(pluginPID, configId),
         onSuccess: async () => {
             toast.success('Config restored', { position: "bottom-right" });
-            // Force query refresh in parent component
             await queryClient.invalidateQueries({ queryKey: ['projectPluginConfig'] });
-            onRestore?.();
+            onRestore();
         },
         onError: () => {
             toast.error('Failed to restore config', { position: "bottom-right" });
         }
     });
 
-    if (isPending) return <span>Loading history...</span>;
+    if (!history) return null;
 
-    const handleRestore = (event: SelectChangeEvent<number>) => {
-        const configId = event.target.value as number;
-        restoreMutation.mutate(configId);
-    };
-
-    
-    const selectedConfig = history?.find(c => c.id === plugin_config_id);
+    const empty = history.length === 0;
 
     return (
-        <Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
-                <HistoryIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
-                <Typography variant='body2' color='text.secondary' sx={{ fontWeight: 600 }}>
-                    Config History
-                </Typography>
-            </Box>
-            <FormControl fullWidth>
-                <Select
-                    value={selectedConfig?.id || ''}
-                    displayEmpty
-                    onChange={handleRestore}
-                    className='plugin-config-select'
-                    sx={{
-                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                            borderColor: 'primary.main',
-                        },
-                    }}
-                    MenuProps={{
-                        PaperProps: {
-                            className: 'plugin-config-menu',
-                        },
-                    }}
-                >
-                    {history?.map((c) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <HistoryIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+            <Select
+                size="small"
+                displayEmpty
+                value=""
+                className='plugin-config-select'
+                sx={{ minWidth: 170 }}
+                MenuProps={{
+                    PaperProps: {
+                        className: 'plugin-config-menu',
+                    },
+                }}
+                renderValue={() => 'Config history'}
+                onChange={(e) => restoreMutation.mutate(Number(e.target.value))}
+            >
+                {empty ? (
+                    <MenuItem value="" disabled>
+                        No saved configs
+                    </MenuItem>
+                ) : (
+                    history.map((c) => (
                         <MenuItem key={c.id} value={c.id}>
-                            {new Date(c.created_at).toLocaleString()} {c.id === selectedConfig?.id ? '(Current)' : ''}
+                            {new Date(c.created_at).toLocaleString()}
                         </MenuItem>
-                    ))}
-                </Select>
-            </FormControl>
+                    ))
+                )}
+            </Select>
         </Box>
     );
 }

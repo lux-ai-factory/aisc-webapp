@@ -1,9 +1,6 @@
 import {
     Box,
     Button,
-    Card,
-    CardContent,
-    Chip,
     MenuItem,
     Step,
     StepLabel,
@@ -16,13 +13,12 @@ import {
     ListItem,
     Icon
 } from "@mui/material";
-import Grid from "@mui/material/Grid2";
 import AddIcon from "@mui/icons-material/Add";
 import CloudUpload from "@mui/icons-material/CloudUpload";
 import CloudDoneIcon from "@mui/icons-material/CloudDone";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { styled } from "@mui/material/styles";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import AppDialog from "./AppDialog";
 import "./addProjectWizard.css";
 import "../styles/common.css";
@@ -48,27 +44,16 @@ interface ComponentItem {
     uploaded: boolean;
 }
 
-interface PluginItem {
-    name: string;
-    version: string;
-    source?: string;
-    display_icon?: string;
-}
-
 interface AddProjectWizardProps {
     open: boolean;
     onClose: () => void;
     onFinish: (data: any) => void;
-    plugins: PluginItem[];
-    fetchPlugins: () => void;
 }
 
 export default function AddProjectWizard({
     open,
     onClose,
     onFinish,
-    plugins,
-    fetchPlugins
 }: AddProjectWizardProps) {
     const [activeStep, setActiveStep] = useState(0);
 
@@ -76,29 +61,15 @@ export default function AddProjectWizard({
 
     const [localComponents, setLocalComponents] = useState<ComponentItem[]>([]);
 
-    const [selectedPlugins, setSelectedPlugins] = useState<Record<string, boolean>>({});
-
-    const groupedPlugins = useMemo(() => {
-        const seen = new Set<string>();
-        return plugins.filter(p => {
-            if (!p.name || seen.has(p.name)) return false;
-            seen.add(p.name);
-            return true;
-        });
-    }, [plugins]);
-
-    const steps = ["Project Name", "Components", "Plugins"];
+    const steps = ["Project Name", "Components"];
 
     // Load wizard data ONLY when the wizard opens
     useEffect(() => {
         if (open) {
-            fetchPlugins();
-
             // Reset wizard state
             setActiveStep(0);
             setProjectName("");
             setLocalComponents([]);
-            setSelectedPlugins({});
         }
     }, [open]);
 
@@ -142,16 +113,9 @@ export default function AddProjectWizard({
     const handleBack = () => setActiveStep(s => s - 1);
 
     const handleFinish = () => {
-        const allEntries: Record<string, { name: string; version: string }> = {};
-        plugins.forEach((p, i) => {
-            if (selectedPlugins[p.name]) {
-                allEntries[String(i)] = { name: p.name, version: p.version };
-            }
-        });
         onFinish({
             name: projectName,
             components: localComponents,
-            plugins: allEntries
         });
         onClose();
     };
@@ -309,67 +273,6 @@ export default function AddProjectWizard({
                         </List>
                         )}
                     </Box>
-                )}
-
-                {/* PLUGINS (now packages) */}
-                {activeStep === 2 && (
-                    <Grid container spacing={2}>
-                        {groupedPlugins.map(pkg => {
-                            const selected = !!selectedPlugins[pkg.name];
-
-                            return (
-                                <Grid key={pkg.name} size={{ xs: 12, sm: 6, md: 4 }}>
-                                    <Card
-                                        onClick={() =>
-                                            setSelectedPlugins(prev => ({
-                                                ...prev,
-                                                [pkg.name]: !prev[pkg.name]
-                                            }))
-                                        }
-                                        className="plugins-card"
-                                        sx={{
-                                            border: '2px solid',
-                                            borderColor: selected ? 'primary.main' : 'grey.200',
-                                            background: selected
-                                                ? 'linear-gradient(135deg, rgba(69, 145, 251, 0.15), rgba(0, 52, 255, 0.1))'
-                                                : 'white',
-                                        }}
-                                    >
-                                        <CardContent sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-                                            <Box sx={{ flex: 1 }}>
-                                                <Typography variant="subtitle1" fontWeight={600} color="text.primary">
-                                                    {pkg.name}
-                                                </Typography>
-
-                                                <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5, flexWrap: 'wrap', alignItems: 'center' }}>
-                                                    <Chip
-                                                        label={`v${pkg.version}`}
-                                                        size="small"
-                                                        variant="outlined"
-                                                        color="default"
-                                                    />
-                                                    {pkg.source && (
-                                                        <Chip
-                                                            label={pkg.source}
-                                                            size="small"
-                                                            color={pkg.source === 'local' ? 'info' : 'default'}
-                                                            variant={pkg.source === 'local' ? 'filled' : 'outlined'}
-                                                        />
-                                                    )}
-                                                </Box>
-                                            </Box>
-
-                                            {selected && (
-                                                <Icon sx={{ color: 'success.main', alignSelf: 'center', fontSize: 24 }}>
-                                                    check_circle
-                                                </Icon>
-                                            )}
-                                        </CardContent>
-                                    </Card>
-                                </Grid>
-                            );
-                        })}
-                    </Grid>
                 )}
             </AppDialog>
     );
