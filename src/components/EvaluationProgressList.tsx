@@ -536,7 +536,7 @@ export default function EvaluationProgressList({
         return () => {
             cancelled = true;
         };
-    }, [evaluations, pluginPidByName]);
+    }, [evaluations, pluginPidByName, pluginIcons]);
 
     useEffect(() => {
         onEvaluationsChanged?.(evaluations.map((ev) => ev.pid));
