@@ -1,12 +1,15 @@
 import {
     alpha,
     Box,
+    Button,
     Card,
     CardContent,
     Collapse,
     CircularProgress,
+    DialogContentText,
     Divider,
     Icon,
+    IconButton,
     LinearProgress,
     Paper,
     Stack,
@@ -15,20 +18,23 @@ import {
     TableCell,
     TableContainer,
     TableRow,
+    Tooltip,
     Typography,
     useTheme,
 } from '@mui/material';
 import HourglassTopIcon from '@mui/icons-material/HourglassTop';
 import ExtensionIcon from '@mui/icons-material/Extension';
+import StopCircleIcon from '@mui/icons-material/StopCircle';
 import {API_VERSION_PREFIX} from '../config.tsx';
 import './EvaluationProgressList.css';
 import {Evaluation, Plugin, TaskProgress} from '../models/models.tsx';
 import {useEffect, useState} from 'react';
+import type {MouseEvent} from 'react';
+import AppDialog from './AppDialog.tsx';
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
-const RUNNING_STATUSES = ['Pending', 'Processing'] as const;
-type RunningStatus = (typeof RUNNING_STATUSES)[number];
+type RunningStatus = 'Pending' | 'Processing';
 
 const fetchEvalsByStatus = async (
     projectUUID: string,
@@ -75,6 +81,11 @@ const fetchEvaluationPluginStatuses = async (
     }
 
     return statusMap;
+};
+
+const stopTask = async (url: string): Promise<void> => {
+    const res = await fetch(url, {method: 'POST'});
+    if (!res.ok) throw new Error(`stop failed: ${res.status}`);
 };
 
 const fetchPluginIcon = async (pluginPid: string): Promise<string> => {
@@ -159,6 +170,39 @@ function resolvePluginDescription(
     return 'running';
 }
 
+function StopEvaluationButton({
+    stopping,
+    stopped,
+    onClick,
+}: {
+    stopping?: boolean;
+    stopped?: boolean;
+    onClick: (e: MouseEvent<HTMLButtonElement>) => void;
+}) {
+    const title = stopped ? 'Evaluation stopped' : stopping ? 'Stopping…' : 'Stop evaluation';
+    return (
+        <Tooltip title={title}>
+            {/* span so the tooltip still shows while the button is disabled */}
+            <span>
+                <IconButton
+                    size="small"
+                    onClick={onClick}
+                    disabled={stopping || stopped}
+                    aria-label="Stop evaluation"
+                    sx={{
+                        // default app icon color; go red only on hover
+                        '&:hover': {
+                            color: 'error.main',
+                        },
+                    }}
+                >
+                    <StopCircleIcon fontSize="small" />
+                </IconButton>
+            </span>
+        </Tooltip>
+    );
+}
+
 function EvalProgressRow({
     evaluation,
     collapseSignal,
@@ -175,6 +219,9 @@ function EvalProgressRow({
     const taskPid = evaluation.task;
     const [pluginStatuses, setPluginStatuses] = useState<Record<string, TaskProgress & {plugin_name?: string}> | null>(null);
     const [evaluationPluginStatuses, setEvaluationPluginStatuses] = useState<Record<string, string> | null>(null);
+    const [stopDialog, setStopDialog] = useState(false);
+    const [stopping, setStopping] = useState(false);
+    const [stopped, setStopped] = useState(false);
 
     useEffect(() => {
         if (!taskPid) {
@@ -250,6 +297,20 @@ function EvalProgressRow({
     }).length;
     const progressPercent = totalPlugins > 0 ? Math.round((completedPlugins / totalPlugins) * 100) : 0;
 
+    const confirmStop = async () => {
+        if (!stopDialog) return;
+        setStopping(true);
+        try {
+            await stopTask(`${API_URL}/tasks/${evaluation.task}/stop`);
+            setStopped(true);
+        } catch {
+            // the row disappears on the next poll either way; nothing else to do
+        } finally {
+            setStopping(false);
+            setStopDialog(false);
+        }
+    };
+
     useEffect(() => {
         setOpen(false);
     }, [collapseSignal]);
@@ -259,6 +320,7 @@ function EvalProgressRow({
     }, [expandSignal]);
 
     return (
+        <>
         <TableContainer component={Paper} variant="outlined" sx={{borderRadius: 2, overflow: 'hidden'}}>
             <Table size="small">
                 <TableBody>
@@ -273,11 +335,16 @@ function EvalProgressRow({
                         <TableCell sx={{borderBottom: open ? `1px solid ${theme.palette.divider}` : 0, py: 1.5}}>
                             <Stack spacing={1}>
                                 <Stack direction="row" alignItems="center" justifyContent="space-between">
-                                    <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
+                                    <Box sx={{display: 'flex', alignItems: 'center', gap: 0.5}}>
                                         <HourglassTopIcon color="primary" fontSize="small" />
                                         <Typography variant="body2" fontWeight={700}>
                                             Evaluation Progress
                                         </Typography>
+                                        <StopEvaluationButton
+                                            stopping={stopping}
+                                            stopped={stopped}
+                                            onClick={(e) => { e.stopPropagation(); setStopDialog(true); }}
+                                        />
                                         <Typography
                                             className="eval-pid"
                                             variant="caption"
@@ -410,6 +477,26 @@ function EvalProgressRow({
                 </TableBody>
             </Table>
         </TableContainer>
+        <AppDialog
+            open={stopDialog}
+            onClose={() => setStopDialog(false)}
+            title="Stop evaluation?"
+            actions={
+                <>
+                    <Button onClick={() => setStopDialog(false)} disabled={stopping}>
+                        Cancel
+                    </Button>
+                    <Button onClick={confirmStop} color="error" variant="contained" disabled={stopping}>
+                        {stopping ? 'Stopping...' : 'Stop'}
+                    </Button>
+                </>
+            }
+        >
+            <DialogContentText>
+                Stop this evaluation? All running plugins will be terminated and partial results discarded.
+            </DialogContentText>
+        </AppDialog>
+        </>
     );
 }
 
@@ -559,7 +646,7 @@ export default function EvaluationProgressList({
                     }}
                     sx={{cursor: 'pointer'}}
                 >
-                    <Typography component="h2" variant="h5" gutterBottom sx={{mb: 0.5}}>
+                    <Typography component="h2" variant="h5" gutterBottom sx={{mb: 0.5, fontWeight: 'bold'}}>
                         Running Evaluations
                     </Typography>
                 </Box>
