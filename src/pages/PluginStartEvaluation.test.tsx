@@ -105,7 +105,7 @@ function mountPage(container: HTMLDivElement): Root {
 }
 
 it('restores previously used values from session storage after remount', async () => {
-    sessionStorage.setItem('start-eval-state', JSON.stringify({
+    sessionStorage.setItem('start-eval-state:proj-1', JSON.stringify({
         selectedPlugins: {
             DemoPlugin: [
                 { pid: 'comp-model', name: 'model', input_type: 'model', value: {} },
@@ -136,6 +136,39 @@ it('starts with empty plugin cards unless restored from this session', async () 
     // The previous-run template must NOT pre-populate the cards.
     await waitForHtml(el => !!el.querySelector('[data-plugin-card]'), container);
     expect(container.textContent).not.toContain('Dataset A');
+    expect(container.textContent).not.toContain('Model A');
+    container.remove();
+});
+
+it('does not leak cached fields from another project', async () => {
+    // Fields cached under project proj-1 must not surface in project proj-2.
+    sessionStorage.setItem('start-eval-state:proj-1', JSON.stringify({
+        selectedPlugins: {
+            DemoPlugin: [
+                { pid: 'comp-model', name: 'model', input_type: 'model', value: {} },
+            ],
+        },
+        selectionCache: {},
+    }));
+
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+
+    const root = createRoot(container);
+    act(() => {
+        root.render(
+            <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+                <MemoryRouter>
+                    <ProjectProvider>
+                        <ProjectUUIDSetter uuid="proj-2" />
+                        <PluginStartEvaluation />
+                    </ProjectProvider>
+                </MemoryRouter>
+            </QueryClientProvider>,
+        );
+    });
+
+    await waitForHtml(el => !!el.querySelector('[data-plugin-card]'), container);
     expect(container.textContent).not.toContain('Model A');
     container.remove();
 });

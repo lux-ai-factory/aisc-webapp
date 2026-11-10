@@ -3,7 +3,7 @@ import { API_VERSION_PREFIX } from "../config.tsx";
 import { useProject } from "../context/ProjectContext.tsx";
 import {Button, Typography, Box, Tooltip, Alert, Stack} from "@mui/material";
 import Grid from "@mui/material/Grid2";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plugin, PluginInputValue } from "../models/models.tsx";
 import toast from "react-hot-toast";
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
@@ -20,6 +20,23 @@ type PluginSelection = PluginInputValue;
 
 type SelectedPluginsState = {
     [pluginName: string]: PluginSelection[];
+}
+
+const STORAGE_KEY = 'start-eval-state';
+const storageKeyFor = (projectUUID?: string | null) => projectUUID ? `${STORAGE_KEY}:${projectUUID}` : STORAGE_KEY;
+
+function loadState(key: string): { selectedPlugins: SelectedPluginsState; selectionCache: SelectedPluginsState } {
+    try {
+        const saved = sessionStorage.getItem(key);
+        if (saved) return JSON.parse(saved);
+    } catch { /* ignore corrupted/inaccessible session storage */ }
+    return { selectedPlugins: {}, selectionCache: {} };
+}
+
+function saveState(key: string, selectedPlugins: SelectedPluginsState, selectionCache: SelectedPluginsState) {
+    try {
+        sessionStorage.setItem(key, JSON.stringify({ selectedPlugins, selectionCache }));
+    } catch { /* ignore storage quota/availability errors */ }
 }
 
 const createEvaluation = async (project_uuid: string, selectedPlugins: SelectedPluginsState) => {
@@ -54,26 +71,11 @@ const createEvaluation = async (project_uuid: string, selectedPlugins: SelectedP
     return await response.json();
 };
 
-const STORAGE_KEY = 'start-eval-state';
-
-function loadState(): { selectedPlugins: SelectedPluginsState; selectionCache: SelectedPluginsState } {
-    try {
-        const saved = sessionStorage.getItem(STORAGE_KEY);
-        if (saved) return JSON.parse(saved);
-    } catch {}
-    return { selectedPlugins: {}, selectionCache: {} };
-}
-
-function saveState(selectedPlugins: SelectedPluginsState, selectionCache: SelectedPluginsState) {
-    try {
-        sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ selectedPlugins, selectionCache }));
-    } catch {}
-}
-
 export default function PluginStartEvaluation() {
     const { projectUUID } = useProject();
-    const [selectedPlugins, setSelectedPlugins] = useState<SelectedPluginsState>(loadState().selectedPlugins);
-    const [selectionCache, setSelectionCache] = useState<SelectedPluginsState>(loadState().selectionCache);
+    const storageKey = storageKeyFor(projectUUID);
+    const [selectedPlugins, setSelectedPlugins] = useState<SelectedPluginsState>(() => loadState(storageKey).selectedPlugins);
+    const [selectionCache, setSelectionCache] = useState<SelectedPluginsState>(() => loadState(storageKey).selectionCache);
     const [activePlugin, setActivePlugin] = useState<string | null>(null);
     const [validPlugins, setValidPlugins] = useState<Record<string, boolean>>({});
     const [dispatchError, setDispatchError] = useState<{ message: string; missing: Array<Record<string, string>>; invalid: Array<Record<string, string>>; ambiguous: Array<Record<string, string>> } | null>(null);
@@ -150,9 +152,23 @@ export default function PluginStartEvaluation() {
         }
     };
 
+    // Cache is scoped per project; the same component stays mounted when the
+    // user switches projects, so persist the previous project's state and load
+    // the new project's on switch.
+    const prevStorageKey = useRef(storageKey);
     useEffect(() => {
-        saveState(selectedPlugins, selectionCache);
-    }, [selectedPlugins, selectionCache]);
+        if (prevStorageKey.current === storageKey) {
+            saveState(storageKey, selectedPlugins, selectionCache);
+            return;
+        }
+        saveState(prevStorageKey.current, selectedPlugins, selectionCache);
+        prevStorageKey.current = storageKey;
+        const saved = loadState(storageKey);
+        setSelectedPlugins(saved.selectedPlugins);
+        setSelectionCache(saved.selectionCache);
+        setValidPlugins({});
+        setActivePlugin(null);
+    }, [selectedPlugins, selectionCache, storageKey]);
 
     // Cards for plugins that are not backend-configured are disabled; clear any
     // lingering selections so their fields never appear pre-filled.
