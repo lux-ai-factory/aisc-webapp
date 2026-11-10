@@ -48,9 +48,8 @@ const ProjectContextWrapper: React.FC<ProjectContextWrapperProps> = ({ children 
     const { project_name } = useParams();
     const { authenticated } = useAuth();
 
-    if (!authenticated) return <Navigate to="/" replace />;
-
     useEffect(() => {
+        if (!authenticated) return;
         if (!project_name) return;
 
         fetch(`${API_URL}/projects/by-name/${project_name}`).then((res) => {
@@ -63,7 +62,9 @@ const ProjectContextWrapper: React.FC<ProjectContextWrapperProps> = ({ children 
             })
 
 
-    }, [project_name]);
+    }, [authenticated, project_name]);
+
+    if (!authenticated) return <Navigate to="/" replace />;
 
     return <>{children}</>;
 };

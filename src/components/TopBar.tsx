@@ -219,8 +219,9 @@ const TopBar: React.FC = () => {
 
 
     useEffect(() => {
+        if (!authenticated) return;
         fetchProjects();
-    }, []);
+    }, [authenticated]);
 
 
     return (
