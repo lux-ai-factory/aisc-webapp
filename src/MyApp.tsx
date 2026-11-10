@@ -26,6 +26,14 @@ import PluginEvaluationsTasks from "./pages/PluginEvaluationsTasks.tsx";
 import PluginInstallDialog from "./components/PluginInstallDialog.tsx";
 import ProtocolRegisterPrompt from "./components/ProtocolRegisterPrompt.tsx";
 import CeleryTasks from "./pages/CeleryTasks.tsx";
+import QualificationPage from "./pages/QualificationPage.tsx";
+import ControlObjectivesPage from "./pages/ControlObjectivesPage.tsx";
+import ChecklistsPage from "./pages/ChecklistsPage.tsx";
+import SandboxPage from "./pages/SandboxPage.tsx";
+import DashboardPage from "./pages/DashboardPage.tsx";
+import ReportPage from "./pages/ReportPage.tsx";
+import LogsPage from "./pages/LogsPage.tsx";
+import RiskRegister from "./pages/RiskRegister.tsx";
 import './App.css';
 // I must add this for files to take it into consideration
 
@@ -104,6 +112,14 @@ export default function PermanentDrawerLeft() {
         { id: 9, name: 'Plugin Evaluation Measurements', path: '/projects/:project_name/plugins/evaluations/:evaluation_uuid', element: <ProjectContextWrapper><PluginEvaluationMeasurements /></ProjectContextWrapper> },
         { id: 10, name: 'Plugin Evaluations Tasks', path: '/projects/:project_name/plugins/evaluations/tasks', element: <ProjectContextWrapper><PluginEvaluationsTasks /></ProjectContextWrapper> },
         ...(SHOW_CELERY_TASKS ? [{ id: 12, name: 'Tasks', path: '/projects/:project_name/tasks', element: <ProjectContextWrapper><CeleryTasks /></ProjectContextWrapper> }] : []),
+        { id: 20, name: 'Qualification', path: '/projects/:project_name/qualification', element: <ProjectContextWrapper><QualificationPage /></ProjectContextWrapper> },
+        { id: 26, name: 'Control objectives', path: '/projects/:project_name/control-objectives', element: <ProjectContextWrapper><ControlObjectivesPage /></ProjectContextWrapper> },
+        { id: 28, name: 'Risk register', path: '/projects/:project_name/risks', element: <ProjectContextWrapper><RiskRegister /></ProjectContextWrapper> },
+        { id: 21, name: 'Checklists', path: '/projects/:project_name/checklists', element: <ProjectContextWrapper><ChecklistsPage /></ProjectContextWrapper> },
+        { id: 22, name: 'Sandbox', path: '/projects/:project_name/sandbox', element: <ProjectContextWrapper><SandboxPage /></ProjectContextWrapper> },
+        { id: 23, name: 'Dashboard', path: '/projects/:project_name/dashboard', element: <ProjectContextWrapper><DashboardPage /></ProjectContextWrapper> },
+        { id: 24, name: 'Report', path: '/projects/:project_name/report', element: <ProjectContextWrapper><ReportPage /></ProjectContextWrapper> },
+        { id: 25, name: 'Logs', path: '/projects/:project_name/logs', element: <ProjectContextWrapper><LogsPage /></ProjectContextWrapper> },
     ];
     const theme = useTheme();
     const autoCollapse = useMediaQuery(theme.breakpoints.down('lg'));

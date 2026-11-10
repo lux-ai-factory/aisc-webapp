@@ -65,3 +65,108 @@
     min-height: 0;
     overflow-y: auto;
 }
+
+.MuiChip-root.wrap-chip {
+    height: auto;
+    min-height: 24px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+.MuiChip-root.wrap-chip .MuiChip-label {
+    white-space: normal;
+    text-align: left;
+}
+
+.graph-node {
+    width: 230px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 2px solid #4561fb;
+    background: #fff;
+    font-size: 12px;
+    line-height: 1.35;
+}
+.graph-node.risk {
+    border-color: #b45309;
+}
+.graph-node.clickable {
+    cursor: pointer;
+}
+.graph-node-label {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.graph-node-sub {
+    color: #4a5265;
+    font-size: 11px;
+}
+.graph-hub {
+    width: 230px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 2px dashed #4561fb;
+    background: #eef3ff;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.graph-expander {
+    margin-top: 4px;
+    border: 1px solid #aab2c2;
+    border-radius: 12px;
+    background: #f1f5ff;
+    font-size: 11px;
+    cursor: pointer;
+    padding: 0 8px;
+}
+
+/* Plugin card: the catalogue/plugin tile. Enabled = blue gradient with a
+   primary border; disabled = white with a grey border. Clicking the card
+   toggles it, so the whole card is the affordance. */
+.catalogue-card {
+    position: relative;
+    cursor: pointer;
+    min-width: 250px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    border: 2px solid #eeeeee;
+    background: #ffffff;
+    transition: all 0.2s ease;
+}
+.catalogue-card:hover {
+    box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.2), 0 4px 5px 0 rgba(0, 0, 0, 0.14), 0 1px 10px 0 rgba(0, 0, 0, 0.12);
+    border-color: #e0e0e0;
+}
+.catalogue-card.is-enabled {
+    border-color: rgb(28, 92, 198);
+    background: linear-gradient(135deg, rgba(69, 145, 251, 0.15), rgba(0, 52, 255, 0.1));
+}
+.catalogue-card.is-enabled:hover {
+    border-color: rgb(28, 92, 198);
+}
+
+/* Shared MUI DataGrid look (Tasks, Logs). Header carries the light blue
+   gradient used by the card surfaces. */
+.app-data-grid {
+    border: 0;
+}
+.app-data-grid .MuiDataGrid-cell {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.app-data-grid .MuiDataGrid-cell:focus,
+.app-data-grid .MuiDataGrid-cell:focus-within {
+    outline: none;
+}
+.app-data-grid .MuiDataGrid-columnHeaders {
+    background: linear-gradient(165deg, rgba(247, 251, 255, 0.98), rgba(232, 241, 255, 0.96));
+    border-bottom: 1px solid rgba(28, 92, 198, 0.28);
+}
+.app-data-grid .MuiDataGrid-columnHeaderTitle {
+    font-weight: 700;
+    color: rgb(20, 77, 172);
+}
