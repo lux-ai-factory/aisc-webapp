@@ -144,7 +144,15 @@ const getDoneEvaluations = async (uuid: string) => {
 
 const REPORT_URL = (import.meta.env.VITE_REPORT_URL as string | undefined) ?? '/report';
 
-function PluginEvaluations() {
+function PluginEvaluations({
+    linkBase,
+    refreshSignal,
+    hideDownloadReport,
+}: {
+    linkBase?: string;
+    refreshSignal?: number;
+    hideDownloadReport?: boolean;
+}) {
     const {projectUUID, projectName} = useProject();
     const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
     const previousInProgressRef = useRef<string[]>([]);
@@ -201,7 +209,7 @@ function PluginEvaluations() {
 
     useEffect(() => {
         void fetchDoneEvaluations(true);
-    }, [fetchDoneEvaluations]);
+    }, [fetchDoneEvaluations, refreshSignal]);
 
     useEffect(() => {
         const onFocus = () => {
@@ -249,16 +257,19 @@ function PluginEvaluations() {
     if (isPending) return <span>Loading...</span>
     if (error) return <span>Oops!</span>
 
+    const hasResults = (evaluations ?? []).length > 0;
 
     return (
         <>
             {projectUUID && (
                 <EvaluationProgressList
+                    key={refreshSignal ?? 0}
                     projectUUID={projectUUID}
                     onEvaluationsChanged={handleInProgressChanged}
                 />
             )}
-            <Box className="eval-header">
+            {hasResults && (<>
+                <Box className="eval-header">
                 <Stack direction="row" spacing={2} alignItems="center">
                     <Typography component="h2" variant="h4" gutterBottom className="eval-header-title">
                         Completed Evaluations:
@@ -288,20 +299,22 @@ function PluginEvaluations() {
                         </ToggleButton>
                     </ToggleButtonGroup>
                 </Stack>
-                <Tooltip title="Download Report">
-                    <Button
-                        variant="contained"
-                        onClick={handleDownloadReport}
-                        disabled={!projectName || !evaluations || evaluations.length === 0}
-                        className="gradient-btn"
-                        sx={{minWidth: {xs: '44px', md: 'auto'}, px: {xs: 1.5, md: 3}}}
-                    >
-                        <DownloadIcon />
-                        <Box component="span" sx={{display: {xs: 'none', md: 'inline'}}}>
-                            Download Report
-                        </Box>
-                    </Button>
-                </Tooltip>
+                {!hideDownloadReport && (
+                    <Tooltip title="Download Report">
+                        <Button
+                            variant="contained"
+                            onClick={handleDownloadReport}
+                            disabled={!projectName || !evaluations || evaluations.length === 0}
+                            className="gradient-btn"
+                            sx={{minWidth: {xs: '44px', md: 'auto'}, px: {xs: 1.5, md: 3}}}
+                        >
+                            <DownloadIcon />
+                            <Box component="span" sx={{display: {xs: 'none', md: 'inline'}}}>
+                                Download Report
+                            </Box>
+                        </Button>
+                    </Tooltip>
+                )}
             </Box>
             <Grid
                 container
@@ -317,7 +330,7 @@ function PluginEvaluations() {
                                 <CardContent sx={{display: 'flex', flexDirection: 'column', gap: 1.25, height: '100%'}}>
                                     <CardActionArea
                                         component={Link}
-                                        to={`${evaluation.pid}`}
+                                        to={`${linkBase ?? ''}${evaluation.pid}`}
                                         disabled={!SHOW_PLUGIN_VISUALIZATION}
                                         sx={{alignItems: 'stretch', borderRadius: 1.5, px: 0.2, py: 0.25}}
                                     >
@@ -453,6 +466,7 @@ function PluginEvaluations() {
                         </Grid>
                     ))}
             </Grid>
+            </>)}
         </>
     )
 }
