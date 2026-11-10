@@ -324,7 +324,7 @@ export default function ControlObjectivesPage() {
                 open={objectiveExploreOpen}
                 onClose={() => setObjectiveExploreOpen(false)}
                 title="Select control objectives"
-                maxWidth="md"
+                maxWidth="lg"
                 fullWidth
                 actions={
                     <>
