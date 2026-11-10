@@ -28,6 +28,27 @@
     box-shadow: none !important;
 }
 
+/* Shared header row (Report/Logs/Celery Tasks) so header buttons align on every page. */
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+}
+
+.page-header-title {
+    margin: 0;
+    flex-grow: 1;
+}
+
+.page-header-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
 .dialog-paper-blue {
     background-color: #0048ff;
     background-image: linear-gradient(135deg, #001075, #0020b5);
@@ -35,8 +56,8 @@
     box-shadow: none;
 }
 
-.dialog-content-white {
-    padding-bottom: 24px;
+.dialog-content-white.MuiDialogContent-root {
+    padding: 24px;
     background-color: white;
     border-top-left-radius: 12px;
     border-top-right-radius: 12px;
