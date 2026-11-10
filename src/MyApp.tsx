@@ -108,17 +108,30 @@ export default function PermanentDrawerLeft() {
     const theme = useTheme();
     const autoCollapse = useMediaQuery(theme.breakpoints.down('lg'));
     const overlayMode = useMediaQuery('(max-width:899px)');
-    const [collapsed, setCollapsed] = useState(autoCollapse);
+    // Keep the collapsed/expanded choice across refreshes (localStorage).
+    const COLLAPSED_KEY = 'sidebarCollapsed';
+    const [collapsed, setCollapsed] = useState(() => {
+        const saved = localStorage.getItem(COLLAPSED_KEY);
+        return saved !== null ? saved === 'true' : autoCollapse;
+    });
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    // Once the user collapses/expands by hand, width changes stop overriding
+    // their choice (in particular: no auto-uncollapse when crossing the lg
+    // breakpoint). Mobile overlay still wins while in overlay mode.
+    const [userToggled, setUserToggled] = useState(false);
     useEffect(() => {
         if (overlayMode) {
             setCollapsed(true);
             setMobileMenuOpen(false);
             return;
         }
-        setCollapsed(autoCollapse);
+        // Respect a saved choice; otherwise follow the breakpoint.
+        if (!userToggled && localStorage.getItem(COLLAPSED_KEY) === null) setCollapsed(autoCollapse);
         setMobileMenuOpen(false);
-    }, [autoCollapse, overlayMode]);
+    }, [autoCollapse, overlayMode, userToggled]);
+    useEffect(() => {
+        if (!overlayMode && userToggled) localStorage.setItem(COLLAPSED_KEY, String(collapsed));
+    }, [collapsed, overlayMode, userToggled]);
     const effectiveWidth = overlayMode ? collapsedWidth : (collapsed ? collapsedWidth : drawerWidth);
     const isRootPage = location.pathname === '/';
     const showSidebar = !isRootPage;
@@ -156,6 +169,7 @@ export default function PermanentDrawerLeft() {
             setMobileMenuOpen((open) => !open);
             return;
         }
+        setUserToggled(true);
         setCollapsed((c) => !c);
     };
 
