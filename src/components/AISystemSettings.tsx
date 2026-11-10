@@ -587,7 +587,7 @@ export default function AISystemSettings() {
                     </>
                 }
             >
-                <Stack spacing={2} sx={{ mt: 4 }}>
+                <Stack spacing={2}>
                         <Stack direction="row" spacing={2}>
                             <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} required autoFocus sx={{ flexGrow: 1, minWidth: 0 }} />
                             <TextField select label="Type" value={type} onChange={(e) => setType(e.target.value as AIComponentType)} sx={{ minWidth: 140 }}>
@@ -659,7 +659,7 @@ export default function AISystemSettings() {
                 }
             >
                     {editTarget && (
-                        <Stack spacing={2} sx={{ mt: 4 }}>
+                        <Stack spacing={2}>
                             <TextField label="Name" value={editName} onChange={(e) => setEditName(e.target.value)} required />
                             {(editTarget.component_type === "model" || editTarget.component_type === "dataset") && (
                                 <Button variant="outlined" startIcon={<CloudUploadIcon />} onClick={() => editFileInputRef.current?.click()}>
