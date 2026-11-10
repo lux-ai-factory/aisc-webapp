@@ -151,6 +151,10 @@ export interface MetricVisualization {
     filter_dimensions?: Record<string, (string | number | boolean)[]> | null;
     metric_label_dimension?: string | null;
     group_by_dimensions?: string[] | null;
+    /** Split the chart into one plot per value of the given dimensions
+     *  ("iterate" a dimension); within each plot, group_by_dimensions remain
+     *  the series. */
+    facet_by_dimension?: string[] | null;
 }
 
 export interface ZippedFile {

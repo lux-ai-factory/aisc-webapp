@@ -62,6 +62,7 @@ interface StoredChartConfig {
     filters: Record<string, string[]>;
     groupByDimensions: string[];
     metricLabelDimension: string;
+    facetByDimension: string;
 }
 
 const getEvaluation = async (uuid: string) => {
@@ -133,6 +134,7 @@ function PluginEvaluationMeasurements() {
     const [groupByInput, setGroupByInput] = useState<string>('');
     const [groupByDimensions, setGroupByDimensions] = useState<string[]>([]);
     const [metricLabelDimension, setMetricLabelDimension] = useState<string>('');
+    const [facetByDimension, setFacetByDimension] = useState<string>('');
 
     const {data: evaluation, isPending: isEvaluationPending, error: evaluationError} = useQuery({
         queryKey: ['evaluationMeasurements', evaluation_uuid],
@@ -271,6 +273,7 @@ function PluginEvaluationMeasurements() {
             filters,
             groupByDimensions,
             metricLabelDimension,
+            facetByDimension,
         };
 
         targetPlugins.forEach(plugin => {
@@ -341,13 +344,14 @@ function PluginEvaluationMeasurements() {
         const description = visualization.description || undefined;
         const metricLabelDimension = visualization.metric_label_dimension || undefined;
         const groupByDimensionsList = visualization.group_by_dimensions || undefined;
+        const facetByDimension = visualization.facet_by_dimension?.[0] || undefined;
 
         switch (visualization.chart_type) {
             case 'table': return <MeasurementsDataGrid title={title} description={description} data={data}/>;
             case 'line': return <MeasurementsLineChart title={title} description={description} data={data} metricLabelDimension={metricLabelDimension} groupByDimensions={groupByDimensionsList} />;
             case 'scatter': return <MeasurementsScatterChart title={title} description={description} data={data} metricLabelDimension={metricLabelDimension} groupByDimensions={groupByDimensionsList} />;
             case 'kde': return <MeasurementsKDEChart title={title} description={description} data={data} metricLabelDimension={metricLabelDimension} groupByDimensions={groupByDimensionsList} />;
-            case 'bars': return <MeasurementsBarsChart title={title} description={description} data={data} metricLabelDimension={metricLabelDimension} groupByDimensions={groupByDimensionsList} />;
+            case 'bars': return <MeasurementsBarsChart title={title} description={description} data={data} metricLabelDimension={metricLabelDimension} groupByDimensions={groupByDimensionsList} facetByDimension={facetByDimension} />;
             case 'radar': return <MeasurementsRadarChart title={title} description={description} data={data} metricLabelDimension={metricLabelDimension} groupByDimensions={groupByDimensionsList} />;
             case 'pie': return <MeasurementsPieChart title={title} description={description} data={data} metricLabelDimension={metricLabelDimension} groupByDimensions={groupByDimensionsList} />;
             default: return null;
@@ -462,13 +466,16 @@ function PluginEvaluationMeasurements() {
                                             const filtersDesc = Object.keys(chartConfig.filters).length > 0
                                                 ? ` | Filters: ${Object.entries(chartConfig.filters).map(([k, v]) => `${k}=(${v.join(', ')})`).join(', ')}`
                                                 : '';
-                                            const groupsDesc = chartConfig.groupByDimensions.length > 0
+                                            const groupLabelsDesc = chartConfig.groupByDimensions.length > 0
                                                 ? ` | Groups: ${chartConfig.groupByDimensions.join(', ')}`
+                                                : '';
+                                            const facetDesc = chartConfig.facetByDimension
+                                                ? ` | Facet: ${chartConfig.facetByDimension}`
                                                 : '';
                                             const labelDimDesc = chartConfig.metricLabelDimension
                                                 ? ` | Label Dim: ${chartConfig.metricLabelDimension}`
                                                 : '';
-                                            const descriptionText = `Type: ${chartConfig.chartType.toUpperCase()} | Metrics: ${chartConfig.selectedMetrics.join(', ')}${filtersDesc}${groupsDesc}${labelDimDesc}`;
+                                            const descriptionText = `Type: ${chartConfig.chartType.toUpperCase()} | Metrics: ${chartConfig.selectedMetrics.join(', ')}${filtersDesc}${groupLabelsDesc}${facetDesc}${labelDimDesc}`;
 
                                             return (
                                                 <Card key={chartConfig.id} variant="outlined" sx={{ mb: 2, p: 2, bgcolor: 'background.default' }}>
@@ -492,7 +499,8 @@ function PluginEvaluationMeasurements() {
                                                         metrics: chartConfig.selectedMetrics,
                                                         filter_dimensions: Object.keys(chartConfig.filters).length > 0 ? chartConfig.filters : undefined,
                                                         metric_label_dimension: chartConfig.metricLabelDimension || undefined,
-                                                        group_by_dimensions: chartConfig.groupByDimensions.length > 0 ? chartConfig.groupByDimensions : undefined
+                                                        group_by_dimensions: chartConfig.groupByDimensions.length > 0 ? chartConfig.groupByDimensions : undefined,
+                                                        facet_by_dimension: chartConfig.facetByDimension ? [chartConfig.facetByDimension] : undefined,
                                                     })}
                                                 </Card>
                                             );
@@ -603,6 +611,23 @@ function PluginEvaluationMeasurements() {
                                     value={metricLabelDimension}
                                     label="Metric Label Dimension"
                                     onChange={(e) => setMetricLabelDimension(e.target.value)}
+                                >
+                                    <MenuItem value=""><em>None</em></MenuItem>
+                                    {availableDimensionKeys.map((key) => (
+                                        <MenuItem key={key} value={key}>
+                                            {key}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+
+                            {/* Facet (Iterate) By Dimension */}
+                            <FormControl sx={{ minWidth: 250 }} size="small">
+                                <InputLabel>Facet By Dimension</InputLabel>
+                                <Select
+                                    value={facetByDimension}
+                                    label="Facet By Dimension"
+                                    onChange={(e) => setFacetByDimension(e.target.value)}
                                 >
                                     <MenuItem value=""><em>None</em></MenuItem>
                                     {availableDimensionKeys.map((key) => (
@@ -810,7 +835,8 @@ function PluginEvaluationMeasurements() {
                                 metrics: selectedMetrics.length > 0 ? selectedMetrics : availableMetrics,
                                 filter_dimensions: Object.keys(filters).length > 0 ? filters : undefined,
                                 metric_label_dimension: metricLabelDimension || undefined,
-                                group_by_dimensions: groupByDimensions.length > 0 ? groupByDimensions : undefined
+                                group_by_dimensions: groupByDimensions.length > 0 ? groupByDimensions : undefined,
+                                facet_by_dimension: facetByDimension ? [facetByDimension] : undefined,
                             }
                         )}
                     </Box>
