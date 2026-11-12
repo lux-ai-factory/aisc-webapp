@@ -9,6 +9,8 @@ export interface AIComponent {
     file_size: number | null;
     source_dataset_pid?: string | null;
     json_value?: Record<string, unknown>;
+    /** set when it was deleted while evaluations used it (see models/retired.ts) */
+    retired_at?: string | null;
 }
 
 export interface AISystem {

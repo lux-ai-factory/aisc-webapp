@@ -10,6 +10,7 @@ import { currentPlatformProject, helperModelsPageUrl } from "../../platform/curr
 import { launcherUrl } from "../../deployment";
 import { useState, useEffect, useRef } from "react";
 import './PluginEvaluationForm.css';
+import { inUse } from "../../models/retired.ts";
 
 const API_URL = import.meta.env.VITE_API_URL + '/api/v1';
 
@@ -234,7 +235,8 @@ export default function PluginEvaluationForm({
             const entry = template[def.name];
             if (!entry) continue;
             if (selections.some(s => s.name === def.name)) continue;
-            const component = (project?.components ?? []).find(
+            // the last run's choice comes back only while it is in use: a retired dataset is chosen again by hand
+            const component = inUse(project?.components ?? []).find(
                 c => c.pid === entry.component_pid && c.component_type === def.input_type,
             );
             if (!component) continue;
@@ -407,7 +409,7 @@ export default function PluginEvaluationForm({
                                 );
                             }
                             const isLLM = def.input_type === 'llm';
-                            const options = (project?.components ?? []).filter(c => c.component_type === def.input_type);
+                            const options = inUse(project?.components ?? []).filter(c => c.component_type === def.input_type);
                             const currentSelection = selections.find(s => s.name === def.name);
                             const selectedComponent = currentSelection?.pid
                                 ? options.find((o: AIComponent) => o.pid === currentSelection.pid)

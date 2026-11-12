@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 import PluginEvaluationForm from "../components/plugin/PluginEvaluationForm.tsx";
 import './PluginStartEvaluation.css';
 import '../styles/common.css';
+import { inUse } from "../models/retired.ts";
 
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
@@ -193,7 +194,8 @@ export default function PluginStartEvaluation() {
                 if (cancelled) return;
                 setSelectedPlugins(prev => {
                     if (Object.keys(prev).length > 0) return prev;
-                    const components = project?.components ?? [];
+                    // a retired dataset is not chosen again for a new run
+                    const components = inUse(project?.components ?? []);
                     const restored: SelectedPluginsState = {};
                     // only the plugins on: a version of a package that is off shows no card and shares no name
                     const plugins = (project?.plugins ?? []).filter(p => p.enabled);

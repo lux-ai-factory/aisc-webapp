@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-    Box, Button, Card, CardContent, Chip, CircularProgress, Dialog,
-    DialogContent, DialogTitle, Divider, IconButton, List, ListItem, ListItemText,
-    MenuItem, Stack, TextField, Typography,
+    Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog,
+    DialogContent, DialogTitle, Divider, FormControlLabel, IconButton, List, ListItem, ListItemText,
+    MenuItem, Stack, Switch, TextField, Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -13,6 +13,7 @@ import { getProjectConfigs } from "../api/api";
 import { API_VERSION_PREFIX } from "../config";
 import { isConfigurator } from "../deployment";
 import { AIComponent, AIComponentType, ProjectConfig } from "../models/models";
+import { inUse, isRetired } from "../models/retired";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -113,6 +114,8 @@ export default function AISystemSettings() {
     const [components, setComponents] = useState<AIComponent[]>([]);
     const [secrets, setSecrets] = useState<ProjectConfig[]>([]);
     const [loading, setLoading] = useState(true);
+    const [showRetired, setShowRetired] = useState(false);
+    const [notice, setNotice] = useState<{ severity: "info" | "error"; text: string } | null>(null);
     const [open, setOpen] = useState(false);
 
     // add-dialog state
@@ -138,7 +141,9 @@ export default function AISystemSettings() {
     const [editSaving, setEditSaving] = useState(false);
     const editFileInputRef = useRef<HTMLInputElement>(null);
 
-    const datasetComponents = components.filter(c => c.component_type === "dataset");
+    const datasetComponents = inUse(components).filter(c => c.component_type === "dataset");
+    const retiredCount = components.filter(isRetired).length;
+    const shown = showRetired ? components : inUse(components);
 
     const refresh = useCallback(async () => {
         if (!projectUUID) return;
@@ -211,8 +216,25 @@ export default function AISystemSettings() {
         }
     };
 
-    const remove = async (pid: string) => {
-        await fetch(`${API_URL}/components/${pid}`, { method: "DELETE" });
+    // the engine deletes a component no evaluation used, and retires one that evaluations used (200)
+    const remove = async (c: AIComponent) => {
+        const res = await fetch(`${API_URL}/components/${c.pid}`, { method: "DELETE" });
+        if (res.status === 200) {
+            const { evaluations } = await res.json();
+            setNotice({ severity: "info", text: `${c.name} is retired: ${evaluations} evaluation${evaluations === 1 ? "" : "s"} used it. `
+                + "It stays for their record and is no longer offered for new runs. Show retired lists it." });
+        } else if (!res.ok) {
+            setNotice({ severity: "error", text: `${c.name} could not be deleted (error ${res.status}).` });
+        } else {
+            setNotice(null);
+        }
+        refresh();
+    };
+
+    const restore = async (c: AIComponent) => {
+        const res = await fetch(`${API_URL}/components/${c.pid}/restore`, { method: "POST" });
+        setNotice(res.ok ? { severity: "info", text: `${c.name} is restored.` }
+                         : { severity: "error", text: `${c.name} could not be restored (error ${res.status}).` });
         refresh();
     };
 
@@ -330,19 +352,27 @@ export default function AISystemSettings() {
             </Card>
             )}
 
-            {components.length === 0 ? (
+            {notice && <Alert severity={notice.severity} onClose={() => setNotice(null)} sx={{ mb: 1 }}>{notice.text}</Alert>}
+            {retiredCount > 0 && (
+                <FormControlLabel control={<Switch checked={showRetired} onChange={e => setShowRetired(e.target.checked)} />}
+                                  label={`Show retired (${retiredCount})`} />
+            )}
+
+            {shown.length === 0 ? (
                 <Typography color="text.secondary">{testData ? "No test data yet." : "No components yet. Add one to get started."}</Typography>
             ) : (
                 <List>
-                    {components.map((c) => (
-                        <ListItem key={c.pid} secondaryAction={
+                    {shown.map((c) => (
+                        <ListItem key={c.pid} secondaryAction={isRetired(c) ? (
+                            <Button size="small" onClick={() => restore(c)} aria-label={`Restore ${c.name}`}>Restore</Button>
+                        ) : (
                             <Stack direction="row" spacing={0.5}>
-                                <IconButton edge="end" size="small" onClick={() => startEdit(c)}><EditIcon fontSize="small" /></IconButton>
-                                <IconButton edge="end" size="small" onClick={() => remove(c.pid)}><DeleteIcon fontSize="small" /></IconButton>
+                                <IconButton edge="end" size="small" onClick={() => startEdit(c)} aria-label={`Edit ${c.name}`}><EditIcon fontSize="small" /></IconButton>
+                                <IconButton edge="end" size="small" onClick={() => remove(c)} aria-label={`Delete ${c.name}`}><DeleteIcon fontSize="small" /></IconButton>
                             </Stack>
-                        }>
+                        )}>
                             <ListItemText
-                                primary={<Stack direction="row" spacing={1} alignItems="center"><Typography variant="body1">{c.name}</Typography><Chip size="small" label={c.component_type} /></Stack>}
+                                primary={<Stack direction="row" spacing={1} alignItems="center"><Typography variant="body1" color={isRetired(c) ? "text.secondary" : undefined}>{c.name}</Typography><Chip size="small" label={c.component_type} />{isRetired(c) && <Chip size="small" variant="outlined" label="retired" />}</Stack>}
                                 secondary={summary(c)}
                             />
                         </ListItem>

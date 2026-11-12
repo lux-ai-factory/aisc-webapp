@@ -14,6 +14,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeSanitize from 'rehype-sanitize';
 import './PluginsConfig.css';
 import '../styles/common.css';
+import { inUse } from "../models/retired.ts";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -277,7 +278,7 @@ function PluginConfig() {
                         value={selectedDataset}
                         onChange={(e) => handleDatasetChange(e)}
                     >
-                        {(project?.components ?? []).filter(c => c.component_type === 'dataset').map((dataset: AIComponent) => (
+                        {inUse(project?.components ?? []).filter(c => c.component_type === 'dataset').map((dataset: AIComponent) => (
                             <MenuItem key={dataset.pid} value={dataset.pid}>{dataset.name}</MenuItem>
                         ))}
                     </Select>
