@@ -575,7 +575,7 @@ export default function AISystemSettings() {
             <AppDialog
                 open={open}
                 onClose={() => setOpen(false)}
-                maxWidth="sm"
+                maxWidth="md"
                 fullWidth
                 title="Add component"
                 actions={
