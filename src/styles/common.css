@@ -215,3 +215,32 @@
     font-weight: 700;
     color: rgb(20, 77, 172);
 }
+
+/* Keep the pagination footer (Rows per page / x-y of z / arrows) on one line,
+   vertically aligned, for every DataGrid in the app. */
+.MuiDataGrid-root .MuiDataGrid-footerContainer {
+    align-items: center;
+}
+.MuiDataGrid-root .MuiTablePagination-root {
+    flex: 1;
+    min-width: 0;
+    overflow: visible !important;
+}
+.MuiDataGrid-root .MuiTablePagination-toolbar {
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-end;
+    column-gap: 12px;
+    min-height: 52px;
+}
+.MuiDataGrid-root .MuiTablePagination-spacer {
+    flex: 0;
+}
+.MuiDataGrid-root .MuiTablePagination-selectLabel,
+.MuiDataGrid-root .MuiTablePagination-displayedRows {
+    margin: 0;
+    align-self: center;
+}
+.MuiDataGrid-root .MuiTablePagination-actions {
+    margin-inline-start: 8px;
+}
