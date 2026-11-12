@@ -3,10 +3,6 @@ import {
     Box,
     Button,
     createTheme,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
     Icon,
     Menu,
     MenuItem,
@@ -21,6 +17,7 @@ import {NavLink, useLocation} from 'react-router-dom';
 import {ThemeProvider} from '@emotion/react';
 import {useNavigate} from 'react-router-dom';
 import toast from 'react-hot-toast';
+import AppDialog from './AppDialog';
 import "./TopBar.css";
 import "./addProjectButton.css";
 import AddProjectWizard from "./addProjectWizard.tsx";
@@ -247,22 +244,23 @@ const TopBar: React.FC = () => {
                     ))}
                 </Box>
                 {confirmOpen && (
-                    <Dialog
+                    <AppDialog
                         open={confirmOpen}
                         onClose={() => setConfirmOpen(false)}
-                        maxWidth="xs"
+                        maxWidth="sm"
+                        fullWidth
+                        title="Sign out?"
+                        actions={
+                            <>
+                                <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
+                                <Button variant="contained" color="error" onClick={() => { setConfirmOpen(false); logout(); }}>
+                                    Sign out
+                                </Button>
+                            </>
+                        }
                     >
-                        <DialogTitle>Sign out?</DialogTitle>
-                        <DialogContent>
-                            <Typography>Are you sure you want to sign out?</Typography>
-                        </DialogContent>
-                        <DialogActions className="auth-dialog-actions">
-                            <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
-                            <Button color="error" onClick={() => { setConfirmOpen(false); logout(); }}>
-                                Sign out
-                            </Button>
-                        </DialogActions>
-                    </Dialog>
+                        <Typography>Are you sure you want to sign out?</Typography>
+                    </AppDialog>
                 )}
             </Toolbar>
         </AppBar>
