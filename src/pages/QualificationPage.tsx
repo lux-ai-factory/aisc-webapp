@@ -1812,6 +1812,7 @@ export default function QualificationPage() {
                         })()}
                         <Button
                             size="small"
+                            variant="outlined"
                             startIcon={<Icon>open_in_full</Icon>}
                             onClick={() => {
                                 const current =
@@ -1848,7 +1849,7 @@ export default function QualificationPage() {
 
             </SideDrawer>
 
-            <Dialog fullScreen open={fullScreenCard !== null} onClose={() => setFullScreenCard(null)}>
+            <Dialog fullWidth maxWidth="xl" open={fullScreenCard !== null} onClose={() => setFullScreenCard(null)}>
                 <Box
                     sx={{
                         display: 'flex',
@@ -1906,7 +1907,7 @@ export default function QualificationPage() {
                     sx={{
                         p: 3,
                         boxSizing: 'border-box',
-                        height: 'calc(100vh - 52px)',
+                        height: '80vh',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
