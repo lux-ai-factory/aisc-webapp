@@ -66,6 +66,51 @@
     overflow-y: auto;
 }
 
+/*
+ * AppDialog footer buttons adopt the app's button UI:
+ * blue primary = brand gradient, red danger = solid error, neutral = text.
+ * Scoped to the footer so it can't leak into dialog content.
+ */
+.app-dialog-footer .MuiButton-contained:not(.MuiButton-colorError) {
+    border-radius: 10px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-transform: none;
+    background: linear-gradient(135deg, #57a8ff 0%, #2f7df6 48%, #0d47b8 100%);
+    box-shadow: 0 8px 18px rgba(18, 84, 188, 0.32);
+}
+.app-dialog-footer .MuiButton-contained:not(.MuiButton-colorError):hover {
+    background: linear-gradient(135deg, #6ab4ff 0%, #3b88ff 45%, #1554c7 100%) !important;
+    box-shadow: 0 10px 20px rgba(14, 75, 173, 0.4) !important;
+}
+.app-dialog-footer .MuiButton-contained:not(.MuiButton-colorError).Mui-disabled {
+    background: #9bbcff !important;
+    box-shadow: none !important;
+}
+
+/* Neutral footer buttons (Back/Cancel/Close): outlined secondary, matching the
+ * app's outlined buttons (same radius/weight as .gradient-btn). */
+.app-dialog-footer .MuiButton-outlined,
+.app-dialog-footer .MuiButton-text:not(.MuiButton-colorError) {
+    border: 1px solid #2f7df6;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-transform: none;
+    color: #1554c7;
+    box-shadow: 0 2px 6px rgba(18, 84, 188, 0.12);
+}
+.app-dialog-footer .MuiButton-outlined:hover,
+.app-dialog-footer .MuiButton-text:not(.MuiButton-colorError):hover {
+    border-color: #1554c7;
+    background: rgba(47, 125, 246, 0.06);
+    box-shadow: 0 4px 12px rgba(18, 84, 188, 0.2) !important;
+}
+.app-dialog-footer .MuiButton-outlined:not(.MuiButton-colorError).Mui-disabled {
+    border-color: rgba(47, 125, 246, 0.35);
+    color: rgba(21, 84, 199, 0.4);
+}
+
 .MuiChip-root.wrap-chip {
     height: auto;
     min-height: 24px;

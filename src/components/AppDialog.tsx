@@ -42,11 +42,14 @@ export default function AppDialog({
             </DialogContent>
             {actions && (
                 <DialogActions
+                    className="app-dialog-footer"
                     sx={{
                         justifyContent: "flex-end",
-                        bgcolor: "white",
+                        bgcolor: "#f5f7fb",
                         borderRadius: "0 0 12px 12px",
                         margin: "0 8px 8px 8px",
+                        borderTop: "1px solid #e2e8f0",
+                        boxShadow: "0 -3px 6px rgba(0,0,0,0.05)",
                         padding: "16px 24px",
                         ...actionsSx,
                     }}
