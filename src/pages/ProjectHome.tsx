@@ -70,7 +70,7 @@ const ProjectHome = () => {
               {
                   label: 'Control objectives',
                   value: `${overview.objectives.keyCovered}/${overview.objectives.key} key covered · ${overview.objectives.total} objectives`,
-                  to: link('qualification'),
+                  to: link('control-objectives'),
                   icon: 'track_changes',
                   tone: '#7c3aed',
               },

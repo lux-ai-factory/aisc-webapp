@@ -78,7 +78,7 @@ export default function DashboardPage() {
               {
                   label: 'Key objectives',
                   value: String(stats.keyObjectives),
-                  to: base ? `${base}/qualification` : null,
+                  to: base ? `${base}/control-objectives` : null,
                   icon: 'track_changes',
                   tone: '#7c3aed',
               },
