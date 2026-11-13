@@ -480,6 +480,7 @@ function EvalProgressRow({
         <AppDialog
             open={stopDialog}
             onClose={() => setStopDialog(false)}
+            maxWidth="sm"
             title="Stop evaluation?"
             actions={
                 <>

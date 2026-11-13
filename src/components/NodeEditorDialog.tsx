@@ -133,7 +133,7 @@ export default function NodeEditorDialog({
             open
             onClose={onCancel}
             title={`Edit node · ${node.cls ?? 'node'}`}
-            maxWidth="sm"
+            maxWidth="md"
             fullWidth
             actions={
                 <>

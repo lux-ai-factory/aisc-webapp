@@ -280,7 +280,7 @@ function SettingDialog({
         <AppDialog
             open={open}
             onClose={onClose}
-            maxWidth="sm"
+            maxWidth="md"
             fullWidth
             title={setting ? 'Edit project config' : 'Add project config'}
             actions={

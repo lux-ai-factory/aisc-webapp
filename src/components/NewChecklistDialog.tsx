@@ -76,7 +76,7 @@ function NewChecklistDialog({
         <AppDialog
             open={open}
             onClose={onClose}
-            maxWidth="sm"
+            maxWidth="md"
             fullWidth
             title="New checklist"
             actions={

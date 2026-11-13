@@ -122,7 +122,7 @@ export default function ReportPage() {
             {reports !== null && reports.length > 0 && (
                 <Grid container spacing={2} className="plugins-grid">
                     {reports.map((report) => (
-                        <Grid key={report.pid} size={{ xs: 12, sm: 6, md: 4 }}>
+                        <Grid key={report.pid} size={{ xs: 12, sm: 12, md: 6, lg: 4 }}>
                             <AppCard
                                 active
                                 onClick={() => {
@@ -183,7 +183,7 @@ export default function ReportPage() {
             <AppDialog
                 open={generateOpen}
                 onClose={() => setGenerateOpen(false)}
-                maxWidth="sm"
+                maxWidth="md"
                 fullWidth
                 title="Generate report"
                 actions={

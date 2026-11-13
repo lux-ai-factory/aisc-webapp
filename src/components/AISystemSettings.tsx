@@ -646,7 +646,7 @@ export default function AISystemSettings() {
             <AppDialog
                 open={!!editTarget}
                 onClose={() => setEditTarget(null)}
-                maxWidth="sm"
+                maxWidth="md"
                 fullWidth
                 title="Edit component"
                 actions={
