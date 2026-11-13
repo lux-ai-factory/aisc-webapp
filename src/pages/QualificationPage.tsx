@@ -5,7 +5,6 @@ import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Dialog from '@mui/material/Dialog';
 import Icon from '@mui/material/Icon';
-import EditIcon from '@mui/icons-material/Edit';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
 import IconButton from '@mui/material/IconButton';
@@ -18,6 +17,8 @@ import { useProject } from '../context/ProjectContext';
 import SideDrawer from '../components/SideDrawer';
 import AppDialog from '../components/AppDialog';
 import AppCard from '../components/AppCard';
+import SplitPaneDialog, { type SplitPaneItem } from '../components/SplitPaneDialog';
+import VersionSelect from '../components/VersionSelect';
 import AICardView from '../components/AICardView';
 import CardGraph from '../components/CardGraph';
 import NodeEditorDialog, { findNodeInView, withStagedChange } from '../components/NodeEditorDialog';
@@ -101,12 +102,135 @@ const TAG_FIELDS: Array<{
     { key: 'locality', label: 'Localities of use', vocabClass: 'LocalityOfUse', hint: 'VAIR terms, comma-separated.' },
 ];
 
+/** Detail pane for one questionnaire in the split-pane dialog: read-only
+ *  questions of the selected config version. The Select/Edit/Answer actions
+ *  live on the dialog footer. */
+function QuestionnaireDetail({
+    name,
+    definition,
+    versionPid,
+    isBuiltIn,
+    isSelected,
+    versionNumber,
+    onVersionChange,
+}: {
+    name: string;
+    definition: Record<string, Json>;
+    versionPid: string | null;
+    isBuiltIn: boolean;
+    isSelected: boolean;
+    versionNumber: number | null;
+    onVersionChange: (n: number) => void;
+}) {
+    const { projectUUID: pid } = useProject();
+    const [versions, setVersions] = useState<QuestionnaireVersion[]>([]);
+
+    useEffect(() => {
+        let alive = true;
+        setVersions([]);
+        if (!pid || !versionPid) return;
+        listQuestionnaireVersions(pid, versionPid)
+            .then((list) => {
+                if (alive) setVersions(list);
+            })
+            .catch(() => {
+                if (alive) setVersions([]);
+            });
+        return () => {
+            alive = false;
+        };
+    }, [pid, versionPid]);
+
+    // The picked config version for this questionnaire (persisted per qid),
+    // falling back to the latest revision until one is picked. Being driven by
+    // the parent's cardQVersion means it survives closing the dialog.
+    const shownVersion =
+        versionNumber !== null && versions.some((v) => v.number === versionNumber)
+            ? versionNumber
+            : versions.length > 0
+              ? versions[versions.length - 1].number
+              : null;
+    const chosenDef =
+        versions.find((v) => v.number === shownVersion)?.definition ?? definition;
+    const questions = answerableQuestions(chosenDef);
+
+    return (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                {isSelected ? (
+                    <Tooltip title="Selected questionnaire">
+                        <CheckCircleIcon sx={{ color: 'success.main' }} />
+                    </Tooltip>
+                ) : (
+                    <CircleOutlinedIcon sx={{ color: 'action.disabled' }} />
+                )}
+                <Typography variant="h6" sx={{ flexGrow: 1, minWidth: 0 }}>
+                    {name}
+                </Typography>
+                {!isBuiltIn && versions.length > 0 && (
+                    <VersionSelect
+                        ariaLabel="Questionnaire version"
+                        options={versions.map((v) => ({ id: String(v.number), label: `v${v.number}` }))}
+                        value={shownVersion !== null ? String(shownVersion) : null}
+                        onSelect={(id) => onVersionChange(Number(id))}
+                    />
+                )}
+            </Box>
+            <Box
+                sx={{
+                    borderTop: '1px solid #eef2f7',
+                    pt: 2,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 1.5,
+                }}
+            >
+                <Typography variant="overline" color="text.secondary">
+                    Questions
+                </Typography>
+                {questions ? (
+                    questions.map((q) => (
+                        <Box
+                            key={q.field}
+                            sx={{ p: 1.5, border: '1px solid #eef2f7', borderRadius: 1 }}
+                        >
+                            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+                                <Typography variant="body2" fontWeight={600}>
+                                    {q.text}
+                                </Typography>
+                                {q.required && (
+                                    <Chip label="required" size="small" variant="outlined" />
+                                )}
+                            </Box>
+                            <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{ fontFamily: 'monospace' }}
+                            >
+                                {q.field}
+                            </Typography>
+                            {q.citation && (
+                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                    {q.citation}
+                                </Typography>
+                            )}
+                        </Box>
+                    ))
+                ) : (
+                    <Typography variant="body2" color="text.secondary">
+                        This questionnaire has no parseable questions (JSON definition).
+                    </Typography>
+                )}
+            </Box>
+        </Box>
+    );
+}
+
 export default function QualificationPage() {
     const { projectUUID: pid } = useProject();
     const [questionnaires, setQuestionnaires] = useState<Questionnaire[] | null>(null);
     const [builtIn, setBuiltIn] = useState<DefaultQuestionnaire | null>(null);
     const [selection, setSelection] = useState<string | null>(null);
-    const [pageCardPid, setPageCardPid] = useState<string | null>(null);
     const [qualifications, setQualifications] = useState<Qualification[] | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState<string | null>(null);
@@ -134,7 +258,43 @@ export default function QualificationPage() {
     const [editError, setEditError] = useState<string | null>(null);
     const [editVersions, setEditVersions] = useState<QuestionnaireVersion[]>([]);
     const [editVersionSel, setEditVersionSel] = useState<string | null>(null);
-    const [cardQVersion, setCardQVersion] = useState<Record<string, number>>({});
+    const [cardQVersion, setCardQVersion] = useState<Record<string, number>>(() => {
+        // Per-questionnaire version picks must survive closing the dialog or
+        // leaving the page; keep them per project so they don't leak across
+        // projects (questionnaire pids like the built-in default are global).
+        try {
+            const saved = localStorage.getItem(`cardQVersion:${pid}`);
+            return saved ? (JSON.parse(saved) as Record<string, number>) : {};
+        } catch {
+            return {};
+        }
+    });
+    useEffect(() => {
+        try {
+            localStorage.setItem(`cardQVersion:${pid}`, JSON.stringify(cardQVersion));
+        } catch {
+            // Storage unavailable: the in-memory pick still works this session.
+        }
+    }, [cardQVersion, pid]);
+
+    // Last-shown AI-card graph version per questionnaire (qualification pid),
+    // persisted exactly like cardQVersion so a reopened graph shows the version
+    // the user last browsed, not the latest card.
+    const [rememberedCardPid, setRememberedCardPid] = useState<Record<string, string>>(() => {
+        try {
+            const saved = localStorage.getItem(`cardGraphVersion:${pid}`);
+            return saved ? (JSON.parse(saved) as Record<string, string>) : {};
+        } catch {
+            return {};
+        }
+    });
+    useEffect(() => {
+        try {
+            localStorage.setItem(`cardGraphVersion:${pid}`, JSON.stringify(rememberedCardPid));
+        } catch {
+            // Storage unavailable: the in-memory pick still works this session.
+        }
+    }, [rememberedCardPid, pid]);
 
     const [cardPid, setCardPid] = useState<string | null>(null);
     const [cardChain, setCardChain] = useState<Qualification[]>([]);
@@ -168,6 +328,8 @@ export default function QualificationPage() {
     const answerFileRef = useRef<HTMLInputElement>(null);
     const addFileRef = useRef<HTMLInputElement>(null);
     const [addOpen, setAddOpen] = useState(false);
+    const [qpaneOpen, setQPaneOpen] = useState(false);
+    const [qPaneSel, setQPaneSel] = useState<string | null>(null);
     const [addName, setAddName] = useState('');
     const [addMode, setAddMode] = useState<'builder' | 'json'>('builder');
     const [addBlocks, setAddBlocks] = useState<string[]>([]);
@@ -277,6 +439,9 @@ export default function QualificationPage() {
         const lastPicked = cardQVersion[target.qid];
         const pickedN = list.some((v) => v.number === lastPicked) ? lastPicked : latestN;
         const pickedDef = list.find((v) => v.number === pickedN)?.definition ?? target.definition;
+        // Persist the opened revision per questionnaire so each answer session
+        // resumes its own config version (not a global one).
+        setCardQVersion((prev) => (pickedN === null ? prev : { ...prev, [target.qid]: pickedN }));
         setAnswerQ({ ...target, definition: pickedDef });
         applyAnswerSet(target.qid, pickedDef, pickedN);
     };
@@ -463,11 +628,26 @@ export default function QualificationPage() {
                     x.system_card !== null,
             );
             setCardChain(chain);
-            const chosen = chain.find((x) => x.pid === qid) ?? chain[chain.length - 1] ?? null;
+            // Reopen the graph on the card version last browsed for this
+            // questionnaire, falling back to the requested pid, then the latest.
+            const qQuestionId = anchor?.questionnaire_id ?? null;
+            const remembered = qQuestionId ? rememberedCardPid[qQuestionId] : undefined;
+            const chosen =
+                (remembered ? chain.find((x) => x.pid === remembered) : undefined) ??
+                chain.find((x) => x.pid === qid) ??
+                chain[chain.length - 1] ??
+                null;
             setSelectedCardPid(chosen ? chosen.pid : null);
         } catch (e) {
             setCardChain([]);
             setCardError(e instanceof Error ? e.message : 'failed to load versions');
+        }
+    };
+
+    const rememberCardVersion = (qualificationPid: string | undefined) => {
+        const questionnaireId = cardChain[0]?.questionnaire_id;
+        if (qualificationPid && questionnaireId) {
+            setRememberedCardPid((prev) => ({ ...prev, [questionnaireId]: qualificationPid }));
         }
     };
 
@@ -502,7 +682,6 @@ export default function QualificationPage() {
             const chain = await listQualificationVersions(pid, edited.pid);
             setCardChain(chain);
             setSelectedCardPid(edited.pid);
-            setPageCardPid(edited.pid);
             discardStagedNodes(qid);
             if (fullScreenCard?.pid === qid) setFullScreenCard(edited);
             await refresh();
@@ -527,7 +706,6 @@ export default function QualificationPage() {
         setAnswerVersionSel(n === null ? null : String(n));
         setSavedDraft(set);
         setAnswerError(null);
-        if (set && set.status === 'completed' && set.system_card) setPageCardPid(set.pid);
         const fields = answerableQuestions(definition);
         if (!set) {
             setFieldAnswers({});
@@ -830,6 +1008,9 @@ export default function QualificationPage() {
         const version = editVersions.find((x) => String(x.number) === v.id);
         if (!version) return;
         setEditVersionSel(String(version.number));
+        // The config version picked here is "the selected version" for this
+        // questionnaire: remember it so Answer opens on it, not on latest.
+        setCardQVersion((prev) => ({ ...prev, [editQ.pid]: version.number }));
         const blocks = Array.isArray(version.definition['blocks'])
             ? version.definition['blocks'].filter((b): b is string => typeof b === 'string')
             : [];
@@ -864,7 +1045,7 @@ export default function QualificationPage() {
                       id: builtIn.id,
                       name: builtIn.name,
                       definition: builtIn.definition,
-                      sub: `${builtInQuestions} questions · v${builtIn.version}`,
+                      sub: `${builtInQuestions} questions · config v${builtIn.version}`,
                       badge: 'built-in',
                       versionPid: null as string | null,
                       isBuiltIn: true,
@@ -885,479 +1066,245 @@ export default function QualificationPage() {
         })),
     ];
 
-    return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%' }}>
-            <Box className="page-header">
-                <Icon fontSize="small" sx={{ color: 'primary.main', alignSelf: 'center' }}>
-                    fact_check
-                </Icon>
-                <Typography variant="h4" className="page-header-title">
-                    Qualification
-                </Typography>
-            </Box>
-            {error && <Typography color="error">{error}</Typography>}
-            {loading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-                    <CircularProgress />
-                </Box>
-            ) : questionnaireCards.length === 0 ? (
-                <Typography color="text.secondary">
-                    No questionnaires yet. Add one to start a qualification.
-                </Typography>
+    // Master–detail entries for the Questionnaires split-pane dialog.
+    const questionnaireItems: SplitPaneItem[] = questionnaireCards.map((c) => {
+        const isSelected = selection === c.id;
+        return {
+            id: c.id,
+            label: c.name,
+            description: c.sub,
+            icon: <Icon fontSize="small">description</Icon>,
+            badge: isSelected ? (
+                <Tooltip title="Selected questionnaire">
+                    <IconButton size="small" disabled sx={{ '&.Mui-disabled': { opacity: 1 } }}>
+                        <CheckCircleIcon sx={{ color: 'success.main', fontSize: 22 }} />
+                    </IconButton>
+                </Tooltip>
             ) : (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-            <Box className="page-header">
-                <Icon fontSize="small" sx={{ color: 'primary.main', alignSelf: 'center' }}>
-                    description
-                </Icon>
-                <Typography variant="h6" className="page-header-title">
-                    Questionnaires
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                    config and answers
-                </Typography>
-                <Button
-                    size="small"
-                    variant="contained"
-                    className="gradient-btn"
-                    startIcon={<Icon fontSize="small">add</Icon>}
-                    onClick={openAdd}
-                    sx={{ ml: 'auto', textTransform: 'none' }}
-                >
-                    Add
-                </Button>
-            </Box>
-            <Grid container spacing={2} className="plugins-grid">
-                {questionnaireCards.map((c) => {
-                    const isSelected = selection === c.id;
-                    return (
-                        <Grid key={c.id} size={{ xs: 12, sm: 12, md: 6, lg: 4 }}>
-                            <AppCard
-                                active
-                                onClick={() =>
-                                    void openAnswer({
-                                        qid: c.id,
-                                        name: c.name,
-                                        definition: c.definition,
-                                        versionPid: c.versionPid,
-                                    })
-                                }
-                                header={
-                                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }} onClick={(e) => e.stopPropagation()}>
-                                        <Typography variant="subtitle1" fontWeight={600} sx={{ flexGrow: 1, minWidth: 0 }}>
-                                            {c.name}
-                                        </Typography>
-                                        <Box sx={{ display: 'flex', gap: 0, flexShrink: 0 }}>
-                                            {(
-                                                <Tooltip title={c.isBuiltIn ? 'Copy to project and edit' : 'Edit definition'}>
-                                                    <IconButton
-                                                        size="small"
-                                                        aria-label={`Edit ${c.name}`}
-                                                        onClick={() => {
-                                                            const q = (c as { raw?: Questionnaire }).raw;
-                                                            if (q) openEditor(q);
-                                                            else void copyBuiltInAndEdit();
-                                                            }}
-                                                        >
-                                                            <EditIcon fontSize="small" />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                )}
-                                                {isSelected ? (
-                                                    <Tooltip title="Selected questionnaire">
-                                                        <CheckCircleIcon sx={{ color: 'success.main', alignSelf: 'center', fontSize: 24 }} />
-                                                    </Tooltip>
-                                                ) : (
-                                                    <Tooltip title="Select questionnaire">
-                                                        <span>
-                                                            <IconButton
-                                                                size="small"
-                                                                aria-label={`Select ${c.name}`}
-                                                                disabled={busy !== null}
-                                                                onClick={() =>
-                                                                    run(`select-${c.id}`, async () =>
-                                                                        selectQuestionnaire(pid, c.id),
-                                                                    )
-                                                                }
-                                                            >
-                                                                <CircleOutlinedIcon sx={{ color: 'action.disabled', fontSize: 24 }} />
-                                                            </IconButton>
-                                                        </span>
-                                                    </Tooltip>
-                                                )}
-                                            </Box>
-                                        </Box>
-                                        }
-                                    >
-                                        <Typography variant="caption" color="text.secondary">
-                                            {c.sub}
-                                        </Typography>
-                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 'auto', pt: 1 }}>
-                                            {c.qversion != null && (
-                                                <Chip
-                                                    label={`config v${cardQVersion[c.id] ?? c.qversion}`}
-                                                    size="small"
-                                                    variant="outlined"
-                                                />
-                                            )}
-                                            {c.badge && (
-                                                <Chip label={c.badge} size="small" color="default" variant="outlined" />
-                                            )}
-                                            {isSelected && <Chip label="selected" size="small" color="primary" />}
-                                            {(() => {
-                                                const list = (qualifications ?? []).filter(
-                                                    (q) => q.questionnaire_id === c.id,
-                                                );
-                                                if (list.length === 0) return null;
-                                                const completed = list.filter(
-                                                    (q) => q.status === 'completed',
-                                                ).length;
-                                                const drafts = list.filter(
-                                                    (q) => q.status === 'draft' && hasAnswers(q.answers),
-                                                ).length;
-                                                const last = [...list].sort(
-                                                    (a, b) =>
-                                                        (b.system_version?.number ?? 0) -
-                                                        (a.system_version?.number ?? 0),
-                                                )[0];
-                                                return (
-                                                    <>
-                                                        <Chip
-                                                            label={`${last?.system_version ? `answers v${last.system_version.number}` : 'answers'}`}
-                                                            size="small"
-                                                            color="info"
-                                                            variant="outlined"
-                                                        />
-                                                        {completed > 0 && drafts === 0 && (
-                                                            <Chip label={`${completed} completed`} size="small" variant="outlined" />
-                                                        )}
-                                                        {drafts > 0 && (
-                                                            <Chip
-                                                                label={`${drafts} draft${drafts === 1 ? '' : 's'}`}
-                                                                size="small"
-                                                                color="warning"
-                                                                variant="outlined"
-                                                            />
-                                                        )}
-                                                    </>
-                                                );
-                                            })()}
-                                        </Box>
-                                </AppCard>
-                            </Grid>
-                        );
-                    })}
-                </Grid>
-            </Box>
-            )}
-
-            {(() => {
-                const cardGroups = new Map<
-                    string,
-                    Qualification[]
-                >();
-                for (const q of qualifications ?? []) {
-                    if (q.status !== 'completed' || !q.system_card) continue;
-                    const group = cardGroups.get(q.questionnaire_id) ?? [];
-                    group.push(q);
-                    cardGroups.set(q.questionnaire_id, group);
-                }
-                if (cardGroups.size === 0) return null;
-                const cardGroupsList = [...cardGroups.entries()]
-                    .filter(([qid]) => qid === selection)
-                    .map(
-                    ([qid, entries]) =>
-                        [
-                            qid,
-                            [...entries].sort(
-                                (a, b) =>
-                                    (b.system_version?.number ?? 0) -
-                                    (a.system_version?.number ?? 0),
-                            ),
-                        ] as const,
-                );
-                return (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                        <Box className="page-header">
-                            <Icon fontSize="small" sx={{ color: 'primary.main', alignSelf: 'center' }}>
-                                badge
-                            </Icon>
-                            <Typography variant="h6" className="page-header-title">
-                                AI cards
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                                one per questionnaire
-                            </Typography>
-                        </Box>
-                        <Grid container spacing={2} className="plugins-grid">
-                            {cardGroupsList.map(([qid, entries]) => {
-                                const latest = entries[0];
-                                const shown =
-                                    entries.find((q) => q.pid === pageCardPid) ?? latest;
-                                const sc = (latest.system_card ?? {}) as Record<string, Json>;
-                                const view = (sc['view'] ?? {}) as Record<string, Json>;
-                                const summary = (view['summary'] ?? {}) as Record<string, Json>;
-                                const system = (view['system'] ?? {}) as Record<string, Json>;
-                                const questionnaire =
-                                    qid === builtIn?.id
-                                        ? builtIn
-                                        : (questionnaires ?? []).find(
-                                              (x) => x.pid === qid,
-                                          );
-                                const label =
-                                    questionnaire?.name ||
-                                    (typeof summary['label'] === 'string' && summary['label']) ||
-                                    (typeof system['label'] === 'string' && system['label']) ||
-                                    'AI system card';
-                                const nodeCount =
-                                    typeof view['counts'] === 'object' &&
-                                    view['counts'] !== null &&
-                                    !Array.isArray(view['counts'])
-                                        ? (view['counts'] as Record<string, Json>)['nodes']
-                                        : undefined;
-                                const tripleCount =
-                                    typeof view['counts'] === 'object' &&
-                                    view['counts'] !== null &&
-                                    !Array.isArray(view['counts'])
-                                        ? (view['counts'] as Record<string, Json>)['triples']
-                                        : undefined;
-                                const riskCount =
-                                    typeof view['counts'] === 'object' &&
-                                    view['counts'] !== null &&
-                                    !Array.isArray(view['counts'])
-                                        ? (view['counts'] as Record<string, Json>)['risks']
-                                        : undefined;
-                                const coverage = (view['coverage'] ?? {}) as Record<string, Json>;
-                                const answerCount =
-                                    typeof view['answers_count'] === 'number'
-                                        ? view['answers_count']
-                                        : Array.isArray(view['answers'])
-                                          ? (view['answers'] as Json[]).length
-                                          : undefined;
-                                const draftCount = (qualifications ?? []).filter(
-                                    (q) =>
-                                        q.questionnaire_id === qid &&
-                                        q.status === 'draft' &&
-                                        hasAnswers(q.answers),
-                                ).length;
-                                return (
-                                    <Grid key={qid} size={{ xs: 12, sm: 12, md: 6, lg: 4 }}>
-                                        <AppCard
-                                            active
-                                            onClick={() => {
-                                                const remembered =
-                                                    pageCardPid !== null &&
-                                                    entries.some((q) => q.pid === pageCardPid)
-                                                        ? pageCardPid
-                                                        : latest.pid;
-                                                setPageCardPid(remembered);
-                                                void openCard(remembered);
-                                            }}
-                                            header={
-                                                <Typography variant="subtitle1" fontWeight={600} noWrap>
-                                                    {label}
-                                                </Typography>
-                                            }
-                                        >
-                                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 'auto', pt: 1 }}>
-                                                    <Chip
-                                                        label={shown.system_version ? `v${shown.system_version.number}` : 'draft'}
-                                                        size="small"
-                                                        color="primary"
-                                                    />
-                                                    <Chip
-                                                        label={`${questionnaire?.name ?? qid}${typeof shown.questionnaire_version === 'number' ? ` · config v${shown.questionnaire_version}` : ''}`}
-                                                        size="small"
-                                                        variant="outlined"
-                                                    />
-                                                    {typeof nodeCount === 'number' && (
-                                                        <Chip
-                                                            label={`${nodeCount} nodes${typeof tripleCount === 'number' ? ` · ${tripleCount} triples` : ''}`}
-                                                            size="small"
-                                                            variant="outlined"
-                                                        />
-                                                    )}
-                                                    {typeof riskCount === 'number' && riskCount > 0 && (
-                                                        <Chip
-                                                            label={`${riskCount} risks`}
-                                                            size="small"
-                                                            variant="outlined"
-                                                        />
-                                                    )}
-                                                    {typeof answerCount === 'number' && (
-                                                        <Chip
-                                                            label={`${answerCount} answers`}
-                                                            size="small"
-                                                            variant="outlined"
-                                                        />
-                                                    )}
-                                                    {typeof coverage['summary'] === 'string' && coverage['summary'] && (
-                                                        <Chip
-                                                            label={String(coverage['summary'])}
-                                                            size="small"
-                                                            color="info"
-                                                            variant="outlined"
-                                                        />
-                                                    )}
-                                                    {draftCount > 0 && (
-                                                        <Chip
-                                                            label={`${draftCount} draft${draftCount === 1 ? '' : 's'} pending`}
-                                                            size="small"
-                                                            color="warning"
-                                                            variant="outlined"
-                                                        />
-                                                    )}
-                                                </Box>
-                                        </AppCard>
-                                    </Grid>
-                                );
-                            })}
-                        </Grid>
-                    </Box>
-                );
-            })()}
-            {(() => {
-                const completed = [...(qualifications ?? [])].filter(
-                    (q) => q.status === 'completed' && q.system_card,
-                );
-                if (completed.length === 0) return null;
-                const ofSelection = completed.filter((q) => q.questionnaire_id === selection);
-                const selectedCard =
-                    ofSelection.find((q) => q.pid === pageCardPid) ??
-                    [...ofSelection].sort(
-                        (a, b) =>
-                            (b.system_version?.number ?? 0) -
-                            (a.system_version?.number ?? 0),
-                    )[0] ??
-                    null;
-                if (!selectedCard) return null;
-                const sc = (selectedCard.system_card ?? {}) as Record<string, Json>;
-                const view = (sc['view'] ?? {}) as Record<string, Json>;
-                const jsonld =
-                    typeof sc['jsonld'] === 'string'
-                        ? sc['jsonld']
-                        : typeof selectedCard.system_card_jsonld === 'string'
-                          ? selectedCard.system_card_jsonld
-                          : null;
-                const selectedQuestionnaire =
-                    selectedCard.questionnaire_id === builtIn?.id
-                        ? builtIn
-                        : (questionnaires ?? []).find(
-                              (x) => x.pid === selectedCard.questionnaire_id,
-                          );
-                return (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Icon fontSize="small" sx={{ color: 'primary.main', alignSelf: 'center' }}>
-                                account_tree
-                            </Icon>
-                            <Typography variant="h6" sx={{ flexGrow: 1 }}>
-                                AI card graph
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                                {selectedQuestionnaire?.name ?? 'Selected questionnaire'}
-                                {selectedCard.system_version
-                                    ? ` · card v${selectedCard.system_version.number}`
-                                    : ''}
-                            </Typography>
-                            <Button
-                                size="small"
-                                variant="outlined"
-                                startIcon={<Icon>open_in_full</Icon>}
-                                onClick={() => setFullScreenCard(selectedCard)}
-                                sx={{ textTransform: 'none' }}
-                            >
-                                Full screen
-                            </Button>
-                        </Box>
-                        <CardGraph
-                            view={view}
-                            jsonld={jsonld}
-                            height={420}
-                        />
-                    </Box>
-                );
-            })()}
-
-            <SideDrawer
-                open={answerQ !== null}
-                onClose={() => setAnswerQ(null)}
-                title={answerQ ? `Answer — ${answerQ.name}` : 'Answer'}
-                mode="edit"
-                versions={questionnaireVersionEntries(answerVersions)}
-                selectedVersionId={answerVersionSel ?? undefined}
-                onSelectVersion={navigateAnswerVersion}
-                onPreviewVersion={navigateAnswerVersion}
-                headerAction={
-                    savedDraft ? (
-                        <Chip
-                            label={`answers · ${savedDraft.status}`}
+                <Tooltip title="Select questionnaire">
+                    <span>
+                        <IconButton
                             size="small"
-                            color={savedDraft.status === 'draft' ? 'warning' : 'success'}
-                            variant="outlined"
-                        />
-                    ) : undefined
-                }
-                onSave={() => void saveAnswers()}
-                onCancel={() => setAnswerQ(null)}
-                footerActions={
-                    <>
-                        <Tooltip title="Export JSON">
-                            <IconButton
-                                size="small"
-                                aria-label="Export answers"
-                                onClick={() => exportAnswers()}
-                            >
-                                <Icon fontSize="small">file_download</Icon>
-                            </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Import JSON">
-                            <IconButton
-                                size="small"
-                                aria-label="Import answers"
-                                onClick={() => answerFileRef.current?.click()}
-                            >
-                                <Icon fontSize="small">file_upload</Icon>
-                            </IconButton>
-                        </Tooltip>
-                        <input
-                            ref={answerFileRef}
-                            type="file"
-                            accept="application/json,.json"
-                            hidden
-                            onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                e.target.value = '';
-                                if (file) void importAnswers(file);
+                            aria-label={`Select ${c.name}`}
+                            disabled={busy !== null}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                void run(`select-${c.id}`, () => selectQuestionnaire(pid, c.id));
                             }}
-                        />
-                        {savedDraft && (
-                            <TextField
-                                select
-                                size="small"
-                                label="Status"
-                                value={savedDraft.status}
-                                disabled={busy !== null}
-                                onChange={(e) => {
-                                    const next = e.target.value;
-                                    if (next === 'completed') completeDraft(savedDraft.pid);
-                                    else if (next === 'draft') void reopenAnswer(savedDraft.pid);
-                                }}
-                                sx={{ minWidth: 140 }}
-                            >
-                                <MenuItem value="draft">Draft</MenuItem>
-                                <MenuItem value="completed">Completed</MenuItem>
-                            </TextField>
-                        )}
-                    </>
-                }
+                        >
+                            <CircleOutlinedIcon sx={{ color: 'action.disabled', fontSize: 22 }} />
+                        </IconButton>
+                    </span>
+                </Tooltip>
+            ),
+            content: (
+                <QuestionnaireDetail
+                    name={c.name}
+                    definition={c.definition}
+                    versionPid={c.versionPid}
+                    isBuiltIn={c.isBuiltIn}
+                    isSelected={isSelected}
+                    versionNumber={cardQVersion[c.id] ?? null}
+                    onVersionChange={(n) => {
+                        setCardQVersion((prev) => ({ ...prev, [c.id]: n }));
+                    }}
+                />
+            ),
+        };
+    });
+
+    // Summary values for the two page-level cards (Questionnaires / AI card).
+    const selCard = questionnaireCards.find((c) => c.id === selection) ?? null;
+    const versionLabel = selCard
+        ? selCard.isBuiltIn
+            ? `built-in v${selCard.qversion}`
+            : `config v${cardQVersion[selCard.id] ?? selCard.qversion ?? '?'}`
+        : null;
+    const statusLabel = (() => {
+        if (!selCard) return null;
+        const list = (qualifications ?? []).filter((q) => q.questionnaire_id === selCard.id);
+        if (list.some((q) => q.status === 'completed')) return 'completed';
+        if (list.some((q) => q.status === 'draft' && hasAnswers(q.answers))) return 'draft';
+        return 'not started';
+    })();
+    // The answers carry their own revision chain (system/card version), distinct
+    // from the questionnaire config version shown above.
+    const answersVersionLabel = selCard
+        ? [...(qualifications ?? [])]
+              .filter((q) => q.questionnaire_id === selCard.id && q.system_version)
+              .sort(
+                  (a, b) =>
+                      (b.system_version?.number ?? 0) - (a.system_version?.number ?? 0),
+              )[0]?.system_version?.number ?? null
+        : null;
+    const latestCompleted =
+        [...(qualifications ?? [])]
+            .filter(
+                (q) =>
+                    selCard !== null &&
+                    q.questionnaire_id === selCard.id &&
+                    q.status === 'completed' &&
+                    q.system_card,
+            )
+            .sort(
+                (a, b) =>
+                    (b.system_version?.number ?? 0) - (a.system_version?.number ?? 0),
+            )[0] ?? null;
+    // The AI-card page card mirrors the graph's remembered version once picked,
+    // else the latest completed card.
+    const pickedCard = selCard
+        ? (qualifications ?? []).find((q) => q.pid === rememberedCardPid[selCard.id]) ?? null
+        : null;
+    const shownCard = pickedCard ?? latestCompleted;
+    const aiCardLabel = (() => {
+        if (!shownCard) return 'not built';
+        const sc = (shownCard.system_card ?? {}) as Record<string, Json>;
+        const view = (sc['view'] ?? {}) as Record<string, Json>;
+        const summary = (view['summary'] ?? {}) as Record<string, Json>;
+        const system = (view['system'] ?? {}) as Record<string, Json>;
+        return (
+            (typeof summary['label'] === 'string' && summary['label']) ||
+            (typeof system['label'] === 'string' && system['label']) ||
+            'AI system card'
+        );
+    })();
+    const openAiCard = () => {
+        if (!latestCompleted) return;
+        void openCard(latestCompleted.pid);
+    };
+
+    // The selected questionnaire the split-pane footer acts on (also for the
+    // inline answer/edit forms); falls back to the first item, matching the
+    // dialog's default selection.
+    const qPaneCard =
+        questionnaireCards.find((c) => c.id === qPaneSel) ?? questionnaireCards[0] ?? null;
+    const qPaneRaw = qPaneCard && 'raw' in qPaneCard ? qPaneCard.raw : null;
+
+    // The config revision this questionnaire's answers are shown against is
+    // tracked per questionnaire (cardQVersion), not globally.
+    const answerVN = ((): number | null => {
+        if (!answerQ) return null;
+        const picked = cardQVersion[answerQ.qid];
+        return answerVersions.some((v) => v.number === picked)
+            ? picked ?? null
+            : answerVersions.length > 0
+              ? answerVersions[answerVersions.length - 1].number
+              : null;
+    })();
+    const answerVersionLabel = answerVN === null ? 'current' : `v${answerVN}`;
+
+    // Shared chips / import-export / status controls: the inline split-pane
+    // host keeps them in the header row; the drawer host moves them to footer.
+    const answerFormMeta = answerQ ? (
+        <>
+            {savedDraft && (
+                <Chip
+                    label={`answers · ${savedDraft.status}`}
+                    size="small"
+                    color={savedDraft.status === 'draft' ? 'warning' : 'success'}
+                    variant="outlined"
+                />
+            )}
+            <Tooltip title="Export JSON">
+                <IconButton size="small" aria-label="Export answers" onClick={() => exportAnswers()}>
+                    <Icon fontSize="small">file_download</Icon>
+                </IconButton>
+            </Tooltip>
+            <Tooltip title="Import JSON">
+                <IconButton size="small" aria-label="Import answers" onClick={() => answerFileRef.current?.click()}>
+                    <Icon fontSize="small">file_upload</Icon>
+                </IconButton>
+            </Tooltip>
+            <input
+                ref={answerFileRef}
+                type="file"
+                accept="application/json,.json"
+                hidden
+                onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = '';
+                    if (file) void importAnswers(file);
+                }}
+            />
+            {savedDraft && (
+                <TextField
+                    select
+                    size="small"
+                    label="Status"
+                    value={savedDraft.status}
+                    disabled={busy !== null}
+                    onChange={(e) => {
+                        const next = e.target.value;
+                        if (next === 'completed') completeDraft(savedDraft.pid);
+                        else if (next === 'draft') void reopenAnswer(savedDraft.pid);
+                    }}
+                    sx={{ minWidth: 140 }}
+                >
+                    <MenuItem value="draft">Draft</MenuItem>
+                    <MenuItem value="completed">Completed</MenuItem>
+                </TextField>
+            )}
+        </>
+    ) : null;
+
+    // Primary answer-form actions. The inline split-pane host keeps them in the
+    // header row; the drawer host moves them to its footer.
+    const answerFormActions = answerQ ? (
+        <>
+            <Button
+                size="small"
+                variant="contained"
+                className="gradient-btn"
+                onClick={() => void saveAnswers()}
+                disabled={busy !== null}
+                sx={{ textTransform: 'none' }}
             >
-                <Typography variant="caption" color="text.secondary">
-                    {answerQ ? definitionSummary(answerQ.definition) : ''} · saving stores a draft;
-                    completing versions it and builds the AI card.
-                </Typography>
+                Save
+            </Button>
+            <Button size="small" onClick={() => setAnswerQ(null)}>
+                Close
+            </Button>
+        </>
+    ) : null;
+
+    // Header row for the inline split-pane host only.
+    const answerFormHeader = answerQ ? (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            <Typography variant="h6" sx={{ flexGrow: 1, pr: 1 }}>
+                Answer — {answerQ.name}
+            </Typography>
+            {answerVersions.length > 0 && (
+                <VersionSelect
+                    ariaLabel="Answer version"
+                    options={questionnaireVersionEntries(answerVersions)}
+                    value={answerVN === null ? null : String(answerVN)}
+                    fallbackLabel={answerVersionLabel}
+                    onSelect={(id) => navigateAnswerVersion({ id })}
+                />
+            )}
+            {answerFormMeta}
+            {answerFormActions}
+        </Box>
+    ) : null;
+
+    const answerFormBody = answerQ ? (
+        <Box
+            sx={{
+                borderTop: '1px solid #eef2f7',
+                pt: 2,
+                flexGrow: 1,
+                overflowY: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 1.5,
+            }}
+        >
+            <Typography variant="caption" color="text.secondary">
+                {definitionSummary(answerQ.definition)} · saving stores a draft;
+                completing versions it and builds the AI card.
+            </Typography>
                 {(() => {
-                    const fields = answerQ ? answerableQuestions(answerQ.definition) : null;
+                    const fields = answerableQuestions(answerQ.definition);
                     if (!fields) {
                         return (
                             <TextField
@@ -1367,12 +1314,12 @@ export default function QualificationPage() {
                                 value={answersText}
                                 onChange={(e) => setAnswersText(e.target.value)}
                                 aria-label="Answers JSON"
-                                sx={{ mt: 1, fontFamily: 'monospace' }}
+                                sx={{ fontFamily: 'monospace' }}
                             />
                         );
                     }
                     return (
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                             {fields.map((q) => (
                                 <Box key={q.field}>
                                     <Typography variant="body2" fontWeight={600}>
@@ -1418,7 +1365,7 @@ export default function QualificationPage() {
                     );
                     const areaTerms = vocab['AreaOfImpact'] ?? [];
                     return (
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                             {showProfile && (
                                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                                     <Typography variant="body2" fontWeight={600}>
@@ -1598,14 +1545,15 @@ export default function QualificationPage() {
                                                 multiline
                                                 minRows={2}
                                                 fullWidth
-                                                label="Controlled by"
+                                                label="Control"
                                                 value={row.control}
                                                 onChange={(e) => setRiskRow(i, { control: e.target.value })}
                                             />
                                             <TextField
+                                                multiline
+                                                minRows={2}
                                                 fullWidth
-                                                size="small"
-                                                label="Then / follow-up control (optional)"
+                                                label="Follow-up controls (optional)"
                                                 value={row.followUpControl}
                                                 onChange={(e) => setRiskRow(i, { followUpControl: e.target.value })}
                                             />
@@ -1617,43 +1565,55 @@ export default function QualificationPage() {
                     );
                 })()}
                 {answerError && (
-                    <Typography color="error" sx={{ mt: 1 }}>
-                        {answerError}
-                    </Typography>
+                    <Typography color="error">{answerError}</Typography>
                 )}
-            </SideDrawer>
+            </Box>
+    ) : null;
 
-            <SideDrawer
-                open={editQ !== null}
-                onClose={() => setEditQ(null)}
-                title={editQ ? `Edit definition — ${editQ.name}` : 'Edit definition'}
-                mode="edit"
-                versions={questionnaireVersionEntries(editVersions)}
-                selectedVersionId={editVersionSel ?? undefined}
-                onSelectVersion={(v) => {
-                    navigateEditVersion(v);
-                    if (editQ && v.id && v.id !== 'current') {
-                        setCardQVersion((prev) => ({ ...prev, [editQ.pid]: Number(v.id) }));
-                    }
-                }}
-                onPreviewVersion={(v) => {
-                    navigateEditVersion(v);
-                    if (editQ && v.id && v.id !== 'current') {
-                        setCardQVersion((prev) => ({ ...prev, [editQ.pid]: Number(v.id) }));
-                    }
-                }}
-                onSave={() => void saveDefinitionEdit()}
-                onCancel={() => setEditQ(null)}
-                headerAction={
-                    editVersions.length > 0 ? (
-                        <Chip
-                            label={`config v${editVersionSel ?? editVersions[editVersions.length - 1].number}`}
-                            size="small"
-                            variant="outlined"
-                        />
-                    ) : undefined
-                }
-            >
+    // Inline host (split-pane detail): primary actions stay in the header row.
+    const answerForm = answerQ ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, height: '100%' }}>
+            {answerFormHeader}
+            {answerFormBody}
+        </Box>
+    ) : null;
+
+    // Inline edit form (questionnaire builder), also in the split-pane detail.
+    const editForm = editQ ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, height: '100%' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                <Typography variant="h6" sx={{ flexGrow: 1 }}>
+                    Edit definition — {editQ.name}
+                </Typography>
+                {editVersions.length > 0 && (
+                    <VersionSelect
+                        ariaLabel="Edit version"
+                        options={questionnaireVersionEntries(editVersions)}
+                        value={editVersionSel}
+                        fallbackLabel="current"
+                        onSelect={(id) => navigateEditVersion({ id })}
+                    />
+                )}
+                <Chip
+                    label={`config v${editVersionSel ?? editVersions[editVersions.length - 1]?.number}`}
+                    size="small"
+                    variant="outlined"
+                />
+                <Button
+                    size="small"
+                    variant="contained"
+                    className="gradient-btn"
+                    onClick={() => void saveDefinitionEdit()}
+                    disabled={busy !== null}
+                    sx={{ textTransform: 'none' }}
+                >
+                    Save
+                </Button>
+                <Button size="small" onClick={() => setEditQ(null)}>
+                    Close
+                </Button>
+            </Box>
+            <Box sx={{ borderTop: '1px solid #eef2f7', pt: 2, flexGrow: 1, overflowY: 'auto' }}>
                 <Typography variant="caption" color="text.secondary">
                     Every save creates a new version; the form head becomes the latest definition.
                 </Typography>
@@ -1675,7 +1635,243 @@ export default function QualificationPage() {
                         {editError}
                     </Typography>
                 )}
-            </SideDrawer>
+            </Box>
+        </Box>
+    ) : null;
+
+    return (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%' }}>
+            <Box className="page-header">
+                <Icon fontSize="small" sx={{ color: 'primary.main', alignSelf: 'center' }}>
+                    fact_check
+                </Icon>
+                <Typography variant="h4" className="page-header-title">
+                    Qualification
+                </Typography>
+            </Box>
+            {error && <Typography color="error">{error}</Typography>}
+            {loading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                    <CircularProgress />
+                </Box>
+            ) : (
+            <Grid container spacing={2} className="plugins-grid">
+                <Grid size={{ xs: 12, md: 6 }}>
+                    <AppCard
+                        active
+                        header={
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Box
+                                    sx={{
+                                        width: 34,
+                                        height: 34,
+                                        borderRadius: '50%',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        bgcolor: '#0a56c71f',
+                                        color: '#0a56c7',
+                                        flexShrink: 0,
+                                    }}
+                                >
+                                    <Icon fontSize="small">description</Icon>
+                                </Box>
+                                <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{
+                                        fontWeight: 600,
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.05em',
+                                    }}
+                                >
+                                    Questionnaires
+                                </Typography>
+                            </Box>
+                        }
+                        footer={
+                            <Box sx={{ display: 'flex', gap: 1, ml: 'auto' }}>
+                                <Button
+                                    size="small"
+                                    variant="outlined"
+                                    startIcon={<Icon>fact_check</Icon>}
+                                    disabled={!selCard || busy !== null}
+                                    onClick={() => {
+                                        if (!selCard) return;
+                                        void openAnswer({
+                                            qid: selCard.id,
+                                            name: selCard.name,
+                                            definition: selCard.definition,
+                                            versionPid: selCard.versionPid,
+                                        });
+                                    }}
+                                    sx={{ textTransform: 'none', borderRadius: '8px' }}
+                                >
+                                    Answer
+                                </Button>
+                                <Button
+                                    size="small"
+                                    variant="outlined"
+                                    onClick={() => setQPaneOpen(true)}
+                                    sx={{ textTransform: 'none', borderRadius: '8px' }}
+                                >
+                                    Open
+                                </Button>
+                            </Box>
+                        }
+                    >
+                        <Typography variant="h6" sx={{ fontWeight: 600, lineHeight: 1.3 }}>
+                            {selCard?.name ?? 'No questionnaire'}
+                        </Typography>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, pt: 1 }}>
+                            {selCard && versionLabel && (
+                                <Chip label={versionLabel} size="small" variant="outlined" />
+                            )}
+                            {selCard && answersVersionLabel !== null && (
+                                <Chip
+                                    label={`answers v${answersVersionLabel}`}
+                                    size="small"
+                                    color="info"
+                                    variant="outlined"
+                                />
+                            )}
+                            {selCard && (
+                                <Chip
+                                    label={selCard.isBuiltIn ? 'built-in' : 'project'}
+                                    size="small"
+                                    variant="outlined"
+                                />
+                            )}
+                            {selCard && statusLabel && (
+                                <Chip
+                                    label={statusLabel}
+                                    size="small"
+                                    color={
+                                        statusLabel === 'completed'
+                                            ? 'success'
+                                            : statusLabel === 'draft'
+                                              ? 'warning'
+                                              : 'default'
+                                    }
+                                />
+                            )}
+                        </Box>
+                    </AppCard>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                    <AppCard
+                        active
+                        header={
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Box
+                                    sx={{
+                                        width: 34,
+                                        height: 34,
+                                        borderRadius: '50%',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        bgcolor: '#0a56c71f',
+                                        color: '#0a56c7',
+                                        flexShrink: 0,
+                                    }}
+                                >
+                                    <Icon fontSize="small">badge</Icon>
+                                </Box>
+                                <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{
+                                        fontWeight: 600,
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.05em',
+                                    }}
+                                >
+                                    AI card
+                                </Typography>
+                            </Box>
+                        }
+                        footer={
+                            <Box sx={{ ml: 'auto' }}>
+                                <Button
+                                    size="small"
+                                    variant="outlined"
+                                    onClick={openAiCard}
+                                    disabled={!latestCompleted}
+                                    sx={{ textTransform: 'none', borderRadius: '8px' }}
+                                >
+                                    Open
+                                </Button>
+                            </Box>
+                        }
+                    >
+                        <Typography variant="h6" sx={{ fontWeight: 600, lineHeight: 1.3 }}>
+                            {aiCardLabel}
+                        </Typography>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, pt: 1 }}>
+                            {shownCard?.system_version && (
+                                <Chip
+                                    label={`card v${shownCard.system_version.number}`}
+                                    size="small"
+                                    color="primary"
+                                />
+                            )}
+                            {shownCard && typeof shownCard.questionnaire_version === 'number' && (
+                                <Chip
+                                    label={`config v${shownCard.questionnaire_version}`}
+                                    size="small"
+                                    variant="outlined"
+                                    color="success"
+                                />
+                            )}
+                            {selCard && (
+                                <Chip label={selCard.name} size="small" variant="outlined" />
+                            )}
+                        </Box>
+                    </AppCard>
+                </Grid>
+            </Grid>
+            )}
+
+            {(() => {
+                if (!latestCompleted) return null;
+                const sc = (latestCompleted.system_card ?? {}) as Record<string, Json>;
+                const view = (sc['view'] ?? {}) as Record<string, Json>;
+                const jsonld =
+                    typeof sc['jsonld'] === 'string'
+                        ? sc['jsonld']
+                        : typeof latestCompleted.system_card_jsonld === 'string'
+                          ? latestCompleted.system_card_jsonld
+                          : null;
+                return (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                            <Icon fontSize="small" sx={{ color: 'primary.main', alignSelf: 'center' }}>
+                                account_tree
+                            </Icon>
+                            <Typography variant="h6" sx={{ flexGrow: 1 }}>
+                                AI card graph
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                {selCard?.name ?? 'Selected questionnaire'}
+                                {latestCompleted.system_version
+                                    ? ` · card v${latestCompleted.system_version.number}`
+                                    : ''}
+                            </Typography>
+                            <Button
+                                size="small"
+                                variant="outlined"
+                                startIcon={<Icon>open_in_full</Icon>}
+                                onClick={() => setFullScreenCard(latestCompleted)}
+                                sx={{ textTransform: 'none' }}
+                            >
+                                Full screen
+                            </Button>
+                        </Box>
+                        <CardGraph view={view} jsonld={jsonld} height={420} />
+                    </Box>
+                );
+            })()}
 
             <AppDialog
                 open={addOpen}
@@ -1753,6 +1949,106 @@ export default function QualificationPage() {
                 </Box>
             </AppDialog>
 
+            <SplitPaneDialog
+                open={qpaneOpen}
+                onClose={() => setQPaneOpen(false)}
+                title="Questionnaires"
+                items={questionnaireItems}
+                maxWidth="lg"
+                navWidth={280}
+                emptyText="No questionnaires yet."
+                onSelectedChange={setQPaneSel}
+                detailOverride={answerForm ?? editForm ?? undefined}
+                actions={
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', width: '100%', flexWrap: 'wrap' }}>
+                        <Button
+                            size="small"
+                            variant="contained"
+                            className="gradient-btn"
+                            startIcon={<Icon fontSize="small">add</Icon>}
+                            onClick={openAdd}
+                            sx={{ textTransform: 'none' }}
+                        >
+                            Add questionnaire
+                        </Button>
+                        {qPaneCard && !answerQ && !editQ && (
+                            <>
+                                <Box sx={{ flexGrow: 1 }} />
+                                {selection !== qPaneCard.id && (
+                                    <Button
+                                        size="small"
+                                        variant="outlined"
+                                        startIcon={<Icon>check_circle</Icon>}
+                                        disabled={busy !== null}
+                                        onClick={() =>
+                                            void run(`select-${qPaneCard.id}`, () =>
+                                                selectQuestionnaire(pid, qPaneCard.id),
+                                            )
+                                        }
+                                        sx={{ textTransform: 'none' }}
+                                    >
+                                        Select
+                                    </Button>
+                                )}
+                                <Button
+                                    size="small"
+                                    variant="outlined"
+                                    startIcon={<Icon>edit</Icon>}
+                                    disabled={busy !== null}
+                                    onClick={() => {
+                                        if (qPaneRaw) openEditor(qPaneRaw);
+                                        else void copyBuiltInAndEdit();
+                                    }}
+                                    sx={{ textTransform: 'none' }}
+                                >
+                                    {qPaneCard.isBuiltIn ? 'Copy & edit' : 'Edit'}
+                                </Button>
+                                <Button
+                                    size="small"
+                                    variant="contained"
+                                    className="gradient-btn"
+                                    startIcon={<Icon>fact_check</Icon>}
+                                    disabled={!selCard || busy !== null}
+                                    onClick={() => {
+                                        if (!selCard) return;
+                                        void openAnswer({
+                                            qid: selCard.id,
+                                            name: selCard.name,
+                                            definition: selCard.definition,
+                                            versionPid: selCard.versionPid,
+                                        });
+                                    }}
+                                    sx={{ textTransform: 'none' }}
+                                >
+                                    Answer
+                                </Button>
+                            </>
+                        )}
+                    </Box>
+                }
+            />
+
+            {/* Answer reached from the page-level Questionnaires card: slide
+                over as before; inside the split-pane dialog the same form is
+                rendered inline (detailOverride) instead. Uses the drawer header
+                for the title + version gutter, footer for meta and actions. */}
+            <SideDrawer
+                open={answerQ !== null && !qpaneOpen}
+                onClose={() => setAnswerQ(null)}
+                title={answerQ ? `Answer — ${answerQ.name}` : 'Answer'}
+                versions={questionnaireVersionEntries(answerVersions)}
+                selectedVersionId={answerVN === null ? undefined : String(answerVN)}
+                onSelectVersion={(v) => navigateAnswerVersion({ id: v.id })}
+                footerActions={
+                    <>
+                        {answerFormMeta}
+                        {answerFormActions}
+                    </>
+                }
+            >
+                {answerFormBody}
+            </SideDrawer>
+
             <SideDrawer
                 open={cardPid !== null}
                 onClose={() => setCardPid(null)}
@@ -1791,11 +2087,11 @@ export default function QualificationPage() {
                 selectedVersionId={selectedCardPid ?? undefined}
                 onSelectVersion={(v) => {
                     setSelectedCardPid(v.id ?? null);
-                    setPageCardPid(v.id ?? null);
+                    rememberCardVersion(v.id);
                 }}
                 onPreviewVersion={(v) => {
                     setSelectedCardPid(v.id ?? null);
-                    setPageCardPid(v.id ?? null);
+                    rememberCardVersion(v.id);
                 }}
                 headerAction={
                     <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
