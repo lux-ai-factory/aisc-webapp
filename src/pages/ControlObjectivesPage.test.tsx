@@ -170,7 +170,7 @@ describe('ControlObjectivesPage', () => {
         setValue('Macro requirement', 'REQX Custom');
         const textArea = Array.from(document.body.querySelectorAll('textarea')).find(
             (ta) =>
-                Array.from(ta.labels ?? []).some((l) => l.textContent === 'Text'),
+                Array.from(ta.labels ?? []).some((l) => l.textContent?.includes('Text')),
         ) as HTMLTextAreaElement;
         const textSetter = Object.getOwnPropertyDescriptor(
             window.HTMLTextAreaElement.prototype,
@@ -186,6 +186,90 @@ describe('ControlObjectivesPage', () => {
         });
         await act(async () => {});
         expect(calls.some((c) => c.startsWith('POST') && c.includes('/control-objectives/catalogue'))).toBe(true);
+    });
+
+    it('auto-suggests the next objective ID (On+1) when adding', async () => {
+        await renderPage();
+        const explore = Array.from(document.body.querySelectorAll('button')).find(
+            (b) => b.textContent?.includes('Explore catalogue'),
+        )!;
+        await act(async () => {
+            explore.click();
+        });
+        await act(async () => {});
+        const add = Array.from(document.body.querySelectorAll('button')).find(
+            (b) => b.textContent?.includes('Add a control objective'),
+        )!;
+        await act(async () => {
+            add.click();
+        });
+        await act(async () => {});
+        // the catalogue has O1, so the suggested ID is O2
+        const idField = Array.from(document.body.querySelectorAll('input')).find(
+            (i) => i.labels?.[0]?.textContent?.includes('ID'),
+        ) as HTMLInputElement;
+        expect(idField.value).toBe('O2');
+    });
+
+    it('blocks saving an objective whose ID already exists', async () => {
+        const calls: string[] = [];
+        vi.stubGlobal(
+            'fetch',
+            vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+                calls.push(`${init?.method ?? 'GET'} ${url}`);
+                const hit = routes.find((r) => r.match(url, init));
+                if (!hit) throw new Error(`unexpected fetch: ${url}`);
+                return Promise.resolve(jsonResponse(hit.payload, hit.status));
+            }),
+        );
+        await renderPage();
+        const explore = Array.from(document.body.querySelectorAll('button')).find(
+            (b) => b.textContent?.includes('Explore catalogue'),
+        )!;
+        await act(async () => {
+            explore.click();
+        });
+        await act(async () => {});
+        const add = Array.from(document.body.querySelectorAll('button')).find(
+            (b) => b.textContent?.includes('Add a control objective'),
+        )!;
+        await act(async () => {
+            add.click();
+        });
+        await act(async () => {});
+        const setValue = (label: string, value: string) => {
+            const field = Array.from(document.body.querySelectorAll('input')).find(
+                (i) => i.labels?.[0]?.textContent?.includes(label),
+            ) as HTMLInputElement;
+            const setter = Object.getOwnPropertyDescriptor(
+                window.HTMLInputElement.prototype,
+                'value',
+            )!.set!;
+            setter.call(field, value);
+            field.dispatchEvent(new Event('input', { bubbles: true }));
+        };
+        // use the already-existing O1: the save must be blocked locally
+        setValue('ID', 'O1');
+        setValue('Macro requirement', 'REQX');
+        const textArea = Array.from(document.body.querySelectorAll('textarea')).find(
+            (ta) => Array.from(ta.labels ?? []).some((l) => l.textContent?.includes('Text')),
+        ) as HTMLTextAreaElement;
+        const textSetter = Object.getOwnPropertyDescriptor(
+            window.HTMLTextAreaElement.prototype,
+            'value',
+        )!.set!;
+        textSetter.call(textArea, 'Duplicate text');
+        textArea.dispatchEvent(new Event('input', { bubbles: true }));
+        await act(async () => {});
+        const save = Array.from(document.body.querySelectorAll('button')).find(
+            (b) => b.textContent === 'Save objective',
+        )!;
+        await act(async () => {
+            save.click();
+        });
+        await act(async () => {});
+        expect(bodyText()).toContain("already exists");
+        expect(calls.some((c) => c.startsWith('POST') && c.includes('/control-objectives/catalogue'))).toBe(false);
     });
 
     it('imports objectives from a JSON file', async () => {

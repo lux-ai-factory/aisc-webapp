@@ -66,6 +66,7 @@ export default function ControlObjectivesPage() {
         grounding_tier_flag: '',
         notes: '',
     });
+    const [objectiveIdError, setObjectiveIdError] = useState<string | null>(null);
     const importFileRef = useRef<HTMLInputElement>(null);
 
     const [objectiveExploreOpen, setObjectiveExploreOpen] = useState(false);
@@ -176,10 +177,21 @@ export default function ControlObjectivesPage() {
         }
     };
 
+    /** Next catalogue ID: the highest existing `O<n>` plus one. */
+    const nextObjectiveId = (): string => {
+        let max = 0;
+        for (const c of objectiveCatalogueList) {
+            const m = /^O(\d+)$/i.exec(c.id);
+            if (m) max = Math.max(max, Number(m[1]));
+        }
+        return `O${max + 1}`;
+    };
+
     const openAddObjective = () => {
         setEditingId(null);
+        setObjectiveIdError(null);
         setEditFields({
-            objective_id: '',
+            objective_id: nextObjectiveId(),
             macro_requirement: '',
             legal_basis: '',
             sub_requirement_label: '',
@@ -195,6 +207,7 @@ export default function ControlObjectivesPage() {
 
     const openEditObjective = (item: ObjectiveCatalogueItem) => {
         setEditingId(item.id);
+        setObjectiveIdError(null);
         setEditFields({
             objective_id: item.id,
             macro_requirement: item.macro_requirement,
@@ -218,6 +231,10 @@ export default function ControlObjectivesPage() {
         };
         if (!trimmed.objective_id || !trimmed.macro_requirement || !trimmed.text) {
             setError('ID, macro requirement and text are required.');
+            return;
+        }
+        if (!editingId && objectiveCatalogueList.some((c) => c.id === trimmed.objective_id)) {
+            setObjectiveIdError(`ID '${trimmed.objective_id}' already exists in the catalogue.`);
             return;
         }
         setError(null);
@@ -290,6 +307,11 @@ export default function ControlObjectivesPage() {
               .map((m) => risks.find((r) => r.pid === m.risk_pid))
               .filter((r): r is ObjectiveRisk => r !== undefined)
         : [];
+
+    // Live ID validation: pure client-side against the already-loaded list.
+    const creating = editingId === null;
+    const typedId = (editFields.objective_id ?? '').trim();
+    const idExists = creating && typedId !== '' && objectiveCatalogueList.some((c) => c.id === typedId);
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%' }}>
@@ -551,14 +573,35 @@ export default function ControlObjectivesPage() {
                     <TextField
                         size="small"
                         fullWidth
+                        required
                         label="ID (must be unique, e.g. CX-1)"
                         value={editFields.objective_id}
-                        onChange={(e) => setEditFields((p) => ({ ...p, objective_id: e.target.value }))}
+                        onChange={(e) => {
+                            setEditFields((p) => ({ ...p, objective_id: e.target.value }));
+                            setObjectiveIdError(null);
+                        }}
                         disabled={busy || editingId !== null}
+                        error={Boolean(objectiveIdError) || idExists}
+                        FormHelperTextProps={
+                            creating && typedId !== '' && !idExists
+                                ? { sx: { color: 'success.main' } }
+                                : undefined
+                        }
+                        helperText={
+                            objectiveIdError ??
+                            (creating && typedId !== ''
+                                ? idExists
+                                    ? `ID '${typedId}' already exists — suggested: ${nextObjectiveId()}`
+                                    : 'available'
+                                : !editingId
+                                  ? `Suggested: ${nextObjectiveId()}`
+                                  : undefined)
+                        }
                     />
                     <TextField
                         size="small"
                         fullWidth
+                        required
                         label="Macro requirement"
                         value={editFields.macro_requirement}
                         onChange={(e) => setEditFields((p) => ({ ...p, macro_requirement: e.target.value }))}
@@ -567,7 +610,7 @@ export default function ControlObjectivesPage() {
                     <TextField
                         size="small"
                         fullWidth
-                        label="Legal basis"
+                        label="Legal basis (optional)"
                         value={editFields.legal_basis}
                         onChange={(e) => setEditFields((p) => ({ ...p, legal_basis: e.target.value }))}
                         disabled={busy}
@@ -575,7 +618,7 @@ export default function ControlObjectivesPage() {
                     <TextField
                         size="small"
                         fullWidth
-                        label="Sub-requirement"
+                        label="Sub-requirement (optional)"
                         value={editFields.sub_requirement_label}
                         onChange={(e) => setEditFields((p) => ({ ...p, sub_requirement_label: e.target.value }))}
                         disabled={busy}
@@ -584,6 +627,7 @@ export default function ControlObjectivesPage() {
                         multiline
                         minRows={3}
                         fullWidth
+                        required
                         label="Text"
                         value={editFields.text}
                         onChange={(e) => setEditFields((p) => ({ ...p, text: e.target.value }))}
@@ -607,7 +651,7 @@ export default function ControlObjectivesPage() {
                     <TextField
                         size="small"
                         fullWidth
-                        label="Target"
+                        label="Target (optional)"
                         value={editFields.target}
                         onChange={(e) => setEditFields((p) => ({ ...p, target: e.target.value }))}
                         disabled={busy}
@@ -615,7 +659,7 @@ export default function ControlObjectivesPage() {
                     <TextField
                         size="small"
                         fullWidth
-                        label="Standards grounding"
+                        label="Standards grounding (optional)"
                         value={editFields.standards_grounding}
                         onChange={(e) => setEditFields((p) => ({ ...p, standards_grounding: e.target.value }))}
                         disabled={busy}
