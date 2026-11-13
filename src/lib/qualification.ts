@@ -291,6 +291,34 @@ export function importCardRisks(
     );
 }
 
+/** True when the latest completed AI card declares at least one risk row, so the
+ *  frontend can skip the from-card import (which otherwise 400s) when it has none. */
+export async function latestCardHasRisks(pid: string): Promise<boolean> {
+    try {
+        const quals = await listQualifications(pid);
+        const latest = quals
+            .filter((q) => q.status === 'completed' && q.system_card)
+            .sort(
+                (a, b) =>
+                    (b.system_version?.number ?? 0) - (a.system_version?.number ?? 0),
+            )[0];
+        if (!latest) return false;
+        const sc = (latest.system_card ?? {}) as Record<string, Json>;
+        const view = (sc['view'] ?? {}) as Record<string, Json>;
+        if (Array.isArray(view['risks']) && view['risks'].length > 0) return true;
+        const counts = view['counts'];
+        if (typeof counts === 'object' && counts !== null && !Array.isArray(counts)) {
+            const counted = (counts as Record<string, Json>)['risks'];
+            if (typeof counted === 'number' && counted > 0) return true;
+        }
+        return false;
+    } catch {
+        // Cannot inspect the card — keep the previous POST behaviour so real
+        // errors keep surfacing through the existing import error handler.
+        return true;
+    }
+}
+
 export function deleteRisk(pid: string, riskPid: string): Promise<void> {
     return request<void>(`/projects/${pid}/control-objectives/risks/${riskPid}`, {
         method: 'DELETE',

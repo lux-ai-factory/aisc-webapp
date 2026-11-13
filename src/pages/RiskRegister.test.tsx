@@ -210,6 +210,55 @@ describe('RiskRegister', () => {
         ).toBeGreaterThanOrEqual(2);
     });
 
+    it('does not call from-card when the AI card has no risks', async () => {
+        const calls: string[] = [];
+        vi.stubGlobal(
+            'fetch',
+            vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+                calls.push(`${init?.method ?? 'GET'} ${url}`);
+                const json = (payload: unknown) =>
+                    Promise.resolve({ ok: true, json: async () => payload });
+                if (url.endsWith('/projects/p1/qualification')) {
+                    return json([
+                        {
+                            pid: 'd1',
+                            questionnaire_id: 'q1',
+                            answers: {},
+                            status: 'completed',
+                            system_version: { number: 1 },
+                            system_card: { view: { counts: { risks: 0 }, risks: [] } },
+                        },
+                    ]);
+                }
+                if (url.includes('/control-objectives/risks')) return json([risk]);
+                if (url.includes('/control-objectives/mappings')) return json([]);
+                if (url.includes('/control-objectives/profile')) {
+                    return json({ objectives: ['O1'], key_objectives: ['O1'] });
+                }
+                if (url.includes('/control-objectives/catalogue')) return json([]);
+                throw new Error(`unexpected fetch: ${url} ${init?.method ?? ''}`);
+            }),
+        );
+        await renderPage();
+        const importBtn = Array.from(document.body.querySelectorAll('button')).find(
+            (b) => b.textContent?.includes('Import from AI card'),
+        );
+        expect(importBtn).toBeTruthy();
+        await act(async () => {
+            importBtn!.click();
+        });
+        for (let i = 0; i < 30; i++) {
+            if (calls.some((c) => c.includes('/projects/p1/qualification'))) break;
+            await act(async () => {
+                await new Promise((r) => setTimeout(r, 25));
+            });
+        }
+        expect(calls.some((c) => c.includes('/projects/p1/qualification'))).toBe(true);
+        expect(
+            calls.some((c) => c.startsWith('POST') && c.includes('/control-objectives/risks/from-card')),
+        ).toBe(false);
+    });
+
     it('the dialog shows the risk history and navigates an old version', async () => {
         await renderPage();
         await act(async () => {

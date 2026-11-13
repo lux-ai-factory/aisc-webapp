@@ -25,6 +25,7 @@ import {
     deleteRiskMapping,
     getObjectiveProfile,
     importCardRisks,
+    latestCardHasRisks,
     listObjectiveCatalogue,
     listRiskMappings,
     listRiskRegister,
@@ -141,6 +142,13 @@ export default function RiskRegisterSection({
     const importFromCard = async () => {
         setBusy(true);
         try {
+            if (!(await latestCardHasRisks(pid))) {
+                toast('No risks in the AI card to import.', {
+                    position: 'bottom-right',
+                    icon: 'ℹ️',
+                });
+                return;
+            }
             await importCardRisks(pid);
             await load();
             onChanged?.();
