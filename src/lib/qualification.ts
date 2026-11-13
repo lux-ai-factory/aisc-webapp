@@ -261,23 +261,8 @@ export function setObjectiveRatings(
     });
 }
 
-export interface RiskIn {
-    name: string;
-    airo_text?: string;
-    impact?: number | null;
-    likelihood?: number | null;
-    comment?: string;
-}
-
 export function listRiskRegister(pid: string): Promise<ObjectiveRisk[]> {
     return request<ObjectiveRisk[]>(`/projects/${pid}/control-objectives/risks`);
-}
-
-export function addRisk(pid: string, data: RiskIn): Promise<ObjectiveRisk> {
-    return request<ObjectiveRisk>(`/projects/${pid}/control-objectives/risks`, {
-        method: 'POST',
-        body: JSON.stringify(data),
-    });
 }
 
 /** Populate the risk register from the latest AI card's risks: existing risks

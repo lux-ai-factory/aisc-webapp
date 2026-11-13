@@ -146,18 +146,18 @@ describe('RiskRegister', () => {
         expect(calls.some((c) => c.startsWith('PATCH') && c.includes('/control-objectives/risks/r1/rating'))).toBe(true);
     });
 
-    it('the add-risk dialog offers only the enabled control objectives', async () => {
+    it('the edit-risk dialog offers only the enabled control objectives', async () => {
         await renderPage();
-        const add = Array.from(document.body.querySelectorAll('button')).find(
-            (b) => b.textContent?.includes('Add risk'),
+        const edit = Array.from(document.body.querySelectorAll('button')).find(
+            (b) => b.getAttribute('aria-label') === 'Edit risk',
         );
-        expect(add).toBeTruthy();
+        expect(edit).toBeTruthy();
         await act(async () => {
-            add!.click();
+            edit!.click();
         });
         await act(async () => {});
         const text = document.body.textContent ?? '';
-        expect(text).toContain('Add a risk to the register');
+        expect(text).toContain('Edit risk');
         expect(text).toContain('Human oversight');
         expect(text).not.toContain('Transparency');
     });
@@ -189,7 +189,7 @@ describe('RiskRegister', () => {
         );
         await renderPage();
         const importBtn = Array.from(document.body.querySelectorAll('button')).find(
-            (b) => b.textContent?.includes('Import from AI card'),
+            (b) => b.textContent?.includes('Reload risks'),
         );
         expect(importBtn).toBeTruthy();
         await act(async () => {
@@ -241,7 +241,7 @@ describe('RiskRegister', () => {
         );
         await renderPage();
         const importBtn = Array.from(document.body.querySelectorAll('button')).find(
-            (b) => b.textContent?.includes('Import from AI card'),
+            (b) => b.textContent?.includes('Reload risks'),
         );
         expect(importBtn).toBeTruthy();
         await act(async () => {

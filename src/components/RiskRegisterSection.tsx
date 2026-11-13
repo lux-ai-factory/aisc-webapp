@@ -18,7 +18,6 @@ import AppCard from './AppCard';
 import VersionSelect from './VersionSelect';
 import '../styles/common.css';
 import {
-    addRisk,
     addRiskMapping,
     deleteRisk,
     deleteRiskMapping,
@@ -129,18 +128,11 @@ export default function RiskRegisterSection({
     const mappedObjectives = (riskPid: string) =>
         mappings.filter((m) => m.risk_pid === riskPid).map((m) => m.objective_id);
 
-    const openAdd = () => {
-        setRiskVersions([]);
-        setVersionSel(null);
-        setEditor({ open: true, pid: null, name: '', impact: '', likelihood: '', comment: '', mapped: [] });
-        void refreshEnabled();
-    };
-
     const importFromCard = async () => {
         setBusy(true);
         try {
             if (!(await latestCardHasRisks(pid))) {
-                toast('No risks in the AI card to import.', {
+                toast('No risks in the AI card to load.', {
                     position: 'bottom-right',
                     icon: 'ℹ️',
                 });
@@ -149,7 +141,7 @@ export default function RiskRegisterSection({
             await importCardRisks(pid);
             await load();
             onChanged?.();
-            toast.success('risks loaded from AI Card', { position: 'bottom-right' });
+            toast.success('risks reloaded from AI card', { position: 'bottom-right' });
         } catch (e) {
             toast.error(e instanceof Error ? e.message : 'Could not import risks from the AI card', {
                 position: 'bottom-right',
@@ -206,19 +198,16 @@ export default function RiskRegisterSection({
 
     const saveEditor = () =>
         run(async () => {
+            // Risks are declared in the AI card, never created by hand here, so
+            // the dialog only ever edits an existing risk's rating/mapping.
+            if (!editor.pid) return;
+            const riskPid = editor.pid;
             const ratings = {
                 impact: toNumber(editor.impact),
                 likelihood: toNumber(editor.likelihood),
                 comment: editor.comment,
             };
-            let riskPid = editor.pid;
-            if (riskPid) {
-                await rateRisk(pid, riskPid, ratings);
-            } else {
-                if (!editor.name.trim()) return;
-                const created = await addRisk(pid, { name: editor.name.trim(), ...ratings });
-                riskPid = created.pid;
-            }
+            await rateRisk(pid, riskPid, ratings);
             const current = new Set(
                 mappings.filter((m) => m.risk_pid === riskPid).map((m) => m.objective_id),
             );
@@ -260,23 +249,12 @@ export default function RiskRegisterSection({
                     variant="contained"
                     className="gradient-btn"
                     size="small"
-                    startIcon={<Icon fontSize="small">playlist_add</Icon>}
+                    startIcon={<Icon fontSize="small">refresh</Icon>}
                     disabled={busy}
                     onClick={() => void importFromCard()}
                     sx={{ textTransform: 'none' }}
                 >
-                    Import from AI card
-                </Button>
-                <Button
-                    variant="contained"
-                    className="gradient-btn"
-                    size="small"
-                    startIcon={<Icon fontSize="small">add</Icon>}
-                    disabled={busy}
-                    onClick={openAdd}
-                    sx={{ textTransform: 'none' }}
-                >
-                    Add risk
+                    Reload risks
                 </Button>
             </Box>
 
@@ -287,8 +265,9 @@ export default function RiskRegisterSection({
                 </Box>
             ) : risks.length === 0 ? (
                 <Typography color="text.secondary" variant="body2">
-                    No risks yet — add the first one: each risk is rated impact × likelihood
-                    (1–5), and its rating drives the control objectives&apos; scores.
+                    No risks yet — load them from the AI card. Each risk is rated
+                    impact × likelihood (1–5), and ratings drive the control
+                    objectives&apos; scores.
                 </Typography>
             ) : (
                 <Grid container spacing={2} className="plugins-grid">
@@ -374,7 +353,7 @@ export default function RiskRegisterSection({
                 onClose={() => setEditor((e) => ({ ...e, open: false }))}
                 maxWidth="md"
                 fullWidth
-                title={editor.pid ? `Edit risk — ${editor.name}` : 'Add a risk to the register'}
+                title={`Edit risk — ${editor.name}`}
                 actions={
                     <>
                         <Button
@@ -387,11 +366,11 @@ export default function RiskRegisterSection({
                         <Button
                             variant="contained"
                             className="gradient-btn"
-                            disabled={busy || (!editor.pid && !editor.name.trim())}
+                            disabled={busy}
                             onClick={() => void saveEditor()}
                             sx={{ textTransform: 'none' }}
                         >
-                            {editor.pid ? 'Save' : 'Add risk'}
+                            Save
                         </Button>
                     </>
                 }
@@ -417,15 +396,6 @@ export default function RiskRegisterSection({
                         </Box>
                     )}
                     <Stack direction="row" spacing={1.5}>
-                        {editor.pid === null && (
-                            <TextField
-                                label="Risk"
-                                value={editor.name}
-                                onChange={(e) => setEditor((p) => ({ ...p, name: e.target.value }))}
-                                placeholder="e.g. poisoned training data"
-                                sx={{ flexGrow: 1, minWidth: 0 }}
-                            />
-                        )}
                         <TextField
                             select
                             label="Impact"
