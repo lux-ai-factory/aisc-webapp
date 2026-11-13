@@ -1,13 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
-import Checkbox from '@mui/material/Checkbox';
 import CircularProgress from '@mui/material/CircularProgress';
 import Grid from '@mui/material/Grid2';
 import Icon from '@mui/material/Icon';
 import IconButton from '@mui/material/IconButton';
-import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
@@ -17,6 +15,7 @@ import SecurityIcon from '@mui/icons-material/Security';
 import toast from 'react-hot-toast';
 import AppDialog from './AppDialog';
 import AppCard from './AppCard';
+import VersionSelect from './VersionSelect';
 import '../styles/common.css';
 import {
     addRisk,
@@ -77,8 +76,6 @@ export default function RiskRegisterSection({
     }>({ open: false, pid: null, name: '', impact: '', likelihood: '', comment: '', mapped: [] });
     const [riskVersions, setRiskVersions] = useState<RiskVersion[]>([]);
     const [versionSel, setVersionSel] = useState<string | null>(null);
-    const [versionMenuOpen, setVersionMenuOpen] = useState(false);
-    const versionAnchorRef = useRef<HTMLButtonElement>(null);
 
     const load = useCallback(async () => {
         try {
@@ -405,54 +402,18 @@ export default function RiskRegisterSection({
                             <Typography variant="caption" color="text.secondary">
                                 History
                             </Typography>
-                            <Button
-                                ref={versionAnchorRef}
-                                size="small"
-                                variant="outlined"
-                                endIcon={<Icon fontSize="small">arrow_drop_down</Icon>}
-                                onClick={() => {
-                                    setVersionMenuOpen(true);
-                                }}
-                                sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}
-                            >
-                                {riskVersionEntries(riskVersions).find((v) => v.id === versionSel)?.label ??
+                            <VersionSelect
+                                options={riskVersionEntries(riskVersions)}
+                                value={versionSel}
+                                fallbackLabel={
                                     riskVersionEntries(riskVersions)[riskVersionEntries(riskVersions).length - 1]
-                                        ?.label ??
-                                    'Version'}
-                            </Button>
-                            <Menu
-                                open={versionMenuOpen}
-                                onClose={() => setVersionMenuOpen(false)}
-                                anchorEl={versionAnchorRef.current}
-                                slotProps={{ paper: { style: { maxHeight: 320, width: 280 } } }}
-                            >
-                                {riskVersionEntries(riskVersions).map((v) => (
-                                    <MenuItem key={v.id} sx={{ px: 1.5, py: 0.5 }}>
-                                        <Checkbox
-                                            size="small"
-                                            color="success"
-                                            checked={v.id === versionSel}
-                                            onClick={(e) => e.stopPropagation()}
-                                            onChange={() => {
-                                                navigateRiskVersion(v);
-                                                setVersionMenuOpen(false);
-                                            }}
-                                        />
-                                        <Box
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                navigateRiskVersion(v);
-                                                setVersionMenuOpen(false);
-                                            }}
-                                            sx={{ flexGrow: 1, minWidth: 0, cursor: 'pointer' }}
-                                        >
-                                            <Typography variant="body2" noWrap>
-                                                {v.label}
-                                            </Typography>
-                                        </Box>
-                                    </MenuItem>
-                                ))}
-                            </Menu>
+                                        ?.label ?? 'Version'
+                                }
+                                onSelect={(id) => {
+                                    const entry = riskVersionEntries(riskVersions).find((v) => v.id === id);
+                                    if (entry) navigateRiskVersion(entry);
+                                }}
+                            />
                         </Box>
                     )}
                     <Stack direction="row" spacing={1.5}>

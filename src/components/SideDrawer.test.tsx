@@ -123,7 +123,7 @@ describe('SideDrawer', () => {
         expect(paper().style.width).toBe('320px');   // floored at min
     });
 
-    it('renders the version dropdown and selects via its checkbox', async () => {
+    it('renders the version dropdown and selects a version', async () => {
         const versions: VersionEntry[] = [
             { id: 'v1', label: 'v1' },
             { id: 'v2', label: 'v2' },
@@ -141,13 +141,12 @@ describe('SideDrawer', () => {
             await new Promise((r) => setTimeout(r, 50));
         });
 
-        const boxes = Array.from(
-            document.body.querySelectorAll('input[type="checkbox"]'),
-        ) as HTMLElement[];
-        const v2 = boxes[1] ?? boxes[0];
-        expect(v2).toBeTruthy();
+        const v2Item = Array.from(document.body.querySelectorAll('.MuiMenuItem-root')).find(
+            (b) => (b.textContent ?? '').includes('v2'),
+        ) as HTMLElement | undefined;
+        expect(v2Item).toBeTruthy();
         await act(async () => {
-            v2.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            v2Item!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
         });
         await act(async () => {
             await new Promise((r) => setTimeout(r, 50));

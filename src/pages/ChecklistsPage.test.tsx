@@ -257,11 +257,8 @@ describe('ChecklistsPage', () => {
         const v0Item = Array.from(document.body.querySelectorAll('.MuiMenuItem-root')).find(
             (b) => b.textContent?.trim().startsWith('v0'),
         )!;
-        const label = Array.from(v0Item.querySelectorAll('*')).find(
-            (el) => el.textContent?.trim().startsWith('v0'),
-        ) as HTMLElement;
         await act(async () => {
-            label.closest('div')!.click();
+            (v0Item as HTMLElement).click();
         });
         expect(await settleOn('baseline answer')).toBe('baseline answer');
         // close, then reopen by clicking the card again: the picked version's
@@ -374,11 +371,8 @@ describe('ChecklistsPage', () => {
         const v0Item = Array.from(document.body.querySelectorAll('.MuiMenuItem-root')).find(
             (b) => b.textContent?.trim().startsWith('v0'),
         )!;
-        const label = Array.from(v0Item.querySelectorAll('*')).find(
-            (el) => el.textContent?.trim().startsWith('v0'),
-        ) as HTMLElement;
         await act(async () => {
-            label.closest('div')!.click();
+            (v0Item as HTMLElement).click();
         });
         for (let i = 0; i < 40; i++) {
             if ((card().textContent ?? '').includes('v0')) break;

@@ -26,14 +26,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Checkbox from '@mui/material/Checkbox';
 import Drawer from '@mui/material/Drawer';
-import Icon from '@mui/material/Icon';
 import IconButton from '@mui/material/IconButton';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 import CloseIcon from '@mui/icons-material/Close';
+import VersionSelect from './VersionSelect';
 import './SideDrawer.css';
 
 export type SideDrawerMode = 'view' | 'edit' | 'static';
@@ -120,8 +117,6 @@ export default function SideDrawer({
 }: SideDrawerProps) {
     const [width, setWidth] = useState(() => defaultDrawerWidth(defaultWidth, minWidth, maxWidth));
     const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
-    const [versionOpen, setVersionOpen] = useState(false);
-    const versionAnchorRef = useRef<HTMLButtonElement>(null);
 
     // Re-latch width when the default changes while closed.
     useEffect(() => {
@@ -182,7 +177,6 @@ export default function SideDrawer({
     }, [handleDrawerResize, stopDrawerResize]);
 
     const gutter = versions ?? [];
-    const selectedLabel = gutter.find((v) => v.id === selectedVersionId)?.label ?? '';
 
     // Esc closes.
     useEffect(() => {
@@ -235,52 +229,14 @@ export default function SideDrawer({
                         </Typography>
                         {gutter.length > 0 && (
                             <Box sx={{ mr: 1 }}>
-                                <Button
-                                    ref={versionAnchorRef}
-                                    size="small"
-                                    variant="outlined"
-                                    endIcon={<Icon fontSize="small">arrow_drop_down</Icon>}
-                                    onClick={() => setVersionOpen(true)}
-                                    sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}
-                                >
-                                    {selectedLabel || gutter[0]?.label || 'Version'}
-                                </Button>
-                                <Menu
-                                    open={versionOpen}
-                                    onClose={() => setVersionOpen(false)}
-                                    anchorEl={versionAnchorRef.current}
-                                    slotProps={{ paper: { style: { maxHeight: 320, width: 280 } } }}
-                                >
-                                    {gutter.map((v, index) => {
-                                        const selected = !!selectedVersionId && v.id === selectedVersionId;
-                                        return (
-                                            <MenuItem key={v.id ?? `${v.label}-${index}`} sx={{ px: 1.5, py: 0.5 }}>
-                                                <Checkbox
-                                                    size="small"
-                                                    color="success"
-                                                    checked={selected}
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    onChange={() => {
-                                                        onSelectVersion?.(v, index);
-                                                        setVersionOpen(false);
-                                                    }}
-                                                />
-                                                <Box
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        onPreviewVersion?.(v, index);
-                                                        setVersionOpen(false);
-                                                    }}
-                                                    sx={{ flexGrow: 1, minWidth: 0, cursor: 'pointer' }}
-                                                >
-                                                    <Typography variant="body2" noWrap>
-                                                        {v.label}
-                                                    </Typography>
-                                                </Box>
-                                            </MenuItem>
-                                        );
-                                    })}
-                                </Menu>
+                                <VersionSelect
+                                    options={gutter}
+                                    value={selectedVersionId ?? null}
+                                    onSelect={(id, option) => {
+                                        const index = gutter.findIndex((x) => x.id === id);
+                                        (onSelectVersion ?? onPreviewVersion)?.(option, index);
+                                    }}
+                                />
                             </Box>
                         )}
                         {headerAction}
