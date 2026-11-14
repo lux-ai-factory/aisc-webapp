@@ -50,17 +50,41 @@ const createEvaluation = async (project_uuid: string, selectedPlugins: SelectedP
     });
 
     if (!response.ok) {
-        if (response.status === 400) {
-            const errorData = await response.json();
-            throw new Error(JSON.stringify(errorData.detail));
-        }
-        toast.error('Failed to launch evaluation', { position: "bottom-right" });
-        throw new Error('Failed to launch evaluation');
+        const body = await response.json().catch(() => null);
+        throw new LaunchRefused(body?.detail);
     }
     toast.success('Evaluation created', { position: "bottom-right" });
     sessionStorage.removeItem(storageKey(project_uuid));
     return await response.json();
 };
+
+/** A launch the engine refused, with its reason in the engine's words: a sentence, each problem of a request it
+ *  could not read (a list), or the project settings that are missing or invalid (an object, shown as a panel). */
+class LaunchRefused extends Error {
+    readonly settings: Record<string, unknown> | null;
+
+    constructor(detail: unknown) {
+        super(LaunchRefused.reason(detail));
+        this.settings = detail && typeof detail === 'object' && !Array.isArray(detail)
+            ? detail as Record<string, unknown> : null;
+    }
+
+    static reason(detail: unknown): string {
+        if (typeof detail === 'string' && detail.trim()) return detail;
+        if (Array.isArray(detail) && detail.length) {
+            return detail.map(problem => {
+                const where = Array.isArray(problem?.loc)
+                    ? problem.loc.filter((part: unknown) => part !== 'body' && part !== 'data').join(' > ') : '';
+                const what = String(problem?.msg ?? problem);
+                return where ? `${where}: ${what}` : what;
+            }).join('; ');
+        }
+        if (detail && typeof detail === 'object' && typeof (detail as { message?: unknown }).message === 'string') {
+            return (detail as { message: string }).message;
+        }
+        return 'Failed to launch evaluation';
+    }
+}
 
 // selections keyed by package and name; those saved under 'start-eval-state', by name alone, are left behind
 const STORAGE_KEY = 'start-eval-selections';
@@ -159,13 +183,13 @@ export default function PluginStartEvaluation() {
             await createEvaluation(projectUUID, Object.fromEntries(validEntries), project?.plugins ?? [], runName);
             setRunName('');
         } catch (error) {
-            try {
-                const detail = JSON.parse(error instanceof Error ? error.message : '');
-                if (detail && typeof detail === 'object') {
-                    setDispatchError({ message: detail.message ?? 'Required project settings are missing or invalid', missing: detail.missing ?? [], invalid: detail.invalid ?? [], ambiguous: detail.ambiguous ?? [] });
-                    return;
-                }
-            } catch { /* display the generic error below */ }
+            // the engine's structured settings refusal is shown as its panel; any other reason once, as a toast
+            const detail = error instanceof LaunchRefused ? error.settings : null;
+            if (detail) {
+                const list = (key: string) => (Array.isArray(detail[key]) ? detail[key] : []) as Array<Record<string, string>>;
+                setDispatchError({ message: (detail.message as string) ?? 'Required project settings are missing or invalid', missing: list('missing'), invalid: list('invalid'), ambiguous: list('ambiguous') });
+                return;
+            }
             toast.error(error instanceof Error ? error.message : 'Failed to launch evaluation', { position: 'bottom-right' });
         }
     };
