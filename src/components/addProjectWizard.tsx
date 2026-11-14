@@ -24,6 +24,7 @@ import CloudDoneIcon from "@mui/icons-material/CloudDone";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { styled } from "@mui/material/styles";
 import { useEffect, useMemo, useState } from "react";
+import { acceptFor } from "../models/componentFileTypes";
 import "./addProjectWizard.css";
 import "../styles/common.css";
 
@@ -296,7 +297,7 @@ export default function AddProjectWizard({
                                                     Upload
                                                     <HiddenInput
                                                         type="file"
-                                                        accept="*/*"
+                                                        accept={acceptFor("dataset")}
                                                         onChange={e =>
                                                             updateDatasetFile(
                                                                 index,
