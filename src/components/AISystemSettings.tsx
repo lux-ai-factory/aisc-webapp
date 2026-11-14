@@ -218,6 +218,8 @@ export default function AISystemSettings() {
 
     // the engine deletes a component no evaluation used, and retires one that evaluations used (200)
     const remove = async (c: AIComponent) => {
+        if (!window.confirm(`Delete ${c.name}? If evaluations used it, it is retired instead: it stays for their `
+            + "record and is no longer offered for new runs.")) return;
         const res = await fetch(`${API_URL}/components/${c.pid}`, { method: "DELETE" });
         if (res.status === 200) {
             const { evaluations } = await res.json();

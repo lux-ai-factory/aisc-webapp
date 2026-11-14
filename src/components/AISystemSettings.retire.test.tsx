@@ -19,6 +19,8 @@ function ProjectUUIDSetter({ uuid }: { uuid: string }) {
 
 beforeEach(() => {
     vi.stubEnv('VITE_DEPLOYMENT', 'configurator');
+    // Delete asks first; these tests answer yes
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
     calls = [];
     deleteAnswer = { ok: true, status: 204, json: async () => null } as Response;
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
