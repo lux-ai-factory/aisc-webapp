@@ -13,6 +13,8 @@ import { useNavigate } from "react-router-dom";
 import PluginEvaluationForm from "../components/plugin/PluginEvaluationForm.tsx";
 import './PluginStartEvaluation.css';
 import '../styles/common.css';
+import { inUse } from "../models/retired.ts";
+import { lastRunHelper } from "../api/projectHelpers.ts";
 
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
@@ -48,17 +50,41 @@ const createEvaluation = async (project_uuid: string, selectedPlugins: SelectedP
     });
 
     if (!response.ok) {
-        if (response.status === 400) {
-            const errorData = await response.json();
-            throw new Error(JSON.stringify(errorData.detail));
-        }
-        toast.error('Failed to launch evaluation', { position: "bottom-right" });
-        throw new Error('Failed to launch evaluation');
+        const body = await response.json().catch(() => null);
+        throw new LaunchRefused(body?.detail);
     }
     toast.success('Evaluation created', { position: "bottom-right" });
     sessionStorage.removeItem(storageKey(project_uuid));
     return await response.json();
 };
+
+/** A launch the engine refused, with its reason in the engine's words: a sentence, each problem of a request it
+ *  could not read (a list), or the project settings that are missing or invalid (an object, shown as a panel). */
+class LaunchRefused extends Error {
+    readonly settings: Record<string, unknown> | null;
+
+    constructor(detail: unknown) {
+        super(LaunchRefused.reason(detail));
+        this.settings = detail && typeof detail === 'object' && !Array.isArray(detail)
+            ? detail as Record<string, unknown> : null;
+    }
+
+    static reason(detail: unknown): string {
+        if (typeof detail === 'string' && detail.trim()) return detail;
+        if (Array.isArray(detail) && detail.length) {
+            return detail.map(problem => {
+                const where = Array.isArray(problem?.loc)
+                    ? problem.loc.filter((part: unknown) => part !== 'body' && part !== 'data').join(' > ') : '';
+                const what = String(problem?.msg ?? problem);
+                return where ? `${where}: ${what}` : what;
+            }).join('; ');
+        }
+        if (detail && typeof detail === 'object' && typeof (detail as { message?: unknown }).message === 'string') {
+            return (detail as { message: string }).message;
+        }
+        return 'Failed to launch evaluation';
+    }
+}
 
 // selections keyed by package and name; those saved under 'start-eval-state', by name alone, are left behind
 const STORAGE_KEY = 'start-eval-selections';
@@ -157,13 +183,13 @@ export default function PluginStartEvaluation() {
             await createEvaluation(projectUUID, Object.fromEntries(validEntries), project?.plugins ?? [], runName);
             setRunName('');
         } catch (error) {
-            try {
-                const detail = JSON.parse(error instanceof Error ? error.message : '');
-                if (detail && typeof detail === 'object') {
-                    setDispatchError({ message: detail.message ?? 'Required project settings are missing or invalid', missing: detail.missing ?? [], invalid: detail.invalid ?? [], ambiguous: detail.ambiguous ?? [] });
-                    return;
-                }
-            } catch { /* display the generic error below */ }
+            // the engine's structured settings refusal is shown as its panel; any other reason once, as a toast
+            const detail = error instanceof LaunchRefused ? error.settings : null;
+            if (detail) {
+                const list = (key: string) => (Array.isArray(detail[key]) ? detail[key] : []) as Array<Record<string, string>>;
+                setDispatchError({ message: (detail.message as string) ?? 'Required project settings are missing or invalid', missing: list('missing'), invalid: list('invalid'), ambiguous: list('ambiguous') });
+                return;
+            }
             toast.error(error instanceof Error ? error.message : 'Failed to launch evaluation', { position: 'bottom-right' });
         }
     };
@@ -189,11 +215,20 @@ export default function PluginStartEvaluation() {
         if (!projectUUID || !project) return;
         let cancelled = false;
         getEvaluationInputsTemplate(projectUUID)
-            .then(template => {
+            .then(async template => {
+                // the last run's helper models (its judge...), those the project still offers for their role
+                const helpers = new Map<string, PluginSelection>();
+                for (const [pluginName, entries] of Object.entries(template)) {
+                    for (const [name, entry] of Object.entries(entries)) {
+                        const helper = await lastRunHelper(projectUUID, name, entry);
+                        if (helper) helpers.set(`${pluginName}\n${name}`, helper);
+                    }
+                }
                 if (cancelled) return;
                 setSelectedPlugins(prev => {
                     if (Object.keys(prev).length > 0) return prev;
-                    const components = project?.components ?? [];
+                    // a retired dataset is not chosen again for a new run
+                    const components = inUse(project?.components ?? []);
                     const restored: SelectedPluginsState = {};
                     // only the plugins on: a version of a package that is off shows no card and shares no name
                     const plugins = (project?.plugins ?? []).filter(p => p.enabled);
@@ -205,6 +240,11 @@ export default function PluginStartEvaluation() {
                         if (!entries) continue;
                         const selections: PluginSelection[] = [];
                         for (const [name, entry] of Object.entries(entries)) {
+                            const helper = helpers.get(`${plugin.name}\n${name}`);
+                            if (helper) {
+                                selections.push(helper);
+                                continue;
+                            }
                             const component = components.find(c => c.pid === entry.component_pid);
                             if (!component) continue;
                             selections.push({

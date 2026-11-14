@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-    Box, Button, Card, CardContent, Chip, CircularProgress, Dialog,
-    DialogContent, DialogTitle, Divider, IconButton, List, ListItem, ListItemText,
-    MenuItem, Stack, TextField, Typography,
+    Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog,
+    DialogContent, DialogTitle, Divider, FormControlLabel, IconButton, List, ListItem, ListItemText,
+    MenuItem, Stack, Switch, TextField, Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -13,6 +13,7 @@ import { getProjectConfigs } from "../api/api";
 import { API_VERSION_PREFIX } from "../config";
 import { isConfigurator } from "../deployment";
 import { AIComponent, AIComponentType, ProjectConfig } from "../models/models";
+import { inUse, isRetired } from "../models/retired";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -37,6 +38,17 @@ const defaultType = (): AIComponentType => (isConfigurator() ? "dataset" : "mode
 const listed = (c: AIComponent): boolean =>
     !isConfigurator() || !(c.component_type === "llm" || c.component_type === "resource"
         || (c.json_value != null && "card_target" in c.json_value));
+
+/** The engine's reason for a refused change, in its words: its detail when it gives one, else the status. */
+async function refusalReason(res: Response): Promise<string> {
+    const body = await res.json().catch(() => null) as { detail?: unknown } | null;
+    const detail = body?.detail;
+    if (typeof detail === "string" && detail.trim()) return detail;
+    if (Array.isArray(detail) && detail.length) {
+        return detail.map(d => String((d as { msg?: unknown })?.msg ?? d)).join("; ");
+    }
+    return `error ${res.status}`;
+}
 
 const SEMANTIC_TYPES = ["numeric", "categorical", "datetime", "text", "boolean"];
 const ROLES = ["feature", "target", "date", "ignore"];
@@ -113,6 +125,8 @@ export default function AISystemSettings() {
     const [components, setComponents] = useState<AIComponent[]>([]);
     const [secrets, setSecrets] = useState<ProjectConfig[]>([]);
     const [loading, setLoading] = useState(true);
+    const [showRetired, setShowRetired] = useState(false);
+    const [notice, setNotice] = useState<{ severity: "info" | "error"; text: string } | null>(null);
     const [open, setOpen] = useState(false);
 
     // add-dialog state
@@ -124,6 +138,8 @@ export default function AISystemSettings() {
     const [addResourceValue, setAddResourceValue] = useState("");
     const [sourceDatasetPid, setSourceDatasetPid] = useState("");
     const [saving, setSaving] = useState(false);
+    // why the engine refused the add, shown in the dialog, which stays open with what was typed
+    const [addError, setAddError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // edit-dialog state
@@ -136,9 +152,13 @@ export default function AISystemSettings() {
     const [editSourceDatasetPid, setEditSourceDatasetPid] = useState("");
     const [editJsonValue, setEditJsonValue] = useState<{ features?: FeatureDraft[] }>({});
     const [editSaving, setEditSaving] = useState(false);
+    // why the engine refused the edit or its file, shown in the dialog, which stays open with what was typed
+    const [editError, setEditError] = useState<string | null>(null);
     const editFileInputRef = useRef<HTMLInputElement>(null);
 
-    const datasetComponents = components.filter(c => c.component_type === "dataset");
+    const datasetComponents = inUse(components).filter(c => c.component_type === "dataset");
+    const retiredCount = components.filter(isRetired).length;
+    const shown = showRetired ? components : inUse(components);
 
     const refresh = useCallback(async () => {
         if (!projectUUID) return;
@@ -173,6 +193,7 @@ export default function AISystemSettings() {
                 setSecrets(settings.filter(s => s.category === "secrets"));
             } catch { /* keep current secrets on failure */ }
         }
+        setAddError(null);
         setOpen(true);
     };
 
@@ -183,6 +204,7 @@ export default function AISystemSettings() {
         if (type === "datashape" && !sourceDatasetPid) return;
         if ((type === "model" || type === "dataset") && !file) return;
         setSaving(true);
+        setAddError(null);
         try {
             const payload: Record<string, unknown> = { name: name.trim(), component_type: type };
             if (type === "llm") {
@@ -197,12 +219,21 @@ export default function AISystemSettings() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
             });
-            if (!res.ok) return;
+            if (!res.ok) {
+                setAddError(`${name.trim()} was not added: ${await refusalReason(res)}`);
+                return;
+            }
             const created = await res.json();
             if ((type === "model" || type === "dataset") && file) {
                 const formData = new FormData();
                 formData.append("file", file);
-                await fetch(`${API_URL}/components/${created.pid}/data`, { method: "PUT", body: formData });
+                const upload = await fetch(`${API_URL}/components/${created.pid}/data`, { method: "PUT", body: formData });
+                if (!upload.ok) {
+                    // it exists without its file: adding it again would make a second one, so the page says
+                    // which, and Edit attaches the file
+                    setNotice({ severity: "error", text: `${name.trim()} was added, but its file was not stored: `
+                        + `${await refusalReason(upload)}. Edit it to attach the file again.` });
+                }
             }
             setOpen(false);
             refresh();
@@ -211,14 +242,34 @@ export default function AISystemSettings() {
         }
     };
 
-    const remove = async (pid: string) => {
-        await fetch(`${API_URL}/components/${pid}`, { method: "DELETE" });
+    // the engine deletes a component no evaluation used, and retires one that evaluations used (200)
+    const remove = async (c: AIComponent) => {
+        if (!window.confirm(`Delete ${c.name}? If evaluations used it, it is retired instead: it stays for their `
+            + "record and is no longer offered for new runs.")) return;
+        const res = await fetch(`${API_URL}/components/${c.pid}`, { method: "DELETE" });
+        if (res.status === 200) {
+            const { evaluations } = await res.json();
+            setNotice({ severity: "info", text: `${c.name} is retired: ${evaluations} evaluation${evaluations === 1 ? "" : "s"} used it. `
+                + "It stays for their record and is no longer offered for new runs. Show retired lists it." });
+        } else if (!res.ok) {
+            setNotice({ severity: "error", text: `${c.name} could not be deleted (error ${res.status}).` });
+        } else {
+            setNotice(null);
+        }
+        refresh();
+    };
+
+    const restore = async (c: AIComponent) => {
+        const res = await fetch(`${API_URL}/components/${c.pid}/restore`, { method: "POST" });
+        setNotice(res.ok ? { severity: "info", text: `${c.name} is restored.` }
+                         : { severity: "error", text: `${c.name} could not be restored (error ${res.status}).` });
         refresh();
     };
 
     const startEdit = (c: AIComponent) => {
         const json = (c.json_value ?? {}) as Record<string, unknown>;
         setEditTarget(c);
+        setEditError(null);
         setEditName(c.name);
         setEditFile(undefined);
         setEditLlmUrl(typeof json.endpoint_url === "string" ? json.endpoint_url : "");
@@ -232,6 +283,7 @@ export default function AISystemSettings() {
         if (!editTarget || editName.trim().length < 1) return;
         if (editTarget.component_type === "datashape" && !editSourceDatasetPid) return;
         setEditSaving(true);
+        setEditError(null);
         try {
             const payload: Record<string, unknown> = { name: editName.trim() };
             if (editTarget.component_type === "llm") {
@@ -250,11 +302,19 @@ export default function AISystemSettings() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
             });
-            if (!res.ok) return;
+            if (!res.ok) {
+                setEditError(`Not saved: ${await refusalReason(res)}`);
+                return;
+            }
             if ((editTarget.component_type === "model" || editTarget.component_type === "dataset") && editFile) {
                 const formData = new FormData();
                 formData.append("file", editFile);
-                await fetch(`${API_URL}/components/${editTarget.pid}/data`, { method: "PUT", body: formData });
+                const upload = await fetch(`${API_URL}/components/${editTarget.pid}/data`, { method: "PUT", body: formData });
+                if (!upload.ok) {
+                    setEditError(`The changes were saved, but the file was not stored: ${await refusalReason(upload)}`);
+                    refresh();
+                    return;
+                }
             }
             setEditTarget(null);
             refresh();
@@ -330,19 +390,27 @@ export default function AISystemSettings() {
             </Card>
             )}
 
-            {components.length === 0 ? (
+            {notice && <Alert severity={notice.severity} onClose={() => setNotice(null)} sx={{ mb: 1 }}>{notice.text}</Alert>}
+            {retiredCount > 0 && (
+                <FormControlLabel control={<Switch checked={showRetired} onChange={e => setShowRetired(e.target.checked)} />}
+                                  label={`Show retired (${retiredCount})`} />
+            )}
+
+            {shown.length === 0 ? (
                 <Typography color="text.secondary">{testData ? "No test data yet." : "No components yet. Add one to get started."}</Typography>
             ) : (
                 <List>
-                    {components.map((c) => (
-                        <ListItem key={c.pid} secondaryAction={
+                    {shown.map((c) => (
+                        <ListItem key={c.pid} secondaryAction={isRetired(c) ? (
+                            <Button size="small" onClick={() => restore(c)} aria-label={`Restore ${c.name}`}>Restore</Button>
+                        ) : (
                             <Stack direction="row" spacing={0.5}>
-                                <IconButton edge="end" size="small" onClick={() => startEdit(c)}><EditIcon fontSize="small" /></IconButton>
-                                <IconButton edge="end" size="small" onClick={() => remove(c.pid)}><DeleteIcon fontSize="small" /></IconButton>
+                                <IconButton edge="end" size="small" onClick={() => startEdit(c)} aria-label={`Edit ${c.name}`}><EditIcon fontSize="small" /></IconButton>
+                                <IconButton edge="end" size="small" onClick={() => remove(c)} aria-label={`Delete ${c.name}`}><DeleteIcon fontSize="small" /></IconButton>
                             </Stack>
-                        }>
+                        )}>
                             <ListItemText
-                                primary={<Stack direction="row" spacing={1} alignItems="center"><Typography variant="body1">{c.name}</Typography><Chip size="small" label={c.component_type} /></Stack>}
+                                primary={<Stack direction="row" spacing={1} alignItems="center"><Typography variant="body1" color={isRetired(c) ? "text.secondary" : undefined}>{c.name}</Typography><Chip size="small" label={c.component_type} />{isRetired(c) && <Chip size="small" variant="outlined" label="retired" />}</Stack>}
                                 secondary={summary(c)}
                             />
                         </ListItem>
@@ -355,6 +423,7 @@ export default function AISystemSettings() {
                 <DialogTitle>{testData ? "Add test data" : "Add component"}</DialogTitle>
                 <DialogContent>
                     <Stack spacing={2} sx={{ mt: 1 }}>
+                        {addError && <Alert severity="error">{addError}</Alert>}
                         <TextField select label="Type" value={type} onChange={(e) => setType(e.target.value as AIComponentType)}>
                             {offeredTypes().map(t => <MenuItem key={t.value} value={t.value}>{t.label}</MenuItem>)}
                         </TextField>
@@ -398,6 +467,7 @@ export default function AISystemSettings() {
                 <DialogContent>
                     {editTarget && (
                         <Stack spacing={2} sx={{ mt: 1 }}>
+                            {editError && <Alert severity="error">{editError}</Alert>}
                             <TextField label="Name" value={editName} onChange={(e) => setEditName(e.target.value)} required />
                             {(editTarget.component_type === "model" || editTarget.component_type === "dataset") && (
                                 <Button variant="outlined" onClick={() => editFileInputRef.current?.click()}>
