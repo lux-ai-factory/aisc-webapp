@@ -325,14 +325,14 @@ it('asks for the model by name, with the reason, when the helper lists none', as
     container.remove();
 });
 
-it('points to Manage when no helper allows the role', async () => {
+it('points to Connectivity when no connection has the role', async () => {
     mockEngine({ helpers: [], components: [] });
     rememberPlatformProject(HELPER_PROJECT);
     const { container } = await renderForm([]);
-    expect(container.textContent).toContain(
-        'No helper model allows this role yet. Add one under Manage > Helper models.');
-    const link = container.querySelector('a[href*="/helpers.html?project="]');
-    expect(link?.getAttribute('href')).toContain(`/helpers.html?project=${HELPER_PROJECT}`);
+    expect(container.textContent).toContain('No connection has the judge role yet.');
+    expect(container.textContent).toContain('Manage > Connectivity, Connections tab');
+    const link = container.querySelector('a[href*="/connectivity.html?project="]');
+    expect(link?.getAttribute('href')).toContain(`/connectivity.html?project=${HELPER_PROJECT}#connections`);
     container.remove();
 });
 

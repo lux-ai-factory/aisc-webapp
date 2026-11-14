@@ -156,13 +156,13 @@ export function sandboxPageUrl(
 }
 
 /**
- * The project's Helper models page under Manage on the launcher: where a helper model (a judge, an
- * attacker) is added once, with its key, for every tool that needs one. Without a project, the launcher.
+ * The project's Connectivity page on the launcher, Connections tab: where a connection is given a helper role (a
+ * judge, an attacker) for every tool that needs one. Without a project, the launcher.
  */
-export function helperModelsPageUrl(
+export function connectivityPageUrl(
   launcherUrl: string,
   project: string | null = currentPlatformProject(),
 ): string {
   const launcher = launcherUrl.replace(/\/+$/, "");
-  return project ? `${launcher}/helpers.html?project=${encodeURIComponent(project)}` : launcher;
+  return project ? `${launcher}/connectivity.html?project=${encodeURIComponent(project)}#connections` : launcher;
 }

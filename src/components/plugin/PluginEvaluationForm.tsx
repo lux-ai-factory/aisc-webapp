@@ -6,7 +6,7 @@ import { Box, Icon, FormControl, InputLabel, MenuItem, Select, TextField, Card, 
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
 import { useProject } from "../../context/ProjectContext.tsx";
-import { currentPlatformProject, helperModelsPageUrl } from "../../platform/currentProject.ts";
+import { currentPlatformProject, connectivityPageUrl } from "../../platform/currentProject.ts";
 import { launcherUrl } from "../../deployment";
 import { useState, useEffect, useRef } from "react";
 import './PluginEvaluationForm.css';
@@ -108,8 +108,9 @@ function HelperInput({ def, projectUUID, selection, selectMenuProps, onSelection
     if (helpers.length === 0) {
         return (
             <Typography variant="body2" color="text.secondary">
-                {def.label || def.name}: No helper model allows this role yet. Add one under Manage &gt; Helper models.{' '}
-                <a href={helperModelsPageUrl(launcherUrl(), currentPlatformProject())}>Open Helper models</a>
+                {def.label || def.name}: No connection has the {role} role yet. Give one the role under
+                Manage &gt; Connectivity, Connections tab: tick {role} and press Save roles.{' '}
+                <a href={connectivityPageUrl(launcherUrl(), currentPlatformProject())}>Open Connectivity</a>
             </Typography>
         );
     }
