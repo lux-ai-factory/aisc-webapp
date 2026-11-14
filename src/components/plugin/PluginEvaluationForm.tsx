@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { getPluginInputDefinitions, getProject, getComponentModels, getEvaluationInputsTemplate } from "../../api/api.tsx";
-import { getHelperModels, getProjectHelpers } from "../../api/projectHelpers.ts";
+import { getHelperModels, getProjectHelpers, lastRunHelper } from "../../api/projectHelpers.ts";
 import { Plugin, PluginConfig, PluginInputDefinition, AIComponent, PluginInputValue } from "../../models/models.tsx";
 import { Box, Icon, FormControl, InputLabel, MenuItem, Select, TextField, Card, CardContent, Chip, Typography, Tooltip } from "@mui/material";
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -235,6 +235,15 @@ export default function PluginEvaluationForm({
             const entry = template[def.name];
             if (!entry) continue;
             if (selections.some(s => s.name === def.name)) continue;
+            // the last run's helper model (its judge...) comes back while the project still offers it for the role
+            if (def.input_type === HELPER_INPUT) {
+                if (!projectUUID || helpersRestoring.current.has(def.name)) continue;
+                helpersRestoring.current.add(def.name);
+                lastRunHelper(projectUUID, def.name, entry).then(helper => {
+                    if (helper) onSelectionChange(helper, def.name);
+                });
+                continue;
+            }
             // the last run's choice comes back only while it is in use: a retired dataset is chosen again by hand
             const component = inUse(project?.components ?? []).find(
                 c => c.pid === entry.component_pid && c.component_type === def.input_type,
@@ -247,7 +256,7 @@ export default function PluginEvaluationForm({
                 value: entry.value ?? {},
             }, def.name);
         }
-    }, [isActive, inputsTemplate, inputDefinitions, project, plugin.name, selections, onSelectionChange]);
+    }, [isActive, inputsTemplate, inputDefinitions, project, plugin.name, selections, onSelectionChange, projectUUID]);
 
     const sortedConfigs = configs
         ? [...configs].sort(
@@ -269,6 +278,9 @@ export default function PluginEvaluationForm({
     );
     const onValidationChangeRef = useRef(onValidationChange);
     onValidationChangeRef.current = onValidationChange;
+
+    // helper inputs whose last-run helper is being looked up, so a re-render does not look it up twice
+    const helpersRestoring = useRef(new Set<string>());
 
     useEffect(() => {
         onValidationChangeRef.current?.(allMandatoryFilled);

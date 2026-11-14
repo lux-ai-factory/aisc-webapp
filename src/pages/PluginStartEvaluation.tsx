@@ -14,6 +14,7 @@ import PluginEvaluationForm from "../components/plugin/PluginEvaluationForm.tsx"
 import './PluginStartEvaluation.css';
 import '../styles/common.css';
 import { inUse } from "../models/retired.ts";
+import { lastRunHelper } from "../api/projectHelpers.ts";
 
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
@@ -190,7 +191,15 @@ export default function PluginStartEvaluation() {
         if (!projectUUID || !project) return;
         let cancelled = false;
         getEvaluationInputsTemplate(projectUUID)
-            .then(template => {
+            .then(async template => {
+                // the last run's helper models (its judge...), those the project still offers for their role
+                const helpers = new Map<string, PluginSelection>();
+                for (const [pluginName, entries] of Object.entries(template)) {
+                    for (const [name, entry] of Object.entries(entries)) {
+                        const helper = await lastRunHelper(projectUUID, name, entry);
+                        if (helper) helpers.set(`${pluginName}\n${name}`, helper);
+                    }
+                }
                 if (cancelled) return;
                 setSelectedPlugins(prev => {
                     if (Object.keys(prev).length > 0) return prev;
@@ -207,6 +216,11 @@ export default function PluginStartEvaluation() {
                         if (!entries) continue;
                         const selections: PluginSelection[] = [];
                         for (const [name, entry] of Object.entries(entries)) {
+                            const helper = helpers.get(`${plugin.name}\n${name}`);
+                            if (helper) {
+                                selections.push(helper);
+                                continue;
+                            }
                             const component = components.find(c => c.pid === entry.component_pid);
                             if (!component) continue;
                             selections.push({
