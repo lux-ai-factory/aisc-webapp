@@ -14,6 +14,7 @@ import { API_VERSION_PREFIX } from "../config";
 import { isConfigurator } from "../deployment";
 import { AIComponent, AIComponentType, ProjectConfig } from "../models/models";
 import { inUse, isRetired } from "../models/retired";
+import { acceptFor } from "../models/componentFileTypes";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -450,7 +451,7 @@ export default function AISystemSettings() {
                                 {datasetComponents.map(d => <MenuItem key={d.pid} value={d.pid}>{d.name}</MenuItem>)}
                             </TextField>
                         )}
-                        <input ref={fileInputRef} hidden type="file" onChange={(e) => setFile(e.target.files?.[0])} />
+                        <input ref={fileInputRef} hidden type="file" accept={acceptFor(type)} onChange={(e) => setFile(e.target.files?.[0])} />
                         <Stack direction="row" justifyContent="flex-end" spacing={1}>
                             <Button onClick={() => setOpen(false)}>Cancel</Button>
                             <Button variant="contained" onClick={addComponent} disabled={saving || !canAdd}>
@@ -495,7 +496,7 @@ export default function AISystemSettings() {
                                     <DataShapeFeaturesEditor value={editJsonValue} onChange={setEditJsonValue} />
                                 </>
                             )}
-                            <input ref={editFileInputRef} hidden type="file" onChange={(e) => setEditFile(e.target.files?.[0])} />
+                            <input ref={editFileInputRef} hidden type="file" accept={acceptFor(editTarget.component_type)} onChange={(e) => setEditFile(e.target.files?.[0])} />
                             <Stack direction="row" justifyContent="flex-end" spacing={1}>
                                 <Button onClick={() => setEditTarget(null)}>Cancel</Button>
                                 <Button variant="contained" onClick={saveEdit} disabled={editSaving || editName.trim().length < 1 || (editTarget.component_type === "datashape" && !editSourceDatasetPid)}>
