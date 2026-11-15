@@ -32,6 +32,15 @@ export function pluginErrorText(errorMessage: string | null | undefined): string
     }).join('\n');
 }
 
+/** What a Failed test without a recorded reason shows, so it is never left out of its run's card. */
+export const NO_REASON_SHOWN = 'Failed, no reason recorded.';
+
+/** What a run's card says of one of its tests: its error in words when it has one, NO_REASON_SHOWN for a
+ *  Failed test without one, and null otherwise. */
+export function failedTestReason(plugin: { status?: string; error_message?: string | null }): string | null {
+    return pluginErrorText(plugin.error_message) ?? (plugin.status === 'Failed' ? NO_REASON_SHOWN : null);
+}
+
 /** How much of a failure a card shows: the run's log (a file of the run) has the rest. */
 const REASON_MAX = 500;
 const RUN_STEP = '====== Step 3: Plugin Run ======';
