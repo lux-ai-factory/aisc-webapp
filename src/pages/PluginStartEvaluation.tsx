@@ -9,6 +9,7 @@ import toast from "react-hot-toast";
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
 import { getProject, getEvaluationInputsTemplate } from "../api/api.tsx";
 import { launchBody } from "./runName";
+import { launchInit, newLaunchKey } from "./launchOnce";
 import { useNavigate } from "react-router-dom";
 import PluginEvaluationForm from "../components/plugin/PluginEvaluationForm.tsx";
 import './PluginStartEvaluation.css';
@@ -32,7 +33,7 @@ export function pluginKey(plugin: Pick<Plugin, 'package_name' | 'name'>): string
 }
 
 const createEvaluation = async (project_uuid: string, selectedPlugins: SelectedPluginsState, plugins: Plugin[],
-                                runName?: string) => {
+                                launchKey: string, runName?: string) => {
     if (!project_uuid) throw new Error('Invalid uuid');
 
     // each plugin is named with its package, so the engine runs the one picked, not another of that name
@@ -43,11 +44,7 @@ const createEvaluation = async (project_uuid: string, selectedPlugins: SelectedP
 
     const data = launchBody(project_uuid, plugins_to_run, runName);
 
-    const response = await fetch(`${API_URL}/evaluations/task`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-    });
+    const response = await fetch(`${API_URL}/evaluations/task`, launchInit(data, launchKey));
 
     if (!response.ok) {
         const body = await response.json().catch(() => null);
@@ -119,6 +116,9 @@ export default function PluginStartEvaluation() {
     const [activePlugin, setActivePlugin] = useState<string | null>(null);
     // what the run is called in the results (optional: empty gives the automatic name)
     const [runName, setRunName] = useState('');
+    // a launch on its way: the button is off, and a second click before the page redraws is ignored
+    const [launching, setLaunching] = useState(false);
+    const launchSent = useRef(false);
     const [validPlugins, setValidPlugins] = useState<Record<string, boolean>>({});
     const [dispatchError, setDispatchError] = useState<{ message: string; missing: Array<Record<string, string>>; invalid: Array<Record<string, string>>; ambiguous: Array<Record<string, string>> } | null>(null);
     const navigate = useNavigate();
@@ -175,12 +175,16 @@ export default function PluginStartEvaluation() {
     };
 
     const handleOnClick = async () => {
-        if (!projectUUID) return;
+        // one launch at a time: the button is off until the engine has answered
+        if (!projectUUID || launching || launchSent.current) return;
         const validEntries = Object.entries(selectedPlugins).filter(([name]) => validPlugins[name]);
         if (validEntries.length === 0) return;
         setDispatchError(null);
+        launchSent.current = true;
+        setLaunching(true);
         try {
-            await createEvaluation(projectUUID, Object.fromEntries(validEntries), project?.plugins ?? [], runName);
+            await createEvaluation(projectUUID, Object.fromEntries(validEntries), project?.plugins ?? [],
+                newLaunchKey(), runName);
             setRunName('');
         } catch (error) {
             // the engine's structured settings refusal is shown as its panel; any other reason once, as a toast
@@ -191,6 +195,9 @@ export default function PluginStartEvaluation() {
                 return;
             }
             toast.error(error instanceof Error ? error.message : 'Failed to launch evaluation', { position: 'bottom-right' });
+        } finally {
+            setLaunching(false);
+            launchSent.current = false;
         }
     };
 
@@ -308,7 +315,7 @@ export default function PluginStartEvaluation() {
                         variant="contained"
                         className="gradient-btn"
                         onClick={handleOnClick}
-                        disabled={Object.values(validPlugins).filter(Boolean).length === 0}
+                        disabled={launching || Object.values(validPlugins).filter(Boolean).length === 0}
                         sx={{
                             minWidth: {xs: '44px', md: 'auto'},
                             px: {xs: 1.5, md: 3},

@@ -51,7 +51,7 @@ describe('the pages use them', () => {
 
     // On the card: the run's own page (PluginEvaluationMeasurements.tsx) is an upstream one, kept as master
     it("a failed run's card shows each plugin's error", () => {
-        expect(read('PluginEvaluations.tsx')).toContain('pluginErrorText(plugin.error_message)');
+        expect(read('PluginEvaluations.tsx')).toContain('failedTestReason(plugin)');
     });
 });
 

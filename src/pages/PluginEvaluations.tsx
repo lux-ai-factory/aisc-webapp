@@ -23,7 +23,7 @@ import Grid from "@mui/material/Grid2";
 import DownloadIcon from '@mui/icons-material/Download';
 import {Plugin} from "../models/models.tsx";
 import EvaluationProgressList from "../components/EvaluationProgressList.tsx";
-import {evaluationOutcome, finishedEvaluationUrls, pluginErrorText} from './evaluationOutcome';
+import {evaluationOutcome, failedTestReason, finishedEvaluationUrls} from './evaluationOutcome';
 import {runName, runTitle} from './runName';
 import RenameRun from '../components/RenameRun';
 
@@ -425,11 +425,11 @@ function PluginEvaluations() {
                                         </Box>
 
                                         {(evaluation.evaluation_plugins || [])
-                                            .filter((plugin: Plugin) => pluginErrorText(plugin.error_message))
+                                            .filter((plugin: Plugin) => failedTestReason(plugin))
                                             .map((plugin: Plugin) => (
                                                 <Alert key={`${evaluation.pid}-${plugin.pid || plugin.name}-error`}
                                                        severity="error" sx={{py: 0, whiteSpace: 'pre-wrap', fontSize: 12}}>
-                                                    {plugin.display_name || plugin.name} failed: {pluginErrorText(plugin.error_message)}
+                                                    {plugin.display_name || plugin.name} failed: {failedTestReason(plugin)}
                                                     {'\n'}Open the results to read its log.
                                                 </Alert>
                                             ))}
