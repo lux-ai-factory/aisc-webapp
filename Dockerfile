@@ -5,13 +5,14 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm install
+RUN npm ci
 COPY . .
 RUN npm run build
 
 # Serve Stage
-# Uses Nginx to serve the static files efficiently
-FROM nginx:stable-alpine
+# Uses Nginx to serve the static files efficiently, as its unprivileged user; it keeps port 80, which Docker lets
+# any user of a container bind
+FROM nginxinc/nginx-unprivileged:1.30.6-alpine
 
 # Configure Nginx
 COPY nginx-default.conf /etc/nginx/conf.d/default.conf
@@ -25,9 +26,11 @@ COPY --from=build /app /app
 # into the bundle at start.
 ENV APP_DEPLOYMENT=standalone
 
-# Setup environment variable injection script
+# Setup environment variable injection script; it rewrites the bundle at start, so nginx's user owns it
+USER root
 COPY env.sh /docker-entrypoint.d/env.sh
-RUN chmod +x /docker-entrypoint.d/env.sh
+RUN chmod +x /docker-entrypoint.d/env.sh && chown -R nginx /usr/share/nginx/html
+USER nginx
 
 # Expose HTTP port
 EXPOSE 80
