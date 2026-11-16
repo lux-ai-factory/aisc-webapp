@@ -19,7 +19,9 @@ const UNCHANGED = [
   // PluginEvaluationForm.test.tsx).
   // PluginStartEvaluation.tsx is not on this list either: its button says Launch Evaluation, not Create
   // Evaluation (PluginStartEvaluation.launch.test.ts).
-  'src/pages/Settings.tsx', 'src/pages/StartEvaluation.tsx',
+  // Settings.tsx is not on this list: a refused rename says the reason and keeps the typed name, and a rename
+  // that worked moves the page to the new name (Settings.rename.test.tsx).
+  'src/pages/StartEvaluation.tsx',
 ];
 const master = (p: string) => { try { return execFileSync('git', ['show', `origin/master:${p}`], { encoding: 'utf8' }); } catch { return null; } };
 
