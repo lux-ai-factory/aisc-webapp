@@ -3,11 +3,11 @@ import { API_VERSION_PREFIX } from "../config.tsx";
 import { useProject } from "../context/ProjectContext.tsx";
 import {Button, Typography, Box, Tooltip, Alert, Stack} from "@mui/material";
 import Grid from "@mui/material/Grid2";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plugin, PluginInputValue } from "../models/models.tsx";
 import toast from "react-hot-toast";
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
-import { getProject, getEvaluationInputsTemplate } from "../api/api.tsx";
+import { getProject } from "../api/api.tsx";
 import { useNavigate } from "react-router-dom";
 import PluginEvaluationForm from "../components/plugin/PluginEvaluationForm.tsx";
 import './PluginStartEvaluation.css';
@@ -22,12 +22,30 @@ type SelectedPluginsState = {
     [pluginName: string]: PluginSelection[];
 }
 
-const createEvaluation = async (project_uuid: string, selectedPlugins: SelectedPluginsState) => {
+const STORAGE_KEY = 'start-eval-state';
+const storageKeyFor = (projectUUID?: string | null) => projectUUID ? `${STORAGE_KEY}:${projectUUID}` : STORAGE_KEY;
+
+function loadState(key: string): { selectedPlugins: SelectedPluginsState; selectionCache: SelectedPluginsState } {
+    try {
+        const saved = sessionStorage.getItem(key);
+        if (saved) return JSON.parse(saved);
+    } catch { /* ignore corrupted/inaccessible session storage */ }
+    return { selectedPlugins: {}, selectionCache: {} };
+}
+
+function saveState(key: string, selectedPlugins: SelectedPluginsState, selectionCache: SelectedPluginsState) {
+    try {
+        sessionStorage.setItem(key, JSON.stringify({ selectedPlugins, selectionCache }));
+    } catch { /* ignore storage quota/availability errors */ }
+}
+
+const createEvaluation = async (project_uuid: string, selectedPlugins: SelectedPluginsState, selectedConfigs: Record<string, number | null>) => {
     if (!project_uuid) throw new Error('Invalid uuid');
 
     const plugins_to_run = Object.entries(selectedPlugins).map(([name, inputs]) => ({
         name,
         inputs,
+        ...(selectedConfigs[name] != null && { config_id: selectedConfigs[name] }),
     }));
 
     const data = {
@@ -50,30 +68,15 @@ const createEvaluation = async (project_uuid: string, selectedPlugins: SelectedP
         throw new Error('Failed to create evaluation');
     }
     toast.success('Evaluation created', { position: "bottom-right" });
-    sessionStorage.removeItem(STORAGE_KEY);
     return await response.json();
 };
 
-const STORAGE_KEY = 'start-eval-state';
-
-function loadState(): { selectedPlugins: SelectedPluginsState; selectionCache: SelectedPluginsState } {
-    try {
-        const saved = sessionStorage.getItem(STORAGE_KEY);
-        if (saved) return JSON.parse(saved);
-    } catch {}
-    return { selectedPlugins: {}, selectionCache: {} };
-}
-
-function saveState(selectedPlugins: SelectedPluginsState, selectionCache: SelectedPluginsState) {
-    try {
-        sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ selectedPlugins, selectionCache }));
-    } catch {}
-}
-
-export default function PluginStartEvaluation() {
+export default function PluginStartEvaluation({ onCreated }: { onCreated?: () => void } = {}) {
     const { projectUUID } = useProject();
-    const [selectedPlugins, setSelectedPlugins] = useState<SelectedPluginsState>(loadState().selectedPlugins);
-    const [selectionCache, setSelectionCache] = useState<SelectedPluginsState>(loadState().selectionCache);
+    const storageKey = storageKeyFor(projectUUID);
+    const [selectedPlugins, setSelectedPlugins] = useState<SelectedPluginsState>(() => loadState(storageKey).selectedPlugins);
+    const [selectionCache, setSelectionCache] = useState<SelectedPluginsState>(() => loadState(storageKey).selectionCache);
+    const [selectedConfigs, setSelectedConfigs] = useState<Record<string, number | null>>({});
     const [activePlugin, setActivePlugin] = useState<string | null>(null);
     const [validPlugins, setValidPlugins] = useState<Record<string, boolean>>({});
     const [dispatchError, setDispatchError] = useState<{ message: string; missing: Array<Record<string, string>>; invalid: Array<Record<string, string>>; ambiguous: Array<Record<string, string>> } | null>(null);
@@ -97,6 +100,11 @@ export default function PluginStartEvaluation() {
                 delete newState[pluginName];
                 return newState;
             });
+            setSelectedConfigs(prev => {
+                const next = { ...prev };
+                delete next[pluginName];
+                return next;
+            });
         } else {
             setActivePlugin(pluginName);
             if (!selectedPlugins[pluginName]) {
@@ -115,16 +123,22 @@ export default function PluginStartEvaluation() {
     };
 
     const handleUnselectPlugin = (pluginName: string) => {
-        setSelectionCache(prev => ({
-            ...prev,
-            [pluginName]: selectedPlugins[pluginName] ?? prev[pluginName] ?? []
-        }));
+        setSelectionCache(prev => {
+            const next = { ...prev };
+            delete next[pluginName];
+            return next;
+        });
         setSelectedPlugins(prev => {
             const next = {...prev};
             delete next[pluginName];
             return next;
         });
         setValidPlugins(prev => ({...prev, [pluginName]: false}));
+        setSelectedConfigs(prev => {
+            const next = { ...prev };
+            delete next[pluginName];
+            return next;
+        });
         if (activePlugin === pluginName) {
             setActivePlugin(null);
         }
@@ -136,7 +150,24 @@ export default function PluginStartEvaluation() {
         if (validEntries.length === 0) return;
         setDispatchError(null);
         try {
-            await createEvaluation(projectUUID, Object.fromEntries(validEntries));
+            await createEvaluation(projectUUID, Object.fromEntries(validEntries), selectedConfigs);
+            onCreated?.();
+            // Clear the cards that were used in the evaluation; keep the
+            // partial / not-valid ones so their chosen fields survive.
+            const used = new Set(validEntries.map(([name]) => name));
+            const next: SelectedPluginsState = {};
+            for (const [name, items] of Object.entries(selectedPlugins)) {
+                if (!used.has(name)) next[name] = items;
+            }
+            setSelectedPlugins(next);
+            saveState(storageKey, next, selectionCache);
+            if (used.size > 0) {
+                setSelectedConfigs(prev => {
+                    const configsNext = { ...prev };
+                    for (const name of used) delete configsNext[name];
+                    return configsNext;
+                });
+            }
         } catch (error) {
             try {
                 const detail = JSON.parse(error instanceof Error ? error.message : '');
@@ -149,45 +180,67 @@ export default function PluginStartEvaluation() {
         }
     };
 
+    // Cache is scoped per project; the same component stays mounted when the
+    // user switches projects, so persist the previous project's state and load
+    // the new project's on switch.
+    const prevStorageKey = useRef(storageKey);
     useEffect(() => {
-        saveState(selectedPlugins, selectionCache);
-    }, [selectedPlugins, selectionCache]);
+        if (prevStorageKey.current === storageKey) {
+            saveState(storageKey, selectedPlugins, selectionCache);
+            return;
+        }
+        saveState(prevStorageKey.current, selectedPlugins, selectionCache);
+        prevStorageKey.current = storageKey;
+        const saved = loadState(storageKey);
+        setSelectedPlugins(saved.selectedPlugins);
+        setSelectionCache(saved.selectionCache);
+        setSelectedConfigs({});
+        setValidPlugins({});
+        setActivePlugin(null);
+    }, [selectedPlugins, selectionCache, storageKey]);
 
-    // Restore the last-used evaluation input values when the page is opened
-    // fresh (no in-session selections yet, e.g. after a run cleared session
-    // state). This lets the dropdowns show the previous run's values.
+    // Cards for plugins that are not backend-configured are disabled; clear any
+    // lingering selections so their fields never appear pre-filled.
     useEffect(() => {
-        if (!projectUUID || !project) return;
-        let cancelled = false;
-        getEvaluationInputsTemplate(projectUUID)
-            .then(template => {
-                if (cancelled) return;
-                setSelectedPlugins(prev => {
-                    if (Object.keys(prev).length > 0) return prev;
-                    const components = project?.components ?? [];
-                    const restored: SelectedPluginsState = {};
-                    for (const plugin of project?.plugins ?? []) {
-                        const entries = template[plugin.name];
-                        if (!entries) continue;
-                        const selections: PluginSelection[] = [];
-                        for (const [name, entry] of Object.entries(entries)) {
-                            const component = components.find(c => c.pid === entry.component_pid);
-                            if (!component) continue;
-                            selections.push({
-                                pid: component.pid,
-                                name,
-                                input_type: component.component_type,
-                                value: entry.value ?? {},
-                            });
-                        }
-                        if (selections.length) restored[plugin.name] = selections;
-                    }
-                    return restored;
-                });
-            })
-            .catch(() => { /* best-effort restore */ });
-        return () => { cancelled = true; };
-    }, [projectUUID, project]);
+        if (!project) return;
+        const disabledNames = (project.plugins ?? [])
+            .filter(p => p.enabled && p.config === null)
+            .map(p => p.name);
+        if (disabledNames.length === 0) return;
+        setSelectedPlugins(prev => {
+            const next = { ...prev };
+            let changed = false;
+            for (const name of disabledNames) {
+                if (next[name]) {
+                    delete next[name];
+                    changed = true;
+                }
+            }
+            return changed ? next : prev;
+        });
+        setValidPlugins(prev => {
+            const next = { ...prev };
+            let changed = false;
+            for (const name of disabledNames) {
+                if (next[name]) {
+                    delete next[name];
+                    changed = true;
+                }
+            }
+            return changed ? next : prev;
+        });
+        setSelectedConfigs(prev => {
+            const next = { ...prev };
+            let changed = false;
+            for (const name of disabledNames) {
+                if (next[name] != null) {
+                    delete next[name];
+                    changed = true;
+                }
+            }
+            return changed ? next : prev;
+        });
+    }, [project]);
 
     useEffect(() => {
         const onMouseDown = (event: MouseEvent) => {
@@ -215,8 +268,8 @@ export default function PluginStartEvaluation() {
 
     return (
         <Box>
-            <Box sx={{display: "flex", justifyContent: "space-between", alignItems: 'center', marginBottom: 2}}>
-                <Typography component="h2" variant="h4" gutterBottom>
+            <Box className="page-header" sx={{ mb: 2 }}>
+                <Typography variant="h4" className="page-header-title">
                     Start an Evaluation
                 </Typography>
 
@@ -272,6 +325,9 @@ export default function PluginStartEvaluation() {
                                 onUnselect={() => handleUnselectPlugin(projectPlugin.name)}
                                 onSelectionChange={(item, inputName) =>
                                     handleUpdateSetting(projectPlugin.name, item, inputName)
+                                }
+                                onConfigChange={(configId) =>
+                                    setSelectedConfigs(prev => ({ ...prev, [projectPlugin.name]: configId }))
                                 }
                                 onValidationChange={(valid) => setValidPlugins(prev => ({ ...prev, [projectPlugin.name]: valid }))}
                             />

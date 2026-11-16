@@ -11,23 +11,21 @@ import ListItemText from '@mui/material/ListItemText';
 import SettingsIcon from '@mui/icons-material/Settings';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import ExtensionIcon from '@mui/icons-material/Extension';
+import FactCheckIcon from '@mui/icons-material/FactCheck';
+import ChecklistIcon from '@mui/icons-material/Checklist';
+import ScienceIcon from '@mui/icons-material/Science';
+import InsightsIcon from '@mui/icons-material/Insights';
+import DescriptionIcon from '@mui/icons-material/Description';
+import TaskAltIcon from '@mui/icons-material/TaskAlt';
+import TrackChangesIcon from '@mui/icons-material/TrackChanges';
+import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import KeyboardDoubleArrowLeftRoundedIcon from '@mui/icons-material/KeyboardDoubleArrowLeftRounded';
 import KeyboardDoubleArrowRightRoundedIcon from '@mui/icons-material/KeyboardDoubleArrowRightRounded';
 import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
-import PlayCircleIcon from '@mui/icons-material/PlayCircle';
-import TaskAltIcon from '@mui/icons-material/TaskAlt';
 import {Box, Icon, IconButton, Tooltip} from '@mui/material';
 import {styled} from '@mui/material/styles';
 import { Link, useLocation } from 'react-router-dom';
 import { useProject } from '../context/ProjectContext';
-import {useQuery} from "@tanstack/react-query";
-import {API_VERSION_PREFIX} from "../config.tsx";
-import {Project, Plugin} from "../models/models.tsx";
-
-const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
-
-const SHOW_CELERY_TASKS =
-    String(import.meta.env.VITE_SHOW_CELERY_TASKS).toLowerCase() === 'true';
 
 /**
  * Props interface for the MenuList component
@@ -123,7 +121,7 @@ function MenuList(props: MenuListProps) {
                             sx={listItemButtonSx}
                             onClick={props.onNavigate}
                         >
-                            <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, flex: 1 }}>
+                            <Box sx={{ display: "flex", alignItems: "center", justifyContent: collapsed ? "center" : "flex-start", minWidth: 0, flex: 1 }}>
                                 <ListItemIcon sx={{ minWidth: collapsed ? 0 : (item.nested ? 36 : 40), justifyContent: 'center', mr: collapsed ? 0 : 0.5, color: isSelected ? '#0a56c7' : undefined }}>
                                     {item.icon}
                                 </ListItemIcon>
@@ -206,28 +204,6 @@ const Drawer = styled(MuiDrawer, {
         }),
 }));
 
-const getProject = async (project_uuid: string) => {
-    if (!project_uuid) throw new Error('Invalid uuid');
-    const res = await fetch(`${API_URL}/projects/${project_uuid}`);
-    const project = await res.json() as Project;
-    for (const plugin of project.plugins) {
-        if (!plugin.enabled) continue;
-        plugin.display_icon = await getDisplayIcon(plugin.pid)
-    }
-    return project;
-};
-
-const getDisplayIcon = async (plugin_pid: string) => {
-    if (!plugin_pid) return 'extension';
-    try {
-        const res = await fetch(`${API_URL}/plugins/${plugin_pid}/display_icon`);
-        if (!res.ok) return 'extension';
-        return await res.json() as string;
-    } catch {
-        return 'extension';
-    }
-};
-
 /**
  * LeftBar component
  * Main navigation drawer component for the application
@@ -247,27 +223,6 @@ export default function LeftBar({ drawerWidth, expandedDrawerWidth, collapsed, m
     const { projectName } = useProject()
 
     const {projectUUID} = useProject();
-
-    const {data: project} = useQuery({
-        queryKey: ['project', projectUUID, 'withIcons'],
-        queryFn: () => getProject(projectUUID ?? ""),
-        enabled: !!projectUUID,
-    })
-
-    let pluginMenuHeader = { text: 'Plugins', icon: <ExtensionIcon />, target: `/projects/${projectName}/plugins` }
-
-    let pluginsMenuItems = (project?.plugins ?? []).filter(p => p.enabled).map((plugin: Plugin) => {
-        return {
-            text: plugin.display_name,
-            icon: <Icon>{plugin.display_icon}</Icon>,
-            target: `/projects/${projectName}/plugins/${plugin.name}`,
-            nested: true,
-            needsConfig: plugin.config === null
-        }
-    }) ?? []
-
-
-    let pluginsMenu = [pluginMenuHeader].concat(pluginsMenuItems)
 
     const menuBody = (isCollapsedView: boolean, onNavigate?: () => void) => (
         <>
@@ -314,35 +269,66 @@ export default function LeftBar({ drawerWidth, expandedDrawerWidth, collapsed, m
                     <MenuList
                         title={isCollapsedView ? "Project" : "Project"}
                         collapsed={isCollapsedView}
-                        onNavigate={onNavigate}
-                        items={[
-                            { text: 'Overview', icon: <DashboardIcon />, target: `/projects/${projectName}/overview` },
-                            { text: 'Settings', icon: <SettingsIcon />, target: `/projects/${projectName}/settings` },
-                        ]}
-                    />
-                    {!isCollapsedView && <Divider sx={{borderColor: '#e6e8ed'}} />}
-                    <MenuList
-                        title="Plugin Management"
-                        collapsed={isCollapsedView}
-                        onNavigate={onNavigate}
-                        items={pluginsMenu}
-                    />
-                    {!isCollapsedView && <Divider sx={{borderColor: '#e6e8ed'}} />}
-                    <MenuList
-                        title="Evaluations"
-                        collapsed={isCollapsedView}
-                        onNavigate={onNavigate}
-                        items={[
-                            { text: 'Start Evaluations', icon: <PlayCircleIcon />, target: `/projects/${projectName}/plugins/evaluation` },
-                            { text: 'Evaluations', icon: <Icon>sports_score</Icon>, target: `/projects/${projectName}/plugins/evaluations` },
-                            ...(SHOW_CELERY_TASKS ? [{ text: 'Tasks', icon: <TaskAltIcon />, target: `/projects/${projectName}/tasks` }] : []),
-                        ]}
-                    />
-                    {!isCollapsedView && <Divider sx={{borderColor: '#e6e8ed'}} />}
-                </Box>
-            }
-        </>
-    );
+                         onNavigate={onNavigate}
+                         items={[
+                             { text: 'Overview', icon: <DashboardIcon />, target: `/projects/${projectName}/overview` },
+                             { text: 'Settings', icon: <SettingsIcon />, target: `/projects/${projectName}/settings` },
+                         ]}
+                     />
+                     {!isCollapsedView && <Divider sx={{borderColor: '#e6e8ed'}} />}
+                      <MenuList
+                          title="Assessment"
+                          collapsed={isCollapsedView}
+                          onNavigate={onNavigate}
+                           items={[
+                               { text: 'Qualification', icon: <FactCheckIcon />, target: `/projects/${projectName}/qualification` },
+                               { text: 'Control objectives', icon: <TrackChangesIcon />, target: `/projects/${projectName}/control-objectives` },
+                           ]}
+                      />
+                      {!isCollapsedView && <Divider sx={{borderColor: '#e6e8ed'}} />}
+                      <MenuList
+                          title="Catalogue"
+                          collapsed={isCollapsedView}
+                          onNavigate={onNavigate}
+                          items={[
+                              { text: 'Checklists', icon: <ChecklistIcon />, target: `/projects/${projectName}/checklists` },
+                              { text: 'Plugins', icon: <ExtensionIcon />, target: `/projects/${projectName}/plugins` },
+                          ]}
+                      />
+                      {!isCollapsedView && <Divider sx={{borderColor: '#e6e8ed'}} />}
+                      <MenuList
+                          title="Execution"
+                          collapsed={isCollapsedView}
+                          onNavigate={onNavigate}
+                           items={[
+                               { text: 'Sandbox', icon: <ScienceIcon />, target: `/projects/${projectName}/sandbox` },
+                           ]}
+                      />
+                      {!isCollapsedView && <Divider sx={{borderColor: '#e6e8ed'}} />}
+                      <MenuList
+                          title="Results"
+                          collapsed={isCollapsedView}
+                          onNavigate={onNavigate}
+                           items={[
+                               { text: 'Dashboard', icon: <InsightsIcon />, target: `/projects/${projectName}/dashboard` },
+                               { text: 'Report', icon: <DescriptionIcon />, target: `/projects/${projectName}/report` },
+                               { text: 'Logs', icon: <ReceiptLongIcon />, target: `/projects/${projectName}/logs` },
+                           ]}
+                      />
+                      {!isCollapsedView && <Divider sx={{borderColor: '#e6e8ed'}} />}
+                      <MenuList
+                          title="System"
+                          collapsed={isCollapsedView}
+                          onNavigate={onNavigate}
+                           items={[
+                               { text: 'Tasks', icon: <TaskAltIcon />, target: `/projects/${projectName}/tasks` },
+                           ]}
+                      />
+                      {!isCollapsedView && <Divider sx={{borderColor: '#e6e8ed'}} />}
+                 </Box>
+             }
+         </>
+     );
 
     if (overlayMode) {
         return (

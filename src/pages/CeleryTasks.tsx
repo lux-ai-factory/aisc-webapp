@@ -1,18 +1,16 @@
 import {
   useCallback,
   useEffect,
-  useRef,
   useState,
 } from 'react';
-import type { MouseEvent as ReactMouseEvent } from 'react';
 import {
   Box,
   Button,
   Chip,
   CircularProgress,
+  MenuItem,
+  Select,
   Typography,
-  Drawer,
-  IconButton,
   Paper,
 } from '@mui/material';
 import {
@@ -21,7 +19,7 @@ import {
   type GridRenderCellParams,
 } from '@mui/x-data-grid';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import CloseIcon from '@mui/icons-material/Close';
+import SideDrawer from '../components/SideDrawer';
 import './CeleryTasks.css';
 
 interface FlowerTaskSummary {
@@ -29,15 +27,26 @@ interface FlowerTaskSummary {
   state: string;
   name: string;
   args: string;
+  kwargs: string;
+  worker: string;
   received: number | null;
   started: number | null;
+  succeeded: number | null;
   runtime: number | null;
+  retries: number | null;
+  queue: string | null;
+  exception: string | null;
+  raw?: Record<string, unknown>;
 }
+
+// The running Flower, like its /tasks page (same underlying JSON API).
+const FLOWER_BASE = (import.meta.env.VITE_FLOWER_URL as string | undefined)?.replace(/\/$/, '') || '/flower';
 
 type ColumnId =
   | 'name'
   | 'uuid'
   | 'state'
+  | 'worker'
   | 'received'
   | 'started'
   | 'runtime';
@@ -46,6 +55,7 @@ const initialWidths: Record<ColumnId, number> = {
   name: 300,
   uuid: 220,
   state: 120,
+  worker: 160,
   received: 190,
   started: 190,
   runtime: 150,
@@ -159,12 +169,6 @@ function DetailTable({
   );
 }
 
-type DrawerResizeState = {
-  resizing: boolean;
-  startX: number;
-  startWidth: number;
-};
-
 export default function CeleryTasks() {
   const [tasks, setTasks] =
     useState<FlowerTaskSummary[]>([]);
@@ -174,6 +178,9 @@ export default function CeleryTasks() {
 
   const [error, setError] =
     useState<string | null>(null);
+
+  const [stateFilter, setStateFilter] =
+    useState<string>('ALL');
 
   const [selectedUuid, setSelectedUuid] =
     useState<string | null>(null);
@@ -190,279 +197,65 @@ export default function CeleryTasks() {
     useState(false);
 
   /*
-   * Drawer starts at 50vw.
-   *
-   * We store pixels because the user can resize it
-   * interactively.
+   * Fetch this project's tasks from the backend door (re-pointed off Flower:
+   * the backend lists the project's own celery tasks, never the whole queue).
    */
-  const [drawerWidth, setDrawerWidth] =
-    useState(() =>
-      typeof window !== 'undefined'
-        ? window.innerWidth * 0.5
-        : 700,
-    );
-
-  const drawerResizeRef =
-    useRef<DrawerResizeState>({
-      resizing: false,
-      startX: 0,
-      startWidth: 0,
-    });
-
-  /*
-   * Keep drawer width inside the 40vw - 80vw range
-   * when the browser itself is resized.
-   */
-  const constrainDrawerWidth =
-    useCallback(() => {
-      if (typeof window === 'undefined') {
-        return;
-      }
-
-      const minWidth =
-        window.innerWidth * 0.4;
-
-      const maxWidth =
-        window.innerWidth * 0.8;
-
-      setDrawerWidth(prev =>
-        Math.min(
-          maxWidth,
-          Math.max(minWidth, prev),
-        ),
-      );
-    }, []);
-
-  /*
-   * Handle browser resize.
-   */
-  useEffect(() => {
-    window.addEventListener(
-      'resize',
-      constrainDrawerWidth,
-    );
-
-    return () => {
-      window.removeEventListener(
-        'resize',
-        constrainDrawerWidth,
-      );
-    };
-  }, [constrainDrawerWidth]);
-
-  /*
-   * Drawer resize.
-   *
-   * The drawer is anchored to the right:
-   *
-   *   mouse moves LEFT  -> drawer gets wider
-   *   mouse moves RIGHT -> drawer gets narrower
-   */
-  const handleDrawerResize =
-    useCallback((event: MouseEvent) => {
-      if (
-        !drawerResizeRef.current.resizing
-      ) {
-        return;
-      }
-
-      if (typeof window === 'undefined') {
-        return;
-      }
-
-      const diff =
-        drawerResizeRef.current.startX -
-        event.clientX;
-
-      const newWidth =
-        drawerResizeRef.current.startWidth +
-        diff;
-
-      const minWidth =
-        window.innerWidth * 0.4;
-
-      const maxWidth =
-        window.innerWidth * 0.8;
-
-      const clampedWidth =
-        Math.min(
-          maxWidth,
-          Math.max(minWidth, newWidth),
-        );
-
-      setDrawerWidth(clampedWidth);
-    }, []);
-
-  /*
-   * Finish drawer resizing.
-   */
-  const stopDrawerResize =
-    useCallback(() => {
-      drawerResizeRef.current = {
-        resizing: false,
-        startX: 0,
-        startWidth: 0,
-      };
-
-      document.removeEventListener(
-        'mousemove',
-        handleDrawerResize,
-      );
-
-      document.removeEventListener(
-        'mouseup',
-        stopDrawerResize,
-      );
-
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    }, [handleDrawerResize]);
-
-  /*
-   * Start drawer resizing.
-   */
-  const startDrawerResize = (
-    event: ReactMouseEvent,
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    drawerResizeRef.current = {
-      resizing: true,
-      startX: event.clientX,
-      startWidth: drawerWidth,
-    };
-
-    document.body.style.cursor =
-      'col-resize';
-
-    document.body.style.userSelect =
-      'none';
-
-    document.addEventListener(
-      'mousemove',
-      handleDrawerResize,
-    );
-
-    document.addEventListener(
-      'mouseup',
-      stopDrawerResize,
-    );
-  };
-
-  /*
-   * Cleanup drawer listeners.
-   */
-  useEffect(() => {
-    return () => {
-      document.removeEventListener(
-        'mousemove',
-        handleDrawerResize,
-      );
-
-      document.removeEventListener(
-        'mouseup',
-        stopDrawerResize,
-      );
-
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-  }, [
-    handleDrawerResize,
-    stopDrawerResize,
-  ]);
-
-  /*
-   * Fetch tasks from Flower.
-   */
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     setLoading(true);
     setError(null);
-
     try {
-      const res = await fetch(
-        '/flower/api/tasks',
-      );
-
-      if (!res.ok) {
-        throw new Error(
-          `Flower API error ${res.status}`,
-        );
-      }
-
+      const res = await fetch(`${FLOWER_BASE}/api/tasks`);
+      if (!res.ok) throw new Error(`Flower API error ${res.status}`);
       const data = await res.json();
-
-      const list: FlowerTaskSummary[] =
-        Object.entries(data).map(
-          ([uuid, task]: [string, any]) => ({
-            uuid,
-            state: task.state ?? '—',
-            name: task.name ?? '—',
-
-            args:
-              typeof task.args === 'string'
-                ? task.args
-                : JSON.stringify(
-                    task.args ?? '',
-                  ),
-
-            received:
-              task.received ?? null,
-
-            started:
-              task.started ?? null,
-
-            runtime:
-              task.runtime ?? null,
-          }),
-        );
-
+      const list: FlowerTaskSummary[] = Object.entries(
+        data as Record<string, Record<string, unknown>>,
+      ).map(([uuid, t]) => ({
+        uuid,
+        state: String(t?.state ?? '—'),
+        name: String(t?.name ?? '—'),
+        args: typeof t?.args === 'string' ? String(t.args) : JSON.stringify(t?.args ?? ''),
+        kwargs: typeof t?.kwargs === 'string' ? String(t.kwargs) : JSON.stringify(t?.kwargs ?? ''),
+        worker: String(t?.worker ?? ''),
+        received: (t?.received as number | null) ?? null,
+        started: (t?.started as number | null) ?? null,
+        succeeded: (t?.succeeded as number | null) ?? null,
+        runtime: (t?.runtime as number | null) ?? null,
+        retries: (t?.retries as number | null) ?? null,
+        queue: t?.queue ? String(t.queue) : null,
+        exception: t?.exception ? String(t.exception) : null,
+        raw: t ?? {},
+      }));
       setTasks(list);
-    } catch (e: any) {
-      setError(
-        e.message ||
-          'Failed to load tasks',
-      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load tasks');
     } finally {
       setLoading(false);
     }
-  };
-
-  /*
-   * Initial load.
-   */
-  useEffect(() => {
-    fetchTasks();
   }, []);
 
   /*
-   * Open task details.
+   * Initial load; the user refreshes explicitly (Flower-style but manual).
    */
-  const openDetail = async (
-    uuid: string,
-    name: string,
-  ) => {
+  useEffect(() => {
+    void fetchTasks();
+  }, [fetchTasks]);
+
+  /*
+   * Open task details (the drawer shows the Flower task detail).
+   */
+  const openDetail = async (uuid: string, name: string) => {
     setSelectedUuid(uuid);
     setSelectedTaskName(name);
     setDetailLoading(true);
     setDetail(null);
-
     try {
-      const res = await fetch(
-        `/flower/api/task/info/${uuid}`,
-      );
-
-      if (!res.ok) {
-        throw new Error(
-          `Task detail error ${res.status}`,
-        );
-      }
-
-      setDetail(await res.json());
+      const res = await fetch(`${FLOWER_BASE}/api/task/info/${uuid}`);
+      if (!res.ok) throw new Error(`Task detail error ${res.status}`);
+      const info = (await res.json()) as Record<string, unknown>;
+      setDetail(info);
     } catch (e) {
       setDetail({
-        error: (e as Error).message,
+        error: e instanceof Error ? e.message : 'Failed to load task detail',
       });
     } finally {
       setDetailLoading(false);
@@ -550,6 +343,14 @@ export default function CeleryTasks() {
       },
 
       {
+        field: 'worker',
+        headerName: 'Worker',
+        width: initialWidths.worker,
+        minWidth: 120,
+        resizable: true,
+      },
+
+      {
         field: 'received',
         headerName: 'Received',
         width:
@@ -612,28 +413,48 @@ export default function CeleryTasks() {
       },
     ];
 
+  const upper = (s?: string | null) => (s ?? '').toUpperCase();
+  const filteredTasks =
+    stateFilter === 'ALL' ? tasks : tasks.filter((t) => upper(t.state) === stateFilter);
+
   return (
-    <Box>
-      <Box className="tasks-header">
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, width: '100%' }}>
+      <Box className="page-header">
         <Typography
-          component="h2"
           variant="h4"
-          gutterBottom
+          className="page-header-title"
         >
           Celery Tasks
         </Typography>
 
-        <Button
-          variant="contained"
-          startIcon={
-            <RefreshIcon />
-          }
-          onClick={fetchTasks}
-          disabled={loading}
-          className="gradient-btn"
-        >
-          Refresh
-        </Button>
+        <Box className="page-header-controls">
+          <Select
+            size="small"
+            value={stateFilter}
+            onChange={(e) => setStateFilter(e.target.value)}
+            aria-label="Filter by state"
+            sx={{ minWidth: 140, bgcolor: 'background.paper' }}
+          >
+            <MenuItem value="ALL">All states</MenuItem>
+            {['PENDING', 'RECEIVED', 'STARTED', 'SUCCESS', 'FAILURE', 'RETRY'].map((s) => (
+              <MenuItem key={s} value={s}>
+                {s}
+              </MenuItem>
+            ))}
+          </Select>
+
+          <Button
+            variant="contained"
+            startIcon={
+              <RefreshIcon />
+            }
+            onClick={fetchTasks}
+            disabled={loading}
+            className="gradient-btn"
+          >
+            Refresh
+          </Button>
+        </Box>
       </Box>
 
       {loading && (
@@ -654,12 +475,13 @@ export default function CeleryTasks() {
           className="tasks-grid-paper"
         >
           <DataGrid
-            rows={tasks}
+            rows={filteredTasks}
             columns={columns}
             getRowId={row => row.uuid}
             disableRowSelectionOnClick
             autoHeight
             loading={loading}
+            onRowClick={(params) => openDetail(params.row.uuid, params.row.name)}
             pageSizeOptions={[
               10,
               25,
@@ -674,93 +496,29 @@ export default function CeleryTasks() {
                 },
               },
             }}
-            sx={{
-              border: 0,
-
-              '& .MuiDataGrid-cell': {
-                whiteSpace:
-                  'nowrap',
-                overflow:
-                  'hidden',
-                textOverflow:
-                  'ellipsis',
-              },
-
-              '& .MuiDataGrid-columnHeader': {
-                fontWeight: 700,
-              },
-
-              '& .MuiDataGrid-columnHeaderTitle':
-                {
-                  fontWeight: 700,
-                },
-
-              '& .MuiDataGrid-cell:focus':
-                {
-                  outline: 'none',
-                },
-
-              '& .MuiDataGrid-cell:focus-within':
-                {
-                  outline: 'none',
-                },
-            }}
+            className="app-data-grid"
           />
         </Paper>
       )}
 
-      <Drawer
-        anchor="right"
+      <SideDrawer
         open={!!selectedUuid}
         onClose={closeDetail}
-        PaperProps={{
-          className: 'celery-drawer-paper',
-          style: {
-            width: drawerWidth,
-          },
-        }}
+        title={selectedTaskName || 'Task details'}
+        mode="view"
       >
-        <Box
-          className="drawer-resize-handle"
-          onMouseDown={startDrawerResize}
-        />
+        {detailLoading && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+            <CircularProgress />
+          </Box>
+        )}
 
-        <Box className="drawer-header">
-          <Typography
-            variant="h5"
-            className="drawer-title drawer-title-highlight"
-            noWrap
-            title={selectedTaskName || ''}
-          >
-            {selectedTaskName || 'Task details'}
-          </Typography>
+        {!detailLoading && detail?.error && (
+          <Typography color="error">{detail.error}</Typography>
+        )}
 
-          <IconButton onClick={closeDetail}>
-          <CloseIcon />
-          </IconButton>
-        </Box>
-
-        <Box className="drawer-content">
-          {detailLoading && (
-            <Box className="drawer-loading">
-              <CircularProgress />
-            </Box>
-          )}
-
-          {!detailLoading &&
-            detail?.error && (
-              <Typography color="error">
-                {detail.error}
-              </Typography>
-          )}
-
-          {!detailLoading &&
-            detail &&
-            !detail.error && (
-              <DetailTable data={detail} />
-          )}
-        </Box>
-      </Drawer>
+        {!detailLoading && detail && !detail.error && <DetailTable data={detail} />}
+      </SideDrawer>
     </Box>
   );
 }

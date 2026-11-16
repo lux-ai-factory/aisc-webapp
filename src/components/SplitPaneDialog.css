@@ -1,0 +1,58 @@
+/* SplitPaneDialog — master/detail split-pane dialog, visually consistent with
+   AppDialog: blue title bar, white two-pane body inset on the blue paper, and
+   the app-standard footer strip. */
+
+.split-pane-body {
+    display: flex;
+    background: #fff;
+    border-radius: 12px 12px 0 0;
+    margin: 8px 8px 0 8px;
+    min-height: 0;
+    max-height: calc(100vh - 150px);
+    overflow: hidden;
+}
+
+.split-pane-nav {
+    flex-shrink: 0;
+    border-right: 1px solid #e5e7eb;
+    background: #f8fafc;
+    padding: 8px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.split-pane-nav-action {
+    padding: 4px 8px 12px;
+    border-bottom: 1px solid #eef2f7;
+    margin-bottom: 4px;
+}
+
+.split-pane-detail {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 20px 24px;
+    box-sizing: border-box;
+}
+
+.split-pane-item-selected {
+    background: #eaf1ff !important;
+}
+
+.split-pane-item-selected:hover {
+    background: #dde9ff !important;
+}
+
+/* Narrow screens: stack the panes instead of squeezing them side by side. */
+@media (max-width: 720px) {
+    .split-pane-body {
+        flex-direction: column;
+    }
+    .split-pane-nav {
+        width: 100% !important;
+        border-right: 0;
+        border-bottom: 1px solid #e5e7eb;
+    }
+}

@@ -3,15 +3,10 @@ import {
     Box,
     Button,
     createTheme,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
     Icon,
     Menu,
     MenuItem,
     Toolbar,
-    Tooltip,
     Typography
 } from '@mui/material';
 import React, {useEffect, useState} from 'react';
@@ -22,11 +17,10 @@ import {NavLink, useLocation} from 'react-router-dom';
 import {ThemeProvider} from '@emotion/react';
 import {useNavigate} from 'react-router-dom';
 import toast from 'react-hot-toast';
+import AppDialog from './AppDialog';
 import "./TopBar.css";
 import "./addProjectButton.css";
 import AddProjectWizard from "./addProjectWizard.tsx";
-import { openPublicCatalogue, isProtocolHandlerSupported } from "../pluginCatalogue/installUri.ts";
-import { usePluginInstall } from "../pluginCatalogue/PluginInstallContext.tsx";
 
 
 interface Project {
@@ -35,6 +29,7 @@ interface Project {
 }
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
+const AUTH_ENABLED = String(import.meta.env.VITE_AUTH_ENABLED || "true").toLowerCase() !== "false";
 
 const apiCall = async (url: string, method: string = 'GET', body?: any) => {
     try {
@@ -62,14 +57,8 @@ const darkTheme = createTheme({
 
 const ProjectSelector: React.FC<{
     onAddProject: (wizardData: any) => void;
-    datasets: any[];
-    models: any[];
-    plugins: any[];
-    fetchDatasets: () => void;
-    fetchModels: () => void;
-    fetchPlugins: () => void;
     authenticated: boolean;
-}> = ({ onAddProject, datasets, models, plugins, fetchDatasets, fetchModels, fetchPlugins, authenticated }) => {
+}> = ({ onAddProject, authenticated }) => {
     const [wizardOpen, setWizardOpen] = useState(false);
 
     if (!authenticated) return null;
@@ -92,12 +81,6 @@ const ProjectSelector: React.FC<{
                 open={wizardOpen}
                 onClose={() => setWizardOpen(false)}
                 onFinish={onAddProject}
-                datasets={datasets}
-                models={models}
-                plugins={plugins}
-                fetchDatasets={fetchDatasets}
-                fetchModels={fetchModels}
-                fetchPlugins={fetchPlugins}
             />
         </>
     );
@@ -105,36 +88,6 @@ const ProjectSelector: React.FC<{
 
 
 const TopBar: React.FC = () => {
-    const [datasets, setDatasets] = useState<any[]>([]);
-    const [models, setModels] = useState<any[]>([]);
-    const [plugins, setPlugins] = useState<any[]>([]);
-
-    const fetchDatasets = async () => {
-        const data = null;
-        if (data) setDatasets(data);
-    };
-
-    const fetchModels = async () => {
-        const data = null;
-        if (data) setModels(data);
-    };
-
-    const fetchPlugins = async () => {
-        const data = await apiCall('/plugins');
-        if (!data) return;
-
-        const normalized = data.map((p: any) => ({
-            name: p.package_name,
-            version: p.version,
-            source: p.source
-        }));
-
-        setPlugins(normalized);
-    };
-
-
-
-
     const {setProjectUUID, projectName, setProjectName, addFileUploadingPid, removeFileUploadingPid} = useProject();
     const [projects, setProjects] = useState<Project[]>([]);
     const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
@@ -142,9 +95,6 @@ const TopBar: React.FC = () => {
 
     // Keycloak auth: who is logged in + login/logout actions
     const {authenticated, username, login, logout} = useAuth();
-    const {registerProtocol} = usePluginInstall();
-    const [registering, setRegistering] = useState(false);
-    const supportsProtocolHandler = isProtocolHandlerSupported();
 
     const navigate = useNavigate();
     const location = useLocation();
@@ -155,24 +105,8 @@ const TopBar: React.FC = () => {
         if (data) setProjects(data);
     };
 
-    const handleRegisterProtocol = async () => {
-        setRegistering(true);
-        // This is a user gesture, so it's safe to do the destructive
-        // unregister-then-register to reset any cached refusal and force the
-        // browser prompt to reappear.
-        const status = await registerProtocol(true);
-        setRegistering(false);
-        if (status === 'registered') {
-            toast.success('Deep-link protocol enabled.', { position: 'bottom-right' });
-        } else if (status === 'unsupported') {
-            toast.error('Protocol handlers need localhost or HTTPS.', { position: 'bottom-right' });
-        } else {
-            toast.error('Could not register the protocol handler.', { position: 'bottom-right' });
-        }
-    };
-
     const addProject = async (wizardData: any) => {
-        const { name, datasets, models, plugins } = wizardData;
+        const { name, components } = wizardData;
 
         // 1. Create project
         const newProject = await apiCall('/projects', 'POST', { name });
@@ -182,86 +116,40 @@ const TopBar: React.FC = () => {
 
         const uploads: Promise<unknown>[] = [];
 
-        // 2. Create DATASET components
-        for (const ds of datasets) {
-            if (!ds.name || ds.name.trim().length < 1) continue;
+        // 2. Create COMPONENT rows (dataset/model) and schedule background file uploads
+        for (const c of components ?? []) {
+            if (!c.name || c.name.trim().length < 1) continue;
 
-            // 2a. Create dataset component row
             const created = await fetch(
                 `${API_URL}/projects/${newProject.pid}/components`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name: ds.name, component_type: "dataset" })
+                    body: JSON.stringify({ name: c.name, component_type: c.type })
                 }
             ).then(r => r.json());
 
-            ds.pid = created.pid;
+            c.pid = created.pid;
 
-            // 2b. Add dataset file to uploads
-            if (ds.file) {
-                addFileUploadingPid(ds.pid);
+            if (c.file) {
+                addFileUploadingPid(c.pid);
                 const formData = new FormData();
-                formData.append("file", ds.file);
+                formData.append("file", c.file);
                 uploads.push(
-                    fetch(`${API_URL}/components/${ds.pid}/data`, { method: "PUT", body: formData }).then(() => {
-                        toast.success(`Dataset \`${ds.name}\` uploaded`, { position: 'bottom-right' });
-                    }).finally(() => removeFileUploadingPid(ds.pid))
+                    fetch(`${API_URL}/components/${c.pid}/data`, { method: "PUT", body: formData }).then(() => {
+                        toast.success(`Component \`${c.name}\` uploaded`, { position: 'bottom-right' });
+                    }).finally(() => removeFileUploadingPid(c.pid))
                 );
             }
         }
-
-        // 3. Create MODEL components
-        for (const m of models) {
-            if (!m.name || m.name.trim().length < 1) continue;
-
-            // 3a. Create model component row
-            const created = await fetch(
-                `${API_URL}/projects/${newProject.pid}/components`,
-                {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name: m.name, component_type: "model" })
-                }
-            ).then(r => r.json());
-
-            m.pid = created.pid;
-
-            // 3b. Add model file to uploads
-            if (m.file) {
-                addFileUploadingPid(m.pid);
-                const formData = new FormData();
-                formData.append("file", m.file);
-                uploads.push(
-                    fetch(`${API_URL}/components/${m.pid}/data`, { method: "PUT", body: formData }).then(() => {
-                        toast.success(`Model \`${m.name}\` uploaded`, { position: 'bottom-right' });
-                    }).finally(() => removeFileUploadingPid(m.pid))
-                );
-            }
-        }
-
-        // 4. Enable all packages in parallel
-        await Promise.all(Object.keys(plugins).map(async (key) => {
-            const pkg = plugins[key];
-            await fetch(`${API_URL}/plugins`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    package_name: pkg.name,
-                    version: pkg.version,
-                    project_uuid: newProject.pid,
-                    config: null
-                }),
-            });
-        }));
 
         setProjectUUID(newProject.pid);
         setProjectName(newProject.name);
 
-        // 5. Navigate
+        // 4. Navigate
         navigate(`/projects/${newProject.name}/plugins`);
 
-        // 6. Upload files in background
+        // 5. Upload files in background
         await Promise.allSettled(uploads);
     };
 
@@ -269,8 +157,9 @@ const TopBar: React.FC = () => {
 
 
     useEffect(() => {
+        if (!authenticated) return;
         fetchProjects();
-    }, []);
+    }, [authenticated]);
 
 
     return (
@@ -298,7 +187,7 @@ const TopBar: React.FC = () => {
                                 component="div"
                                 sx={{ ml: 0 }}
                             >
-                                AI Assessment Sandbox
+                                AISC
                             </Typography>
                         </Box>
                     </NavLink>
@@ -317,44 +206,11 @@ const TopBar: React.FC = () => {
 
                 <div style={{flexGrow: 1}}/>
                 <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
-                    <Button
-                        color="inherit"
-                        variant="outlined"
-                        size="small"
-                        onClick={openPublicCatalogue}
-                        className="catalogue-btn"
-                        sx={{textTransform: 'none'}}
-                    >
-                        <Icon sx={{fontSize: 18, mr: 0.5}}>storefront</Icon>
-                        Public Catalogue
-                    </Button>
-                    {supportsProtocolHandler && (
-                        <Tooltip title="Register this app to handle one-click installs from the public catalogue">
-                            <span>
-                                <Button
-                                    color="inherit"
-                                    variant="outlined"
-                                    size="small"
-                                    disabled={registering}
-                                    onClick={handleRegisterProtocol}
-                                    sx={{textTransform: 'none', minWidth: 0}}
-                                >
-                                    <Icon sx={{fontSize: 18}}>link</Icon>
-                                </Button>
-                            </span>
-                        </Tooltip>
-                    )}
                     <ProjectSelector
                         onAddProject={addProject}
-                        datasets={datasets}
-                        models={models}
-                        plugins={plugins}
-                        fetchDatasets={fetchDatasets}
-                        fetchModels={fetchModels}
-                        fetchPlugins={fetchPlugins}
                         authenticated={authenticated}
                     />
-                    {authenticated ? (
+                    {AUTH_ENABLED && (authenticated ? (
                         <Box className="auth-box">
                             <Button
                                 color="inherit"
@@ -385,25 +241,26 @@ const TopBar: React.FC = () => {
                                 onClick={login}>
                             Sign in
                         </Button>
-                    )}
+                    ))}
                 </Box>
                 {confirmOpen && (
-                    <Dialog
+                    <AppDialog
                         open={confirmOpen}
                         onClose={() => setConfirmOpen(false)}
-                        maxWidth="xs"
+                        maxWidth="sm"
+                        fullWidth
+                        title="Sign out?"
+                        actions={
+                            <>
+                                <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
+                                <Button variant="contained" color="error" onClick={() => { setConfirmOpen(false); logout(); }}>
+                                    Sign out
+                                </Button>
+                            </>
+                        }
                     >
-                        <DialogTitle>Sign out?</DialogTitle>
-                        <DialogContent>
-                            <Typography>Are you sure you want to sign out?</Typography>
-                        </DialogContent>
-                        <DialogActions className="auth-dialog-actions">
-                            <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
-                            <Button color="error" onClick={() => { setConfirmOpen(false); logout(); }}>
-                                Sign out
-                            </Button>
-                        </DialogActions>
-                    </Dialog>
+                        <Typography>Are you sure you want to sign out?</Typography>
+                    </AppDialog>
                 )}
             </Toolbar>
         </AppBar>

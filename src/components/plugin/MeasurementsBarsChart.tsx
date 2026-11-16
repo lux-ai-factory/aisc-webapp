@@ -19,9 +19,17 @@ interface MeasurementsBarChartProps {
     groupByDimensions?: string[];
     /** If true, stack the series instead of grouping them side-by-side */
     stacked?: boolean;
+    /** Split the data into one chart per value of this dimension ("facets");
+     *  within each facet the remaining groupByDimensions become the series.
+     *  This is the "iterate" counterpart of grouping: e.g. group by d2 inside
+     *  each value of d1. A chart per facet value. */
+    facetByDimension?: string;
 }
 
-export const MeasurementsBarChart = ({title: title, description: description, data, metricLabelDimension, groupByDimensions, stacked = false}: MeasurementsBarChartProps) => {
+/** One bar chart: metric labels on the X axis, one series per group. */
+function BarChartBody({
+    title, description, data, metricLabelDimension, groupByDimensions, stacked = false, fallbackSeriesLabel,
+}: Omit<MeasurementsBarChartProps, "facetByDimension"> & { fallbackSeriesLabel?: string }) {
     const [hidden, setHidden] = useState<string[]>([]);
 
     const metricLabels: string[] = Array.from(new Set(data.map(m => getMetricLabel(m, metricLabelDimension))));
@@ -30,15 +38,15 @@ export const MeasurementsBarChart = ({title: title, description: description, da
     const baseSeries = useMemo(
         () =>
             groupLabels.map((groupLabel, index) => ({
-                id: groupLabel || "__ungrouped__",
-                label: groupLabel || "All measurements",
+                id: groupLabel || fallbackSeriesLabel || "__ungrouped__",
+                label: groupLabel || fallbackSeriesLabel || "All measurements",
                 color: getColorFromIndex(index),
                 data: metricLabels.map(metricLabel =>
                     data.find(m => getGroupLabel(m, groupByDimensions) === groupLabel && getMetricLabel(m, metricLabelDimension) === metricLabel)?.score ?? null,
                 ),
                 ...(stacked ? { stack: "total" as const } : {}),
             })),
-        [data, groupLabels, metricLabels, groupByDimensions, metricLabelDimension, stacked],
+        [data, groupLabels, metricLabels, groupByDimensions, metricLabelDimension, stacked, fallbackSeriesLabel],
     );
     const seriesForChart = useMemo(
         () => applyHiddenToSeries(baseSeries, hidden),
@@ -98,6 +106,54 @@ export const MeasurementsBarChart = ({title: title, description: description, da
                 }}
                 showToolbar
             />
+        </Box>
+    );
+}
+
+/** Bar plot with optional "facets": when facetByDimension is set, one chart is
+ *  drawn per facet value, each plotting the groups inside it. */
+export const MeasurementsBarChart = (props: MeasurementsBarChartProps) => {
+    const { title, data, facetByDimension } = props;
+
+    if (!facetByDimension) {
+        return <BarChartBody {...props} />;
+    }
+
+    const facetValues: string[] = Array.from(
+        new Set(
+            data
+                .map(m => m.dimensions?.[facetByDimension])
+                .filter(v => v !== undefined && v !== null)
+                .map(String),
+        ),
+    ).sort();
+
+    if (facetValues.length === 0) {
+        return <BarChartBody {...props} />;
+    }
+
+    return (
+        <Box>
+            {title && (
+                <Typography variant="h6" gutterBottom>
+                    {title}
+                </Typography>
+            )}
+            {facetValues.map((value) => (
+                <Box key={value} sx={{ mb: 3 }}>
+                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 0.5 }}>
+                        {facetByDimension}: {value}
+                        <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                            ({data.filter(m => String(m.dimensions?.[facetByDimension]) === value).length} measurements)
+                        </Typography>
+                    </Typography>
+                    <BarChartBody
+                        {...props}
+                        data={data.filter(m => String(m.dimensions?.[facetByDimension]) === value)}
+                        fallbackSeriesLabel={`${facetByDimension}: ${value}`}
+                    />
+                </Box>
+            ))}
         </Box>
     );
 };

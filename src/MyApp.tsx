@@ -26,6 +26,14 @@ import PluginEvaluationsTasks from "./pages/PluginEvaluationsTasks.tsx";
 import PluginInstallDialog from "./components/PluginInstallDialog.tsx";
 import ProtocolRegisterPrompt from "./components/ProtocolRegisterPrompt.tsx";
 import CeleryTasks from "./pages/CeleryTasks.tsx";
+import QualificationPage from "./pages/QualificationPage.tsx";
+import ControlObjectivesPage from "./pages/ControlObjectivesPage.tsx";
+import ChecklistsPage from "./pages/ChecklistsPage.tsx";
+import SandboxPage from "./pages/SandboxPage.tsx";
+import DashboardPage from "./pages/DashboardPage.tsx";
+import ReportPage from "./pages/ReportPage.tsx";
+import LogsPage from "./pages/LogsPage.tsx";
+import RiskRegister from "./pages/RiskRegister.tsx";
 import './App.css';
 // I must add this for files to take it into consideration
 
@@ -48,9 +56,8 @@ const ProjectContextWrapper: React.FC<ProjectContextWrapperProps> = ({ children 
     const { project_name } = useParams();
     const { authenticated } = useAuth();
 
-    if (!authenticated) return <Navigate to="/" replace />;
-
     useEffect(() => {
+        if (!authenticated) return;
         if (!project_name) return;
 
         fetch(`${API_URL}/projects/by-name/${project_name}`).then((res) => {
@@ -63,7 +70,9 @@ const ProjectContextWrapper: React.FC<ProjectContextWrapperProps> = ({ children 
             })
 
 
-    }, [project_name]);
+    }, [authenticated, project_name]);
+
+    if (!authenticated) return <Navigate to="/" replace />;
 
     return <>{children}</>;
 };
@@ -103,21 +112,42 @@ export default function PermanentDrawerLeft() {
         { id: 9, name: 'Plugin Evaluation Measurements', path: '/projects/:project_name/plugins/evaluations/:evaluation_uuid', element: <ProjectContextWrapper><PluginEvaluationMeasurements /></ProjectContextWrapper> },
         { id: 10, name: 'Plugin Evaluations Tasks', path: '/projects/:project_name/plugins/evaluations/tasks', element: <ProjectContextWrapper><PluginEvaluationsTasks /></ProjectContextWrapper> },
         ...(SHOW_CELERY_TASKS ? [{ id: 12, name: 'Tasks', path: '/projects/:project_name/tasks', element: <ProjectContextWrapper><CeleryTasks /></ProjectContextWrapper> }] : []),
+        { id: 20, name: 'Qualification', path: '/projects/:project_name/qualification', element: <ProjectContextWrapper><QualificationPage /></ProjectContextWrapper> },
+        { id: 26, name: 'Control objectives', path: '/projects/:project_name/control-objectives', element: <ProjectContextWrapper><ControlObjectivesPage /></ProjectContextWrapper> },
+        { id: 28, name: 'Risk register', path: '/projects/:project_name/risks', element: <ProjectContextWrapper><RiskRegister /></ProjectContextWrapper> },
+        { id: 21, name: 'Checklists', path: '/projects/:project_name/checklists', element: <ProjectContextWrapper><ChecklistsPage /></ProjectContextWrapper> },
+        { id: 22, name: 'Sandbox', path: '/projects/:project_name/sandbox', element: <ProjectContextWrapper><SandboxPage /></ProjectContextWrapper> },
+        { id: 23, name: 'Dashboard', path: '/projects/:project_name/dashboard', element: <ProjectContextWrapper><DashboardPage /></ProjectContextWrapper> },
+        { id: 24, name: 'Report', path: '/projects/:project_name/report', element: <ProjectContextWrapper><ReportPage /></ProjectContextWrapper> },
+        { id: 25, name: 'Logs', path: '/projects/:project_name/logs', element: <ProjectContextWrapper><LogsPage /></ProjectContextWrapper> },
     ];
     const theme = useTheme();
     const autoCollapse = useMediaQuery(theme.breakpoints.down('lg'));
     const overlayMode = useMediaQuery('(max-width:899px)');
-    const [collapsed, setCollapsed] = useState(autoCollapse);
+    // Keep the collapsed/expanded choice across refreshes (localStorage).
+    const COLLAPSED_KEY = 'sidebarCollapsed';
+    const [collapsed, setCollapsed] = useState(() => {
+        const saved = localStorage.getItem(COLLAPSED_KEY);
+        return saved !== null ? saved === 'true' : autoCollapse;
+    });
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    // Once the user collapses/expands by hand, width changes stop overriding
+    // their choice (in particular: no auto-uncollapse when crossing the lg
+    // breakpoint). Mobile overlay still wins while in overlay mode.
+    const [userToggled, setUserToggled] = useState(false);
     useEffect(() => {
         if (overlayMode) {
             setCollapsed(true);
             setMobileMenuOpen(false);
             return;
         }
-        setCollapsed(autoCollapse);
+        // Respect a saved choice; otherwise follow the breakpoint.
+        if (!userToggled && localStorage.getItem(COLLAPSED_KEY) === null) setCollapsed(autoCollapse);
         setMobileMenuOpen(false);
-    }, [autoCollapse, overlayMode]);
+    }, [autoCollapse, overlayMode, userToggled]);
+    useEffect(() => {
+        if (!overlayMode && userToggled) localStorage.setItem(COLLAPSED_KEY, String(collapsed));
+    }, [collapsed, overlayMode, userToggled]);
     const effectiveWidth = overlayMode ? collapsedWidth : (collapsed ? collapsedWidth : drawerWidth);
     const isRootPage = location.pathname === '/';
     const showSidebar = !isRootPage;
@@ -127,6 +157,16 @@ export default function PermanentDrawerLeft() {
         const values = theme.breakpoints.values;
         return createTheme({
             ...theme,
+            components: {
+                ...theme.components,
+                MuiDialog: {
+                    styleOverrides: {
+                        paper: {
+                            maxHeight: 'calc(100vh - 48px)',
+                        },
+                    },
+                },
+            },
             breakpoints: {
                 unit: theme.breakpoints.unit,
                 values: {
@@ -145,6 +185,7 @@ export default function PermanentDrawerLeft() {
             setMobileMenuOpen((open) => !open);
             return;
         }
+        setUserToggled(true);
         setCollapsed((c) => !c);
     };
 

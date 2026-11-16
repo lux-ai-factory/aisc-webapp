@@ -1,29 +1,25 @@
 import {
     Box,
     Button,
-    Card,
-    CardContent,
-    Chip,
-    Dialog,
-    DialogContent,
-    DialogTitle,
+    MenuItem,
     Step,
     StepLabel,
     Stepper,
     TextField,
     Typography,
+    Tooltip,
     IconButton,
     List,
     ListItem,
     Icon
 } from "@mui/material";
-import Grid from "@mui/material/Grid2";
 import AddIcon from "@mui/icons-material/Add";
 import CloudUpload from "@mui/icons-material/CloudUpload";
 import CloudDoneIcon from "@mui/icons-material/CloudDone";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { styled } from "@mui/material/styles";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import AppDialog from "./AppDialog";
 import "./addProjectWizard.css";
 import "../styles/common.css";
 
@@ -39,135 +35,74 @@ const HiddenInput = styled("input")({
     width: 1
 });
 
-interface DatasetItem {
+type ComponentType = "dataset" | "model";
+
+interface ComponentItem {
     name: string;
+    type: ComponentType;
     file: File | null;
     uploaded: boolean;
-}
-
-interface ModelItem {
-    name: string;
-    file: File | null;
-    uploaded: boolean;
-}
-
-interface PluginItem {
-    name: string;
-    version: string;
-    source?: string;
-    display_icon?: string;
 }
 
 interface AddProjectWizardProps {
     open: boolean;
     onClose: () => void;
     onFinish: (data: any) => void;
-    datasets: any[];
-    models: any[];
-    plugins: PluginItem[];
-    fetchDatasets: () => void;
-    fetchModels: () => void;
-    fetchPlugins: () => void;
 }
 
 export default function AddProjectWizard({
     open,
     onClose,
     onFinish,
-    datasets: _datasets,
-    models: _models,
-    plugins,
-    fetchDatasets,
-    fetchModels,
-    fetchPlugins
 }: AddProjectWizardProps) {
     const [activeStep, setActiveStep] = useState(0);
 
     const [projectName, setProjectName] = useState("");
 
-    // Local dataset + model lists (like Settings page)
-    const [localDatasets, setLocalDatasets] = useState<DatasetItem[]>([]);
-    const [localModels, setLocalModels] = useState<ModelItem[]>([]);
+    const [localComponents, setLocalComponents] = useState<ComponentItem[]>([]);
 
-    const [selectedPlugins, setSelectedPlugins] = useState<Record<string, boolean>>({});
-
-    const groupedPlugins = useMemo(() => {
-        const seen = new Set<string>();
-        return plugins.filter(p => {
-            if (!p.name || seen.has(p.name)) return false;
-            seen.add(p.name);
-            return true;
-        });
-    }, [plugins]);
-
-    const steps = ["Project Name", "Datasets", "Models", "Plugins"];
+    const steps = ["Project Name", "Components"];
 
     // Load wizard data ONLY when the wizard opens
     useEffect(() => {
         if (open) {
-            fetchDatasets();
-            fetchModels();
-            fetchPlugins();
-
             // Reset wizard state
             setActiveStep(0);
             setProjectName("");
-            setLocalDatasets([]);
-            setLocalModels([]);
-            setSelectedPlugins({});
+            setLocalComponents([]);
         }
     }, [open]);
 
-    const addDatasetRow = () => {
-        setLocalDatasets(prev => [
+    const addComponentRow = () => {
+        setLocalComponents(prev => [
             ...prev,
-            { name: "", file: null, uploaded: false }
+            { name: "", type: "model", file: null, uploaded: false }
         ]);
     };
 
-    const updateDatasetName = (index: number, name: string) => {
-        setLocalDatasets(prev =>
-            prev.map((ds, i) => (i === index ? { ...ds, name } : ds))
+    const updateComponentName = (index: number, name: string) => {
+        setLocalComponents(prev =>
+            prev.map((c, i) => (i === index ? { ...c, name } : c))
         );
     };
 
-    const updateDatasetFile = (index: number, file: File | undefined) => {
+    const updateComponentType = (index: number, type: ComponentType) => {
+        setLocalComponents(prev =>
+            prev.map((c, i) => (i === index ? { ...c, type } : c))
+        );
+    };
+
+    const updateComponentFile = (index: number, file: File | undefined) => {
         if (!file) return;
-        setLocalDatasets(prev =>
-            prev.map((ds, i) =>
-                i === index ? { ...ds, file, uploaded: true } : ds
+        setLocalComponents(prev =>
+            prev.map((c, i) =>
+                i === index ? { ...c, file, uploaded: true } : c
             )
         );
     };
 
-    const deleteDatasetRow = (index: number) => {
-        setLocalDatasets(prev => prev.filter((_, i) => i !== index));
-    };
-
-    const addModelRow = () => {
-        setLocalModels(prev => [
-            ...prev,
-            { name: "", file: null, uploaded: false }
-        ]);
-    };
-
-    const updateModelName = (index: number, name: string) => {
-        setLocalModels(prev =>
-            prev.map((m, i) => (i === index ? { ...m, name } : m))
-        );
-    };
-
-    const updateModelFile = (index: number, file: File | undefined) => {
-        if (!file) return;
-        setLocalModels(prev =>
-            prev.map((m, i) =>
-                i === index ? { ...m, file, uploaded: true } : m
-            )
-        );
-    };
-
-    const deleteModelRow = (index: number) => {
-        setLocalModels(prev => prev.filter((_, i) => i !== index));
+    const deleteComponentRow = (index: number) => {
+        setLocalComponents(prev => prev.filter((_, i) => i !== index));
     };
 
     const handleNext = () => {
@@ -178,48 +113,54 @@ export default function AddProjectWizard({
     const handleBack = () => setActiveStep(s => s - 1);
 
     const handleFinish = () => {
-        const allEntries: Record<string, { name: string; version: string }> = {};
-        plugins.forEach((p, i) => {
-            if (selectedPlugins[p.name]) {
-                allEntries[String(i)] = { name: p.name, version: p.version };
-            }
-        });
         onFinish({
             name: projectName,
-            datasets: localDatasets,
-            models: localModels,
-            plugins: allEntries
+            components: localComponents,
         });
         onClose();
     };
 
-    const datasetsValid = localDatasets.every(
-        ds => ds.name.trim().length > 0 && ds.file
-    );
-
-    const modelsValid = localModels.every(
-        m => m.name.trim().length > 0 && m.file
+    const componentsValid = localComponents.every(
+        c => c.name.trim().length > 0 && c.file
     );
 
 
     return (
-        <Dialog
+        <AppDialog
             open={open}
             onClose={onClose}
             maxWidth="md"
             fullWidth
-            slotProps={{
-                paper: {
-                    className: "dialog-paper-blue",
-                }
-            }}
-        >
-            <DialogTitle sx={{ color: "white" }}>
-                Create New Project
-            </DialogTitle>
+            title="Create New Project"
+            actionsSx={{ justifyContent: 'space-between' }}
+            actions={
+                <>
+                    <Button disabled={activeStep === 0} onClick={handleBack}>
+                        Back
+                    </Button>
 
-            <DialogContent className="dialog-content-white">
-                <Stepper activeStep={activeStep} sx={{ mb: 4, marginTop: 4 }}>
+                    {activeStep < steps.length - 1 ? (
+                        <Button
+                            onClick={handleNext}
+                            variant="contained"
+                            disabled={
+                                (activeStep === 0 && projectName.trim().length === 0) ||
+                                (activeStep === 1 && !componentsValid)
+                            }
+                        >
+                            Next
+                        </Button>
+
+                    ) : (
+                        <Button onClick={handleFinish} variant="contained">
+                            <Icon>check</Icon>
+                            Create
+                        </Button>
+                    )}
+                </>
+            }
+        >
+            <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
                     {steps.map(label => (
                         <Step key={label}>
                             <StepLabel>{label}</StepLabel>
@@ -240,121 +181,36 @@ export default function AddProjectWizard({
                     </Box>
                 )}
 
-                {/* Datasets */}
+                {/* Components */}
                 {activeStep === 1 && (
                     <Box className="wizard-step-column">
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <Typography variant="h6">
-                                Datasets
+                                Components
                             </Typography>
                             <Button
                                 variant="contained"
                                 startIcon={<AddIcon />}
-                                onClick={addDatasetRow}
+                                onClick={addComponentRow}
                                 className="gradient-btn"
                             >
-                                Add Dataset
+                                Add Component
                             </Button>
                         </Box>
 
-                        {localDatasets.length > 0 && (
-                        <List
-                            className="step-list-container"
-                        >
-                            {localDatasets.map((ds, index) => (
-                                <ListItem key={index}>
-                                    <Box className="step-row"
-                                    >
-                                        <Box sx={{ flexGrow: 1 }}>
-                                            <TextField
-                                                label="Dataset Name"
-                                                fullWidth
-                                                autoFocus={index === localDatasets.length - 1}
-                                                value={ds.name}
-                                                onChange={e =>
-                                                    updateDatasetName(
-                                                        index,
-                                                        e.target.value
-                                                    )
-                                                }
-                                            />
-                                        </Box>
-
-                                        <Box className="step-actions"
-                                        >
-                                            {ds.uploaded ? (
-                                                <CloudDoneIcon
-                                                    color="success"
-                                                    sx={{ mr: 2 }}
-                                                />
-                                            ) : (
-                                                <Button
-                                                    component="label"
-                                                    variant="contained"
-                                                    startIcon={<CloudUpload />}
-                                                >
-                                                    Upload
-                                                    <HiddenInput
-                                                        type="file"
-                                                        accept="*/*"
-                                                        onChange={e =>
-                                                            updateDatasetFile(
-                                                                index,
-                                                                e.target.files?.[0]
-                                                            )
-                                                        }
-                                                    />
-                                                </Button>
-                                            )}
-
-                                            <IconButton
-                                                color="error"
-                                                onClick={() =>
-                                                    deleteDatasetRow(index)
-                                                }
-                                            >
-                                                <DeleteIcon />
-                                            </IconButton>
-                                        </Box>
-                                    </Box>
-                                </ListItem>
-                            ))}
-
-                        </List>
-                        )}
-                    </Box>
-                )}
-
-                {/* Models */}
-                {activeStep === 2 && (
-                    <Box className="wizard-step-column">
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="h6">
-                                Models
-                            </Typography>
-                            <Button
-                                variant="contained"
-                                startIcon={<AddIcon />}
-                                onClick={addModelRow}
-                                className="gradient-btn"
-                            >
-                                Add Model
-                            </Button>
-                        </Box>
-
-                        {localModels.length > 0 && (
+                        {localComponents.length > 0 && (
                         <List className="step-list-container">
-                            {localModels.map((m, index) => (
-                                <ListItem key={index}>
+                            {localComponents.map((c, index) => (
+                                <ListItem key={index} sx={{ pr: 0 }}>
                                     <Box className="step-row">
                                         <Box sx={{ flexGrow: 1 }}>
                                             <TextField
-                                                label="Model Name"
+                                                label="Component Name"
                                                 fullWidth
-                                                autoFocus={index === localModels.length - 1}
-                                                value={m.name}
+                                                autoFocus={index === localComponents.length - 1}
+                                                value={c.name}
                                                 onChange={e =>
-                                                    updateModelName(
+                                                    updateComponentName(
                                                         index,
                                                         e.target.value
                                                     )
@@ -362,36 +218,49 @@ export default function AddProjectWizard({
                                             />
                                         </Box>
 
+                                        <TextField
+                                            select
+                                            label="Type"
+                                            value={c.type}
+                                            onChange={e =>
+                                                updateComponentType(
+                                                    index,
+                                                    e.target.value as ComponentType
+                                                )
+                                            }
+                                            sx={{ minWidth: 140 }}
+                                        >
+                                            <MenuItem value="model">Model</MenuItem>
+                                            <MenuItem value="dataset">Dataset</MenuItem>
+                                        </TextField>
+
                                         <Box className="step-actions">
-                                            {m.uploaded ? (
-                                                <CloudDoneIcon
-                                                    color="success"
-                                                    sx={{ mr: 2 }}
-                                                />
-                                            ) : (
-                                                <Button
+                                            <Tooltip title={c.file ? "File selected — click to change" : "Choose file"} placement="top">
+                                                <IconButton
                                                     component="label"
-                                                    variant="contained"
-                                                    startIcon={<CloudUpload />}
+                                                    color={c.file ? "success" : "primary"}
+                                                    aria-label={c.file ? "Change file" : "Upload"}
+                                                    sx={{ mr: 0.5 }}
                                                 >
-                                                    Upload
+                                                    {c.file ? <CloudDoneIcon /> : <CloudUpload />}
                                                     <HiddenInput
                                                         type="file"
-                                                        accept=".onnx"
-                                                        onChange={e =>
-                                                            updateModelFile(
+                                                        accept={c.type === 'model' ? '.onnx' : '*/*'}
+                                                        onChange={e => {
+                                                            updateComponentFile(
                                                                 index,
                                                                 e.target.files?.[0]
-                                                            )
-                                                        }
+                                                            );
+                                                            e.target.value = "";
+                                                        }}
                                                     />
-                                                </Button>
-                                            )}
+                                                </IconButton>
+                                            </Tooltip>
 
                                             <IconButton
                                                 color="error"
                                                 onClick={() =>
-                                                    deleteModelRow(index)
+                                                    deleteComponentRow(index)
                                                 }
                                             >
                                                 <DeleteIcon />
@@ -405,95 +274,6 @@ export default function AddProjectWizard({
                         )}
                     </Box>
                 )}
-
-                {/* PLUGINS (now packages) */}
-                {activeStep === 3 && (
-                    <Grid container spacing={2}>
-                        {groupedPlugins.map(pkg => {
-                            const selected = !!selectedPlugins[pkg.name];
-
-                            return (
-                                <Grid key={pkg.name} size={{ xs: 12, sm: 6, md: 4 }}>
-                                    <Card
-                                        onClick={() =>
-                                            setSelectedPlugins(prev => ({
-                                                ...prev,
-                                                [pkg.name]: !prev[pkg.name]
-                                            }))
-                                        }
-                                        className="plugins-card"
-                                        sx={{
-                                            border: '2px solid',
-                                            borderColor: selected ? 'primary.main' : 'grey.200',
-                                            background: selected
-                                                ? 'linear-gradient(135deg, rgba(69, 145, 251, 0.15), rgba(0, 52, 255, 0.1))'
-                                                : 'white',
-                                        }}
-                                    >
-                                        <CardContent sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-                                            <Box sx={{ flex: 1 }}>
-                                                <Typography variant="subtitle1" fontWeight={600} color="text.primary">
-                                                    {pkg.name}
-                                                </Typography>
-
-                                                <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5, flexWrap: 'wrap', alignItems: 'center' }}>
-                                                    <Chip
-                                                        label={`v${pkg.version}`}
-                                                        size="small"
-                                                        variant="outlined"
-                                                        color="default"
-                                                    />
-                                                    {pkg.source && (
-                                                        <Chip
-                                                            label={pkg.source}
-                                                            size="small"
-                                                            color={pkg.source === 'local' ? 'info' : 'default'}
-                                                            variant={pkg.source === 'local' ? 'filled' : 'outlined'}
-                                                        />
-                                                    )}
-                                                </Box>
-                                            </Box>
-
-                                            {selected && (
-                                                <Icon sx={{ color: 'success.main', alignSelf: 'center', fontSize: 24 }}>
-                                                    check_circle
-                                                </Icon>
-                                            )}
-                                        </CardContent>
-                                    </Card>
-                                </Grid>
-                            );
-                        })}
-                    </Grid>
-                )}
-
-                {/* NAVIGATION */}
-                <Box className="wizard-nav">
-                    <Button disabled={activeStep === 0} onClick={handleBack}>
-                        Back
-                    </Button>
-
-                    {activeStep < steps.length - 1 ? (
-                        <Button
-                            onClick={handleNext}
-                            variant="contained"
-                            disabled={
-                                (activeStep === 0 && projectName.trim().length === 0) ||
-                                (activeStep === 1 && !datasetsValid) ||
-                                (activeStep === 2 && !modelsValid)
-                            }
-                        >
-                            Next
-                        </Button>
-
-                    ) : (
-                        <Button onClick={handleFinish} variant="contained">
-                            <Icon>check</Icon>
-                            Create
-                        </Button>
-                    )}
-                </Box>
-            </DialogContent>
-        </Dialog>
+            </AppDialog>
     );
 }

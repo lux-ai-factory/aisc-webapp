@@ -24,7 +24,3 @@
     padding: 8px 16px !important;
     font-weight: 600 !important;
 }
-
-.auth-dialog-actions {
-    justify-content: flex-end !important;
-}

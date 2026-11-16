@@ -66,8 +66,8 @@ beforeEach(() => {
                     name: 'P',
                     plugins: [plugin],
                     components: [
-                        { pid: 'comp-dataset', name: 'Dataset A', component_type: 'dataset' },
-                        { pid: 'comp-model', name: 'Model A', component_type: 'model' },
+                        { pid: 'comp-dataset', name: 'Dataset A', component_type: 'dataset', data: {} },
+                        { pid: 'comp-model', name: 'Model A', component_type: 'model', data: {} },
                     ],
                 }),
             } as Response;
@@ -105,7 +105,7 @@ function mountPage(container: HTMLDivElement): Root {
 }
 
 it('restores previously used values from session storage after remount', async () => {
-    sessionStorage.setItem('start-eval-state', JSON.stringify({
+    sessionStorage.setItem('start-eval-state:proj-1', JSON.stringify({
         selectedPlugins: {
             DemoPlugin: [
                 { pid: 'comp-model', name: 'model', input_type: 'model', value: {} },
@@ -128,20 +128,47 @@ it('restores previously used values from session storage after remount', async (
     container.remove();
 });
 
-it('keeps a plugin unselected after the user deliberately unselects it', async () => {
+it('starts with empty plugin cards unless restored from this session', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     mountPage(container);
 
-    // Auto-restored from the last-used template.
-    await waitForHtml(el => (el.textContent || '').includes('Dataset A'), container);
+    // The previous-run template must NOT pre-populate the cards.
+    await waitForHtml(el => !!el.querySelector('[data-plugin-card]'), container);
+    expect(container.textContent).not.toContain('Dataset A');
+    expect(container.textContent).not.toContain('Model A');
+    container.remove();
+});
 
-    // Unselect the (now ready/configured) plugin via the check-mark icon.
-    const unselect = container.querySelector('[data-testid="CheckCircleIcon"]') as HTMLElement;
-    expect(unselect).toBeTruthy();
-    await act(async () => { unselect.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
+it('does not leak cached fields from another project', async () => {
+    // Fields cached under project proj-1 must not surface in project proj-2.
+    sessionStorage.setItem('start-eval-state:proj-1', JSON.stringify({
+        selectedPlugins: {
+            DemoPlugin: [
+                { pid: 'comp-model', name: 'model', input_type: 'model', value: {} },
+            ],
+        },
+        selectionCache: {},
+    }));
 
-    // The selection should be gone and must NOT be re-restored by the template.
-    await waitForHtml(el => !(el.textContent || '').includes('Dataset A'), container);
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+
+    const root = createRoot(container);
+    act(() => {
+        root.render(
+            <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+                <MemoryRouter>
+                    <ProjectProvider>
+                        <ProjectUUIDSetter uuid="proj-2" />
+                        <PluginStartEvaluation />
+                    </ProjectProvider>
+                </MemoryRouter>
+            </QueryClientProvider>,
+        );
+    });
+
+    await waitForHtml(el => !!el.querySelector('[data-plugin-card]'), container);
+    expect(container.textContent).not.toContain('Model A');
     container.remove();
 });

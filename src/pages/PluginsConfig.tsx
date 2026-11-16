@@ -3,13 +3,12 @@ import {API_VERSION_PREFIX} from "../config.tsx";
 import {useProject} from '../context/ProjectContext';
 import {useParams} from "react-router-dom";
 import PluginConfigForm from "../components/plugin/PluginConfigForm.tsx";
-import {useEffect, useLayoutEffect, useRef, useState} from "react";
+import {forwardRef, useImperativeHandle, useLayoutEffect, useRef, useState} from "react";
 import {AIComponent, ProjectPluginConfigState} from "../models/models.tsx";
 import toast from 'react-hot-toast';
 import {getPluginFeatureFlags, getProject} from "../api/api.tsx";
-import {InputLabel, MenuItem, Select, SelectChangeEvent, Typography, Box, Button, Icon, Tooltip, Divider} from "@mui/material";
+import {InputLabel, MenuItem, Select, SelectChangeEvent, Typography, Box, Button, Icon, Tooltip} from "@mui/material";
 import InfoBanner from "../components/InfoBanner.tsx";
-import ConfigHistory from "../components/plugin/ConfigHistory.tsx";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSanitize from 'rehype-sanitize';
@@ -66,8 +65,30 @@ const getProjectPluginConfigState = async (plugin_pid: string) => {
 };
 
 
-function PluginConfig() {
-    const {plugin_name} = useParams();
+export interface PluginConfigHandle {
+    submit: () => void;
+    exportJson: () => void;
+    importClick: () => void;
+    /** reload the form from the plugin's (restored) current config */
+    reloadState: () => Promise<void>;
+}
+
+interface PluginConfigProps {
+    pluginName?: string;
+    /** hide the in-content Export/Import/Save toolbar (when actions live in a drawer footer) */
+    showToolbar?: boolean;
+    /** hide the in-content plugin name header (when the drawer already shows the title) */
+    showHeader?: boolean;
+    /** called after the config is saved successfully (e.g. close the drawer) */
+    onSaved?: () => void;
+}
+
+const PluginConfig = forwardRef<PluginConfigHandle, PluginConfigProps>(function PluginConfig(
+    { pluginName: propPluginName, showToolbar = true, showHeader = true, onSaved }: PluginConfigProps,
+    ref,
+) {
+    const {plugin_name: paramPluginName} = useParams();
+    const plugin_name = propPluginName ?? paramPluginName;
     const {projectUUID} = useProject();
     const queryClient = useQueryClient();
 
@@ -84,14 +105,6 @@ function PluginConfig() {
     // Find plugin PID from name
     const plugin = project?.plugins.find(p => p.name === plugin_name);
     const plugin_pid = plugin?.pid;
-    const [headerScrolled, setHeaderScrolled] = useState(false);
-
-    useEffect(() => {
-        const onScroll = () => setHeaderScrolled(window.scrollY > 12);
-        window.addEventListener('scroll', onScroll, {passive: true});
-        onScroll();
-        return () => window.removeEventListener('scroll', onScroll);
-    }, []);
 
     const {data: projectPluginConfigState, isPending: isProjectPluginConfigStatePending, error} = useQuery({
         queryKey: ['projectPluginConfig', projectUUID, plugin_pid],
@@ -122,6 +135,23 @@ function PluginConfig() {
 
     const formRef = useRef<any>(null);
 
+    useImperativeHandle(ref, () => ({
+        submit: () => formRef.current?.submit(),
+        exportJson: () => formRef.current?.exportJson(),
+        importClick: () => formRef.current?.importClick(),
+        reloadState: async () => {
+            if (!plugin_pid) return;
+            try {
+                const state = await getProjectPluginConfigState(plugin_pid);
+                setConfigOverride(state);
+            } catch (e) {
+                toast.error(e instanceof Error ? e.message : 'Failed to reload config', {
+                    position: 'bottom-right',
+                });
+            }
+        },
+    }));
+
     if (isPending) return <span>Loading...</span>
     if (error) return <span>Oops!</span>
 
@@ -133,12 +163,6 @@ function PluginConfig() {
         setConfigOverride(parsed);
     };
 
-    const handleRestore = async () => {
-        if (!plugin_pid) return;
-        const state = await getProjectPluginConfigState(plugin_pid!!);
-        setConfigOverride(state);
-    };
-
     const onSubmit = async (data: object, projectSettingSelections: object[]) => {
         await postPluginConfig(plugin_pid ?? "", data, projectSettingSelections);
 
@@ -147,65 +171,71 @@ function PluginConfig() {
 
         // Refresh project so LeftBar updates instantly
         await queryClient.invalidateQueries({ queryKey: ['project', projectUUID] });
+
+        onSaved?.();
     };
 
 
     return (
 
         <Box>
-            <Box className={`plugin-config-header${headerScrolled ? ' scrolled' : ''}`}>
-                <Box>
-                    <Typography component="h2" variant="h4" sx={{lineHeight: 1.2}}>
-                        {plugin?.display_name || plugin_name}
-                    </Typography>
-                    <Typography variant="subtitle1" color="text.secondary" sx={{fontWeight: 500, mt: 0.25}}>
-                        Configuration
-                    </Typography>
-                </Box>
+            {showHeader && (
+                <Box className="plugin-config-header">
+                    <Box>
+                        <Typography component="h2" variant="h4" sx={{ lineHeight: 1.2 }}>
+                            {plugin?.display_name || plugin_name}
+                        </Typography>
+                        <Typography variant="subtitle1" color="text.secondary" sx={{ fontWeight: 500, mt: 0.25 }}>
+                            Configuration
+                        </Typography>
+                    </Box>
 
-                <Box sx={{display: "flex", gap: 1.5}}>
-                    <Tooltip title="Export">
-                        <Button
-                            variant="outlined"
-                            sx={{borderRadius: "10px", textTransform: "none", fontSize: "0.9rem", fontWeight: 600, minWidth: {xs: '44px', md: 'auto'}, px: {xs: 1.5, md: 2}}}
-                            onClick={() => formRef.current?.exportJson()}
-                        >
-                            <Icon sx={{fontSize: '1.25rem'}}>file_download</Icon>
-                            <Box component="span" sx={{display: {xs: 'none', md: 'inline'}, ml: 0.5}}>
-                                Export
-                            </Box>
-                        </Button>
-                    </Tooltip>
-                    <Tooltip title="Import">
-                        <Button
-                            variant="outlined"
-                            sx={{borderRadius: "10px", textTransform: "none", fontSize: "0.9rem", fontWeight: 600, minWidth: {xs: '44px', md: 'auto'}, px: {xs: 1.5, md: 2}}}
-                            onClick={() => formRef.current?.importClick()}
-                        >
-                            <Icon sx={{fontSize: '1.25rem'}}>file_upload</Icon>
-                            <Box component="span" sx={{display: {xs: 'none', md: 'inline'}, ml: 0.5}}>
-                                Import
-                            </Box>
-                        </Button>
-                    </Tooltip>
-                    <Tooltip title="Save Configuration">
-                        <Button
-                            variant="contained"
-                            className="gradient-btn"
-                            sx={{
-                                minWidth: {xs: '44px', md: 'auto'},
-                                px: {xs: 1.5, md: 2},
-                            }}
-                            onClick={() => formRef.current?.submit()}
-                        >
-                            <Icon sx={{fontSize: '1.25rem'}}>save</Icon>
-                            <Box component="span" sx={{display: {xs: 'none', md: 'inline'}, ml: 0.5}}>
-                                Save
-                            </Box>
-                        </Button>
-                    </Tooltip>
+                {showToolbar && (
+                    <Box sx={{display: "flex", gap: 1.5}}>
+                        <Tooltip title="Export">
+                            <Button
+                                variant="outlined"
+                                sx={{borderRadius: "10px", textTransform: "none", fontSize: "0.9rem", fontWeight: 600, minWidth: {xs: '44px', md: 'auto'}, px: {xs: 1.5, md: 2}}}
+                                onClick={() => formRef.current?.exportJson()}
+                            >
+                                <Icon sx={{fontSize: '1.25rem'}}>file_download</Icon>
+                                <Box component="span" sx={{display: {xs: 'none', md: 'inline'}, ml: 0.5}}>
+                                    Export
+                                </Box>
+                            </Button>
+                        </Tooltip>
+                        <Tooltip title="Import">
+                            <Button
+                                variant="outlined"
+                                sx={{borderRadius: "10px", textTransform: "none", fontSize: "0.9rem", fontWeight: 600, minWidth: {xs: '44px', md: 'auto'}, px: {xs: 1.5, md: 2}}}
+                                onClick={() => formRef.current?.importClick()}
+                            >
+                                <Icon sx={{fontSize: '1.25rem'}}>file_upload</Icon>
+                                <Box component="span" sx={{display: {xs: 'none', md: 'inline'}, ml: 0.5}}>
+                                    Import
+                                </Box>
+                            </Button>
+                        </Tooltip>
+                        <Tooltip title="Save Configuration">
+                            <Button
+                                variant="contained"
+                                className="gradient-btn"
+                                sx={{
+                                    minWidth: {xs: '44px', md: 'auto'},
+                                    px: {xs: 1.5, md: 2},
+                                }}
+                                onClick={() => formRef.current?.submit()}
+                            >
+                                <Icon sx={{fontSize: '1.25rem'}}>save</Icon>
+                                <Box component="span" sx={{display: {xs: 'none', md: 'inline'}, ml: 0.5}}>
+                                    Save
+                                </Box>
+                            </Button>
+                        </Tooltip>
+                    </Box>
+                )}
                 </Box>
-            </Box>
+                )}
 
             {configState?.description && (
                 <Box
@@ -226,15 +256,6 @@ function PluginConfig() {
                     </ReactMarkdown>
                 </Box>
             )}
-
-            <Box sx={{ mt: 2, mb: 3 }}>
-                <ConfigHistory
-                    pluginPID={plugin_pid ?? ""}
-                    plugin_config_id={configState?.plugin_config_id}
-                    onRestore={handleRestore}
-                />
-            </Box>
-            <Divider sx={{ mb: 3, borderBottomWidth: 2, borderColor: 'rgba(25, 87, 191, 0.25)' }} />
 
             {featureFlags?.can_parse_config_from_dataset &&
                 <Box sx={{ mt: 2 }}>
@@ -277,13 +298,13 @@ function PluginConfig() {
                         projectConfigDefinitions={configState.project_config_definitions ?? []}
                         projectSettings={configState.project_configs ?? []}
                         projectSettingSelections={configState.project_config_selections ?? []}
-                        onFormUpdate={(state) => setConfigOverride(state)}
+                        onFormUpdate={(state) => setConfigOverride(prev => ({ ...(prev ?? projectPluginConfigState), ...state }))}
                         onSubmit={onSubmit}
                     />
                 </Box>
             }
         </Box>
-    )
-}
+    );
+});
 
 export default PluginConfig

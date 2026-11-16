@@ -12,7 +12,7 @@ export default function LoginDialog() {
           <Box component="img" src="/laif_logo.png" alt="Logo" className="login-dialog-logo" />
         </Box>
         <Typography variant="h5" className="login-dialog-title" textAlign="center">
-          AI Assessment Sandbox
+          AISC
         </Typography>
         <Typography variant="body1" color="text.secondary" textAlign="center" mb={3}>
           Sign in to continue
