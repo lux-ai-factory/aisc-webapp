@@ -23,7 +23,7 @@ import toast from "react-hot-toast";
 import "./Plugins.css";
 import {listsPackageIndex} from "../deployment";
 import {openPublicCatalogue} from "../pluginCatalogue/installUri";
-import { ADMIN_TO_TOGGLE, updatePluginEnabled } from "./pluginToggle";
+import { ADMIN_TO_TOGGLE, packageRefusal, updatePluginEnabled } from "./pluginToggle";
 
 class PluginErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
     constructor(props: {children: React.ReactNode}) {
@@ -60,6 +60,7 @@ const createProjectPlugins = async (project_uuid: string, package_name: string, 
         },
         body: JSON.stringify({package_name, project_uuid, version, config: null}),
     });
+    if (!res.ok) throw await packageRefusal(res, 'Could not switch the package on');
     return await res.json() as Plugin;
 };
 
@@ -69,11 +70,12 @@ const deleteProjectPlugins = async (project_uuid: string, package_name: string, 
     if (!package_name) throw new Error('Invalid package name')
     if (!version) throw new Error('Invalid version')
 
-    await fetch(`${API_URL}/plugins`, {
+    const res = await fetch(`${API_URL}/plugins`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({package_name, project_uuid, version}),
     });
+    if (!res.ok) throw await packageRefusal(res, 'Could not switch the package off');
 };
 
 // Plugin toggle
@@ -84,6 +86,7 @@ const refreshPackage = async (project_uuid: string, package_name: string, versio
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({package_name, project_uuid, version}),
     });
+    if (!res.ok) throw await packageRefusal(res, 'Could not refresh the package');
     return await res.json() as Plugin[];
 };
 
@@ -167,7 +170,8 @@ function Plugins() {
                 await deleteProjectPlugins(projectUUID, package_name, version)
             }
         } catch (err) {
-            const message = 'Could not update package state.';
+            const message = err instanceof Error && err.message.startsWith('Could not switch the package')
+                ? err.message : 'Could not update package state.';
             toast.error(message, { position: 'bottom-right' });
         } finally {
             setPendingPackages(prev => ({...prev, [packageKey]: false}));
@@ -200,8 +204,10 @@ function Plugins() {
         try {
             await refreshPackage(projectUUID, package_name, version);
             toast.success('Package refreshed.', { position: 'bottom-right' });
-        } catch {
-            toast.error('Could not refresh package.', { position: 'bottom-right' });
+        } catch (err) {
+            const message = err instanceof Error && err.message.startsWith('Could not refresh the package')
+                ? err.message : 'Could not refresh package.';
+            toast.error(message, { position: 'bottom-right' });
         } finally {
             setRefreshingPackages(prev => ({...prev, [packageKey]: false}));
             await refreshProjectQueries();

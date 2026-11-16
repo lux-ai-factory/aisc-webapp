@@ -17,3 +17,14 @@ export async function updatePluginEnabled(apiUrl: string, pluginPid: string, ena
   if (!res.ok) throw new Error(COULD_NOT_UPDATE);
   return await res.json();
 }
+
+/**
+ * The engine's reason for a refused package action (on, off, refresh), as "<what>: <reason>." A refusal
+ * without a readable reason still says what failed and its status, so it is never taken for a success.
+ */
+export async function packageRefusal(res: Response, what: string): Promise<Error> {
+  let detail: unknown = null;
+  try { detail = (await res.json())?.detail; } catch { /* not JSON: the status says it */ }
+  const reason = typeof detail === "string" && detail.trim() ? detail.trim().replace(/\.$/, "") : `HTTP ${res.status}`;
+  return new Error(`${what}: ${reason}.`);
+}

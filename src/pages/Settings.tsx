@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { API_VERSION_PREFIX } from "../config";
 import { useProject } from "../context/ProjectContext";
 import AISystemSettings from '../components/AISystemSettings';
@@ -80,6 +81,9 @@ function ProjectDetailsSection() {
     const [edited, setEdited] = useState(false);
     const { projectUUID } = useProject();
     const [errors, setErrors] = useState<{ name?: string }>({});
+    const { project_name } = useParams();
+    const location = useLocation();
+    const navigate = useNavigate();
 
     useEffect(() => {
         async function fetchProject() {
@@ -114,12 +118,26 @@ function ProjectDetailsSection() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: project.name }),
             });
-            const updated = await response.json();
-            setProject(prev => prev ? { ...prev, name: updated.name ?? '' } : prev);
-            setFetchedProject(prev => prev ? { ...prev, name: updated.name ?? '' } : prev);
+            const updated = await response.json().catch(() => null);
+            if (!response.ok || typeof updated?.name !== 'string') {
+                // refused: the typed name stays, and the engine's reason is said
+                const detail = typeof updated?.detail === 'string' && updated.detail.trim()
+                    ? updated.detail.trim().replace(/\.$/, '') : `HTTP ${response.status}`;
+                toast.error(`The project was not renamed: ${detail}.`);
+                return;
+            }
+            setProject(prev => prev ? { ...prev, name: updated.name } : prev);
+            setFetchedProject(prev => prev ? { ...prev, name: updated.name } : prev);
             setEdited(false);
+            toast.success('Project renamed.');
+            // the page's address names the project: follow the new name, so a reload still finds it
+            const segment = `/projects/${encodeURIComponent(project_name ?? '')}/`;
+            if (project_name && updated.name !== project_name && location.pathname.startsWith(segment)) {
+                navigate(`/projects/${encodeURIComponent(updated.name)}/${location.pathname.slice(segment.length)}`, { replace: true });
+            }
         } catch (error) {
             console.error('Error updating project:', error);
+            toast.error('The project was not renamed: the engine did not answer.');
         } finally {
             setLoading(false);
         }
