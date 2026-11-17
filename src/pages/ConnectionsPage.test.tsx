@@ -78,6 +78,25 @@ beforeEach(() => {
                         components: [{ pid: 'comp-1', name: 'the llm', component_type: 'llm' }],
                     }),
                 });
+            if (url.includes('/allowed-hosts'))
+                return Promise.resolve({
+                    ok: true,
+                    status: 200,
+                    json: async () => ({
+                        floor: ['10.0.0.5:8500'],
+                        entries: [
+                            {
+                                host: 'box.local:8500',
+                                note: 'MCAS-lite',
+                                updated_at: '2026-11-17T09:25:00Z',
+                                updated_by: 'development',
+                                denied: null,
+                            },
+                        ],
+                        can_manage: true,
+                        rule: 'A connection may call any public address.',
+                    }),
+                });
             if (url.endsWith('/test'))
                 return Promise.resolve({ ok: true, status: 200, json: async () => tryResult });
             if (method === 'PUT')
@@ -216,5 +235,13 @@ describe('ConnectionsPage', () => {
         });
         const result = byTestId('try-result-system')?.textContent ?? '';
         expect(result).toContain('Failed (unreachable)');
+    });
+
+    it('carries the allowed internal hosts section, as the pilot’s page does', async () => {
+        await renderPage();
+        expect(byTestId('allowed-hosts')).not.toBeNull();
+        expect(byTestId('allowed-floor-10.0.0.5:8500')?.textContent).toContain('set by the deployment');
+        expect(byTestId('allowed-box.local:8500')?.textContent).toContain('MCAS-lite');
+        expect(calls.some((c) => c.url.includes('/projects/p1/allowed-hosts'))).toBe(true);
     });
 });

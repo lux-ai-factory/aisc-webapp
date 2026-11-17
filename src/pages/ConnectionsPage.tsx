@@ -8,6 +8,7 @@ import Select from '@mui/material/Select';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
+import AllowedHostsSection from '../components/AllowedHostsSection';
 import { useProject } from '../context/ProjectContext';
 import {
     AgentCard,
@@ -618,6 +619,8 @@ const ConnectionsPage = () => {
                     </Box>
                 </Box>
             )}
+
+            {pid && <AllowedHostsSection projectPid={pid} />}
         </Box>
     );
 };
