@@ -275,6 +275,7 @@ export default function LeftBar({ drawerWidth, expandedDrawerWidth, collapsed, m
                          items={[
                              { text: 'Overview', icon: <DashboardIcon />, target: `/projects/${projectName}/overview` },
                              { text: 'Connections', icon: <SettingsEthernetIcon />, target: `/projects/${projectName}/connections` },
+                             { text: 'Helper models', icon: <SettingsEthernetIcon />, target: `/projects/${projectName}/helpers` },
                              { text: 'Settings', icon: <SettingsIcon />, target: `/projects/${projectName}/settings` },
                          ]}
                      />
