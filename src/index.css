@@ -105,6 +105,57 @@ h1, h2, h3, h4 {
   text-transform: uppercase;
 }
 
+/* Pilot four-step landing block. */
+.brand-block {
+  margin-bottom: 32px;
+}
+.brand-block-title {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--heading);
+  margin: 0 0 18px;
+}
+.brand-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+.brand-step {
+  flex: 1 1 220px;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 22px;
+  text-decoration: none;
+  color: inherit;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  transition: border-color 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
+}
+.brand-step:hover {
+  border-color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 26px rgba(12, 18, 60, 0.09);
+}
+.brand-step-svc {
+  color: var(--primary);
+}
+.brand-step-title {
+  margin: 0 !important;
+  font-size: 18px !important;
+}
+.brand-step-open {
+  margin-top: auto;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
 /* Gradient utility class - applies a custom brand gradient from purple to red */
 .gradient {
   /* background: linear-gradient(to right, #af1060, #4b61b4) !important; */

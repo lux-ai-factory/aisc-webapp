@@ -98,12 +98,65 @@ const ProjectHome = () => {
           ]
         : [];
 
+    // The pilot's four-step landing: plan (1-3) then collect evidence (4).
+    const steps = base
+        ? [
+              {
+                  n: '1',
+                  svc: 'Qualification',
+                  title: 'Qualify the AI system',
+                  body: 'Describe the system, its components and its risks in a versioned AI card.',
+                  to: `${base}/qualification`,
+              },
+              {
+                  n: '2',
+                  svc: 'Control objectives',
+                  title: 'Set control objectives',
+                  body: "Rate the system's risks and link them to the control objectives it must meet.",
+                  to: `${base}/control-objectives`,
+              },
+              {
+                  n: '3',
+                  svc: 'Catalogue',
+                  title: 'Choose tests and checklists',
+                  body: 'Pick tests and checklists, and install them in one click.',
+                  to: `${base}/plugins`,
+              },
+              {
+                  n: '4',
+                  svc: 'Evidence',
+                  title: 'Collect evidence',
+                  body: 'Answer the checklists, run the tests, see the results and compose the report, in one place.',
+                  to: `${base}/sandbox`,
+              },
+          ]
+        : [];
+
     return (
         <Box>
             <Box className="page-header" sx={{ mb: 3 }}>
                 <Typography variant="h4" className="page-header-title">
                     Overview
                 </Typography>
+            </Box>
+            <Box className="brand-block">
+                <Typography variant="h5" className="brand-block-title">
+                    Plan the assessment
+                </Typography>
+                <Box className="brand-steps">
+                    {steps.map((s) => (
+                        <Box key={s.n} component={Link} to={s.to} className="brand-step">
+                            <span className="brand-mono brand-step-svc">{s.svc}</span>
+                            <Typography variant="h6" className="brand-step-title">
+                                {s.n}. {s.title}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                                {s.body}
+                            </Typography>
+                            <span className="brand-step-open">Open →</span>
+                        </Box>
+                    ))}
+                </Box>
             </Box>
             {error && <Typography color="error">{error}</Typography>}
             {overview === null && !error && <CircularProgress />}
