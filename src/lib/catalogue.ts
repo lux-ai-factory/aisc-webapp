@@ -30,11 +30,26 @@ export interface CatalogueControl {
     regulation_ids?: string[];
     question_count: number;
     tags?: string[];
+    /**
+     * The catalogue's trustworthiness-dimension slugs this item is tagged with.
+     * A sub-dimension is folded into the dimension it belongs to, so an item
+     * tagged only `purpose-limitation` still carries `privacy-data-governance`.
+     */
+    dimensions?: string[];
+}
+
+/** One trustworthiness dimension: the objective requirement it comes from. */
+export interface CatalogueDimension {
+    requirement: string; // REQ1 .. REQ11
+    slug: string;
+    label: string;
 }
 
 export interface Catalogue {
     plugins: CataloguePlugin[];
     controls: CatalogueControl[];
+    /** the dimension vocabulary, REQ order, so the filter can label its chips */
+    dimensions?: CatalogueDimension[];
     /** the catalogue's own published site (independently published, I9) */
     app_catalog_url?: string;
 }
@@ -74,15 +89,26 @@ export function allTags(plugins: CataloguePlugin[], controls: CatalogueControl[]
     return Array.from(seen).sort();
 }
 
+/** Does this item carry one of the dimensions we are filtering by? */
+export function inDimensions(item: CatalogueControl, dimensions: string[]): boolean {
+    if (dimensions.length === 0) return true;
+    return (item.dimensions ?? []).some((d) => dimensions.includes(d));
+}
+
 /**
  * Keep the items that match the query (fuzzy) and every selected tag.
  * Items rank by best fuzzy score across their searchable fields.
+ *
+ * `dimensions` narrows the *controls* to those the project's objectives are
+ * about ("For this project"); plugins carry no dimension tag, so they are left
+ * alone rather than all filtered out.
  */
 export function filterCatalogue(
     catalogue: Catalogue,
     query: string,
     selectedTags: string[],
     kind: 'plugins' | 'controls' | 'all' = 'all',
+    dimensions: string[] = [],
 ): Catalogue {
     const tagHit = (tags?: string[]) =>
         selectedTags.length === 0 ||
@@ -113,6 +139,7 @@ export function filterCatalogue(
         .sort((a, b) => scorePlugin(b) - scorePlugin(a));
     const controls = catalogue.controls
         .filter((c) => kind !== 'plugins' && tagHit(c.tags))
+        .filter((c) => inDimensions(c, dimensions))
         .filter((c) => !query || scoreControl(c) > 0)
         .sort((a, b) => scoreControl(b) - scoreControl(a));
 

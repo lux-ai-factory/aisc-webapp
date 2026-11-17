@@ -5,7 +5,9 @@ import {
     normalise,
     filterCatalogue,
     allTags,
+    inDimensions,
     Catalogue,
+    CatalogueControl,
 } from './catalogue';
 
 const cat: Catalogue = {
@@ -21,6 +23,7 @@ const cat: Catalogue = {
             control_topic: 'Data Governance',
             question_count: 30,
             tags: ['Data Governance', 'AESIA', 'EU', 'ai-act'],
+            dimensions: ['privacy-data-governance'],
         },
         {
             catalogue_id: 'human-oversight-checklist',
@@ -29,6 +32,8 @@ const cat: Catalogue = {
             control_topic: 'Human Oversight',
             question_count: 25,
             tags: ['Human Oversight', 'AESIA', 'ES', 'ai-act'],
+            // a sub-dimension is folded into the dimension it belongs to
+            dimensions: ['human-agency-oversight', 'supervisory-control'],
         },
     ],
 };
@@ -96,5 +101,50 @@ describe('allTags', () => {
         expect(tags).toContain('Data Governance');
         // dedup: AIES appears once, sorted case-insensitively-ish
         expect(tags.filter((t) => normalise(t) === normalise('AESIA'))).toHaveLength(1);
+    });
+});
+
+describe('inDimensions', () => {
+    const item = (dimensions?: string[]): CatalogueControl => ({
+        catalogue_id: 'c', title: 'C', source: 'S', control_topic: 'T',
+        question_count: 1, dimensions,
+    });
+
+    it('no filter keeps everything', () => {
+        expect(inDimensions(item([]), [])).toBe(true);
+    });
+
+    it('matches any of the item\'s dimensions', () => {
+        expect(inDimensions(item(['risk-management']), ['transparency', 'risk-management'])).toBe(true);
+        expect(inDimensions(item(['transparency']), ['risk-management'])).toBe(false);
+    });
+
+    it('an item with no dimension at all never matches', () => {
+        expect(inDimensions(item(undefined), ['transparency'])).toBe(false);
+    });
+});
+
+describe('filterCatalogue by dimension', () => {
+    it('keeps the controls of the project\'s dimensions', () => {
+        const out = filterCatalogue(cat, '', [], 'controls', ['privacy-data-governance']);
+        expect(out.controls.map((c) => c.catalogue_id)).toEqual(['data-governance-checklist']);
+    });
+
+    it('a sub-dimension counts for its parent', () => {
+        const out = filterCatalogue(
+            cat, '', [], 'controls', ['human-agency-oversight'],
+        );
+        expect(out.controls.map((c) => c.catalogue_id)).toEqual(['human-oversight-checklist']);
+    });
+
+    it('leaves plugins alone: they carry no dimension tag', () => {
+        const out = filterCatalogue(cat, '', [], 'all', ['privacy-data-governance']);
+        expect(out.controls).toHaveLength(1);
+        expect(out.plugins).toHaveLength(2);
+    });
+
+    it('no dimensions means no narrowing', () => {
+        const out = filterCatalogue(cat, '', [], 'controls', []);
+        expect(out.controls).toHaveLength(2);
     });
 });

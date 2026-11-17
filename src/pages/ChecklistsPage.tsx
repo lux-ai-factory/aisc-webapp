@@ -16,7 +16,7 @@ import { useProject } from '../context/ProjectContext';
 import CatalogueExploreDialog from '../components/CatalogueExploreDialog';
 import AppCard from '../components/AppCard';
 import SideDrawer from '../components/SideDrawer';
-import { useCatalogue, useInstalledChecklists } from '../lib/cache';
+import { useCatalogue, useInstalledChecklists, useProjectDimensions } from '../lib/cache';
 import '../styles/common.css';
 import {
     ChecklistDetail,
@@ -70,6 +70,7 @@ export default function ChecklistsPage() {
     /** last submission version picked in the drawer, per checklist, driving the card chip */
     const [pickedVersion, setPickedVersion] = useState<Record<string, number>>({});
     const { catalogue, loading: catalogueLoading } = useCatalogue();
+    const { projectDimensions } = useProjectDimensions(pid);
     const installed = useInstalledChecklists(pid);
     const library = installed.library;
 
@@ -370,6 +371,7 @@ export default function ChecklistsPage() {
                 kind="control"
                 catalogue={catalogue}
                 loading={catalogueLoading}
+                projectDimensions={projectDimensions}
                 installedKeys={
                     new Set(
                         (library ?? [])

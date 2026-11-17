@@ -3,6 +3,7 @@ import {
     checklistChips,
     getCatalogue,
     getChecklist,
+    getProjectDimensions,
     InstalledChecklist,
     listLibrary,
     listSubmissions,
@@ -91,6 +92,19 @@ describe('checklists api', () => {
         await getCatalogue();
         expect(fetch).toHaveBeenCalledWith(
             expect.stringContaining('/catalogue'),
+            expect.anything(),
+        );
+    });
+
+    it('reads the project\'s dimensions for the catalogue filter', async () => {
+        const fetch = mockFetchOnce({
+            objectives: ['O1'],
+            dimensions: ['human-agency-oversight'],
+        });
+        const out = await getProjectDimensions('p1');
+        expect(out.dimensions).toEqual(['human-agency-oversight']);
+        expect(fetch).toHaveBeenCalledWith(
+            expect.stringContaining('/projects/p1/control-objectives/dimensions'),
             expect.anything(),
         );
     });

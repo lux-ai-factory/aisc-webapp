@@ -33,7 +33,30 @@ const CATALOGUE = {
             tags: [],
         },
     ],
-    controls: [],
+    controls: [
+        {
+            catalogue_id: 'human-oversight-checklist',
+            title: 'Human Oversight Checklist',
+            source: 'AESIA',
+            control_topic: 'Human Oversight',
+            question_count: 25,
+            tags: ['Human Oversight'],
+            dimensions: ['human-agency-oversight'],
+        },
+        {
+            catalogue_id: 'risk-management-checklist',
+            title: 'Risk Management Checklist',
+            source: 'AESIA',
+            control_topic: 'Risk Management',
+            question_count: 12,
+            tags: ['Risk Management'],
+            dimensions: ['risk-management'],
+        },
+    ],
+    dimensions: [
+        { requirement: 'REQ1', slug: 'human-agency-oversight', label: 'Human Agency and Oversight' },
+        { requirement: 'REQ9', slug: 'risk-management', label: 'Risk Management' },
+    ],
     app_catalog_url: 'https://sandboxconfigurator.aifactory.lu/catalogue',
 };
 
@@ -53,6 +76,16 @@ beforeEach(() => {
             }
             if (url.endsWith('/projects/p1/controls')) {
                 return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+            }
+            if (url.endsWith('/projects/p1/control-objectives/dimensions')) {
+                return Promise.resolve({
+                    ok: true,
+                    status: 200,
+                    json: async () => ({
+                        objectives: ['O1'],
+                        dimensions: ['human-agency-oversight'],
+                    }),
+                });
             }
             if (url.endsWith('/projects/p1')) {
                 return Promise.resolve({
@@ -124,5 +157,22 @@ describe('CataloguePage', () => {
             a.getAttribute('href'),
         );
         expect(hrefs).toContain('https://sandboxconfigurator.aifactory.lu/catalogue');
+    });
+
+    it('offers the catalogue of the project\'s own dimensions first', async () => {
+        await renderPage();
+        const explore = Array.from(document.body.querySelectorAll('button')).find(
+            (b) => b.textContent?.includes('Explore catalogue'),
+        ) as HTMLElement;
+        await act(async () => explore.click());
+        await act(async () => {
+            await new Promise((r) => setTimeout(r, 30));
+        });
+        const titles = Array.from(document.body.querySelectorAll('.MuiTypography-subtitle1')).map(
+            (el) => el.textContent,
+        );
+        expect(titles).toContain('Human Oversight Checklist');
+        expect(titles).not.toContain('Risk Management Checklist');
+        expect(document.body.textContent).toContain('For this project');
     });
 });

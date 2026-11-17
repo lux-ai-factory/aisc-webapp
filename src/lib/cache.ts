@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { Catalogue } from './catalogue';
-import { getCatalogue, listLibrary } from './checklists';
+import { getCatalogue, getProjectDimensions, listLibrary } from './checklists';
 
 export const CATALOGUE_QUERY_KEY = ['catalogue'] as const;
 export const CHECKLIST_LIBRARY_QUERY_KEY = ['checklists'] as const;
+export const PROJECT_DIMENSIONS_QUERY_KEY = ['project-dimensions'] as const;
 
 /** The global catalogue is project-independent and changes rarely; keep the
  *  cached copy for a while so opening "Explore" never refetches it on every
@@ -34,5 +35,21 @@ export function useInstalledChecklists(pid: string | null) {
         library: query.data ?? null,
         loading: query.isPending,
         error: query.error ?? null,
+    };
+}
+
+/** The project's dimensions (from its selected objectives) — what the catalogue
+ *  filters by. Absent = not read yet; `[]` = nothing selected, show everything. */
+export function useProjectDimensions(pid: string | null) {
+    const query = useQuery({
+        queryKey: [...PROJECT_DIMENSIONS_QUERY_KEY, pid],
+        queryFn: () => getProjectDimensions(pid as string),
+        enabled: !!pid,
+        staleTime: 30_000,
+    });
+    return {
+        projectObjectives: query.data?.objectives ?? [],
+        projectDimensions: query.data?.dimensions ?? [],
+        loading: query.isPending,
     };
 }

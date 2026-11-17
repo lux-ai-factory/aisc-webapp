@@ -11,7 +11,7 @@ import toast from 'react-hot-toast';
 import { useProject } from '../context/ProjectContext';
 import { getProject } from '../api/api';
 import { API_VERSION_PREFIX } from '../config';
-import { useCatalogue, useInstalledChecklists } from '../lib/cache';
+import { useCatalogue, useInstalledChecklists, useProjectDimensions } from '../lib/cache';
 import { uninstallChecklist } from '../lib/checklists';
 import CatalogueExploreDialog from '../components/CatalogueExploreDialog';
 import AppCard from '../components/AppCard';
@@ -29,6 +29,7 @@ export default function CataloguePage() {
     const { projectUUID: pid, projectName } = useProject();
     const [exploreOpen, setExploreOpen] = useState(false);
     const { catalogue, loading } = useCatalogue();
+    const { projectDimensions } = useProjectDimensions(pid);
     const installed = useInstalledChecklists(pid);
     const library = installed.library ?? [];
 
@@ -163,6 +164,7 @@ export default function CataloguePage() {
                 kind="all"
                 catalogue={catalogue}
                 loading={loading}
+                projectDimensions={projectDimensions}
                 installedKeys={installedKeys}
                 onInstalled={() => void refresh()}
                 onUninstall={(id, kind, pluginName) =>

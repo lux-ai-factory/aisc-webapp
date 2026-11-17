@@ -12,6 +12,8 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Switch from '@mui/material/Switch';
 import Icon from '@mui/material/Icon';
 import InputAdornment from '@mui/material/InputAdornment';
 import Stack from '@mui/material/Stack';
@@ -28,6 +30,7 @@ import {
     allTags,
     Catalogue,
     CatalogueControl,
+    CatalogueDimension,
     CataloguePlugin,
 } from '../lib/catalogue';
 import { API_VERSION_PREFIX } from '../config';
@@ -41,6 +44,12 @@ interface CatalogueExploreDialogProps {
     kind: ExploreKind;
     catalogue: Catalogue;
     loading: boolean;
+    /**
+     * The dimensions of the project's selected objectives; `[]` when it has
+     * selected none yet, which shows everything (pilot rule). Omit it for a
+     * caller with no project behind the catalogue and no switch is offered.
+     */
+    projectDimensions?: string[];
     /** installed keys: plugins `${package}::${class}`, controls `catalogue_id` */
     installedKeys?: Set<string>;
     onInstalled?: (catalogueId: string, kind: 'control' | 'plugin') => void;
@@ -169,12 +178,17 @@ export default function CatalogueExploreDialog({
     kind,
     catalogue,
     loading,
+    projectDimensions,
     installedKeys,
     onInstalled,
     onUninstall,
 }: CatalogueExploreDialogProps) {
     const [query, setQuery] = useState('');
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
+    // "For this project" is on by default: the project came here from its own
+    // objectives, so the catalogue it is offered should be the one about them.
+    const [forProject, setForProject] = useState(true);
+    const [selectedDimensions, setSelectedDimensions] = useState<string[]>([]);
     const [tagOpen, setTagOpen] = useState(false);
     const [installedLocally, setInstalledLocally] = useState<Set<string>>(new Set());
     const [newOpen, setNewOpen] = useState(false);
@@ -205,6 +219,19 @@ export default function CatalogueExploreDialog({
         if (ok !== false) removeLocal(key);
     };
 
+    // The project's own dimensions narrow the list when the switch is on; the
+    // dimension chips narrow it further, both matching *any* of their slugs
+    // (the catalogue's own rule).
+    const dimensions = useMemo(
+        () => [
+            ...new Set([
+                ...(forProject ? (projectDimensions ?? []) : []),
+                ...selectedDimensions,
+            ]),
+        ],
+        [forProject, projectDimensions, selectedDimensions],
+    );
+
     const filtered = useMemo(
         () =>
             filterCatalogue(
@@ -212,11 +239,18 @@ export default function CatalogueExploreDialog({
                 query,
                 selectedTags,
                 kind === 'control' ? 'controls' : kind === 'plugin' ? 'plugins' : 'all',
+                dimensions,
             ),
-        [catalogue, query, selectedTags, kind],
+        [catalogue, query, selectedTags, kind, dimensions],
     );
 
     const tags = useMemo(() => allTags(catalogue.plugins, catalogue.controls), [catalogue]);
+    const dimensionVocabulary: CatalogueDimension[] = catalogue.dimensions ?? [];
+
+    const toggleDimension = (slug: string) =>
+        setSelectedDimensions((prev) =>
+            prev.includes(slug) ? prev.filter((d) => d !== slug) : [...prev, slug],
+        );
 
     const toggleTag = (tag: string) =>
         setSelectedTags((prev) =>
@@ -279,6 +313,39 @@ export default function CatalogueExploreDialog({
                         },
                     }}
                 />
+                {kind !== 'plugin' && projectDimensions !== undefined && (
+                    <Box>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    size="small"
+                                    checked={forProject}
+                                    onChange={(e) => setForProject(e.target.checked)}
+                                />
+                            }
+                            label="For this project"
+                        />
+                        {projectDimensions.length === 0 && (
+                            <Typography variant="caption" color="text.secondary" display="block">
+                                No control objectives selected yet: showing everything.
+                            </Typography>
+                        )}
+                    </Box>
+                )}
+                {kind !== 'plugin' && dimensionVocabulary.length > 0 && (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                        {dimensionVocabulary.map((d) => (
+                            <Chip
+                                key={d.slug}
+                                label={d.label}
+                                size="small"
+                                onClick={() => toggleDimension(d.slug)}
+                                color={selectedDimensions.includes(d.slug) ? 'primary' : 'default'}
+                                variant={selectedDimensions.includes(d.slug) ? 'filled' : 'outlined'}
+                            />
+                        ))}
+                    </Box>
+                )}
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                     {tags.slice(0, tagOpen ? tags.length : 12).map((tag) => (
                         <Chip

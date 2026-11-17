@@ -60,6 +60,17 @@ export function getCatalogue(): Promise<Catalogue> {
     return request<Catalogue>('/catalogue');
 }
 
+/** The dimensions of the project's selected objectives: what "For this project"
+ *  filters the catalogue by. `[]` when the project has selected none yet, which
+ *  the pages read as "show everything" (pilot behaviour). */
+export function getProjectDimensions(
+    pid: string,
+): Promise<{ objectives: string[]; dimensions: string[] }> {
+    return request<{ objectives: string[]; dimensions: string[] }>(
+        `/projects/${pid}/control-objectives/dimensions`,
+    );
+}
+
 export function listLibrary(pid: string): Promise<InstalledChecklist[]> {
     return request<InstalledChecklist[]>(`/projects/${pid}/controls`);
 }

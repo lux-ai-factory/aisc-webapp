@@ -54,6 +54,12 @@ beforeEach(() => {
                     json: async () => ({ plugins: [], controls: [] }),
                 });
             }
+            if (url.endsWith('/projects/p1/control-objectives/dimensions')) {
+                return Promise.resolve({
+                    ok: true, status: 200,
+                    json: async () => ({ objectives: ['O1'], dimensions: ['human-agency-oversight'] }),
+                });
+            }
             throw new Error(`unexpected fetch: ${url}`);
         }),
     );
@@ -116,6 +122,12 @@ describe('ChecklistsPage', () => {
                         json: async () => ({ plugins: [], controls: [] }),
                     });
                 }
+                if (url.endsWith('/projects/p1/control-objectives/dimensions')) {
+                    return Promise.resolve({
+                        ok: true, status: 200,
+                        json: async () => ({ objectives: ['O1'], dimensions: ['human-agency-oversight'] }),
+                    });
+                }
                 if (url.endsWith('/projects/p1/controls/cl1/submissions')) {
                     return Promise.resolve({
                         ok: true,
@@ -169,6 +181,12 @@ describe('ChecklistsPage', () => {
                         ok: true,
                         status: 200,
                         json: async () => ({ plugins: [], controls: [] }),
+                    });
+                }
+                if (url.endsWith('/projects/p1/control-objectives/dimensions')) {
+                    return Promise.resolve({
+                        ok: true, status: 200,
+                        json: async () => ({ objectives: ['O1'], dimensions: ['human-agency-oversight'] }),
                     });
                 }
                 if (url.endsWith('/projects/p1/controls/cl1/submissions')) {
@@ -299,6 +317,12 @@ describe('ChecklistsPage', () => {
                         json: async () => ({ plugins: [], controls: [] }),
                     });
                 }
+                if (url.endsWith('/projects/p1/control-objectives/dimensions')) {
+                    return Promise.resolve({
+                        ok: true, status: 200,
+                        json: async () => ({ objectives: ['O1'], dimensions: ['human-agency-oversight'] }),
+                    });
+                }
                 if (url.endsWith('/projects/p1/controls/cl1/submissions')) {
                     return Promise.resolve({
                         ok: true,
@@ -399,6 +423,12 @@ describe('ChecklistsPage', () => {
                         json: async () => ({ plugins: [], controls: [] }),
                     });
                 }
+                if (url.endsWith('/projects/p1/control-objectives/dimensions')) {
+                    return Promise.resolve({
+                        ok: true, status: 200,
+                        json: async () => ({ objectives: ['O1'], dimensions: ['human-agency-oversight'] }),
+                    });
+                }
                 if (url.endsWith('/projects/p1/controls/cl1/submissions')) {
                     return Promise.resolve({ ok: true, status: 200, json: async () => [] });
                 }
@@ -459,6 +489,12 @@ describe('ChecklistsPage', () => {
                         ok: true,
                         status: 200,
                         json: async () => ({ plugins: [], controls: [] }),
+                    });
+                }
+                if (url.endsWith('/projects/p1/control-objectives/dimensions')) {
+                    return Promise.resolve({
+                        ok: true, status: 200,
+                        json: async () => ({ objectives: ['O1'], dimensions: ['human-agency-oversight'] }),
                     });
                 }
                 if (url.endsWith('/projects/p1/controls/cl1/submissions')) {
@@ -557,6 +593,12 @@ describe('ChecklistsPage', () => {
                         ok: true,
                         status: 200,
                         json: async () => ({ plugins: [], controls: [] }),
+                    });
+                }
+                if (url.endsWith('/projects/p1/control-objectives/dimensions')) {
+                    return Promise.resolve({
+                        ok: true, status: 200,
+                        json: async () => ({ objectives: ['O1'], dimensions: ['human-agency-oversight'] }),
                     });
                 }
                 throw new Error(`unexpected fetch: ${url} ${init?.method ?? ''}`);
