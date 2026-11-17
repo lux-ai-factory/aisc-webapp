@@ -1910,8 +1910,13 @@ export default function QualificationPage() {
                 pid={pid}
                 questionnaireId={answerQ?.qid}
                 answers={fieldAnswers}
+                blocks={blockState}
                 onClose={() => setPrefillOpen(false)}
-                onApply={setFieldAnswers}
+                onApply={(answers, blocks) => {
+                    // the document fills the prose answers and the blocks together
+                    setFieldAnswers(answers);
+                    setBlockState(blocks);
+                }}
             />
 
             <AppDialog

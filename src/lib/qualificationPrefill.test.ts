@@ -6,22 +6,43 @@ import {
     askCardAgent,
     componentFlag,
     describeSuggestion,
+    emptyBlocks,
     prefillQualification,
     setRowsFromCatalogue,
     type CardComponentLink,
-    type PrefillSuggestion,
+    type PrefillResult,
 } from './qualification';
 
 afterEach(() => {
     vi.unstubAllGlobals();
 });
 
-const proposal = (field: string, value: string): PrefillSuggestion => ({
-    field,
-    value,
-    line: 3,
-    matched: 'a question',
-});
+/** One reading, as the backend sends it: the shape is the pilot's. */
+function reading(over: Partial<PrefillResult> = {}): PrefillResult {
+    return {
+        filename: 'system.txt',
+        characters: 120,
+        note: '',
+        source: 'document',
+        model: null,
+        values: {},
+        filled: [],
+        kept: [],
+        proposed: [],
+        profile: {},
+        profileFilled: [],
+        tags: {},
+        tagsFilled: [],
+        risks: null,
+        risksKept: false,
+        risksProposed: 0,
+        picks: {},
+        picksProposed: 0,
+        unmatched: [],
+        unplaced: {},
+        ...over,
+    };
+}
 
 function link(over: Partial<CardComponentLink> = {}): CardComponentLink {
     return {
@@ -39,53 +60,126 @@ function link(over: Partial<CardComponentLink> = {}): CardComponentLink {
 }
 
 describe('applying a prefill', () => {
-    it('fills the empty fields and leaves the answered ones alone', () => {
-        const answers = { system_name: 'mine', purpose: '' };
-        const out = applyPrefill(
-            answers,
-            [proposal('system_name', 'from the file'), proposal('purpose', 'from the file')],
-            'empty',
-        );
-        expect(out).toEqual({ system_name: 'mine', purpose: 'from the file' });
-    });
+    const noBlocks = emptyBlocks();
 
-    it('replaces the answers when asked to, and only the proposed fields', () => {
-        const out = applyPrefill(
+    it('takes the answers the backend merged, and leaves the rest alone', () => {
+        const { answers } = applyPrefill(
             { system_name: 'mine', untouched: 'kept' },
-            [proposal('system_name', 'from the file')],
-            'replace',
+            noBlocks,
+            reading({
+                values: { system_name: 'mine', purpose: 'from the file' },
+                proposed: ['system_name', 'purpose'],
+                kept: ['system_name'],
+                filled: ['purpose'],
+            }),
         );
-        expect(out).toEqual({ system_name: 'from the file', untouched: 'kept' });
+        expect(answers).toEqual({ system_name: 'mine', untouched: 'kept', purpose: 'from the file' });
     });
 
-    it('treats a whitespace-only answer as empty', () => {
-        expect(applyPrefill({ a: '   ' }, [proposal('a', 'x')], 'empty').a).toBe('x');
+    it('puts a dropped suggestion back the way it was', () => {
+        const { answers } = applyPrefill(
+            { system_name: 'mine' },
+            noBlocks,
+            reading({
+                values: { system_name: 'from the file', purpose: 'from the file' },
+                proposed: ['system_name', 'purpose'],
+                filled: ['system_name', 'purpose'],
+            }),
+            { taken: { system_name: false } },
+        );
+        expect(answers).toEqual({ system_name: 'mine', purpose: 'from the file' });
+    });
+
+    it('drops a field the person never answered when its suggestion is dropped', () => {
+        const { answers } = applyPrefill(
+            {},
+            noBlocks,
+            reading({ values: { purpose: 'from the file' }, proposed: ['purpose'], filled: ['purpose'] }),
+            { taken: { purpose: false } },
+        );
+        expect(answers).toEqual({});
+    });
+
+    it('fills the profile block, the tag sets and the risk rows', () => {
+        const { blocks } = applyPrefill(
+            {},
+            noBlocks,
+            reading({
+                profile: { description: 'Scores loans.', targetUseCase: 'creditworthiness' },
+                profileFilled: ['description', 'targetUseCase'],
+                tags: { targetSystem: ['NarrowAI'] },
+                tagsFilled: ['targetSystem'],
+                risks: [{
+                    risk: 'a borderline applicant is refused', affected: 'user',
+                    impactAreas: ['Right'], control: '', followUpControl: '',
+                }],
+                risksProposed: 1,
+            }),
+        );
+        expect(blocks.profile.description).toBe('Scores loans.');
+        expect(blocks.profile.targetUseCase).toBe('creditworthiness');
+        expect(blocks.tags.targetSystem).toEqual(['NarrowAI']);
+        // the row is kept as read, incomplete: the person finishes it
+        expect(blocks.risks).toHaveLength(1);
+        expect(blocks.risks[0].risk).toBe('a borderline applicant is refused');
+        expect(blocks.risks[0].impactAreas).toEqual(['Right']);
+        expect(blocks.risks[0].control).toBe('');
+    });
+
+    it('leaves the blocks alone when the person says so', () => {
+        const before = emptyBlocks();
+        const { blocks } = applyPrefill(
+            {},
+            before,
+            reading({ profile: { description: 'Scores loans.' }, profileFilled: ['description'] }),
+            { withBlocks: false },
+        );
+        expect(blocks).toEqual(before);
+    });
+
+    it('keeps the blocks the person already had', () => {
+        const mine = emptyBlocks();
+        mine.tags.sector = ['Health'];
+        const { blocks } = applyPrefill(
+            {},
+            mine,
+            reading({ profile: { description: 'Scores loans.' }, profileFilled: ['description'] }),
+        );
+        expect(blocks.tags.sector).toEqual(['Health']);
+        expect(blocks.profile.description).toBe('Scores loans.');
     });
 });
 
 describe('the prefill request', () => {
-    it('uploads the file as multipart, with the questionnaire when known', async () => {
-        const fetchMock = vi.fn().mockResolvedValue({
-            ok: true,
-            json: async () => ({
-                filename: 'system.txt',
-                characters: 120,
-                proposals: [],
-                unmatched: [],
-                note: '',
-            }),
-        });
+    it('uploads the file as multipart, with the questionnaire, the mode and the form', async () => {
+        const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => reading() });
         vi.stubGlobal('fetch', fetchMock);
 
         const file = new File(['hello'], 'system.txt', { type: 'text/plain' });
-        const body = await prefillQualification('p1', file, 'q1');
+        const body = await prefillQualification('p1', file, {
+            questionnaireId: 'q1',
+            mode: 'replace',
+            current: { system_name: 'mine' },
+        });
 
         expect(body.filename).toBe('system.txt');
         const [url, init] = fetchMock.mock.calls[0];
         expect(url).toContain('/projects/p1/qualification/prefill?questionnaire_id=q1');
         expect((init as RequestInit).method).toBe('POST');
-        expect((init as RequestInit).body).toBeInstanceOf(FormData);
+        const sent = (init as RequestInit).body as FormData;
+        expect(sent).toBeInstanceOf(FormData);
+        expect(sent.get('mode')).toBe('replace');
+        expect(sent.get('current')).toBe(JSON.stringify({ system_name: 'mine' }));
         expect((init as RequestInit).headers).toBeUndefined();
+    });
+
+    it('defaults to the careful mode', async () => {
+        const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => reading() });
+        vi.stubGlobal('fetch', fetchMock);
+        await prefillQualification('p1', new File(['x'], 'a.txt'));
+        const sent = (fetchMock.mock.calls[0][1] as RequestInit).body as FormData;
+        expect(sent.get('mode')).toBe('empty');
+        expect(sent.get('current')).toBe('{}');
     });
 
     it('surfaces the backend saying the file cannot be read', async () => {

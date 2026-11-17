@@ -815,24 +815,48 @@ export function parseQuestionnaireImport(text: string): {
 
 /** --- Step 1: pre-filling the form from an uploaded document -----------------
  *
- * The backend reads the document with text rules (no model) and *proposes*
- * answers; nothing is stored, so the person accepts, edits or rejects each one.
+ * The backend reads the document with the pilot's own text rules (no model, see
+ * `services/qualification_prefill.py`) and *proposes* answers; nothing is
+ * stored, so the person accepts, edits or rejects each one. The field names are
+ * the pilot's `qualification-prefill` contract: `values` is the form's answers
+ * after the merge the caller asked for, `filled`/`kept` say which the document
+ * wrote and which it left alone, and the profile block, tag sets and risk rows
+ * come back the same way.
  */
 
-export interface PrefillSuggestion {
-    field: string;
-    value: string;
-    line: number;
-    matched: string;
-}
+export type PrefillMode = 'empty' | 'replace';
 
 export interface PrefillResult {
     filename: string;
     characters: number;
-    proposals: PrefillSuggestion[];
-    unmatched: string[];
     /** set when the questionnaire has no answerable questions to fill */
     note: string;
+    /** "document" once something was read */
+    source: string;
+    /** always null: the reading is text rules, never a model */
+    model: string | null;
+    /** the answers after the merge, and which of them the document wrote */
+    values: Record<string, Json>;
+    filled: string[];
+    kept: string[];
+    /** the question fields this document answered */
+    proposed: string[];
+    /** the profile block's fields and the tag sets, after the same merge */
+    profile: Record<string, Json>;
+    profileFilled: string[];
+    tags: Record<string, Json>;
+    tagsFilled: string[];
+    /** the risk rows to show, or null to leave the form's rows as they are */
+    risks: Json[] | null;
+    risksKept: boolean;
+    risksProposed: number;
+    /** the VAIR picks the document named, by the pilot's own names */
+    picks: Record<string, Json>;
+    picksProposed: number;
+    /** questions this document said nothing about, in form order */
+    unmatched: string[];
+    /** what the document named that this form has no field for */
+    unplaced: Record<string, Json>;
 }
 
 /** The error line a refusing backend sends (`{"detail": ...}`). */
@@ -846,40 +870,111 @@ async function failure(res: Response, fallback: string): Promise<Error> {
     return new Error(fallback);
 }
 
+/** Read a document against the form as it stands.
+ *
+ * `current` is sent with the file and `mode` with it, because the merge is the
+ * backend's: "empty" fills blanks only, "replace" takes the document wherever
+ * it has something, and a field the document says nothing about is never
+ * erased. Changing the mode reads the document again. */
 export async function prefillQualification(
     pid: string,
     file: File,
-    questionnaireId?: string,
+    options: {
+        questionnaireId?: string;
+        mode?: PrefillMode;
+        current?: Record<string, Json>;
+    } = {},
 ): Promise<PrefillResult> {
     const form = new FormData();
     form.append('file', file);
-    const query = questionnaireId ? `?questionnaire_id=${encodeURIComponent(questionnaireId)}` : '';
+    form.append('mode', options.mode ?? 'empty');
+    form.append('current', JSON.stringify(options.current ?? {}));
+    const query = options.questionnaireId
+        ? `?questionnaire_id=${encodeURIComponent(options.questionnaireId)}`
+        : '';
     const res = await fetch(`${API_URL}/projects/${pid}/qualification/prefill${query}`, {
         method: 'POST',
         body: form,
     });
     if (res.status === 415) throw await failure(res, 'that file could not be read');
+    if (res.status === 413) throw await failure(res, 'that file is too large to read');
     if (!res.ok) throw await failure(res, `request failed: ${res.status}`);
     return (await res.json()) as PrefillResult;
 }
 
-export type PrefillMode = 'empty' | 'replace';
+/** This form's own names for what the pilot's reader proposed. */
+const PREFILL_PROFILE_KEYS = ['description', 'targetUseCase', 'targetUsers', 'intendedDeployers'] as const;
+const PREFILL_TAG_KEYS = ['targetSystem', 'sector', 'marketForm', 'locality'] as const;
 
-/** The answers after taking `proposals`: `empty` fills blanks only, `replace`
- *  overwrites what is there. Answers the person typed into fields the document
- *  says nothing about are always kept. */
+/** The form after taking a reading: the backend's merged answers, minus the
+ *  suggestions the person dropped, plus the blocks it filled.
+ *
+ * The merge is the backend's, so this only *vetoes*: a suggestion the person
+ * unticked leaves the field as it was, and the blocks are left out entirely
+ * when the person says so. The form keeps its answers and its blocks apart, so
+ * both come back. */
 export function applyPrefill(
     answers: Record<string, string>,
-    proposals: PrefillSuggestion[],
-    mode: PrefillMode,
-): Record<string, string> {
-    const out = { ...answers };
-    for (const proposal of proposals) {
-        const current = (out[proposal.field] ?? '').trim();
-        if (mode === 'empty' && current !== '') continue;
-        out[proposal.field] = proposal.value;
+    blocks: QualificationBlocks,
+    result: PrefillResult,
+    options: { taken?: Record<string, boolean>; withBlocks?: boolean } = {},
+): { answers: Record<string, string>; blocks: QualificationBlocks } {
+    const taken = options.taken ?? {};
+    const withBlocks = options.withBlocks !== false;
+    const out: Record<string, string> = { ...answers };
+    for (const field of result.proposed) {
+        if (taken[field] === false) {
+            // dropped: whatever was there stays there
+            if (answers[field] === undefined) delete out[field];
+            else out[field] = answers[field];
+            continue;
+        }
+        const value = result.values[field];
+        if (typeof value === 'string' && value !== '') out[field] = value;
     }
-    return out;
+    if (!withBlocks) return { answers: out, blocks };
+
+    const merged: QualificationBlocks = {
+        profile: { ...blocks.profile },
+        tags: {
+            targetSystem: [...blocks.tags.targetSystem],
+            sector: [...blocks.tags.sector],
+            marketForm: [...blocks.tags.marketForm],
+            locality: [...blocks.tags.locality],
+        },
+        risks: blocks.risks.map((row) => ({ ...row, impactAreas: [...row.impactAreas] })),
+    };
+    for (const key of PREFILL_PROFILE_KEYS) {
+        const text = result.profile[key];
+        if (typeof text === 'string' && text.trim() !== '') merged.profile[key] = text;
+    }
+    for (const key of PREFILL_TAG_KEYS) {
+        const terms = nonEmptyStrings(result.tags[key]);
+        if (terms.length > 0) merged.tags[key] = terms;
+    }
+    if (result.risks !== null && result.risks.length > 0) {
+        // the rows are kept as read, however incomplete: the form shows them for
+        // the person to finish, and saving still drops what is unusable
+        merged.risks = result.risks.map((row) => riskRowFromJson(row));
+    }
+    return { answers: out, blocks: merged };
+}
+
+/** One risk row as the JSON the backend read, onto this form's row shape. */
+function riskRowFromJson(raw: Json): RiskBlockRow {
+    const row = emptyRiskRow();
+    const record = asRecord(raw);
+    if (!record) return row;
+    for (const key of ['affected', 'risk', 'source', 'vulnerability', 'consequence',
+        'control', 'followUpControl'] as const) {
+        if (typeof record[key] === 'string') row[key] = record[key] as string;
+    }
+    for (const key of ['sourceTerm', 'consequenceTerm', 'impactTerm',
+        'controlTerm', 'followUpControlTerm'] as const) {
+        if (typeof record[key] === 'string') row[key] = record[key] as string;
+    }
+    row.impactAreas = nonEmptyStrings(record['impactAreas']);
+    return row;
 }
 
 /** --- The card agent ---------------------------------------------------------
