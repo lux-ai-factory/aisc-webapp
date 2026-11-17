@@ -6,14 +6,29 @@ import {
     filterCatalogue,
     allTags,
     inDimensions,
+    childrenOf,
     Catalogue,
     CatalogueControl,
+    CatalogueSubdimension,
 } from './catalogue';
 
 const cat: Catalogue = {
     plugins: [
-        { package_name: 'strongreject', version: '1.0', source: 'registry', tags: ['red-team', 'jailbreak'] },
-        { package_name: 'factcheck', version: '0.9', source: 'local', tags: ['accuracy', 'nlp'] },
+        {
+            package_name: 'strongreject',
+            version: '1.0',
+            source: 'registry',
+            tags: ['red-team', 'jailbreak'],
+            // the catalogue's test item names the package and its dimension
+            dimensions: ['technical-robustness-safety'],
+        },
+        {
+            package_name: 'factcheck',
+            version: '0.9',
+            source: 'local',
+            tags: ['accuracy', 'nlp'],
+            dimensions: ['diversity-non-discrimination-fairness'],
+        },
     ],
     controls: [
         {
@@ -137,14 +152,42 @@ describe('filterCatalogue by dimension', () => {
         expect(out.controls.map((c) => c.catalogue_id)).toEqual(['human-oversight-checklist']);
     });
 
-    it('leaves plugins alone: they carry no dimension tag', () => {
+    it('narrows plugins by their catalogue test item\'s dimensions', () => {
         const out = filterCatalogue(cat, '', [], 'all', ['privacy-data-governance']);
         expect(out.controls).toHaveLength(1);
-        expect(out.plugins).toHaveLength(2);
+        expect(out.plugins).toHaveLength(0);
+    });
+
+    it('a plugin the catalogue does not list carries no dimension and is hidden', () => {
+        const unlisted: Catalogue = {
+            ...cat,
+            plugins: [{ package_name: 'ours', version: '1.0', source: 'local' }],
+        };
+        expect(filterCatalogue(unlisted, '', [], 'plugins', ['privacy-data-governance']).plugins)
+            .toHaveLength(0);
+        expect(filterCatalogue(unlisted, '', [], 'plugins', []).plugins).toHaveLength(1);
     });
 
     it('no dimensions means no narrowing', () => {
         const out = filterCatalogue(cat, '', [], 'controls', []);
         expect(out.controls).toHaveLength(2);
+    });
+});
+
+describe('childrenOf', () => {
+    const tree: CatalogueSubdimension[] = [
+        { slug: 'supervisory-control', label: 'Supervisory control', parent: 'human-agency-oversight' },
+        { slug: 'bias-auditing', label: 'Bias auditing', parent: 'diversity-non-discrimination-fairness' },
+        { slug: 'human-fallback', label: 'Human fallback', parent: 'human-agency-oversight' },
+    ];
+
+    it('returns the children of one dimension, in the catalogue\'s order', () => {
+        expect(childrenOf(tree, 'human-agency-oversight').map((c) => c.slug))
+            .toEqual(['supervisory-control', 'human-fallback']);
+    });
+
+    it('a dimension with no children, or no tree at all, yields nothing', () => {
+        expect(childrenOf(tree, 'transparency')).toEqual([]);
+        expect(childrenOf(undefined, 'transparency')).toEqual([]);
     });
 });

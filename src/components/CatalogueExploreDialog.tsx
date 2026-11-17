@@ -28,6 +28,7 @@ import '../styles/common.css';
 import {
     filterCatalogue,
     allTags,
+    childrenOf,
     Catalogue,
     CatalogueControl,
     CatalogueDimension,
@@ -313,7 +314,7 @@ export default function CatalogueExploreDialog({
                         },
                     }}
                 />
-                {kind !== 'plugin' && projectDimensions !== undefined && (
+                {projectDimensions !== undefined && (
                     <Box>
                         <FormControlLabel
                             control={
@@ -332,18 +333,37 @@ export default function CatalogueExploreDialog({
                         )}
                     </Box>
                 )}
-                {kind !== 'plugin' && dimensionVocabulary.length > 0 && (
+                {dimensionVocabulary.length > 0 && (
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {dimensionVocabulary.map((d) => (
-                            <Chip
-                                key={d.slug}
-                                label={d.label}
-                                size="small"
-                                onClick={() => toggleDimension(d.slug)}
-                                color={selectedDimensions.includes(d.slug) ? 'primary' : 'default'}
-                                variant={selectedDimensions.includes(d.slug) ? 'filled' : 'outlined'}
-                            />
-                        ))}
+                        {dimensionVocabulary.map((d) => {
+                            const children = childrenOf(catalogue.subdimensions, d.slug);
+                            const open = selectedDimensions.includes(d.slug);
+                            return (
+                                <Box key={d.slug} sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
+                                    <Chip
+                                        label={d.label}
+                                        size="small"
+                                        onClick={() => toggleDimension(d.slug)}
+                                        color={open ? 'primary' : 'default'}
+                                        variant={open ? 'filled' : 'outlined'}
+                                    />
+                                    {open &&
+                                        children.map((c) => (
+                                            <Chip
+                                                key={c.slug}
+                                                label={c.label}
+                                                size="small"
+                                                onClick={() => toggleDimension(c.slug)}
+                                                color={selectedDimensions.includes(c.slug) ? 'primary' : 'default'}
+                                                variant={
+                                                    selectedDimensions.includes(c.slug) ? 'filled' : 'outlined'
+                                                }
+                                                sx={{ ml: 1, fontSize: '0.7rem' }}
+                                            />
+                                        ))}
+                                </Box>
+                            );
+                        })}
                     </Box>
                 )}
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>

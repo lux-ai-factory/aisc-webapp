@@ -21,7 +21,8 @@ const CATALOGUE: Catalogue = {
             control_topic: 'Human Oversight',
             question_count: 25,
             tags: ['Human Oversight'],
-            dimensions: ['human-agency-oversight'],
+            dimensions: ['human-agency-oversight', 'supervisory-control'],
+            subdimensions: ['supervisory-control'],
         },
         {
             catalogue_id: 'risk-management-checklist',
@@ -36,6 +37,9 @@ const CATALOGUE: Catalogue = {
     dimensions: [
         { requirement: 'REQ1', slug: 'human-agency-oversight', label: 'Human Agency and Oversight' },
         { requirement: 'REQ9', slug: 'risk-management', label: 'Risk Management' },
+    ],
+    subdimensions: [
+        { slug: 'supervisory-control', label: 'Supervisory control', parent: 'human-agency-oversight' },
     ],
     app_catalog_url: '',
 };
@@ -59,15 +63,19 @@ afterEach(() => {
     vi.unstubAllGlobals();
 });
 
-function render(projectDimensions?: string[]) {
+function render(
+    projectDimensions?: string[],
+    kind: 'control' | 'plugin' | 'all' = 'control',
+    catalogue: Catalogue = CATALOGUE,
+) {
     act(() => {
         root.render(
             <CatalogueExploreDialog
                 open
                 onClose={() => {}}
                 projectPid="p1"
-                kind="control"
-                catalogue={CATALOGUE}
+                kind={kind}
+                catalogue={catalogue}
                 loading={false}
                 projectDimensions={projectDimensions}
             />,
@@ -119,5 +127,62 @@ describe('CatalogueExploreDialog "For this project"', () => {
         ) as HTMLElement;
         act(() => chip.click());
         expect(titles()).toEqual(['Risk Management Checklist']);
+    });
+});
+
+const chipNamed = (label: string) =>
+    Array.from(document.body.querySelectorAll('.MuiChip-label')).find(
+        (el) => el.textContent === label,
+    ) as HTMLElement | undefined;
+
+describe('CatalogueExploreDialog sub-dimension tree', () => {
+    it('nests the catalogue\'s children under the dimension chip once it is open', () => {
+        render([]);
+        expect(chipNamed('Supervisory control')).toBeUndefined();
+        act(() => chipNamed('Human Agency and Oversight')!.click());
+        expect(chipNamed('Supervisory control')).toBeDefined();
+    });
+
+    it('a child chip narrows to the items carrying it', () => {
+        render([]);
+        act(() => chipNamed('Human Agency and Oversight')!.click());
+        act(() => chipNamed('Supervisory control')!.click());
+        expect(titles()).toEqual(['Human Oversight Checklist']);
+    });
+});
+
+describe('CatalogueExploreDialog plugin view', () => {
+    const PLUGINS: Catalogue = {
+        ...CATALOGUE,
+        plugins: [
+            {
+                package_name: 'aisc-plugin-langbite',
+                plugin_name: 'LangBiTe',
+                display_name: 'LangBiTe',
+                version: '0.1.1',
+                source: 'registry',
+                dimensions: ['diversity-non-discrimination-fairness'],
+            },
+            {
+                package_name: 'our-own-plugin',
+                plugin_name: 'Ours',
+                display_name: 'Ours',
+                version: '1.0',
+                source: 'local',
+            },
+        ],
+    };
+
+    it('offers the switch and narrows plugins by their catalogue test item', () => {
+        render(['diversity-non-discrimination-fairness'], 'plugin', PLUGINS);
+        expect(document.body.textContent).toContain('For this project');
+        expect(titles()).toEqual(['LangBiTe']);
+    });
+
+    it('off, it shows every plugin, including the one the catalogue does not list', () => {
+        render(['diversity-non-discrimination-fairness'], 'plugin', PLUGINS);
+        const toggle = document.body.querySelector('input[type="checkbox"]') as HTMLInputElement;
+        act(() => toggle.click());
+        expect(titles()).toEqual(['LangBiTe', 'Ours']);
     });
 });

@@ -19,6 +19,14 @@ export interface CataloguePlugin {
     version: string;
     source: string;
     tags?: string[];
+    /**
+     * The dimensions the package's catalogue test item is tagged with. The
+     * loader carries none, so the backend reads them from the hosted
+     * catalogue's `type: test` item; empty for a package it does not list.
+     */
+    dimensions?: string[];
+    /** The item's own sub-dimensions (the tree's children). */
+    subdimensions?: string[];
 }
 
 export interface CatalogueControl {
@@ -36,6 +44,8 @@ export interface CatalogueControl {
      * tagged only `purpose-limitation` still carries `privacy-data-governance`.
      */
     dimensions?: string[];
+    /** The item's own sub-dimensions (the tree's children). */
+    subdimensions?: string[];
 }
 
 /** One trustworthiness dimension: the objective requirement it comes from. */
@@ -45,11 +55,21 @@ export interface CatalogueDimension {
     label: string;
 }
 
+/** One child of a dimension in the catalogue's own tree (its sidebar). */
+export interface CatalogueSubdimension {
+    slug: string;
+    label: string;
+    /** the dimension slug it hangs under */
+    parent: string;
+}
+
 export interface Catalogue {
     plugins: CataloguePlugin[];
     controls: CatalogueControl[];
     /** the dimension vocabulary, REQ order, so the filter can label its chips */
     dimensions?: CatalogueDimension[];
+    /** the catalogue's own sub-dimension tree, read from the catalogue */
+    subdimensions?: CatalogueSubdimension[];
     /** the catalogue's own published site (independently published, I9) */
     app_catalog_url?: string;
 }
@@ -90,18 +110,32 @@ export function allTags(plugins: CataloguePlugin[], controls: CatalogueControl[]
 }
 
 /** Does this item carry one of the dimensions we are filtering by? */
-export function inDimensions(item: CatalogueControl, dimensions: string[]): boolean {
+export function inDimensions(
+    item: { dimensions?: string[] },
+    dimensions: string[],
+): boolean {
     if (dimensions.length === 0) return true;
     return (item.dimensions ?? []).some((d) => dimensions.includes(d));
+}
+
+/** The catalogue's own children of a dimension: the pilot's sidebar's leaves. */
+export function childrenOf(
+    tree: CatalogueSubdimension[] | undefined,
+    parent: string,
+): CatalogueSubdimension[] {
+    return (tree ?? []).filter((child) => child.parent === parent);
 }
 
 /**
  * Keep the items that match the query (fuzzy) and every selected tag.
  * Items rank by best fuzzy score across their searchable fields.
  *
- * `dimensions` narrows the *controls* to those the project's objectives are
- * about ("For this project"); plugins carry no dimension tag, so they are left
- * alone rather than all filtered out.
+ * `dimensions` narrows both kinds to those the project's objectives are about
+ * ("For this project"): a checklist through its own tags, a plugin through the
+ * tags of the catalogue's test item naming its package. A plugin the hosted
+ * catalogue does not list carries no dimension and so is hidden by a project
+ * filter — the same rule the pilot applies, where the catalogue is the only
+ * source of a plugin's dimension.
  */
 export function filterCatalogue(
     catalogue: Catalogue,
@@ -135,6 +169,7 @@ export function filterCatalogue(
 
     const plugins = catalogue.plugins
         .filter((p) => kind !== 'controls' && tagHit(p.tags?.length ? p.tags : [p.source]))
+        .filter((p) => inDimensions(p, dimensions))
         .filter((p) => !query || scorePlugin(p) > 0)
         .sort((a, b) => scorePlugin(b) - scorePlugin(a));
     const controls = catalogue.controls
