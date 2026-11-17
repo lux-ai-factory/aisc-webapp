@@ -3,7 +3,9 @@ import {
     addProjectQuestionnaire,
     answerableQuestions,
     completeQualification,
+    describeSetDiff,
     editQualificationCard,
+    getObjectiveSetDiff,
     getDefaultQuestionnaire,
     hasAnswers,
     listProjectQuestionnaires,
@@ -201,5 +203,46 @@ describe('qualification helpers', () => {
             definition: { blocks: [] },
         });
         expect(() => parseQuestionnaireImport('not json')).toThrow();
+    });
+});
+
+describe('the objective set history', () => {
+    const diff = {
+        from_version: 1,
+        to_version: null,
+        added: ['CX-3'],
+        removed: ['CX-2'],
+        changed: [{ objective_id: 'CX-1', fields: [{ field: 'text', before: 'a', after: 'b' }] }],
+        unchanged: ['CX-9'],
+    };
+
+    it('asks for the draft against the published version by default', async () => {
+        const fetch = mockFetchOnce(diff);
+        await getObjectiveSetDiff('p1', 's1');
+        expect(fetch).toHaveBeenCalledWith(
+            expect.stringContaining('/projects/p1/objective-sets/s1/diff'),
+            expect.anything(),
+        );
+        // no version numbers: the backend picks the published version and the draft
+        const url = String(fetch.mock.calls[0][0]);
+        expect(url).not.toContain('from_version');
+    });
+
+    it('names the versions when two published ones are compared', async () => {
+        const fetch = mockFetchOnce(diff);
+        await getObjectiveSetDiff('p1', 's1', { fromVersion: 1, toVersion: 2 });
+        const url = String(fetch.mock.calls[0][0]);
+        expect(url).toContain('from_version=1');
+        expect(url).toContain('to_version=2');
+    });
+
+    it('describes the change as a line a person reads', () => {
+        expect(describeSetDiff(diff)).toBe('+CX-3 · −CX-2 · CX-1: text');
+        expect(
+            describeSetDiff({
+                from_version: 1, to_version: null,
+                added: [], removed: [], changed: [], unchanged: ['CX-1'],
+            }),
+        ).toBe('no change');
     });
 });

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Grid from '@mui/material/Grid2';
@@ -11,9 +12,11 @@ import { listSystemVersions } from '../lib/report';
 import {
     ProjectResults,
     ToolResult,
+    chartSummary,
     connectionsLine,
     getProjectResults,
     helperModelsLine,
+    publishToDashboard,
 } from '../lib/results';
 
 function formatDay(iso: string | null): string {
@@ -33,6 +36,7 @@ function ToolTile({ tool }: { tool: ToolResult }) {
             </Typography>
             <Typography className="brand-mono" color="text.secondary">
                 {tool.executed} completed · {tool.failed} failed · {tool.running} running
+                {tool.observations ? ` · ${tool.observations} observations` : ''}
                 {tool.last_run ? ` · last run ${formatDay(tool.last_run)}` : ''}
             </Typography>
             {connections && (
@@ -77,6 +81,7 @@ export default function ResultsSection({ pid }: { pid: string }) {
     const [selected, setSelected] = useState<string | null>(null);
     const [results, setResults] = useState<ProjectResults | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [published, setPublished] = useState<boolean | null>(null);
 
     useEffect(() => {
         let alive = true;
@@ -132,16 +137,41 @@ export default function ResultsSection({ pid }: { pid: string }) {
                     ariaLabel="Results version"
                     onSelect={(id) => setSelected(id ?? null)}
                 />
-                {results?.dashboards_url && (
+                {results?.dashboard.authenticated && results.dashboard.url && (
                     <Link
                         className="brand-mono"
-                        href={results.dashboards_url}
+                        href={results.dashboard.url}
                         target="_blank"
                         rel="noopener noreferrer"
                         sx={{ ml: 'auto' }}
+                        data-testid="dashboard-link"
                     >
                         Every test&apos;s charts →
                     </Link>
+                )}
+                {results && !results.dashboard.authenticated && (
+                    <Typography
+                        className="brand-mono"
+                        color="text.disabled"
+                        sx={{ ml: 'auto' }}
+                        data-testid="dashboard-closed"
+                    >
+                        No dashboard link: the analytics bridge is not configured
+                    </Typography>
+                )}
+                {results?.dashboard.bridge_configured && (
+                    <Button
+                        size="small"
+                        variant="outlined"
+                        data-testid="publish-dashboard"
+                        onClick={() => {
+                            void publishToDashboard(pid).then((answer) =>
+                                setPublished(answer.registered),
+                            );
+                        }}
+                    >
+                        Publish to the dashboard
+                    </Button>
                 )}
             </Box>
             {error && <Typography color="error">{error}</Typography>}
@@ -150,6 +180,42 @@ export default function ResultsSection({ pid }: { pid: string }) {
                 <Typography color="text.secondary">
                     No tests installed yet: pick them in step 3, Choose tests and checklists.
                 </Typography>
+            )}
+            {published !== null && (
+                <Typography className="brand-mono" color="text.secondary" data-testid="published">
+                    {published
+                        ? 'The dashboard took this project.'
+                        : 'The dashboard did not take this project (it is down or not configured).'}
+                </Typography>
+            )}
+            {results !== null && (results.charts.length > 0 || hasTools) && (
+                <Box className="brand-block" data-testid="results-charts" sx={{ mt: 2 }}>
+                    <Typography className="brand-block-title" variant="h6">
+                        Measurements
+                    </Typography>
+                    {results.charts.length === 0 ? (
+                        <Typography className="brand-mono" color="text.secondary">
+                            No measurements recorded on these runs yet.
+                        </Typography>
+                    ) : (
+                        results.charts.map((chart) => (
+                            <Typography
+                                className="brand-mono"
+                                key={chart.metric}
+                                data-testid="chart-row"
+                            >
+                                {chart.metric}
+                                {chart.unit ? ` (${chart.unit})` : ''} · {chartSummary(chart)}
+                            </Typography>
+                        ))
+                    )}
+                    <Typography className="brand-mono" color="text.disabled">
+                        {results.chart_scope.evaluations} evaluation(s) in scope
+                        {results.chart_scope.local_models_left_out
+                            ? `, ${results.chart_scope.local_models_left_out} local-model run(s) left out`
+                            : ''}
+                    </Typography>
+                </Box>
             )}
             {results !== null && hasTools && (
                 <Grid container spacing={2}>

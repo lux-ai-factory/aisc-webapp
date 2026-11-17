@@ -79,6 +79,26 @@ beforeEach(() => {
             sets = [{ ...sets[0], published_version: 1 }];
             return Promise.resolve(jsonResponse(sets[0]));
         }
+        if (url.includes('/objective-sets/s1/diff')) {
+            // the backend's answer for "v1 -> the draft" (see the router's own test)
+            return Promise.resolve(
+                jsonResponse({
+                    from_version: 1,
+                    to_version: null,
+                    added: ['O3'],
+                    removed: ['O2'],
+                    changed: [
+                        {
+                            objective_id: 'O1',
+                            fields: [
+                                { field: 'text', before: 'Human oversight', after: 'Signed oversight' },
+                            ],
+                        },
+                    ],
+                    unchanged: [],
+                }),
+            );
+        }
         if (url.endsWith('/objective-sets/s1/apply')) {
             return Promise.resolve(
                 jsonResponse({ created: ['O1', 'O2'], updated: [], selected: ['O1', 'O2'], number: 1 }),
@@ -125,6 +145,16 @@ function button(label: string): HTMLButtonElement {
     return Array.from(document.querySelectorAll('button')).find((b) =>
         (b.textContent ?? '').includes(label),
     ) as HTMLButtonElement;
+}
+
+function typeIntoField(label: string, value: string) {
+    const el = document.querySelector(
+        `input[aria-label="${label}"], textarea[aria-label="${label}"]`,
+    ) as HTMLInputElement | HTMLTextAreaElement;
+    const proto =
+        el.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+    Object.getOwnPropertyDescriptor(proto, 'value')?.set?.call(el, value);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
 function typeInto(label: string, value: string) {
@@ -292,5 +322,92 @@ describe('ObjectiveProfileSection', () => {
         }
         expect(document.body.textContent).toContain('0 in the draft');
         expect(button('Publish').disabled).toBe(true);
+    });
+
+    it('edits every column of a draft row, in place', async () => {
+        await render();
+        await act(async () => {
+            button('New set from the catalogue').click();
+        });
+        await act(async () => {
+            typeInto('Set name', 'Our own set');
+        });
+        await act(async () => {
+            button('Create').click();
+        });
+        await act(async () => {});
+
+        // the chip on the first row opens the editor on that row
+        const chip = Array.from(document.querySelectorAll('.MuiChip-root')).find(
+            (c) => (c.textContent ?? '') === 'O1',
+        ) as HTMLElement;
+        expect(chip).toBeTruthy();
+        await act(async () => {
+            chip.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        });
+        await act(async () => {});
+        expect(document.body.textContent).toContain('Edit a row in Our own set');
+
+        // every column the catalogue carries is editable, not just the first three
+        await act(async () => {
+            typeIntoField('Row legal basis', 'Art 14');
+        });
+        await act(async () => {
+            typeIntoField('Row target', 'G, S');
+        });
+        await act(async () => {
+            typeIntoField('Row notes', 'verified by hand');
+        });
+        await act(async () => {
+            button('Save').click();
+        });
+        await act(async () => {});
+
+        const put = fetchMock.mock.calls
+            .filter((c) => String(c[0]).endsWith('/objective-sets/s1') && c[1]?.method === 'PUT')
+            .pop();
+        const draft = JSON.parse(String(put?.[1]?.body)).draft as Record<string, string>[];
+        expect(draft).toHaveLength(2);
+        const edited = draft.find((r) => r.objective_id === 'O1');
+        expect(edited).toMatchObject({
+            legal_basis: 'Art 14',
+            target: 'G, S',
+            notes: 'verified by hand',
+        });
+        // the row it came from was replaced, not added next to it
+        expect(draft.map((r) => r.objective_id)).toEqual(['O1', 'O2']);
+    });
+
+    it('shows what the draft changes of the published version', async () => {
+        await render();
+        await act(async () => {
+            button('New set from the catalogue').click();
+        });
+        await act(async () => {
+            typeInto('Set name', 'Our own set');
+        });
+        await act(async () => {
+            button('Create').click();
+        });
+        await act(async () => {});
+        await act(async () => {
+            button('Publish').click();
+        });
+        await act(async () => {});
+
+        await act(async () => {
+            button('Changes since v1').click();
+        });
+        await act(async () => {});
+
+        const ask = fetchMock.mock.calls.find((c) => String(c[0]).includes('/objective-sets/s1/diff'));
+        expect(ask).toBeTruthy();
+        const diff = document.querySelector('[data-testid="set-diff-s1"]');
+        expect(diff).toBeTruthy();
+        expect(diff?.textContent).toContain('v1 → the draft');
+        expect(diff?.textContent).toContain('+O3');
+        expect(diff?.textContent).toContain('−O2');
+        // a changed row says which fields moved, with both values
+        expect(diff?.textContent).toContain('O1: text “Human oversight” → “Signed oversight”');
     });
 });

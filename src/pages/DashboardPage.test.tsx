@@ -66,7 +66,29 @@ beforeEach(() => {
                     json: async () => ({
                         version: { pid: 'v2', number: 2 },
                         target: null,
-                        dashboards_url: 'https://superset.example/dashboard?project=p1',
+                        dashboards_url: 'https://superset.example/dashboard?project=p1&sig=x',
+                        dashboard: {
+                            url: 'https://superset.example/dashboard?project=p1&sig=x',
+                            authenticated: true,
+                            bridge_configured: false,
+                            scope: { project: 'p1', version: '2', target: null, tool: null },
+                        },
+                        charts: [
+                            {
+                                metric: 'accuracy',
+                                unit: 'ratio',
+                                count: 2,
+                                min_score: 0.4,
+                                max_score: 0.6,
+                                avg_score: 0.5,
+                            },
+                        ],
+                        chart_scope: {
+                            version: 2,
+                            target: null,
+                            evaluations: 1,
+                            local_models_left_out: 0,
+                        },
                         tools: [
                             {
                                 plugin_name: 'fairness',
@@ -77,9 +99,10 @@ beforeEach(() => {
                                 last_run: '2026-11-01T10:00:00Z',
                                 local: false,
                                 local_runs: 0,
+                                observations: 3,
                                 helpers: [{ role: 'judge', model: 'gpt-4o-mini' }],
                                 connections: [{ name: 'sys', protocol_name: 'openai' }],
-                                dashboard_url: 'https://superset.example/dashboard?tool=fairness',
+                                dashboard_url: 'https://superset.example/dashboard?tool=fairness&sig=y',
                             },
                         ],
                         greyed: [{ plugin_name: 'robustness', label: 'Robustness' }],
@@ -152,7 +175,12 @@ describe('DashboardPage', () => {
         const hrefs = Array.from(document.body.querySelectorAll('a')).map((a) =>
             a.getAttribute('href'),
         );
-        expect(hrefs).toContain('https://superset.example/dashboard?tool=fairness');
-        expect(hrefs).toContain('https://superset.example/dashboard?project=p1');
+        expect(hrefs).toContain('https://superset.example/dashboard?tool=fairness&sig=y');
+        expect(hrefs).toContain('https://superset.example/dashboard?project=p1&sig=x');
+
+        // the charts are the visualizer's own aggregate, drawn as a person reads it
+        const chart = document.body.querySelector('[data-testid="chart-row"]');
+        expect(chart?.textContent).toContain('accuracy (ratio) · 0.50 mean of 2 · 0.40–0.60');
+        expect(document.body.textContent).toContain('1 evaluation(s) in scope');
     });
 });

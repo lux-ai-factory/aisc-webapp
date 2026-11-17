@@ -27,6 +27,8 @@ export interface ToolResult {
     /** every run of this tool in scope was on a locally served model */
     local: boolean;
     local_runs: number;
+    /** observations recorded for this tool's runs (an all-local evaluation's are left out) */
+    observations: number;
     helpers: ToolHelper[];
     connections: ToolConnection[];
     dashboard_url: string | null;
@@ -37,12 +39,40 @@ export interface GreyedTool {
     label: string;
 }
 
+/** One metric over the scoped runs: the visualizer's own aggregate, chart-shaped. */
+export interface ChartMetric {
+    metric: string;
+    unit: string;
+    count: number;
+    min_score: number | null;
+    max_score: number | null;
+    avg_score: number | null;
+}
+
+export interface ChartScope {
+    version: number | null;
+    target: string | null;
+    evaluations: number;
+    local_models_left_out: number;
+}
+
+/** The dashboard link: what it is about, and whether it is authenticated. */
+export interface DashboardLink {
+    url: string | null;
+    authenticated: boolean;
+    bridge_configured: boolean;
+    scope: { project?: string; version?: string | null; target?: string | null; tool?: string | null };
+}
+
 export interface ProjectResults {
     version: ResultsVersion | null;
     target: string | null;
     dashboards_url: string | null;
+    dashboard: DashboardLink;
     tools: ToolResult[];
     greyed: GreyedTool[];
+    charts: ChartMetric[];
+    chart_scope: ChartScope;
 }
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
@@ -59,6 +89,36 @@ export async function getProjectResults(
     const res = await fetch(`${API_URL}/projects/${pid}/results${suffix}`);
     if (!res.ok) throw new Error(`request failed: ${res.status} /projects/${pid}/results`);
     return (await res.json()) as ProjectResults;
+}
+
+/** What the dashboard did when a project was published to it (ANA-01). */
+export interface DashboardRegistration {
+    registered: boolean;
+    bridge_configured: boolean;
+}
+
+/** Tell the dashboard about this project: it makes the datasets and the dashboard. */
+export async function publishToDashboard(pid: string): Promise<DashboardRegistration> {
+    const res = await fetch(`${API_URL}/projects/${pid}/results/dashboard`, { method: 'POST' });
+    if (!res.ok) throw new Error(`request failed: ${res.status} /projects/${pid}/results/dashboard`);
+    return (await res.json()) as DashboardRegistration;
+}
+
+/** The project is going: ask the dashboard to drop its objects. */
+export async function withdrawFromDashboard(pid: string): Promise<{ removed: boolean }> {
+    const res = await fetch(`${API_URL}/projects/${pid}/results/dashboard`, { method: 'DELETE' });
+    if (!res.ok) throw new Error(`request failed: ${res.status} /projects/${pid}/results/dashboard`);
+    return (await res.json()) as { removed: boolean };
+}
+
+/** "≈ 0.82 mean of 3" — one chart row's numbers, as a person reads them. */
+export function chartSummary(chart: ChartMetric): string {
+    const mean = chart.avg_score === null ? '—' : chart.avg_score.toFixed(2);
+    const range =
+        chart.min_score === null || chart.max_score === null
+            ? ''
+            : ` · ${chart.min_score.toFixed(2)}–${chart.max_score.toFixed(2)}`;
+    return `${mean} mean of ${chart.count}${range}`;
 }
 
 /** "Judge gpt-4o-mini, Attacker llama-3" — the helper models a tile's runs used. */

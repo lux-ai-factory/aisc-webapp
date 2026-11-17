@@ -18,6 +18,8 @@ import {
     createObjectiveSet,
     deleteObjectiveSet,
     describeSuggestion,
+    describeSetDiff,
+    getObjectiveSetDiff,
     listObjectiveProfiles,
     listObjectiveSets,
     publishObjectiveSet,
@@ -28,8 +30,41 @@ import {
     type BuiltinProfiles,
     type ObjectiveCatalogueItem,
     type ObjectiveSet,
+    type ObjectiveSetDiff,
     type ObjectiveSetRow,
 } from '../lib/qualification';
+
+/** Every column of a set row, in the catalogue's own order. */
+const SET_ROW_FIELDS: {
+    key: keyof ObjectiveSetRow;
+    label: string;
+    aria: string;
+    multiline?: boolean;
+}[] = [
+    { key: 'objective_id', label: 'Objective ID', aria: 'Row objective ID' },
+    { key: 'macro_requirement', label: 'Macro requirement', aria: 'Row macro requirement' },
+    { key: 'text', label: 'Text', aria: 'Row text', multiline: true },
+    { key: 'legal_basis', label: 'Legal basis', aria: 'Row legal basis' },
+    { key: 'sub_requirement_label', label: 'Sub-requirement label', aria: 'Row sub-requirement label' },
+    { key: 'assessment_mode', label: 'Assessment mode', aria: 'Row assessment mode' },
+    { key: 'target', label: 'Target', aria: 'Row target' },
+    { key: 'standards_grounding', label: 'Standards grounding', aria: 'Row standards grounding' },
+    { key: 'grounding_tier_flag', label: 'Grounding tier flag', aria: 'Row grounding tier flag' },
+    { key: 'notes', label: 'Notes', aria: 'Row notes', multiline: true },
+];
+
+const EMPTY_ROW: ObjectiveSetRow = {
+    objective_id: '',
+    macro_requirement: '',
+    text: '',
+    legal_basis: '',
+    sub_requirement_label: '',
+    assessment_mode: '',
+    target: '',
+    standards_grounding: '',
+    grounding_tier_flag: '',
+    notes: '',
+};
 
 /**
  * Step 2's profile and the project's own objective set.
@@ -63,10 +98,14 @@ export default function ObjectiveProfileSection({
     const [newSetOpen, setNewSetOpen] = useState(false);
     const [newSetName, setNewSetName] = useState('');
     const [newSetPrefix, setNewSetPrefix] = useState('');
-    const [rowOpen, setRowOpen] = useState<ObjectiveSet | null>(null);
-    const [rowId, setRowId] = useState('');
-    const [rowMacro, setRowMacro] = useState('');
-    const [rowText, setRowText] = useState('');
+    // The row editor: `rowSet` is the set being edited, `rowOriginal` the code the
+    // row had (null when the row is new), `rowForm` every field the catalogue
+    // carries.
+    const [rowSet, setRowSet] = useState<ObjectiveSet | null>(null);
+    const [rowOriginal, setRowOriginal] = useState<string | null>(null);
+    const [rowForm, setRowForm] = useState<ObjectiveSetRow>(EMPTY_ROW);
+    // The history view, per set: absent = not asked for yet.
+    const [diffs, setDiffs] = useState<Record<string, ObjectiveSetDiff>>({});
 
     const load = useCallback(async () => {
         try {
@@ -117,35 +156,53 @@ export default function ObjectiveProfileSection({
         }
     };
 
-    const addRow = async (set: ObjectiveSet) => {
-        const objective_id = rowId.trim();
-        if (!objective_id || !rowMacro.trim() || !rowText.trim()) {
+    const openRow = (set: ObjectiveSet, row?: ObjectiveSetRow) => {
+        setRowOriginal(row ? row.objective_id : null);
+        setRowForm(row ? { ...row } : { ...EMPTY_ROW });
+        setRowSet(set);
+    };
+
+    /** Save the edited row into the draft: replacing the row it came from. */
+    const saveRow = async (set: ObjectiveSet) => {
+        const row: ObjectiveSetRow = {
+            ...rowForm,
+            objective_id: rowForm.objective_id.trim(),
+            macro_requirement: rowForm.macro_requirement.trim(),
+            text: rowForm.text.trim(),
+        };
+        if (!row.objective_id || !row.macro_requirement || !row.text) {
             setError('a row needs an ID, a macro requirement and its text');
             return;
         }
-        const row: ObjectiveSetRow = {
-            objective_id,
-            macro_requirement: rowMacro.trim(),
-            text: rowText.trim(),
-            legal_basis: '',
-            sub_requirement_label: '',
-            assessment_mode: '',
-            target: '',
-            standards_grounding: '',
-            grounding_tier_flag: '',
-            notes: '',
-        };
+        if (
+            row.objective_id !== rowOriginal &&
+            set.draft.some((r) => r.objective_id === row.objective_id)
+        ) {
+            setError(`objective ${row.objective_id} is already in the draft`);
+            return;
+        }
+        const draft = rowOriginal
+            ? set.draft.map((r) => (r.objective_id === rowOriginal ? row : r))
+            : [...set.draft, row];
         await run(() =>
             updateObjectiveSet(pid, set.pid, {
                 name: set.name,
                 code_prefix: set.code_prefix,
-                draft: [...set.draft, row],
+                draft,
             }),
         );
-        setRowId('');
-        setRowMacro('');
-        setRowText('');
-        setRowOpen(null);
+        setRowSet(null);
+        setRowOriginal(null);
+    };
+
+    /** The history view: what this draft would change of the published version. */
+    const loadDiff = async (set: ObjectiveSet) => {
+        try {
+            const diff = await getObjectiveSetDiff(pid, set.pid);
+            setDiffs((all) => ({ ...all, [set.pid]: diff }));
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'the comparison failed');
+        }
     };
 
     const enableSetObjectives = async (set: ObjectiveSet) => {
@@ -310,6 +367,7 @@ export default function ObjectiveProfileSection({
                                         key={row.objective_id}
                                         size="small"
                                         label={row.objective_id}
+                                        onClick={busy ? undefined : () => openRow(set, row)}
                                         onDelete={
                                             busy
                                                 ? undefined
@@ -334,15 +392,18 @@ export default function ObjectiveProfileSection({
                                 <Button
                                     size="small"
                                     disabled={busy}
-                                    onClick={() => {
-                                        setRowId('');
-                                        setRowMacro('');
-                                        setRowText('');
-                                        setRowOpen(set);
-                                    }}
+                                    onClick={() => openRow(set)}
                                     sx={{ textTransform: 'none' }}
                                 >
                                     Add a row
+                                </Button>
+                                <Button
+                                    size="small"
+                                    disabled={busy || set.published_version === null}
+                                    onClick={() => void loadDiff(set)}
+                                    sx={{ textTransform: 'none' }}
+                                >
+                                    Changes since v{set.published_version ?? 1}
                                 </Button>
                                 <Button
                                     size="small"
@@ -370,6 +431,42 @@ export default function ObjectiveProfileSection({
                                     Delete
                                 </Button>
                             </Box>
+                            {diffs[set.pid] && (
+                                <Box
+                                    data-testid={`set-diff-${set.pid}`}
+                                    sx={{
+                                        borderTop: '1px dashed #e2e8f0',
+                                        pt: 0.5,
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: 0.25,
+                                    }}
+                                >
+                                    <Typography variant="caption" color="text.secondary">
+                                        {diffs[set.pid].from_version === null
+                                            ? 'Nothing published yet; the draft holds:'
+                                            : `v${diffs[set.pid].from_version} → the draft:`}
+                                    </Typography>
+                                    <Typography variant="body2" className="brand-mono">
+                                        {describeSetDiff(diffs[set.pid])}
+                                    </Typography>
+                                    {diffs[set.pid].changed.map((row) => (
+                                        <Typography
+                                            key={row.objective_id}
+                                            variant="caption"
+                                            color="text.secondary"
+                                        >
+                                            {row.objective_id}:{' '}
+                                            {row.fields
+                                                .map(
+                                                    (f) =>
+                                                        `${f.field} “${f.before}” → “${f.after}”`,
+                                                )
+                                                .join('; ')}
+                                        </Typography>
+                                    ))}
+                                </Box>
+                            )}
                         </Box>
                     ))}
                 </Box>
@@ -436,15 +533,15 @@ export default function ObjectiveProfileSection({
             </AppDialog>
 
             <AppDialog
-                open={rowOpen !== null}
-                onClose={() => setRowOpen(null)}
-                title={`Add a row to ${rowOpen?.name ?? ''}`}
+                open={rowSet !== null}
+                onClose={() => setRowSet(null)}
+                title={`${rowOriginal ? 'Edit' : 'Add'} a row in ${rowSet?.name ?? ''}`}
                 maxWidth="sm"
                 fullWidth
                 actions={
                     <>
                         <Button
-                            onClick={() => setRowOpen(null)}
+                            onClick={() => setRowSet(null)}
                             variant="outlined"
                             sx={{ textTransform: 'none' }}
                         >
@@ -454,41 +551,30 @@ export default function ObjectiveProfileSection({
                             variant="contained"
                             className="gradient-btn"
                             disabled={busy}
-                            onClick={() => rowOpen && void addRow(rowOpen)}
+                            onClick={() => rowSet && void saveRow(rowSet)}
                             sx={{ textTransform: 'none' }}
                         >
-                            Add
+                            {rowOriginal ? 'Save' : 'Add'}
                         </Button>
                     </>
                 }
             >
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                    <TextField
-                        size="small"
-                        fullWidth
-                        label="Objective ID"
-                        inputProps={{ 'aria-label': 'Row objective ID' }}
-                        value={rowId}
-                        onChange={(e) => setRowId(e.target.value)}
-                    />
-                    <TextField
-                        size="small"
-                        fullWidth
-                        label="Macro requirement"
-                        inputProps={{ 'aria-label': 'Row macro requirement' }}
-                        value={rowMacro}
-                        onChange={(e) => setRowMacro(e.target.value)}
-                    />
-                    <TextField
-                        size="small"
-                        fullWidth
-                        multiline
-                        minRows={2}
-                        label="Text"
-                        inputProps={{ 'aria-label': 'Row text' }}
-                        value={rowText}
-                        onChange={(e) => setRowText(e.target.value)}
-                    />
+                    {SET_ROW_FIELDS.map((field) => (
+                        <TextField
+                            key={field.key}
+                            size="small"
+                            fullWidth
+                            multiline={field.multiline}
+                            minRows={field.multiline ? 2 : undefined}
+                            label={field.label}
+                            inputProps={{ 'aria-label': field.aria }}
+                            value={rowForm[field.key]}
+                            onChange={(e) =>
+                                setRowForm((row) => ({ ...row, [field.key]: e.target.value }))
+                            }
+                        />
+                    ))}
                 </Box>
             </AppDialog>
         </AppCard>

@@ -1061,6 +1061,56 @@ export interface ObjectiveSet {
     versions: ObjectiveSetVersion[];
 }
 
+/** One field of one row that differs between two versions of a set. */
+export interface ObjectiveSetFieldChange {
+    field: string;
+    before: string;
+    after: string;
+}
+
+export interface ObjectiveSetChangedRow {
+    objective_id: string;
+    fields: ObjectiveSetFieldChange[];
+}
+
+/** What changed between two versions: a published one, or the draft (null). */
+export interface ObjectiveSetDiff {
+    from_version: number | null;
+    to_version: number | null;
+    added: string[];
+    removed: string[];
+    changed: ObjectiveSetChangedRow[];
+    unchanged: string[];
+}
+
+/**
+ * The history view: what changed between two versions of a set. With no version
+ * numbers given the backend compares the **last published version with the draft**
+ * — the question someone editing a set is actually asking.
+ */
+export function getObjectiveSetDiff(
+    pid: string,
+    setPid: string,
+    opts: { fromVersion?: number; toVersion?: number } = {},
+): Promise<ObjectiveSetDiff> {
+    const query = new URLSearchParams();
+    if (opts.fromVersion !== undefined) query.set('from_version', String(opts.fromVersion));
+    if (opts.toVersion !== undefined) query.set('to_version', String(opts.toVersion));
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return request<ObjectiveSetDiff>(`/projects/${pid}/objective-sets/${setPid}/diff${suffix}`);
+}
+
+/** "text, target" — the fields a changed row moved, as a line a person reads. */
+export function describeSetDiff(diff: ObjectiveSetDiff): string {
+    const parts: string[] = [];
+    if (diff.added.length) parts.push(`+${diff.added.join(', +')}`);
+    if (diff.removed.length) parts.push(`−${diff.removed.join(', −')}`);
+    for (const row of diff.changed) {
+        parts.push(`${row.objective_id}: ${row.fields.map((f) => f.field).join(', ')}`);
+    }
+    return parts.length ? parts.join(' · ') : 'no change';
+}
+
 export function listObjectiveSets(pid: string): Promise<ObjectiveSet[]> {
     return request<ObjectiveSet[]>(`/projects/${pid}/objective-sets`);
 }
