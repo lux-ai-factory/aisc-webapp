@@ -10,6 +10,7 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import SettingsIcon from '@mui/icons-material/Settings';
 import DashboardIcon from '@mui/icons-material/Dashboard';
+import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
 import ExtensionIcon from '@mui/icons-material/Extension';
 import FactCheckIcon from '@mui/icons-material/FactCheck';
 import ChecklistIcon from '@mui/icons-material/Checklist';
@@ -302,6 +303,7 @@ export default function LeftBar({ drawerWidth, expandedDrawerWidth, collapsed, m
                           onNavigate={onNavigate}
                            items={[
                                { text: 'Sandbox', icon: <ScienceIcon />, target: `/projects/${projectName}/sandbox` },
+                               { text: 'Collect evidence', icon: <LibraryBooksIcon />, target: `/projects/${projectName}/evidence` },
                            ]}
                       />
                       {!isCollapsedView && <Divider sx={{borderColor: '#e6e8ed'}} />}
