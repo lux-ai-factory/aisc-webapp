@@ -156,6 +156,26 @@ h1, h2, h3, h4 {
   color: var(--primary);
 }
 
+/* Pilot project cards on the landing page. */
+.brand-project {
+  border: 1px solid var(--border) !important;
+  background: var(--panel) !important;
+  border-radius: 0 !important;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
+}
+.brand-project:hover {
+  border-color: var(--primary) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 26px rgba(12, 18, 60, 0.09);
+}
+.brand-project-slug {
+  color: var(--primary);
+}
+.brand-project-name {
+  font-family: "MuseoModerno", ui-sans-serif, system-ui, sans-serif !important;
+  color: var(--heading);
+}
+
 /* Gradient utility class - applies a custom brand gradient from purple to red */
 .gradient {
   /* background: linear-gradient(to right, #af1060, #4b61b4) !important; */

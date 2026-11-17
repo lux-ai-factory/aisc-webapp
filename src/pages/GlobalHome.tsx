@@ -52,12 +52,13 @@ const ProjectsList = () => {
                         <Card
                             variant="outlined"
                             onClick={() => navigate(`/projects/${project.name}`)}
-                            className="gradient-card"
+                            className="brand-project"
                             sx={{ height: '100%' }}
                         >
                             <CardActionArea sx={{ height: '100%' }}>
-                                <CardContent>
-                                    <Typography variant="h6" fontWeight={600}>
+                                <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 1, minHeight: 140 }}>
+                                    <span className="brand-mono brand-project-slug">project</span>
+                                    <Typography variant="h5" className="brand-project-name" fontWeight={600}>
                                         {project.name}
                                     </Typography>
                                 </CardContent>
