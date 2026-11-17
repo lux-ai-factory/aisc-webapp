@@ -64,6 +64,11 @@ const EvidenceHub = () => {
                         AI card v{version}
                     </span>
                 )}
+                {base && (
+                    <Link to={`${base}/evidence-map`} className="brand-mono" data-testid="evidence-map-link">
+                        Open the evidence map →
+                    </Link>
+                )}
             </Box>
             <Box className="brand-steps">
                 {base &&

@@ -35,6 +35,8 @@ import ReportPage from "./pages/ReportPage.tsx";
 import LogsPage from "./pages/LogsPage.tsx";
 import RiskRegister from "./pages/RiskRegister.tsx";
 import EvidenceHub from "./pages/EvidenceHub.tsx";
+import EvidenceMapPage from "./pages/EvidenceMapPage.tsx";
+import ConnectionsPage from "./pages/ConnectionsPage.tsx";
 import './App.css';
 // I must add this for files to take it into consideration
 
@@ -122,6 +124,8 @@ export default function PermanentDrawerLeft() {
         { id: 24, name: 'Report', path: '/projects/:project_name/report', element: <ProjectContextWrapper><ReportPage /></ProjectContextWrapper> },
         { id: 25, name: 'Logs', path: '/projects/:project_name/logs', element: <ProjectContextWrapper><LogsPage /></ProjectContextWrapper> },
         { id: 27, name: 'Collect evidence', path: '/projects/:project_name/evidence', element: <ProjectContextWrapper><EvidenceHub /></ProjectContextWrapper> },
+        { id: 29, name: 'Evidence map', path: '/projects/:project_name/evidence-map', element: <ProjectContextWrapper><EvidenceMapPage /></ProjectContextWrapper> },
+        { id: 30, name: 'Connections', path: '/projects/:project_name/connections', element: <ProjectContextWrapper><ConnectionsPage /></ProjectContextWrapper> },
     ];
     const theme = useTheme();
     const autoCollapse = useMediaQuery(theme.breakpoints.down('lg'));
