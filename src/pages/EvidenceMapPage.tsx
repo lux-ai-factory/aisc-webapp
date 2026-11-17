@@ -297,7 +297,11 @@ const EvidenceMapPage = () => {
                                             (!priorityOnly || o.priority),
                                     )
                                     .map((o) => (
-                                        <tr key={o.id} style={{ opacity: o.stale ? 0.6 : 1 }}>
+                                        <tr
+                                            key={o.id}
+                                            data-testid={`objective-row-${o.id}`}
+                                            style={{ opacity: o.stale ? 0.6 : 1 }}
+                                        >
                                             <th
                                                 scope="row"
                                                 style={{ textAlign: 'left', position: 'sticky', left: 0, background: '#fff', zIndex: 1 }}
