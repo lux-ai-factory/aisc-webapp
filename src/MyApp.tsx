@@ -18,6 +18,7 @@ import { useProject } from './context/ProjectContext';
 import { useAuth } from './context/AuthContext';
 import { API_VERSION_PREFIX } from './config';
 import Plugins from "./pages/Plugins.tsx";
+import CataloguePage from "./pages/CataloguePage.tsx";
 import PluginConfig from "./pages/PluginsConfig.tsx";
 import PluginStartEvaluation from "./pages/PluginStartEvaluation.tsx";
 import PluginEvaluations from "./pages/PluginEvaluations.tsx";
@@ -109,6 +110,7 @@ export default function PermanentDrawerLeft() {
                 </ProjectContextWrapper>
             )
         },
+        { id: 32, name: 'Catalogue', path: '/projects/:project_name/catalogue', element: <ProjectContextWrapper><CataloguePage /></ProjectContextWrapper> },
         { id: 5, name: 'Plugins', path: '/projects/:project_name/plugins', element: <ProjectContextWrapper><Plugins /></ProjectContextWrapper> },
         { id: 6, name: 'Plugin Config', path: '/projects/:project_name/plugins/:plugin_name', element: <ProjectContextWrapper><PluginConfig /></ProjectContextWrapper> },
         { id: 7, name: 'Plugin Start Evaluation', path: '/projects/:project_name/plugins/evaluation', element: <ProjectContextWrapper><PluginStartEvaluation /></ProjectContextWrapper> },

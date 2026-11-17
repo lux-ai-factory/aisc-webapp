@@ -403,6 +403,13 @@ export interface ObjectiveProfile {
     catalogue_digest?: string | null;
 }
 
+/** Undo the assessor's priority (key) choices: the computed defaults apply again. */
+export function undoPriorityChoices(pid: string): Promise<ObjectiveProfile> {
+    return request<ObjectiveProfile>(`/projects/${pid}/control-objectives/profile/keys`, {
+        method: 'DELETE',
+    });
+}
+
 export interface ObjectiveCatalogueItem {
     id: string;
     macro_requirement: string;

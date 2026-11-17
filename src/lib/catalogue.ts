@@ -35,6 +35,8 @@ export interface CatalogueControl {
 export interface Catalogue {
     plugins: CataloguePlugin[];
     controls: CatalogueControl[];
+    /** the catalogue's own published site (independently published, I9) */
+    app_catalog_url?: string;
 }
 
 /** Normalise a string for matching (lowercase, fold punctuation). */

@@ -9,6 +9,7 @@ import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid2';
 import { useProject } from '../context/ProjectContext';
 import { DashboardStats, getDashboardStats } from '../lib/dashboard';
+import ResultsSection from '../components/ResultsSection';
 import '../styles/common.css';
 
 interface StatCard {
@@ -152,10 +153,7 @@ export default function DashboardPage() {
                     </Grid>
                 ))}
             </Grid>
-            <Typography variant="caption" color="text.secondary">
-                Result analytics land with the results-dashboard backend; until then this
-                page summarises project state.
-            </Typography>
+            <ResultsSection pid={pid} />
         </Box>
     );
 }

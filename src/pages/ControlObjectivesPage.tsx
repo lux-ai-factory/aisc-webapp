@@ -24,6 +24,7 @@ import {
     listObjectiveCatalogue,
     parseObjectiveImport,
     setObjectiveProfile,
+    undoPriorityChoices,
     updateObjectiveCatalogueItem,
     type ObjectiveCatalogueIn,
     type ObjectiveCatalogueItem,
@@ -148,6 +149,19 @@ export default function ControlObjectivesPage() {
 
     const toggleKeyObjective = async (o: ObjectivePriority) => {
         await setKeyObjective(o.objective_id, !o.key);
+    };
+
+    /** Undo the priority choices: the computed default key objectives apply again. */
+    const undoKeyObjectives = async () => {
+        setObjectiveBusy(true);
+        try {
+            await undoPriorityChoices(pid);
+            await refresh();
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'failed to undo priority choices');
+        } finally {
+            setObjectiveBusy(false);
+        }
     };
 
     const setEnabledObjective = async (objectiveId: string, enabled: boolean) => {
@@ -327,6 +341,15 @@ export default function ControlObjectivesPage() {
                     sx={{ textTransform: 'none' }}
                 >
                     Explore catalogue
+                </Button>
+                <Button
+                    variant="outlined"
+                    startIcon={<Icon>undo</Icon>}
+                    disabled={objectiveBusy}
+                    onClick={() => void undoKeyObjectives()}
+                    sx={{ textTransform: 'none' }}
+                >
+                    Undo priority choices
                 </Button>
             </Box>
 

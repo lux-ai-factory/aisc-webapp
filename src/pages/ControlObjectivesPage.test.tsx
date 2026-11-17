@@ -124,6 +124,33 @@ describe('ControlObjectivesPage', () => {
         expect(bodyText()).toContain('No objectives selected yet');
     });
 
+    it('undoes priority choices through the profile/keys route', async () => {
+        const calls: string[] = [];
+        vi.stubGlobal(
+            'fetch',
+            vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+                calls.push(`${init?.method ?? 'GET'} ${url}`);
+                const hit = routes.find((r) => r.match(url, init));
+                if (!hit) throw new Error(`unexpected fetch: ${url}`);
+                return Promise.resolve(jsonResponse(hit.payload, hit.status));
+            }),
+        );
+        await renderPage();
+        const button = Array.from(document.body.querySelectorAll('button')).find((b) =>
+            b.textContent?.includes('Undo priority choices'),
+        );
+        expect(button).toBeTruthy();
+        await act(async () => {
+            (button as HTMLElement).click();
+        });
+        await act(async () => {});
+        expect(
+            calls.some(
+                (c) => c.startsWith('DELETE ') && c.includes('/control-objectives/profile/keys'),
+            ),
+        ).toBe(true);
+    });
+
     it('adds a custom objective through the dialog', async () => {
         const calls: string[] = [];
         vi.stubGlobal(
