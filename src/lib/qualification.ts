@@ -812,3 +812,316 @@ export function parseQuestionnaireImport(text: string): {
     const name = typeof raw['name'] === 'string' && raw['name'] ? raw['name'] : 'Imported questionnaire';
     return { name, definition };
 }
+
+/** --- Step 1: pre-filling the form from an uploaded document -----------------
+ *
+ * The backend reads the document with text rules (no model) and *proposes*
+ * answers; nothing is stored, so the person accepts, edits or rejects each one.
+ */
+
+export interface PrefillSuggestion {
+    field: string;
+    value: string;
+    line: number;
+    matched: string;
+}
+
+export interface PrefillResult {
+    filename: string;
+    characters: number;
+    proposals: PrefillSuggestion[];
+    unmatched: string[];
+    /** set when the questionnaire has no answerable questions to fill */
+    note: string;
+}
+
+/** The error line a refusing backend sends (`{"detail": ...}`). */
+async function failure(res: Response, fallback: string): Promise<Error> {
+    try {
+        const body = (await res.json()) as { detail?: unknown };
+        if (typeof body.detail === 'string' && body.detail) return new Error(body.detail);
+    } catch {
+        /* not JSON: keep the fallback */
+    }
+    return new Error(fallback);
+}
+
+export async function prefillQualification(
+    pid: string,
+    file: File,
+    questionnaireId?: string,
+): Promise<PrefillResult> {
+    const form = new FormData();
+    form.append('file', file);
+    const query = questionnaireId ? `?questionnaire_id=${encodeURIComponent(questionnaireId)}` : '';
+    const res = await fetch(`${API_URL}/projects/${pid}/qualification/prefill${query}`, {
+        method: 'POST',
+        body: form,
+    });
+    if (res.status === 415) throw await failure(res, 'that file could not be read');
+    if (!res.ok) throw await failure(res, `request failed: ${res.status}`);
+    return (await res.json()) as PrefillResult;
+}
+
+export type PrefillMode = 'empty' | 'replace';
+
+/** The answers after taking `proposals`: `empty` fills blanks only, `replace`
+ *  overwrites what is there. Answers the person typed into fields the document
+ *  says nothing about are always kept. */
+export function applyPrefill(
+    answers: Record<string, string>,
+    proposals: PrefillSuggestion[],
+    mode: PrefillMode,
+): Record<string, string> {
+    const out = { ...answers };
+    for (const proposal of proposals) {
+        const current = (out[proposal.field] ?? '').trim();
+        if (mode === 'empty' && current !== '') continue;
+        out[proposal.field] = proposal.value;
+    }
+    return out;
+}
+
+/** --- The card agent ---------------------------------------------------------
+ *
+ * It answers about the card and *proposes* node corrections, each quoting the
+ * person's words or the card. Nothing is stored: applying one goes through the
+ * existing node-correction endpoint.
+ */
+
+export interface CardAgentProposal {
+    node_id: string;
+    property: string;
+    value: string;
+    quote: string;
+    reason: string;
+}
+
+export interface CardAgentTurn {
+    text: string;
+    proposals: CardAgentProposal[];
+    dropped: { node_id?: string | null; reason: string }[];
+    card: Record<string, Json>;
+}
+
+export async function askCardAgent(
+    pid: string,
+    qualificationPid: string,
+    message: string,
+): Promise<CardAgentTurn> {
+    const res = await fetch(
+        `${API_URL}/projects/${pid}/qualification/${qualificationPid}/agent`,
+        {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message }),
+        },
+    );
+    if (res.status === 503) {
+        throw await failure(res, 'no model is configured for the card agent');
+    }
+    if (!res.ok) throw await failure(res, `request failed: ${res.status}`);
+    return (await res.json()) as CardAgentTurn;
+}
+
+/** --- The card's components and the engine's -------------------------------- */
+
+export interface CardComponentLink {
+    component_key: string;
+    name: string;
+    component_type: string;
+    role: string;
+    engine_component_pid: string;
+    snapshot: Record<string, Json>;
+    changed: boolean;
+    missing: boolean;
+    captured_at: string;
+}
+
+export function listCardComponents(
+    pid: string,
+    qualificationPid: string,
+): Promise<CardComponentLink[]> {
+    return request<CardComponentLink[]>(
+        `/projects/${pid}/qualification/${qualificationPid}/card-components`,
+    );
+}
+
+/** How one card component stands against the engine: the flag the system page
+ *  shows, or null when there is nothing to say. */
+export function componentFlag(
+    link: CardComponentLink,
+): { label: string; tone: 'warning' | 'info' } | null {
+    if (link.missing) return { label: 'not in the engine', tone: 'info' };
+    if (link.changed) return { label: 'changed in the engine since', tone: 'warning' };
+    return null;
+}
+
+/** --- The risk mapper ("Suggest with AI") ----------------------------------- */
+
+export interface MappingSuggestion {
+    attempts: number;
+    created: ObjectiveMapping[];
+    dropped: { risk: string | null; objective_id: string | null; reason: string }[];
+}
+
+/** Ask the project's model which profile objectives mitigate each unlinked risk.
+ *  Every proposal quotes the risk's chain; with no model configured the backend
+ *  answers 503. */
+export async function suggestMappings(
+    pid: string,
+    alsoReplaceManual = false,
+): Promise<MappingSuggestion> {
+    const res = await fetch(
+        `${API_URL}/projects/${pid}/control-objectives/risks/mappings/suggest`,
+        {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ also_replace_manual: alsoReplaceManual }),
+        },
+    );
+    if (res.status === 503) {
+        throw await failure(res, 'no model is configured for the risk mapper');
+    }
+    if (!res.ok) throw await failure(res, `request failed: ${res.status}`);
+    return (await res.json()) as MappingSuggestion;
+}
+
+/** The plain-language line for a mapper run: what it linked and what it let go. */
+export function describeSuggestion(result: MappingSuggestion): string {
+    const linked = result.created.length;
+    const dropped = result.dropped.length;
+    const runs = `${result.attempts} attempt${result.attempts === 1 ? '' : 's'}`;
+    if (linked === 0 && dropped === 0) return `Nothing to link (${runs}).`;
+    const parts = [`Linked ${linked}`];
+    if (dropped > 0) parts.push(`left ${dropped} unlinked`);
+    return `${parts.join(', ')} in ${runs}.`;
+}
+
+/** --- The two built-in objective profiles ----------------------------------- */
+
+export interface BuiltinProfile {
+    key: string;
+    name: string;
+    description: string;
+    objectives: string[];
+}
+
+export interface BuiltinProfiles {
+    profiles: BuiltinProfile[];
+    current: string;
+    current_name: string;
+    selected: string[];
+}
+
+export function listObjectiveProfiles(pid: string): Promise<BuiltinProfiles> {
+    return request<BuiltinProfiles>(`/projects/${pid}/control-objectives/profiles`);
+}
+
+/** Switch to a built-in profile; its objectives become the profile's. */
+export function chooseBuiltinProfile(
+    pid: string,
+    key: string,
+    name = '',
+): Promise<ObjectiveProfile> {
+    return request<ObjectiveProfile>(`/projects/${pid}/control-objectives/profile`, {
+        method: 'PUT',
+        body: JSON.stringify({ name, profile_key: key, key_objectives: [] }),
+    });
+}
+
+/** --- A project's own objective set ---------------------------------------- */
+
+export interface ObjectiveSetRow {
+    objective_id: string;
+    macro_requirement: string;
+    text: string;
+    legal_basis: string;
+    sub_requirement_label: string;
+    assessment_mode: string;
+    target: string;
+    standards_grounding: string;
+    grounding_tier_flag: string;
+    notes: string;
+}
+
+export interface ObjectiveSetVersion {
+    number: number;
+    objectives: ObjectiveSetRow[];
+    created_by: string;
+    created_at: string;
+}
+
+export interface ObjectiveSet {
+    pid: string;
+    name: string;
+    code_prefix: string;
+    draft: ObjectiveSetRow[];
+    published_version: number | null;
+    versions: ObjectiveSetVersion[];
+}
+
+export function listObjectiveSets(pid: string): Promise<ObjectiveSet[]> {
+    return request<ObjectiveSet[]>(`/projects/${pid}/objective-sets`);
+}
+
+export function createObjectiveSet(
+    pid: string,
+    data: { name: string; code_prefix?: string; draft?: ObjectiveSetRow[] },
+): Promise<ObjectiveSet> {
+    return request<ObjectiveSet>(`/projects/${pid}/objective-sets`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+}
+
+export function updateObjectiveSet(
+    pid: string,
+    setPid: string,
+    data: { name: string; code_prefix?: string; draft?: ObjectiveSetRow[] },
+): Promise<ObjectiveSet> {
+    return request<ObjectiveSet>(`/projects/${pid}/objective-sets/${setPid}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+    });
+}
+
+/** Freeze the draft as the next numbered version; an old version is never edited. */
+export function publishObjectiveSet(pid: string, setPid: string): Promise<ObjectiveSet> {
+    return request<ObjectiveSet>(`/projects/${pid}/objective-sets/${setPid}/publish`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+    });
+}
+
+/** Copy a published version into the project's own objectives and select it. */
+export function applyObjectiveSet(
+    pid: string,
+    setPid: string,
+    number?: number,
+): Promise<{ created: string[]; updated: string[]; selected: string[]; number: number }> {
+    return request(`/projects/${pid}/objective-sets/${setPid}/apply`, {
+        method: 'POST',
+        body: JSON.stringify({ number: number ?? null }),
+    });
+}
+
+export function deleteObjectiveSet(pid: string, setPid: string): Promise<void> {
+    return request<void>(`/projects/${pid}/objective-sets/${setPid}`, { method: 'DELETE' });
+}
+
+/** A set's draft rows for a new set built from the catalogue's own objectives. */
+export function setRowsFromCatalogue(items: ObjectiveCatalogueItem[]): ObjectiveSetRow[] {
+    return items.map((item) => ({
+        objective_id: item.id,
+        macro_requirement: item.macro_requirement ?? '',
+        text: item.text ?? '',
+        legal_basis: item.legal_basis ?? '',
+        sub_requirement_label: item.sub_requirement_label ?? '',
+        assessment_mode: item.assessment_mode ?? '',
+        target: '',
+        standards_grounding: '',
+        grounding_tier_flag: '',
+        notes: '',
+    }));
+}

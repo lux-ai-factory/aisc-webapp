@@ -58,7 +58,17 @@ beforeEach(() => {
     ]);
     route((url) => url.includes('/control-objectives/risks'), []);
     route((url) => url.includes('/control-objectives/mappings'), []);
-    route((url) => url.includes('/control-objectives/profile'), { objectives: ['O1'], key_objectives: ['O1'] });
+    route((url) => url.includes('/control-objectives/profiles'), {
+        profiles: [
+            { key: 'fairness-oversight', name: 'Fairness and oversight', description: 'the fairness and oversight dimensions', objectives: ['O1'] },
+            { key: 'full-ai-act', name: 'Full AI Act', description: 'every objective', objectives: ['O1', 'O2'] },
+        ],
+        current: 'fairness-oversight',
+        current_name: 'Fairness and oversight',
+        selected: ['O1'],
+    });
+    route((url) => url.includes('/objective-sets'), []);
+    route((url) => url.endsWith('/control-objectives/profile'), { objectives: ['O1'], key_objectives: ['O1'] });
     vi.stubGlobal(
         'fetch',
         vi.fn().mockImplementation((url: string, init?: RequestInit) => {
@@ -367,7 +377,17 @@ describe('ControlObjectivesPage', () => {
         route((url) => url.includes('/control-objectives/mappings'), [
             { pid: 'm1', risk_pid: 'r1', objective_id: 'O1', quote: '', rationale: '', source: 'person' },
         ]);
-        route((url) => url.includes('/control-objectives/profile'), { objectives: ['O1'], key_objectives: ['O1'] });
+        route((url) => url.includes('/control-objectives/profiles'), {
+        profiles: [
+            { key: 'fairness-oversight', name: 'Fairness and oversight', description: 'the fairness and oversight dimensions', objectives: ['O1'] },
+            { key: 'full-ai-act', name: 'Full AI Act', description: 'every objective', objectives: ['O1', 'O2'] },
+        ],
+        current: 'fairness-oversight',
+        current_name: 'Fairness and oversight',
+        selected: ['O1'],
+    });
+    route((url) => url.includes('/objective-sets'), []);
+    route((url) => url.endsWith('/control-objectives/profile'), { objectives: ['O1'], key_objectives: ['O1'] });
         const puts: unknown[] = [];
         vi.stubGlobal(
             'fetch',

@@ -20,6 +20,8 @@ import AppCard from '../components/AppCard';
 import SplitPaneDialog, { type SplitPaneItem } from '../components/SplitPaneDialog';
 import VersionSelect from '../components/VersionSelect';
 import AICardView from '../components/AICardView';
+import CardAgentPanel from '../components/CardAgentPanel';
+import QualificationPrefill from '../components/QualificationPrefill';
 import CardGraph from '../components/CardGraph';
 import NodeEditorDialog, { findNodeInView, withStagedChange } from '../components/NodeEditorDialog';
 import QuestionnaireBuilderForm, {
@@ -248,6 +250,7 @@ export default function QualificationPage() {
     const [answerError, setAnswerError] = useState<string | null>(null);
     const [blockState, setBlockState] = useState<QualificationBlocks>(() => emptyBlocks());
     const [patchState, setPatchState] = useState<Record<string, Json>>({});
+    const [prefillOpen, setPrefillOpen] = useState(false);
     const [vocab, setVocab] = useState<Record<string, string[]>>({});
 
     const [editQ, setEditQ] = useState<Questionnaire | null>(null);
@@ -366,6 +369,18 @@ export default function QualificationPage() {
         setQualifications(null);
         void refresh();
     }, [refresh]);
+
+    // A card correction stores a NEW version: show it at once and remember it as
+    // the card this questionnaire's graph is looking at.
+    const onCardCorrected = (updated: Qualification) => {
+        setQualifications((prev) => {
+            const list = prev ?? [];
+            return list.some((q) => q.pid === updated.pid) ? list : [...list, updated];
+        });
+        if (updated.questionnaire_id) {
+            setRememberedCardPid((prev) => ({ ...prev, [updated.questionnaire_id]: updated.pid }));
+        }
+    };
 
     if (!pid) {
         return <Typography color="text.secondary">Select a project to open qualification.</Typography>;
@@ -1226,6 +1241,15 @@ export default function QualificationPage() {
                     if (file) void importAnswers(file);
                 }}
             />
+            <Tooltip title="Pre-fill from a document">
+                <IconButton
+                    size="small"
+                    aria-label="Pre-fill from a document"
+                    onClick={() => setPrefillOpen(true)}
+                >
+                    <Icon fontSize="small">note_add</Icon>
+                </IconButton>
+            </Tooltip>
             {savedDraft && (
                 <TextField
                     select
@@ -1872,6 +1896,23 @@ export default function QualificationPage() {
                     </Box>
                 );
             })()}
+
+            {latestCompleted && (
+                <CardAgentPanel
+                    pid={pid}
+                    qualification={latestCompleted}
+                    onApplied={onCardCorrected}
+                />
+            )}
+
+            <QualificationPrefill
+                open={prefillOpen}
+                pid={pid}
+                questionnaireId={answerQ?.qid}
+                answers={fieldAnswers}
+                onClose={() => setPrefillOpen(false)}
+                onApply={setFieldAnswers}
+            />
 
             <AppDialog
                 open={addOpen}

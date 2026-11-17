@@ -16,6 +16,7 @@ import AppDialog from '../components/AppDialog';
 import AppCard from '../components/AppCard';
 import SideDrawer from '../components/SideDrawer';
 import RiskRegisterSection from '../components/RiskRegisterSection';
+import ObjectiveProfileSection from '../components/ObjectiveProfileSection';
 import {
     addObjectiveCatalogueItem,
     deleteObjectiveCatalogueItem,
@@ -361,6 +362,12 @@ export default function ControlObjectivesPage() {
             </Typography>
 
             <RiskRegisterSection pid={pid} onChanged={() => void refresh()} />
+
+            <ObjectiveProfileSection
+                pid={pid}
+                catalogue={objectiveCatalogueList}
+                onChanged={() => void refresh()}
+            />
 
             {error && <Typography color="error">{error}</Typography>}
             {loading && <CircularProgress size={24} />}
