@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useProject } from '../context/ProjectContext';
 import { getOverview } from '../lib/overview';
+import { listReports, type PastReport } from '../lib/report';
 import '../styles/common.css';
 
 /**
@@ -13,12 +14,26 @@ const EvidenceHub = () => {
     const { project_name } = useParams();
     const { projectUUID: pid } = useProject();
     const [version, setVersion] = useState<number | null>(null);
+    const [reports, setReports] = useState<PastReport[]>([]);
 
     useEffect(() => {
         if (!pid) return;
         getOverview(pid)
             .then((o) => setVersion(o.latestCardVersion))
             .catch(() => setVersion(null));
+    }, [pid]);
+
+    // The report column's version and history (REP-02): every past report with the
+    // AI-card version it snapshotted, newest first.
+    useEffect(() => {
+        if (!pid) return;
+        listReports(pid)
+            .then((all) =>
+                setReports(
+                    [...all].sort((a, b) => (a.created_at < b.created_at ? 1 : -1)),
+                ),
+            )
+            .catch(() => setReports([]));
     }, [pid]);
 
     const base = project_name ? `/projects/${project_name}` : null;
@@ -85,6 +100,33 @@ const EvidenceHub = () => {
                         </Box>
                     ))}
             </Box>
+            {base && (
+                <Box sx={{ mt: 4 }} data-testid="report-history">
+                    <Typography variant="h6" className="brand-block" sx={{ mb: 1 }}>
+                        Report history
+                    </Typography>
+                    {reports.length === 0 ? (
+                        <Typography variant="body2" color="text.secondary" data-testid="report-history-empty">
+                            No report has been generated for this project yet.
+                        </Typography>
+                    ) : (
+                        <Box className="brand-steps">
+                            {reports.map((r) => (
+                                <Box key={r.pid} component={Link} to={`${base}/report`} className="brand-step">
+                                    <span className="brand-mono brand-step-svc">
+                                        {r.system_version?.number != null
+                                            ? `AI card v${r.system_version.number}`
+                                            : 'no version'}
+                                    </span>
+                                    <Typography variant="body2" color="text.secondary">
+                                        {r.format.toUpperCase()} · {r.created_at.slice(0, 10)}
+                                    </Typography>
+                                </Box>
+                            ))}
+                        </Box>
+                    )}
+                </Box>
+            )}
         </Box>
     );
 };

@@ -23,6 +23,8 @@ export interface PastReport {
     file_ref: string;
     status: string;
     created_at: string;
+    /** The AI-card version the report snapshots (REP-01); null if none existed. */
+    system_version?: { pid?: string; number?: number; name?: string | null } | null;
     layout_id?: string | null;
     layout_revision?: number | null;
     snapshot_checksum?: string;
