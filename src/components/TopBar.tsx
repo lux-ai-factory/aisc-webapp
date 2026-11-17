@@ -163,8 +163,8 @@ const TopBar: React.FC = () => {
 
 
     return (
-        <AppBar position="fixed" sx={{zIndex: (theme) => theme.zIndex.drawer + 1}} style={{backgroundColor: '#001075'}}>
-            <Toolbar>
+        <AppBar position="fixed" className="brand-appbar" sx={{zIndex: (theme) => theme.zIndex.drawer + 1}}>
+            <Toolbar className="brand-toolbar">
                 <Box style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
 
                     <NavLink
@@ -177,14 +177,15 @@ const TopBar: React.FC = () => {
                     >
                         <Box display="flex" alignItems="center" gap={1}>
                             <img
-                                src="/laif_logo.png"
+                                src="/laif-logo.svg"
                                 alt="Luxembourg AI Factory Logo"
-                                height={50}
+                                height={48}
                             />
                             <Typography
                                 variant="h6"
                                 noWrap
                                 component="div"
+                                className="brand-title"
                                 sx={{ ml: 0 }}
                             >
                                 AISC

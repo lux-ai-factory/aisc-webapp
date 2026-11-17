@@ -220,7 +220,7 @@ export default function PermanentDrawerLeft() {
                         overflow: 'clip',
                     }}
                 >
-                    <Toolbar />
+                    <Toolbar className="brand-toolbar" />
 
                     <Box sx={{width: '100%', maxWidth: isRootPage ? 980 : 'none', mx: isRootPage ? 'auto' : 0}}>
                         <Routes>

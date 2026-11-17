@@ -1,7 +1,109 @@
-/* 
- * Global styles for the AISC web application
- * Contains utility classes for gradients and other global styles
+/*
+ * Global styles for the AISC web application.
+ *
+ * Brand theme (the pilot look): tokens mirror shared/theme/brand.json, fonts are served from
+ * /fonts, and the header follows the shared spec (89px tall, 48px logo, MuseoModerno title).
  */
+
+@font-face {
+  font-family: "MuseoModerno";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/museomoderno-latin-wght-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Raleway";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/raleway-latin-wght-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-mono-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-mono-latin-500-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-mono-latin-600-normal.woff2") format("woff2");
+}
+
+:root {
+  --bg: #f2f3fd;
+  --panel: #ffffff;
+  --panel-2: #f2f3fd;
+  --text: #0b0b2e;
+  --muted: #4a4f6a;
+  --faint: #6b7090;
+  --primary: #000fdf;
+  --primary-hover: #000079;
+  --heading: #000079;
+  --accent: #ff007e;
+  --accent-hover: #cc0066;
+  --info: #0099ff;
+  --info-soft: #ccebff;
+  --pink-soft: #ffcce5;
+  --border: #cccff9;
+  --border-strong: #999ff2;
+  --error: #e30613;
+  --ok: #0a7a45;
+  --radius: 0px;
+  --gutter: 40px;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --brand-header-height: 89px;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Raleway", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+h1, h2, h3, h4 {
+  font-family: "MuseoModerno", ui-sans-serif, system-ui, sans-serif;
+  color: var(--heading);
+}
+
+/* Shared header: 89px tall, hairline bottom border, product title in MuseoModerno. */
+.brand-toolbar {
+  min-height: var(--brand-header-height) !important;
+}
+.brand-appbar {
+  background: rgba(255, 255, 255, 0.82) !important;
+  color: var(--text) !important;
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(8px);
+  box-shadow: none !important;
+}
+.brand-title {
+  font-family: "MuseoModerno", ui-sans-serif, system-ui, sans-serif !important;
+  font-weight: 700 !important;
+  font-size: 19px !important;
+  color: var(--heading) !important;
+  letter-spacing: -0.01em;
+}
+.brand-mono {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
 
 /* Gradient utility class - applies a custom brand gradient from purple to red */
 .gradient {
