@@ -1,7 +1,12 @@
 import { API_VERSION_PREFIX } from '../config';
+import type { SystemVersion } from './qualification';
 
 export const REPORT_SECTIONS = ['system', 'controls', 'objectives', 'evaluations'] as const;
 export type ReportSection = (typeof REPORT_SECTIONS)[number];
+
+/** Output formats the composer offers, and the ones the API accepts. */
+export const REPORT_FORMATS = ['pdf', 'docx'] as const;
+export type ReportFormat = (typeof REPORT_FORMATS)[number];
 
 export interface ReportSettings {
     pid: string;
@@ -18,6 +23,71 @@ export interface PastReport {
     file_ref: string;
     status: string;
     created_at: string;
+    layout_id?: string | null;
+    layout_revision?: number | null;
+    snapshot_checksum?: string;
+    document_checksum?: string;
+}
+
+export interface ReportBlock {
+    instance_id: string;
+    block_type: string;
+    options: Record<string, unknown>;
+}
+
+export interface ReportLayout {
+    id: string;
+    name: string;
+    description: string;
+    blocks: ReportBlock[];
+    show_index: boolean;
+    numbering: boolean;
+    revision: number;
+    built_in: boolean;
+    created_at?: string | null;
+    updated_at?: string | null;
+}
+
+export interface BlockOptionSpec {
+    type: string;
+    default?: unknown;
+    enum?: string[];
+    label?: string;
+}
+
+export interface BlockType {
+    type_id: string;
+    label: string;
+    group: string;
+    options_schema: { properties: Record<string, BlockOptionSpec> };
+    default_options: Record<string, unknown>;
+}
+
+export interface BlockTypeGroup {
+    group: string;
+    types: BlockType[];
+}
+
+export interface OutlineRow {
+    instance_id: string;
+    block_type: string;
+    label: string;
+    number: string;
+    kind: string;
+    empty?: boolean;
+}
+
+export interface LayoutPreview {
+    html: string;
+    outline: OutlineRow[];
+    layout: { id: string; name: string; show_index: boolean; numbering: boolean };
+}
+
+export interface ReportSnapshotView {
+    snapshot: Record<string, unknown>;
+    snapshot_checksum: string;
+    document_checksum: string;
+    format: string;
 }
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
@@ -53,6 +123,94 @@ export function listReports(pid: string): Promise<PastReport[]> {
     return request<PastReport[]>(`/projects/${pid}/reports`);
 }
 
+export function getReportSnapshot(pid: string, reportPid: string): Promise<ReportSnapshotView> {
+    return request<ReportSnapshotView>(`/projects/${pid}/reports/${reportPid}/snapshot`);
+}
+
+export function listSystemVersions(pid: string): Promise<SystemVersion[]> {
+    return request<SystemVersion[]>(`/projects/${pid}/system-versions`);
+}
+
+// --- layouts and blocks ---------------------------------------------------------
+
+export function getReportBlockTypes(
+    pid: string,
+): Promise<{ groups: BlockTypeGroup[]; max_blocks: number }> {
+    return request<{ groups: BlockTypeGroup[]; max_blocks: number }>(
+        `/projects/${pid}/report-block-types`,
+    );
+}
+
+export function listReportLayouts(pid: string): Promise<ReportLayout[]> {
+    return request<ReportLayout[]>(`/projects/${pid}/report-layouts`);
+}
+
+export function createReportLayout(
+    pid: string,
+    data: {
+        name: string;
+        description?: string;
+        blocks: ReportBlock[];
+        show_index?: boolean;
+        numbering?: boolean;
+    },
+): Promise<ReportLayout> {
+    return request<ReportLayout>(`/projects/${pid}/report-layouts`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+}
+
+export function updateReportLayout(
+    pid: string,
+    layoutId: string,
+    data: {
+        name: string;
+        description?: string;
+        blocks: ReportBlock[];
+        show_index?: boolean;
+        numbering?: boolean;
+    },
+): Promise<ReportLayout> {
+    return request<ReportLayout>(`/projects/${pid}/report-layouts/${layoutId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+    });
+}
+
+export function deleteReportLayout(pid: string, layoutId: string): Promise<void> {
+    return request<void>(`/projects/${pid}/report-layouts/${layoutId}`, { method: 'DELETE' });
+}
+
+export function duplicateReportLayout(pid: string, layoutId: string, name = ''): Promise<ReportLayout> {
+    return request<ReportLayout>(`/projects/${pid}/report-layouts/${layoutId}/duplicate`, {
+        method: 'POST',
+        body: JSON.stringify({ name }),
+    });
+}
+
+export function exportReportLayout(pid: string, layoutId: string): Promise<Record<string, unknown>> {
+    return request<Record<string, unknown>>(`/projects/${pid}/report-layouts/${layoutId}/export`);
+}
+
+export function importReportLayout(pid: string, file: Record<string, unknown>): Promise<ReportLayout> {
+    return request<ReportLayout>(`/projects/${pid}/report-layouts/import`, {
+        method: 'POST',
+        body: JSON.stringify(file),
+    });
+}
+
+export function previewReportLayout(
+    pid: string,
+    layoutId: string,
+    data: { version_pid?: string; period?: string; blocks?: ReportBlock[] } = {},
+): Promise<LayoutPreview> {
+    return request<LayoutPreview>(`/projects/${pid}/report-layouts/${layoutId}/preview`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+}
+
 export function generateReport(
     pid: string,
     data: {
@@ -60,6 +218,10 @@ export function generateReport(
         format: string;
         evaluation_pids: string[];
         sections: string[];
+        layout_id?: string;
+        version_pid?: string;
+        other_versions?: boolean;
+        compare_to?: string;
     },
 ): Promise<PastReport> {
     return request<PastReport>(`/projects/${pid}/reports/generate`, {
@@ -72,28 +234,32 @@ export function reportDocumentUrl(pid: string, reportPid: string): string {
     return `${API_URL}/projects/${pid}/reports/${reportPid}/pdf`;
 }
 
-async function fetchReportDocument(pid: string, reportPid: string): Promise<Blob> {
-    const res = await fetch(reportDocumentUrl(pid, reportPid));
+export function reportDownloadUrl(pid: string, reportPid: string): string {
+    return `${API_URL}/projects/${pid}/reports/${reportPid}/download`;
+}
+
+async function fetchReportDocument(url: string): Promise<Blob> {
+    const res = await fetch(url);
     if (!res.ok) throw new Error(`cannot fetch report: ${res.status}`);
     return await res.blob();
 }
 
-/** Open the report in a new tab. Uses fetch so the auth token is attached
+/** Open the report's PDF in a new tab. Uses fetch so the auth token is attached
 (browsers do not send Authorization on a plain navigation to the API). */
 export async function openReportDocument(pid: string, reportPid: string): Promise<void> {
-    const blob = await fetchReportDocument(pid, reportPid);
+    const blob = await fetchReportDocument(reportDocumentUrl(pid, reportPid));
     const url = URL.createObjectURL(blob);
     window.open(url, '_blank', 'noopener');
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-/** Download the report through fetch (auth-friendly), not a plain anchor. */
+/** Download the report's primary document (PDF or Word) through fetch. */
 export async function downloadReportDocument(
     pid: string,
     reportPid: string,
     format: string,
 ): Promise<void> {
-    const blob = await fetchReportDocument(pid, reportPid);
+    const blob = await fetchReportDocument(reportDownloadUrl(pid, reportPid));
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

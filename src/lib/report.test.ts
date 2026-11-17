@@ -1,5 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { cleanSections, getReportSettings, REPORT_SECTIONS, setReportSettings } from './report';
+import {
+    cleanSections,
+    generateReport,
+    getReportSettings,
+    listReportLayouts,
+    previewReportLayout,
+    reportDownloadUrl,
+    REPORT_FORMATS,
+    REPORT_SECTIONS,
+    setReportSettings,
+    updateReportLayout,
+} from './report';
 
 function mockFetchOnce(payload: unknown, status = 200) {
     const fn = vi.fn().mockResolvedValue({
@@ -57,5 +68,61 @@ describe('cleanSections', () => {
     it('drops unknown section keys', () => {
         expect(cleanSections(['system', 'nope', 'evaluations'])).toEqual(['system', 'evaluations']);
         expect(REPORT_SECTIONS).toEqual(['system', 'controls', 'objectives', 'evaluations']);
+    });
+});
+
+describe('report layouts api', () => {
+    it('lists layouts with GET', async () => {
+        const fetch = mockFetchOnce([{ id: 'builtin-summary', name: 'Summary', built_in: true }]);
+        const out = await listReportLayouts('p1');
+        expect(out[0]!.id).toBe('builtin-summary');
+        expect(fetch).toHaveBeenCalledWith(
+            expect.stringContaining('/projects/p1/report-layouts'),
+            expect.objectContaining({ headers: { 'Content-Type': 'application/json' } }),
+        );
+    });
+
+    it('updates a layout with PUT and its blocks', async () => {
+        const fetch = mockFetchOnce({ id: 'L1', revision: 2 });
+        await updateReportLayout('p1', 'L1', { name: 'Mine', blocks: [] });
+        const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
+        expect(url).toContain('/projects/p1/report-layouts/L1');
+        expect(init.method).toBe('PUT');
+        expect(JSON.parse(init.body as string)).toMatchObject({ name: 'Mine', blocks: [] });
+    });
+
+    it('previews a layout with POST', async () => {
+        const fetch = mockFetchOnce({ html: '<html></html>', outline: [], layout: {} });
+        await previewReportLayout('p1', 'builtin-summary', { version_pid: 'v1' });
+        const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
+        expect(url).toContain('/report-layouts/builtin-summary/preview');
+        expect(init.method).toBe('POST');
+        expect(JSON.parse(init.body as string)).toMatchObject({ version_pid: 'v1' });
+    });
+});
+
+describe('report generation api', () => {
+    it('sends the layout and version on generate', async () => {
+        const fetch = mockFetchOnce({ pid: 'r1' });
+        await generateReport('p1', {
+            period: '2026-Q3',
+            format: 'docx',
+            evaluation_pids: [],
+            sections: ['system'],
+            layout_id: 'builtin-summary',
+            version_pid: 'v1',
+        });
+        const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
+        expect(url).toContain('/projects/p1/reports/generate');
+        expect(JSON.parse(init.body as string)).toMatchObject({
+            format: 'docx',
+            layout_id: 'builtin-summary',
+            version_pid: 'v1',
+        });
+    });
+
+    it('downloads through the /download endpoint and offers PDF and Word', () => {
+        expect(reportDownloadUrl('p1', 'r1')).toContain('/projects/p1/reports/r1/download');
+        expect(REPORT_FORMATS).toEqual(['pdf', 'docx']);
     });
 });
