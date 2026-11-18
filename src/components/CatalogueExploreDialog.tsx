@@ -29,6 +29,7 @@ import {
     filterCatalogue,
     allTags,
     childrenOf,
+    unmatchedByDimensions,
     Catalogue,
     CatalogueControl,
     CatalogueDimension,
@@ -88,11 +89,13 @@ async function installItem(
 function ControlCard({
     item,
     installed,
+    unmatched,
     onInstall,
     onUninstall,
 }: {
     item: CatalogueControl;
     installed: boolean;
+    unmatched?: boolean;
     onInstall: () => void;
     onUninstall: () => void;
 }) {
@@ -117,6 +120,9 @@ function ControlCard({
                     {itemTags.slice(0, 3).map((t) => (
                         <Chip key={t} label={t} size="small" variant="outlined" />
                     ))}
+                    {unmatched && (
+                        <Chip label="no catalogue dimension" size="small" color="warning" variant="outlined" />
+                    )}
                     {installed && <Chip label="installed" size="small" color="success" />}
                 </>
             }
@@ -127,11 +133,13 @@ function ControlCard({
 function PluginCard({
     item,
     installed,
+    unmatched,
     onInstall,
     onUninstall,
 }: {
     item: CataloguePlugin;
     installed: boolean;
+    unmatched?: boolean;
     onInstall: () => void;
     onUninstall: () => void;
 }) {
@@ -165,6 +173,9 @@ function PluginCard({
                     {(item.tags ?? []).slice(0, 3).map((t) => (
                         <Chip key={t} label={t} size="small" variant="outlined" />
                     ))}
+                    {unmatched && (
+                        <Chip label="no catalogue dimension" size="small" color="warning" variant="outlined" />
+                    )}
                     {installed && <Chip label="installed" size="small" color="success" />}
                 </>
             }
@@ -404,6 +415,7 @@ export default function CatalogueExploreDialog({
                                     <ControlCard
                                         item={c}
                                         installed={isInstalled(key)}
+                                        unmatched={unmatchedByDimensions(c, dimensions)}
                                         onInstall={async () => {
                                             const ok = await installItem(projectPid, c.catalogue_id, 'control');
                                             if (ok) {
@@ -423,6 +435,7 @@ export default function CatalogueExploreDialog({
                                     <PluginCard
                                         item={p}
                                         installed={isInstalled(key)}
+                                        unmatched={unmatchedByDimensions(p, dimensions)}
                                         onInstall={async () => {
                                             const ok = await installItem(
                                                 projectPid,

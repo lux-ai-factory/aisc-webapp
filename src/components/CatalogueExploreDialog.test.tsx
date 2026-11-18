@@ -176,13 +176,17 @@ describe('CatalogueExploreDialog plugin view', () => {
     it('offers the switch and narrows plugins by their catalogue test item', () => {
         render(['diversity-non-discrimination-fairness'], 'plugin', PLUGINS);
         expect(document.body.textContent).toContain('For this project');
-        expect(titles()).toEqual(['LangBiTe']);
+        // a plugin the catalogue does not list carries no dimension to match: it is
+        // kept and marked rather than silently dropped from a filtered listing
+        expect(titles()).toEqual(['LangBiTe', 'Ours']);
+        expect(document.body.textContent).toContain('no catalogue dimension');
     });
 
-    it('off, it shows every plugin, including the one the catalogue does not list', () => {
+    it('off, it shows every plugin and drops the mark', () => {
         render(['diversity-non-discrimination-fairness'], 'plugin', PLUGINS);
         const toggle = document.body.querySelector('input[type="checkbox"]') as HTMLInputElement;
         act(() => toggle.click());
         expect(titles()).toEqual(['LangBiTe', 'Ours']);
+        expect(document.body.textContent).not.toContain('no catalogue dimension');
     });
 });

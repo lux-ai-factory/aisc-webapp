@@ -6,6 +6,7 @@ import {
     filterCatalogue,
     allTags,
     inDimensions,
+    unmatchedByDimensions,
     childrenOf,
     Catalogue,
     CatalogueControl,
@@ -158,14 +159,18 @@ describe('filterCatalogue by dimension', () => {
         expect(out.plugins).toHaveLength(0);
     });
 
-    it('a plugin the catalogue does not list carries no dimension and is hidden', () => {
+    it('a plugin the catalogue does not list is kept under a filter and marked', () => {
         const unlisted: Catalogue = {
             ...cat,
             plugins: [{ package_name: 'ours', version: '1.0', source: 'local' }],
         };
-        expect(filterCatalogue(unlisted, '', [], 'plugins', ['privacy-data-governance']).plugins)
-            .toHaveLength(0);
+        const filtered = filterCatalogue(
+            unlisted, '', [], 'plugins', ['privacy-data-governance'],
+        ).plugins;
+        expect(filtered).toHaveLength(1);
+        expect(unmatchedByDimensions(filtered[0], ['privacy-data-governance'])).toBe(true);
         expect(filterCatalogue(unlisted, '', [], 'plugins', []).plugins).toHaveLength(1);
+        expect(unmatchedByDimensions(filtered[0], [])).toBe(false);
     });
 
     it('no dimensions means no narrowing', () => {

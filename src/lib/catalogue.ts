@@ -118,6 +118,22 @@ export function inDimensions(
     return (item.dimensions ?? []).some((d) => dimensions.includes(d));
 }
 
+/**
+ * An item under an active dimension filter that carries no dimension at all.
+ *
+ * Such an item cannot be judged against the filter — a plugin the hosted
+ * catalogue does not list has nothing to match. Keeping it and marking it is
+ * deliberate: dropping it would make a local-only plugin disappear from a
+ * filtered listing with nothing said. (The pilot hides it; recorded as a
+ * deviation in docs/refactor-deviations.md.)
+ */
+export function unmatchedByDimensions(
+    item: { dimensions?: string[] },
+    dimensions: string[],
+): boolean {
+    return dimensions.length > 0 && (item.dimensions ?? []).length === 0;
+}
+
 /** The catalogue's own children of a dimension: the pilot's sidebar's leaves. */
 export function childrenOf(
     tree: CatalogueSubdimension[] | undefined,
@@ -167,14 +183,17 @@ export function filterCatalogue(
         );
     };
 
+    // A dimension-less item (a plugin the hosted catalogue does not list) is kept under
+    // an active filter and marked by the caller instead of silently disappearing; an
+    // item that *has* dimensions but none of ours is filtered out as before.
     const plugins = catalogue.plugins
         .filter((p) => kind !== 'controls' && tagHit(p.tags?.length ? p.tags : [p.source]))
-        .filter((p) => inDimensions(p, dimensions))
+        .filter((p) => inDimensions(p, dimensions) || unmatchedByDimensions(p, dimensions))
         .filter((p) => !query || scorePlugin(p) > 0)
         .sort((a, b) => scorePlugin(b) - scorePlugin(a));
     const controls = catalogue.controls
         .filter((c) => kind !== 'plugins' && tagHit(c.tags))
-        .filter((c) => inDimensions(c, dimensions))
+        .filter((c) => inDimensions(c, dimensions) || unmatchedByDimensions(c, dimensions))
         .filter((c) => !query || scoreControl(c) > 0)
         .sort((a, b) => scoreControl(b) - scoreControl(a));
 
