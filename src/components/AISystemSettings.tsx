@@ -1,15 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
     Box, Button, Card, CardContent, Chip, CircularProgress,
-    Divider, IconButton, List,
+    Divider, Icon, IconButton, List,
     MenuItem, Stack, TextField, Tooltip, Typography,
 } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import AddIcon from "@mui/icons-material/Add";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
-import DeleteIcon from "@mui/icons-material/Delete";
-import DownloadIcon from "@mui/icons-material/Download";
-import EditIcon from "@mui/icons-material/Edit";
 import LinkIcon from "@mui/icons-material/Link";
 import toast from "react-hot-toast";
 import { useProject } from "../context/ProjectContext";
@@ -167,6 +164,10 @@ export default function AISystemSettings() {
     const [saving, setSaving] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const datashapeFileInputRef = useRef<HTMLInputElement>(null);
+
+    // delete confirmation
+    const [pendingDelete, setPendingDelete] = useState<AIComponent | null>(null);
+    const [deleting, setDeleting] = useState(false);
 
     // edit-dialog state
     const [editTarget, setEditTarget] = useState<AIComponent | null>(null);
@@ -336,9 +337,21 @@ export default function AISystemSettings() {
         }
     };
 
-    const remove = async (pid: string) => {
-        await fetch(`${API_URL}/components/${pid}`, { method: "DELETE" });
-        refresh();
+    const remove = async () => {
+        if (!pendingDelete) return;
+        setDeleting(true);
+        try {
+            const res = await fetch(`${API_URL}/components/${pendingDelete.pid}`, { method: "DELETE" });
+            if (!res.ok) {
+                toast.error(`Could not delete \`${pendingDelete.name}\``, { position: 'bottom-right' });
+                return;
+            }
+            setPendingDelete(null);
+            toast.success(`Component \`${pendingDelete.name}\` deleted`, { position: 'bottom-right' });
+            refresh();
+        } finally {
+            setDeleting(false);
+        }
     };
 
     const startEdit = (c: AIComponent) => {
@@ -509,22 +522,22 @@ export default function AISystemSettings() {
                             <Grid key={c.pid} size={{ xs: 12, md: 6, lg: 4 }}>
                                 <Card variant="outlined" className="gradient-card" sx={{ height: "100%" }}>
                                     <CardContent sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-                                        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ gap: 1 }}>
+                                        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ gap: 1 }}>
                                             <Tooltip title={c.pid} placement="top">
-                                                <Typography variant="subtitle1" fontWeight={600} noWrap>
+                                                <Typography variant="subtitle1" fontWeight={600} noWrap sx={{ minWidth: 0, flex: 1 }}>
                                                     {c.name}
                                                 </Typography>
                                             </Tooltip>
-                                            <Stack direction="row" sx={{ alignItems: "center", gap: 0.5 }}>
+                                            <Stack direction="row" sx={{ alignItems: "center", gap: 0.5, flexShrink: 0 }}>
                                                 {(uploaded || c.component_type === "datashape") && (
                                                     <Tooltip title="Download file" placement="top">
-                                                        <IconButton size="small" color="primary" onClick={() => handleCardDownload(c)}>
-                                                            <DownloadIcon fontSize="small" />
+                                                        <IconButton size="small" color="primary" aria-label={`Download ${c.name}`} onClick={() => handleCardDownload(c)}>
+                                                            <Icon fontSize="small">download</Icon>
                                                         </IconButton>
                                                     </Tooltip>
                                                 )}
-                                                <IconButton size="small" onClick={() => startEdit(c)}><EditIcon fontSize="small" /></IconButton>
-                                                <IconButton size="small" color="error" onClick={() => remove(c.pid)}><DeleteIcon fontSize="small" /></IconButton>
+                                                <IconButton size="small" aria-label={`Edit ${c.name}`} onClick={() => startEdit(c)}><Icon fontSize="small">edit</Icon></IconButton>
+                                                <IconButton size="small" color="error" aria-label={`Delete ${c.name}`} onClick={() => setPendingDelete(c)}><Icon fontSize="small">delete</Icon></IconButton>
                                             </Stack>
                                         </Stack>
 
@@ -690,6 +703,29 @@ export default function AISystemSettings() {
                             <input ref={editFileInputRef} hidden type="file" onChange={(e) => setEditFile(e.target.files?.[0])} />
                         </Stack>
                     )}
+            </AppDialog>
+
+            {/* Delete confirmation */}
+            <AppDialog
+                open={pendingDelete !== null}
+                onClose={() => setPendingDelete(null)}
+                maxWidth="xs"
+                fullWidth
+                title="Delete component"
+                actions={
+                    <>
+                        <Button onClick={() => setPendingDelete(null)} variant="outlined" disabled={deleting}>
+                            Cancel
+                        </Button>
+                        <Button variant="contained" color="error" disabled={deleting} onClick={() => void remove()}>
+                            {deleting ? "Deleting..." : "Delete"}
+                        </Button>
+                    </>
+                }
+            >
+                <Typography>
+                    Delete "{pendingDelete?.name}"? This cannot be undone.
+                </Typography>
             </AppDialog>
         </Box>
     );
