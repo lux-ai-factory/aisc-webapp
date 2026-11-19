@@ -85,6 +85,13 @@ async function renderPage() {
     }
 }
 
+/** The risk card itself (the whole card opens the edit dialog). */
+function riskCard(): HTMLElement {
+    return Array.from(document.body.querySelectorAll('.MuiCard-root')).find(
+        (c) => (c.textContent ?? '').includes('Poisoned training data'),
+    ) as HTMLElement;
+}
+
 describe('RiskRegister', () => {
     it('renders the register with the risks rated by the assessor', async () => {
         await renderPage();
@@ -117,12 +124,8 @@ describe('RiskRegister', () => {
             }),
         );
         await renderPage();
-        const edit = Array.from(document.body.querySelectorAll('button')).find(
-            (b) => b.getAttribute('aria-label') === 'Edit risk',
-        );
-        expect(edit).toBeTruthy();
         await act(async () => {
-            edit!.click();
+            riskCard().click();
         });
         await act(async () => {});
         const rationale = Array.from(document.body.querySelectorAll('textarea')).find(
@@ -148,12 +151,8 @@ describe('RiskRegister', () => {
 
     it('the edit-risk dialog offers only the enabled control objectives', async () => {
         await renderPage();
-        const edit = Array.from(document.body.querySelectorAll('button')).find(
-            (b) => b.getAttribute('aria-label') === 'Edit risk',
-        );
-        expect(edit).toBeTruthy();
         await act(async () => {
-            edit!.click();
+            riskCard().click();
         });
         await act(async () => {});
         const text = document.body.textContent ?? '';
@@ -262,9 +261,7 @@ describe('RiskRegister', () => {
     it('the dialog shows the risk history and navigates an old version', async () => {
         await renderPage();
         await act(async () => {
-            document
-                .querySelector('button[aria-label="Edit risk"]')!
-                .dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            riskCard().dispatchEvent(new MouseEvent('click', { bubbles: true }));
         });
         await act(async () => {});
         const versionButton = Array.from(document.body.querySelectorAll('button')).find(

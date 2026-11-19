@@ -279,6 +279,7 @@ export default function RiskRegisterSection({
                             <Grid key={risk.pid} size={{ xs: 12, md: 6, lg: 4 }}>
                                 <AppCard
                                     active
+                                    onClick={() => openEdit(risk)}
                                     header={
                                         <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ gap: 1 }}>
                                             <Tooltip title={risk.name || `Risk ${risk.position}`} placement="top">
@@ -286,31 +287,23 @@ export default function RiskRegisterSection({
                                                     {risk.name || `Risk ${risk.position}`}
                                                 </Typography>
                                             </Tooltip>
-                                            <Stack direction="row" sx={{ alignItems: 'center', gap: 0.5 }}>
-                                                <Chip
-                                                    label={`${rating > 0 ? rating : '—'} · ${band.label}`}
-                                                    size="small"
-                                                    color={band.color}
-                                                    variant={band.color === 'default' ? 'outlined' : 'filled'}
-                                                />
-                                                <Tooltip title="Edit risk" placement="top">
-                                                    <IconButton size="small" aria-label="Edit risk" onClick={() => openEdit(risk)}>
-                                                        <Icon fontSize="small">edit</Icon>
+                                            <Tooltip title="Delete risk" placement="top">
+                                                <span>
+                                                    <IconButton
+                                                        size="small"
+                                                        color="error"
+                                                        aria-label="Delete risk"
+                                                        disabled={busy}
+                                                        onClick={(e) => {
+                                                            // the whole card opens the editor; delete must not
+                                                            e.stopPropagation();
+                                                            void removeRisk(risk);
+                                                        }}
+                                                    >
+                                                        <Icon fontSize="small">delete</Icon>
                                                     </IconButton>
-                                                </Tooltip>
-                                                <Tooltip title="Delete risk" placement="top">
-                                                    <span>
-                                                        <IconButton
-                                                            size="small"
-                                                            color="error"
-                                                            disabled={busy}
-                                                            onClick={() => void removeRisk(risk)}
-                                                        >
-                                                            <Icon fontSize="small">delete</Icon>
-                                                        </IconButton>
-                                                    </span>
-                                                </Tooltip>
-                                            </Stack>
+                                                </span>
+                                            </Tooltip>
                                         </Stack>
                                     }
                                 >
@@ -331,11 +324,18 @@ export default function RiskRegisterSection({
 
                                         <Box sx={{ mt: 'auto', pt: 2, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                                             <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
+                                                <Chip
+                                                    label={`${rating > 0 ? rating : '—'} · ${band.label}`}
+                                                    size="small"
+                                                    sx={{ height: 22, fontWeight: 600 }}
+                                                    color={band.color}
+                                                    variant={band.color === 'default' ? 'outlined' : 'filled'}
+                                                />
                                                 <Chip label={`Impact: ${risk.impact ?? '—'}`} size="small" sx={{ height: 22, fontWeight: 600, bgcolor: '#7c3aed', color: '#fff' }} />
                                                 <Chip label={`Likelihood: ${risk.likelihood ?? '—'}`} size="small" sx={{ height: 22, fontWeight: 600, bgcolor: '#ea580c', color: '#fff' }} />
-                                                <Chip label={`${mapped.length} objective${mapped.length === 1 ? '' : 's'}`} size="small" variant="outlined" sx={{ height: 22, fontWeight: 600 }} />
                                             </Stack>
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
+                                                <Chip label={`${mapped.length} objective${mapped.length === 1 ? '' : 's'}`} size="small" variant="outlined" sx={{ height: 22, fontWeight: 600 }} />
                                                 {mapped.map((id) => (
                                                     <Chip key={id} label={objectivesById.get(id)?.id ?? id} size="small" color="primary" variant="outlined" />
                                                 ))}
