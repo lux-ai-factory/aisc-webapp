@@ -28,10 +28,21 @@ const plugin: Plugin = {
     status: 'ok',
 };
 
+const otherPlugin: Plugin = { ...plugin, pid: 'plg-2', name: 'OtherPlugin', package_name: 'other-pkg', display_name: 'Other', plugin_pid: 'plg-2' };
+
+// the tests the project offers, and what the engine answers to a launch
+let offered: Plugin[];
+let launchAnswer: { status: number; body: unknown };
+
 beforeEach(() => {
     sessionStorage.clear();
-    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+    offered = [plugin];
+    launchAnswer = { status: 200, body: { pid: 'run-1' } };
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input);
+        if (url.endsWith('/evaluations/task') && init?.method === 'POST') {
+            return { ok: launchAnswer.status < 400, status: launchAnswer.status, json: async () => launchAnswer.body } as Response;
+        }
         if (url.includes('/display_icon')) {
             return { ok: true, json: async () => 'extension' } as Response;
         }
@@ -55,6 +66,10 @@ beforeEach(() => {
                         dataset: { component_pid: 'comp-dataset', value: {} },
                         model: { component_pid: 'comp-model', value: {} },
                     },
+                    OtherPlugin: {
+                        dataset: { component_pid: 'comp-dataset', value: {} },
+                        model: { component_pid: 'comp-model', value: {} },
+                    },
                 }),
             } as Response;
         }
@@ -64,7 +79,7 @@ beforeEach(() => {
                 json: async () => ({
                     pid: 'proj-1',
                     name: 'P',
-                    plugins: [plugin],
+                    plugins: offered,
                     components: [
                         { pid: 'comp-dataset', name: 'Dataset A', component_type: 'dataset' },
                         { pid: 'comp-model', name: 'Model A', component_type: 'model' },
@@ -164,5 +179,50 @@ it("never restores another project's selections in this tab", async () => {
     // this project's own last-used values come back (the template), not the other project's
     await waitForHtml(el => (el.textContent || '').includes('Dataset A'), container);
     expect(sessionStorage.getItem('start-eval-selections:proj-1') ?? '').not.toContain('comp-of-another-project');
+    container.remove();
+});
+
+function ticked(container: HTMLElement): number {
+    return container.querySelectorAll('[data-testid="CheckCircleIcon"]').length;
+}
+
+async function launchButton(container: HTMLElement): Promise<HTMLButtonElement> {
+    await waitForHtml(el => {
+        const b = [...el.querySelectorAll('button')].find(x => (x.textContent || '').includes('Launch Evaluation'));
+        return !!b && !b.disabled;
+    }, container);
+    return [...container.querySelectorAll('button')].find(x => (x.textContent || '').includes('Launch Evaluation')) as HTMLButtonElement;
+}
+
+it('a launch clears every tick', async () => {
+    offered = [plugin, otherPlugin];
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    mountPage(container);
+    await waitForHtml(el => ticked(el) === 2, container);
+
+    const launch = await launchButton(container);
+    await act(async () => { launch.click(); });
+    await waitForHtml(el => ticked(el) === 0, container);
+
+    expect(ticked(container)).toBe(0);
+    const saved = JSON.parse(sessionStorage.getItem('start-eval-selections:proj-1') ?? '{}');
+    expect(saved.selectedPlugins).toEqual({});
+    container.remove();
+});
+
+it('a refused launch keeps the ticks', async () => {
+    offered = [plugin, otherPlugin];
+    launchAnswer = { status: 400, body: { detail: { message: 'Required project settings are missing or invalid', missing: [], invalid: [], ambiguous: [] } } };
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    mountPage(container);
+    await waitForHtml(el => ticked(el) === 2, container);
+
+    const launch = await launchButton(container);
+    await act(async () => { launch.click(); });
+    await waitForHtml(el => (el.textContent || '').includes('Go to Project Settings'), container);
+
+    expect(ticked(container)).toBe(2);
     container.remove();
 });

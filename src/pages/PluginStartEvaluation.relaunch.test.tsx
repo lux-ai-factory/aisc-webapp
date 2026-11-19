@@ -174,3 +174,49 @@ it('opening the card brings back the judge of the last run', async () => {
     });
     container.remove();
 });
+
+it('ticking a test again after a launch brings back its last inputs, judge included', { timeout: 20000 }, async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => {
+        root.render(
+            <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+                <MemoryRouter>
+                    <ProjectProvider>
+                        <ProjectUUIDSetter uuid={PROJECT} />
+                        <PluginStartEvaluation />
+                    </ProjectProvider>
+                </MemoryRouter>
+            </QueryClientProvider>,
+        );
+    });
+    const launchButton = () => [...container.querySelectorAll('button')].find(b => (b.textContent || '').includes('Launch Evaluation'))!;
+
+    await settle(container, el => (el.textContent || '').includes('Mijke jailbreak prompts'));
+    await settle(container, () => !launchButton().disabled);
+    await act(async () => { launchButton().click(); });
+    await settle(container, () => launched !== null);
+    expect(launched, 'the first launch was sent').not.toBeNull();
+
+    // the launch cleared the tick: nothing to launch until the test is ticked again
+    await settle(container, () => launchButton().disabled);
+    expect(launchButton().disabled).toBe(true);
+    launched = null;
+
+    const card = container.querySelector('[data-plugin-card]') as HTMLElement;
+    await act(async () => { card.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
+    await settle(container, () => !launchButton().disabled);
+    await act(async () => { launchButton().click(); });
+    await settle(container, () => launched !== null);
+
+    expect(launched, 'the second launch was sent').not.toBeNull();
+    const inputs = launched!.plugins_to_run[0].inputs;
+    expect(inputs.some(i => i.name === 'forbidden-prompts-file')).toBe(true);
+    expect(inputs.find(i => i.name === 'helper:judge')).toMatchObject({
+        input_type: 'helper',
+        helper_ref: JUDGE_REF,
+        value: { model: 'gpt-judge' },
+    });
+    container.remove();
+});

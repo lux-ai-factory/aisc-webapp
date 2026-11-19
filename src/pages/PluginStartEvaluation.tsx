@@ -186,6 +186,12 @@ export default function PluginStartEvaluation() {
             await createEvaluation(projectUUID, Object.fromEntries(validEntries), project?.plugins ?? [],
                 newLaunchKey(), runName);
             setRunName('');
+            // as if every launched test were unticked: its inputs wait in the cache for the next tick
+            setSelectionCache(prev => ({ ...prev, ...Object.fromEntries(validEntries) }));
+            setSelectedPlugins({});
+            // validPlugins is not cleared: each card reports its validity only when it changes, and a card
+            // whose inputs stay valid would never report again once its test is ticked anew
+            setActivePlugin(null);
         } catch (error) {
             // the engine's structured settings refusal is shown as its panel; any other reason once, as a toast
             const detail = error instanceof LaunchRefused ? error.settings : null;
@@ -315,7 +321,7 @@ export default function PluginStartEvaluation() {
                         variant="contained"
                         className="gradient-btn"
                         onClick={handleOnClick}
-                        disabled={launching || Object.values(validPlugins).filter(Boolean).length === 0}
+                        disabled={launching || !Object.keys(selectedPlugins).some(name => validPlugins[name])}
                         sx={{
                             minWidth: {xs: '44px', md: 'auto'},
                             px: {xs: 1.5, md: 3},
