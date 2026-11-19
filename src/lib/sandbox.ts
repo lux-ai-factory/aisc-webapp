@@ -5,6 +5,11 @@ export interface SandboxRun {
     status: string;
     created_at?: string;
     task?: string | null;
+    evaluation_plugins?: Array<{
+        name?: string;
+        display_name?: string;
+        version?: string;
+    }>;
 }
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { API_VERSION_PREFIX } from "../../config.tsx";
-import { MenuItem, Select, Box } from "@mui/material";
+import { MenuItem, Select } from "@mui/material";
 import HistoryIcon from '@mui/icons-material/History';
 import { PluginConfig } from "../../models/models.tsx";
 import toast from "react-hot-toast";
@@ -55,34 +55,33 @@ export default function ConfigHistory({ pluginPID, onRestore }: ConfigHistoryPro
     const empty = history.length === 0;
 
     return (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <HistoryIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
-            <Select
-                size="small"
-                displayEmpty
-                value=""
-                className='plugin-config-select'
-                sx={{ minWidth: 170 }}
-                MenuProps={{
-                    PaperProps: {
-                        className: 'plugin-config-menu',
-                    },
-                }}
-                renderValue={() => 'Config history'}
-                onChange={(e) => restoreMutation.mutate(Number(e.target.value))}
-            >
-                {empty ? (
-                    <MenuItem value="" disabled>
-                        No saved configs
+        <Select
+            size="small"
+            displayEmpty
+            value=""
+            className='plugin-config-select'
+            sx={{ minWidth: 170 }}
+            // the history icon leads the dropdown's "Config history" label
+            startAdornment={<HistoryIcon sx={{ fontSize: 18, color: 'text.secondary', mr: 0.5 }} />}
+            MenuProps={{
+                PaperProps: {
+                    className: 'plugin-config-menu',
+                },
+            }}
+            renderValue={() => 'Config history'}
+            onChange={(e) => restoreMutation.mutate(Number(e.target.value))}
+        >
+            {empty ? (
+                <MenuItem value="" disabled>
+                    No saved configs
+                </MenuItem>
+            ) : (
+                history.map((c) => (
+                    <MenuItem key={c.id} value={c.id}>
+                        {new Date(c.created_at).toLocaleString()}
                     </MenuItem>
-                ) : (
-                    history.map((c) => (
-                        <MenuItem key={c.id} value={c.id}>
-                            {new Date(c.created_at).toLocaleString()}
-                        </MenuItem>
-                    ))
-                )}
-            </Select>
-        </Box>
+                ))
+            )}
+        </Select>
     );
 }

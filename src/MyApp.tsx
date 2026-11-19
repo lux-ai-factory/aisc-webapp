@@ -51,6 +51,9 @@ const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 const SHOW_CELERY_TASKS =
     String(import.meta.env.VITE_SHOW_CELERY_TASKS).toLowerCase() === 'true';
 
+const AUTH_ENABLED =
+    String(import.meta.env.VITE_AUTH_ENABLED || 'true').toLowerCase() !== 'false';
+
 
 type ProjectContextWrapperProps = {
     children: React.ReactNode;
@@ -92,6 +95,12 @@ const ProjectContextWrapper: React.FC<ProjectContextWrapperProps> = ({ children 
  */
 export default function PermanentDrawerLeft() {
     const location = useLocation();
+    const { roles } = useAuth();
+
+    // Admin-only monitoring shows when SHOW_CELERY_TASKS is on; without auth,
+    // roles is empty, so treat a disabled AUTH_ENABLED as "admin" for the gate.
+    const showMonitoring =
+        SHOW_CELERY_TASKS && (roles.includes('admin') || !AUTH_ENABLED);
 
     /**
      * Navigation configuration array
@@ -117,7 +126,7 @@ export default function PermanentDrawerLeft() {
         { id: 8, name: 'Plugin Evaluations', path: '/projects/:project_name/plugins/evaluations', element: <ProjectContextWrapper><PluginEvaluations /></ProjectContextWrapper> },
         { id: 9, name: 'Plugin Evaluation Measurements', path: '/projects/:project_name/plugins/evaluations/:evaluation_uuid', element: <ProjectContextWrapper><PluginEvaluationMeasurements /></ProjectContextWrapper> },
         { id: 10, name: 'Plugin Evaluations Tasks', path: '/projects/:project_name/plugins/evaluations/tasks', element: <ProjectContextWrapper><PluginEvaluationsTasks /></ProjectContextWrapper> },
-        ...(SHOW_CELERY_TASKS ? [{ id: 12, name: 'Tasks', path: '/projects/:project_name/tasks', element: <ProjectContextWrapper><CeleryTasks /></ProjectContextWrapper> }] : []),
+        ...(showMonitoring ? [{ id: 12, name: 'Tasks', path: '/projects/:project_name/tasks', element: <ProjectContextWrapper><CeleryTasks /></ProjectContextWrapper> }] : []),
         { id: 20, name: 'Qualification', path: '/projects/:project_name/qualification', element: <ProjectContextWrapper><QualificationPage /></ProjectContextWrapper> },
         { id: 26, name: 'Control objectives', path: '/projects/:project_name/control-objectives', element: <ProjectContextWrapper><ControlObjectivesPage /></ProjectContextWrapper> },
         { id: 28, name: 'Risk register', path: '/projects/:project_name/risks', element: <ProjectContextWrapper><RiskRegister /></ProjectContextWrapper> },

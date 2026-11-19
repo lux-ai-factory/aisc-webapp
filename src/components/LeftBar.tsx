@@ -27,7 +27,13 @@ import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
 import {Box, Icon, IconButton, Tooltip} from '@mui/material';
 import {styled} from '@mui/material/styles';
 import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { useProject } from '../context/ProjectContext';
+
+// Roles are empty when AUTH is disabled, so the admin gate falls back to true
+// (mirror of the backend: require_role bypasses when AUTH_ENABLED is false).
+const AUTH_ENABLED =
+    String(import.meta.env.VITE_AUTH_ENABLED || 'true').toLowerCase() !== 'false';
 
 /**
  * Props interface for the MenuList component
@@ -222,6 +228,8 @@ const Drawer = styled(MuiDrawer, {
  */
 export default function LeftBar({ drawerWidth, expandedDrawerWidth, collapsed, mobileOpen = false, onToggle, overlayMode = false }: LeftBarProps) {
 
+    const { roles } = useAuth();
+    const showMonitoring = (!AUTH_ENABLED || roles.includes('admin')) && String(import.meta.env.VITE_SHOW_CELERY_TASKS).toLowerCase() === 'true';
     const { projectName } = useProject()
 
     const {projectUUID} = useProject();
@@ -326,7 +334,7 @@ export default function LeftBar({ drawerWidth, expandedDrawerWidth, collapsed, m
                           collapsed={isCollapsedView}
                           onNavigate={onNavigate}
                            items={[
-                               { text: 'Tasks', icon: <TaskAltIcon />, target: `/projects/${projectName}/tasks` },
+                               ...(showMonitoring ? [{ text: 'Tasks', icon: <TaskAltIcon />, target: `/projects/${projectName}/tasks` }] : []),
                            ]}
                       />
                       {!isCollapsedView && <Divider sx={{borderColor: '#e6e8ed'}} />}

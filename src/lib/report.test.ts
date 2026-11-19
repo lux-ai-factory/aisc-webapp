@@ -53,13 +53,38 @@ describe('report settings api', () => {
 
     it('saves settings with PUT', async () => {
         const fetch = mockFetchOnce({ default_format: 'pdf', default_sections: [] });
-        await setReportSettings('p1', { default_format: 'pdf', default_sections: ['controls'] });
+        await setReportSettings('p1', {
+            default_format: 'pdf',
+            default_sections: ['controls'],
+            report_title: 'Report',
+            subtitle: '2026',
+            primary_color: '#000fdf',
+            accent_color: '#ff007e',
+            font: 'inter',
+            font_size_pt: 11,
+            header_text: '',
+            footer_text: '',
+            marking: 'none',
+            show_document_id: false,
+            logo: null,
+        });
         const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
         expect(url).toContain('/projects/p1/report-settings');
         expect(init.method).toBe('PUT');
         expect(JSON.parse(init.body as string)).toEqual({
             default_format: 'pdf',
             default_sections: ['controls'],
+            report_title: 'Report',
+            subtitle: '2026',
+            primary_color: '#000fdf',
+            accent_color: '#ff007e',
+            font: 'inter',
+            font_size_pt: 11,
+            header_text: '',
+            footer_text: '',
+            marking: 'none',
+            show_document_id: false,
+            logo: null,
         });
     });
 });

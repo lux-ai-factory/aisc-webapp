@@ -17,7 +17,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { API_VERSION_PREFIX } from "../config";
 import { useProject } from "../context/ProjectContext";
 import AISystemSettings from '../components/AISystemSettings';
-import ReportSettings from '../components/ReportSettings';
 import AppDialog from '../components/AppDialog';
 import AppCard from '../components/AppCard';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -446,7 +445,6 @@ function ProjectConfigsSection() {
 }
 
 export default function SettingsPage() {
-    const { projectUUID } = useProject();
     return (
         <Box sx={{ width: 1 }}>
             <Typography component="h2" variant="h4" gutterBottom>
@@ -458,8 +456,6 @@ export default function SettingsPage() {
             <AISystemSettings />
 
             <ProjectConfigsSection />
-
-            {projectUUID && <ReportSettings projectPid={projectUUID} />}
         </Box>
     );
 }

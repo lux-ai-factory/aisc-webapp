@@ -12,6 +12,17 @@ export interface ReportSettings {
     pid: string;
     default_format: string;
     default_sections: string[];
+    report_title: string;
+    subtitle: string;
+    primary_color: string;
+    accent_color: string;
+    font: string;
+    font_size_pt: number;
+    header_text: string;
+    footer_text: string;
+    marking: string;
+    show_document_id: boolean;
+    logo: { mime: string; data_base64: string } | null;
     updated_by: string;
 }
 
@@ -19,6 +30,7 @@ export interface PastReport {
     pid: string;
     project_id: string;
     period: string;
+    version?: number;
     format: string;
     file_ref: string;
     status: string;
@@ -29,6 +41,8 @@ export interface PastReport {
     layout_revision?: number | null;
     snapshot_checksum?: string;
     document_checksum?: string;
+    /** the selected evaluations (empty = the whole project) */
+    evaluations?: Array<{ pid: string; status?: string; task?: string | null }>;
 }
 
 export interface ReportBlock {
@@ -92,6 +106,22 @@ export interface ReportSnapshotView {
     format: string;
 }
 
+export interface ReportSettingsPayload {
+    default_format: string;
+    default_sections: string[];
+    report_title: string;
+    subtitle: string;
+    primary_color: string;
+    accent_color: string;
+    font: string;
+    font_size_pt: number;
+    header_text: string;
+    footer_text: string;
+    marking: string;
+    show_document_id: boolean;
+    logo: { mime: string; data_base64: string } | null;
+}
+
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -113,7 +143,7 @@ export function getReportSettings(pid: string): Promise<ReportSettings | null> {
 
 export function setReportSettings(
     pid: string,
-    data: { default_format: string; default_sections: string[] },
+    data: ReportSettingsPayload,
 ): Promise<ReportSettings> {
     return request<ReportSettings>(`/projects/${pid}/report-settings`, {
         method: 'PUT',
@@ -230,6 +260,10 @@ export function generateReport(
         method: 'POST',
         body: JSON.stringify(data),
     });
+}
+
+export function deleteReport(pid: string, reportPid: string): Promise<void> {
+    return request<void>(`/projects/${pid}/reports/${reportPid}`, { method: 'DELETE' });
 }
 
 export function reportDocumentUrl(pid: string, reportPid: string): string {

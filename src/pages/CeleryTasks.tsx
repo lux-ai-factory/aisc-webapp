@@ -21,6 +21,7 @@ import {
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SideDrawer from '../components/SideDrawer';
 import './CeleryTasks.css';
+import { API_VERSION_PREFIX } from '../config';
 
 interface FlowerTaskSummary {
   uuid: string;
@@ -39,8 +40,8 @@ interface FlowerTaskSummary {
   raw?: Record<string, unknown>;
 }
 
-// The running Flower, like its /tasks page (same underlying JSON API).
-const FLOWER_BASE = (import.meta.env.VITE_FLOWER_URL as string | undefined)?.replace(/\/$/, '') || '/flower';
+// Global operational monitoring is served by the admin-protected Django API.
+const MONITORING_BASE = import.meta.env.VITE_API_URL + API_VERSION_PREFIX + '/tasks/monitoring';
 
 type ColumnId =
   | 'name'
@@ -197,15 +198,14 @@ export default function CeleryTasks() {
     useState(false);
 
   /*
-   * Fetch this project's tasks from the backend door (re-pointed off Flower:
-   * the backend lists the project's own celery tasks, never the whole queue).
+   * Fetch global operational tasks through the admin-only backend door.
    */
   const fetchTasks = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${FLOWER_BASE}/api/tasks`);
-      if (!res.ok) throw new Error(`Flower API error ${res.status}`);
+      const res = await fetch(`${MONITORING_BASE}`);
+      if (!res.ok) throw new Error(`Monitoring API error ${res.status}`);
       const data = await res.json();
       const list: FlowerTaskSummary[] = Object.entries(
         data as Record<string, Record<string, unknown>>,
@@ -249,7 +249,7 @@ export default function CeleryTasks() {
     setDetailLoading(true);
     setDetail(null);
     try {
-      const res = await fetch(`${FLOWER_BASE}/api/task/info/${uuid}`);
+      const res = await fetch(`${MONITORING_BASE}/${uuid}`);
       if (!res.ok) throw new Error(`Task detail error ${res.status}`);
       const info = (await res.json()) as Record<string, unknown>;
       setDetail(info);
