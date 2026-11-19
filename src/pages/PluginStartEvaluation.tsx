@@ -122,8 +122,9 @@ export default function PluginStartEvaluation() {
     const [selectionCache, setSelectionCache] = useState<SelectedPluginsState>(() => loadState(projectUUID).selectionCache);
     // the project the selections in state belong to: saved only under it, reloaded when the project changes
     const selectionsOf = useRef(projectUUID);
-    // the tab had saved selections for this project when the page opened: then the last run's inputs are not
-    // ticked again, whatever the saved selections are (none after a launch or after unticking everything)
+    // the tab has saved selections for this project (it had when the page opened, or a launch or a tick here
+    // made them): then the last run's inputs are not ticked again, whatever the saved selections are (none
+    // after a launch or after unticking everything), not even when the project is read again
     const openedWithSavedState = useRef<boolean | null>(null);
     if (openedWithSavedState.current === null) openedWithSavedState.current = hasSavedState(projectUUID);
     const [activePlugin, setActivePlugin] = useState<string | null>(null);
@@ -143,6 +144,7 @@ export default function PluginStartEvaluation() {
     });
 
     const handleTogglePlugin = (pluginName: string) => {
+        openedWithSavedState.current = true;
         if (activePlugin === pluginName && selectedPlugins[pluginName]) {
             setActivePlugin(null);
             setSelectionCache(prev => ({
@@ -172,6 +174,7 @@ export default function PluginStartEvaluation() {
     };
 
     const handleUnselectPlugin = (pluginName: string) => {
+        openedWithSavedState.current = true;
         setSelectionCache(prev => ({
             ...prev,
             [pluginName]: selectedPlugins[pluginName] ?? prev[pluginName] ?? []
@@ -199,6 +202,7 @@ export default function PluginStartEvaluation() {
             await createEvaluation(projectUUID, Object.fromEntries(validEntries), project?.plugins ?? [],
                 newLaunchKey(), runName);
             setRunName('');
+            openedWithSavedState.current = true;
             // as if every launched test were unticked: its inputs wait in the cache for the next tick
             setSelectionCache(prev => ({ ...prev, ...Object.fromEntries(validEntries) }));
             setSelectedPlugins({});

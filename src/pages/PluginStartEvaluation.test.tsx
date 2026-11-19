@@ -32,6 +32,8 @@ const otherPlugin: Plugin = { ...plugin, pid: 'plg-2', name: 'OtherPlugin', pack
 
 // the tests the project offers, and what the engine answers to a launch
 let offered: Plugin[];
+// each read of the project differs, so a refetch gives the page a new project object
+let projectReads = 0;
 let launchAnswer: { status: number; body: unknown };
 
 beforeEach(() => {
@@ -78,7 +80,7 @@ beforeEach(() => {
                 ok: true,
                 json: async () => ({
                     pid: 'proj-1',
-                    name: 'P',
+                    name: `P${projectReads++}`,
                     plugins: offered,
                     components: [
                         { pid: 'comp-dataset', name: 'Dataset A', component_type: 'dataset' },
@@ -248,4 +250,35 @@ it('coming back to the page after a launch keeps every test unticked', async () 
 
     expect(ticked(second)).toBe(0);
     second.remove();
+});
+
+it('a project reload after a launch keeps every test unticked', async () => {
+    offered = [plugin, otherPlugin];
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    act(() => {
+        createRoot(container).render(
+            <QueryClientProvider client={client}>
+                <MemoryRouter>
+                    <ProjectProvider>
+                        <ProjectUUIDSetter uuid="proj-1" />
+                        <PluginStartEvaluation />
+                    </ProjectProvider>
+                </MemoryRouter>
+            </QueryClientProvider>,
+        );
+    });
+    await waitForHtml(el => ticked(el) === 2, container);
+    const launch = await launchButton(container);
+    await act(async () => { launch.click(); });
+    await waitForHtml(el => ticked(el) === 0, container);
+
+    const reads = projectReads;
+    await act(async () => { await client.invalidateQueries({ queryKey: ['project', 'proj-1'] }); });
+    expect(projectReads, 'the project was read again').toBeGreaterThan(reads);
+    await act(async () => { await new Promise(r => setTimeout(r, 600)); });
+
+    expect(ticked(container)).toBe(0);
+    container.remove();
 });
