@@ -1267,7 +1267,9 @@ export default function QualificationPage() {
         </>
     ) : null;
 
-    // Header row for the inline split-pane host only (actions are in the footer).
+    // Header row for the inline split-pane host only: title + version here, the
+    // status meta and Save/Close live in the dialog footer (same split as the
+    // answer drawer's header vs its footer).
     const answerFormHeader = answerQ ? (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
             <Typography variant="h6" sx={{ flexGrow: 1, pr: 1 }}>
@@ -1282,7 +1284,6 @@ export default function QualificationPage() {
                     onSelect={(id) => navigateAnswerVersion({ id })}
                 />
             )}
-            {answerFormMeta}
         </Box>
     ) : null;
 
@@ -1954,6 +1955,7 @@ export default function QualificationPage() {
                         {answerQ ? (
                             <>
                                 <Box sx={{ flexGrow: 1 }} />
+                                {answerFormMeta}
                                 {answerFormActions}
                             </>
                         ) : (
