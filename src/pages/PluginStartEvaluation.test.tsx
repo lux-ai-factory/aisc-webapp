@@ -226,3 +226,26 @@ it('a refused launch keeps the ticks', async () => {
     expect(ticked(container)).toBe(2);
     container.remove();
 });
+
+it('coming back to the page after a launch keeps every test unticked', async () => {
+    offered = [plugin, otherPlugin];
+    const first = document.createElement('div');
+    document.body.appendChild(first);
+    const root = mountPage(first);
+    await waitForHtml(el => ticked(el) === 2, first);
+    const launch = await launchButton(first);
+    await act(async () => { launch.click(); });
+    await waitForHtml(el => ticked(el) === 0, first);
+    await act(async () => { root.unmount(); });
+    first.remove();
+
+    // the same tab, the same last-run template: the saved state (empty) is respected
+    const second = document.createElement('div');
+    document.body.appendChild(second);
+    mountPage(second);
+    await waitForHtml(el => (el.textContent || '').includes('Demo'), second);
+    await act(async () => { await new Promise(r => setTimeout(r, 600)); });
+
+    expect(ticked(second)).toBe(0);
+    second.remove();
+});

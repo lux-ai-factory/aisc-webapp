@@ -100,6 +100,15 @@ function loadState(projectUUID: string | null): { selectedPlugins: SelectedPlugi
     return { selectedPlugins: {}, selectionCache: {} };
 }
 
+// whether this tab already saved selections for the project (an empty save counts: it is a choice)
+function hasSavedState(projectUUID: string | null): boolean {
+    try {
+        return !!projectUUID && sessionStorage.getItem(storageKey(projectUUID)) !== null;
+    } catch {
+        return false;
+    }
+}
+
 function saveState(projectUUID: string | null, selectedPlugins: SelectedPluginsState, selectionCache: SelectedPluginsState) {
     if (!projectUUID) return;
     try {
@@ -113,6 +122,10 @@ export default function PluginStartEvaluation() {
     const [selectionCache, setSelectionCache] = useState<SelectedPluginsState>(() => loadState(projectUUID).selectionCache);
     // the project the selections in state belong to: saved only under it, reloaded when the project changes
     const selectionsOf = useRef(projectUUID);
+    // the tab had saved selections for this project when the page opened: then the last run's inputs are not
+    // ticked again, whatever the saved selections are (none after a launch or after unticking everything)
+    const openedWithSavedState = useRef<boolean | null>(null);
+    if (openedWithSavedState.current === null) openedWithSavedState.current = hasSavedState(projectUUID);
     const [activePlugin, setActivePlugin] = useState<string | null>(null);
     // what the run is called in the results (optional: empty gives the automatic name)
     const [runName, setRunName] = useState('');
@@ -189,8 +202,9 @@ export default function PluginStartEvaluation() {
             // as if every launched test were unticked: its inputs wait in the cache for the next tick
             setSelectionCache(prev => ({ ...prev, ...Object.fromEntries(validEntries) }));
             setSelectedPlugins({});
-            // validPlugins is not cleared: each card reports its validity only when it changes, and a card
-            // whose inputs stay valid would never report again once its test is ticked anew
+            // validPlugins is not cleared: a card reports its validity only when it changes, and a card with
+            // only optional inputs is as valid with no selections as with them, so it would not report again
+            // when its test is ticked anew; Launch counts only the ticked tests, so a stale entry does no harm
             setActivePlugin(null);
         } catch (error) {
             // the engine's structured settings refusal is shown as its panel; any other reason once, as a toast
@@ -216,16 +230,17 @@ export default function PluginStartEvaluation() {
     useEffect(() => {
         if (selectionsOf.current === projectUUID) return;
         selectionsOf.current = projectUUID;
+        openedWithSavedState.current = hasSavedState(projectUUID);
         const saved = loadState(projectUUID);
         setSelectedPlugins(saved.selectedPlugins);
         setSelectionCache(saved.selectionCache);
     }, [projectUUID]);
 
-    // Restore the last-used evaluation input values when the page is opened
-    // fresh (no in-session selections yet, e.g. after a run cleared session
-    // state). This lets the dropdowns show the previous run's values.
+    // Restore the last-used evaluation input values on the first visit of this tab to the project (nothing
+    // saved yet). With selections saved, even none, they are respected: a launch leaves every test unticked.
     useEffect(() => {
         if (!projectUUID || !project) return;
+        if (openedWithSavedState.current) return;
         let cancelled = false;
         getEvaluationInputsTemplate(projectUUID)
             .then(async template => {
