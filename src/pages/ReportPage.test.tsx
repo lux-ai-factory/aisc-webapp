@@ -163,6 +163,43 @@ describe('ReportPage', () => {
         expect(document.querySelector('input[value="P2 title"]')).toBeTruthy();
     });
 
+    it('offers only completed evaluations in the dialog and shows the report version chip', async () => {
+        const doneRun = { pid: 'e1e1e1e1-1111-4111-8111-111111111111', status: 'Done', created_at: '2026-10-01T10:30:00Z', evaluation_plugins: [{ name: 'RobustnessPlugin', display_name: 'Robustness', version: '0.1.0' }] };
+        const busyRun = { pid: 'e2e2e2e2-2222-4222-8222-222222222222', status: 'Running' };
+        const versionedReport = { pid: 'r1', project_id: 'p1', period: '2026-Q3', version: 3, format: 'pdf', file_ref: 'x', status: 'generated', created_at: '2026-10-01' };
+        vi.stubGlobal(
+            'fetch',
+            vi.fn().mockImplementation((url: string) => {
+                if (url.includes('/report-settings')) {
+                    return Promise.resolve({ ok: true, status: 200, json: async () => ({ default_format: 'pdf', default_sections: [] }) });
+                }
+                if (url.endsWith('/evaluations')) {
+                    return Promise.resolve({ ok: true, status: 200, json: async () => [doneRun, busyRun] });
+                }
+                if (url.endsWith('/projects/p1/reports')) {
+                    return Promise.resolve({ ok: true, status: 200, json: async () => [versionedReport] });
+                }
+                throw new Error(`unexpected fetch: ${url}`);
+            }),
+        );
+        await renderPage();
+        const buttons = () =>
+            Array.from(document.body.querySelectorAll('button')).filter((b) =>
+                (b.textContent ?? '').includes('Generate'),
+            );
+        await act(async () => {
+            buttons()[0]!.click();
+        });
+        await act(async () => {});
+        const text = document.body.textContent ?? '';
+        // the completed run is offered, the still-running one is not
+        expect(text).toContain('Robustness');
+        expect(text).not.toContain('Runner');
+        expect(text).not.toContain('e2e2e2e2');
+        // the report card carries its per-project version chip
+        expect(text).toContain('v3');
+    });
+
     it('generates from the dialog with picked evaluations and sections', async () => {
         const calls: [string, RequestInit?][] = [];
         vi.stubGlobal(

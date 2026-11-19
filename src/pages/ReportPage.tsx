@@ -133,6 +133,10 @@ export default function ReportPage() {
         );
     };
 
+    // a report only documents evaluations that actually ran (Done); pending or
+    // failed runs have no measurements to report
+    const doneRuns = runs.filter((run) => run.status === 'Done');
+
     const generate = async () => {
         if (!settings) return;
         setGenerating(true);
@@ -260,11 +264,19 @@ export default function ReportPage() {
                                     }
                                     footer={
                                         <>
+                                            {typeof report.version === 'number' && (
+                                                <Chip
+                                                    label={`v${report.version}`}
+                                                    size="small"
+                                                    color="primary"
+                                                    variant="filled"
+                                                />
+                                            )}
                                             <Chip
                                                 label={report.format.toUpperCase()}
                                                 size="small"
                                                 color="info"
-                                                variant="outlined"
+                                                variant="filled"
                                             />
                                             {pending && (
                                                 <Chip
@@ -283,7 +295,7 @@ export default function ReportPage() {
                                             <Chip
                                                 label={(report.created_at ?? '').replace('T', ' ').slice(0, 16)}
                                                 size="small"
-                                                variant="outlined"
+                                                variant="filled"
                                                 title={report.created_at}
                                             />
                                         </>
@@ -295,7 +307,7 @@ export default function ReportPage() {
                                                 <Chip
                                                     key={ev.pid}
                                                     size="small"
-                                                    variant="outlined"
+                                                    variant="filled"
                                                     color="info"
                                                     label={`#${ev.pid.slice(0, 8)}`}
                                                     title={`${ev.pid}${ev.status ? ` · ${ev.status}` : ''}`}
@@ -356,7 +368,7 @@ export default function ReportPage() {
                             None selected means the whole project.
                         </Typography>
                         <Box sx={{ display: 'flex', flexDirection: 'column', maxHeight: 240, overflowY: 'auto', pr: 1 }}>
-                            {runs.map((run) => (
+                            {doneRuns.map((run) => (
                                 <FormControlLabel
                                     key={run.pid}
                                     sx={{ alignItems: 'flex-start' }}
@@ -370,9 +382,9 @@ export default function ReportPage() {
                                     label={runLabel(run)}
                                 />
                             ))}
-                            {runs.length === 0 && (
+                            {doneRuns.length === 0 && (
                                 <Typography color="text.secondary" variant="body2">
-                                    No evaluations yet.
+                                    No completed evaluations yet.
                                 </Typography>
                             )}
                         </Box>
