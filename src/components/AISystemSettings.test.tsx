@@ -113,3 +113,53 @@ it('standalone keeps the AI System panel with every type and component', async (
     expect(options.some(o => o.startsWith('Model'))).toBe(true);
     expect(options.some(o => o.startsWith('Resource'))).toBe(true);
 });
+
+async function openAddDialog(container: HTMLElement) {
+    const add = [...container.querySelectorAll('button')].find(b => /Add (component|test data)/.test(b.textContent ?? ''))!;
+    await act(async () => { add.click(); });
+}
+
+function nameField(): HTMLInputElement {
+    return [...document.querySelectorAll<HTMLInputElement>('[role="dialog"] input')]
+        .find(i => i.type === 'text' && i.closest('.MuiFormControl-root')?.querySelector('label')?.textContent?.startsWith('Name'))!;
+}
+
+async function typeName(value: string) {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    await act(async () => {
+        setter.call(nameField(), value);
+        nameField().dispatchEvent(new Event('input', { bubbles: true }));
+    });
+}
+
+async function chooseFile(fileName: string) {
+    const input = document.querySelector<HTMLInputElement>('[role="dialog"] input[type="file"]')!;
+    Object.defineProperty(input, 'files', { value: [new File(['x'], fileName)], configurable: true });
+    await act(async () => { input.dispatchEvent(new Event('change', { bubbles: true })); });
+}
+
+it('names the test data after the chosen file', async () => {
+    vi.stubEnv('VITE_DEPLOYMENT', 'configurator');
+    const container = await renderSettings();
+    await openAddDialog(container);
+    await chooseFile('prompts--bias.csv');
+    expect(nameField().value).toBe('prompts--bias');
+});
+
+it('keeps a name typed before the file', async () => {
+    vi.stubEnv('VITE_DEPLOYMENT', 'configurator');
+    const container = await renderSettings();
+    await openAddDialog(container);
+    await typeName('my set');
+    await chooseFile('prompts--bias.csv');
+    expect(nameField().value).toBe('my set');
+});
+
+it('follows a second file while the name is still the automatic one', async () => {
+    vi.stubEnv('VITE_DEPLOYMENT', 'configurator');
+    const container = await renderSettings();
+    await openAddDialog(container);
+    await chooseFile('a.csv');
+    await chooseFile('b.csv');
+    expect(nameField().value).toBe('b');
+});

@@ -100,6 +100,15 @@ function loadState(projectUUID: string | null): { selectedPlugins: SelectedPlugi
     return { selectedPlugins: {}, selectionCache: {} };
 }
 
+// whether this tab already saved selections for the project (an empty save counts: it is a choice)
+function hasSavedState(projectUUID: string | null): boolean {
+    try {
+        return !!projectUUID && sessionStorage.getItem(storageKey(projectUUID)) !== null;
+    } catch {
+        return false;
+    }
+}
+
 function saveState(projectUUID: string | null, selectedPlugins: SelectedPluginsState, selectionCache: SelectedPluginsState) {
     if (!projectUUID) return;
     try {
@@ -113,6 +122,11 @@ export default function PluginStartEvaluation() {
     const [selectionCache, setSelectionCache] = useState<SelectedPluginsState>(() => loadState(projectUUID).selectionCache);
     // the project the selections in state belong to: saved only under it, reloaded when the project changes
     const selectionsOf = useRef(projectUUID);
+    // the tab has saved selections for this project (it had when the page opened, or a launch or a tick here
+    // made them): then the last run's inputs are not ticked again, whatever the saved selections are (none
+    // after a launch or after unticking everything), not even when the project is read again
+    const openedWithSavedState = useRef<boolean | null>(null);
+    if (openedWithSavedState.current === null) openedWithSavedState.current = hasSavedState(projectUUID);
     const [activePlugin, setActivePlugin] = useState<string | null>(null);
     // what the run is called in the results (optional: empty gives the automatic name)
     const [runName, setRunName] = useState('');
@@ -130,6 +144,7 @@ export default function PluginStartEvaluation() {
     });
 
     const handleTogglePlugin = (pluginName: string) => {
+        openedWithSavedState.current = true;
         if (activePlugin === pluginName && selectedPlugins[pluginName]) {
             setActivePlugin(null);
             setSelectionCache(prev => ({
@@ -159,6 +174,7 @@ export default function PluginStartEvaluation() {
     };
 
     const handleUnselectPlugin = (pluginName: string) => {
+        openedWithSavedState.current = true;
         setSelectionCache(prev => ({
             ...prev,
             [pluginName]: selectedPlugins[pluginName] ?? prev[pluginName] ?? []
@@ -186,6 +202,15 @@ export default function PluginStartEvaluation() {
             await createEvaluation(projectUUID, Object.fromEntries(validEntries), project?.plugins ?? [],
                 newLaunchKey(), runName);
             setRunName('');
+            openedWithSavedState.current = true;
+            // as if every ticked test were unticked, the incomplete ones too: their inputs wait in the cache
+            // for the next tick
+            setSelectionCache(prev => ({ ...prev, ...selectedPlugins }));
+            setSelectedPlugins({});
+            // validPlugins is not cleared: a card reports its validity only when it changes, and a card with
+            // only optional inputs is as valid with no selections as with them, so it would not report again
+            // when its test is ticked anew; Launch counts only the ticked tests, so a stale entry does no harm
+            setActivePlugin(null);
         } catch (error) {
             // the engine's structured settings refusal is shown as its panel; any other reason once, as a toast
             const detail = error instanceof LaunchRefused ? error.settings : null;
@@ -210,16 +235,17 @@ export default function PluginStartEvaluation() {
     useEffect(() => {
         if (selectionsOf.current === projectUUID) return;
         selectionsOf.current = projectUUID;
+        openedWithSavedState.current = hasSavedState(projectUUID);
         const saved = loadState(projectUUID);
         setSelectedPlugins(saved.selectedPlugins);
         setSelectionCache(saved.selectionCache);
     }, [projectUUID]);
 
-    // Restore the last-used evaluation input values when the page is opened
-    // fresh (no in-session selections yet, e.g. after a run cleared session
-    // state). This lets the dropdowns show the previous run's values.
+    // Restore the last-used evaluation input values on the first visit of this tab to the project (nothing
+    // saved yet). With selections saved, even none, they are respected: a launch leaves every test unticked.
     useEffect(() => {
         if (!projectUUID || !project) return;
+        if (openedWithSavedState.current) return;
         let cancelled = false;
         getEvaluationInputsTemplate(projectUUID)
             .then(async template => {
@@ -315,7 +341,7 @@ export default function PluginStartEvaluation() {
                         variant="contained"
                         className="gradient-btn"
                         onClick={handleOnClick}
-                        disabled={launching || Object.values(validPlugins).filter(Boolean).length === 0}
+                        disabled={launching || !Object.keys(selectedPlugins).some(name => validPlugins[name])}
                         sx={{
                             minWidth: {xs: '44px', md: 'auto'},
                             px: {xs: 1.5, md: 3},
