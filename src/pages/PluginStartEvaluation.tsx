@@ -203,8 +203,9 @@ export default function PluginStartEvaluation() {
                 newLaunchKey(), runName);
             setRunName('');
             openedWithSavedState.current = true;
-            // as if every launched test were unticked: its inputs wait in the cache for the next tick
-            setSelectionCache(prev => ({ ...prev, ...Object.fromEntries(validEntries) }));
+            // as if every ticked test were unticked, the incomplete ones too: their inputs wait in the cache
+            // for the next tick
+            setSelectionCache(prev => ({ ...prev, ...selectedPlugins }));
             setSelectedPlugins({});
             // validPlugins is not cleared: a card reports its validity only when it changes, and a card with
             // only optional inputs is as valid with no selections as with them, so it would not report again
