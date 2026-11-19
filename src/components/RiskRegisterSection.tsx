@@ -75,6 +75,9 @@ export default function RiskRegisterSection({
     }>({ open: false, pid: null, name: '', impact: '', likelihood: '', comment: '', mapped: [] });
     const [riskVersions, setRiskVersions] = useState<RiskVersion[]>([]);
     const [versionSel, setVersionSel] = useState<string | null>(null);
+    // a version picked in History is only *shown* on the card afterwards, like
+    // the AI card's remembered version: nothing is rewritten, no count is bumped
+    const [pickedVersions, setPickedVersions] = useState<Record<string, RiskVersion>>({});
 
     const load = useCallback(async () => {
         try {
@@ -167,25 +170,29 @@ export default function RiskRegisterSection({
         void listRiskVersions(pid, risk.pid)
             .then((versions) => {
                 setRiskVersions(versions);
-                setVersionSel(versions.length > 0 ? String(versions[versions.length - 1].number) : null);
+                // highlight the current revision (the latest rated one), like the
+                // AI card's picker shows the card it is displaying
+                const rated = versions.filter((v) => v.rating > 0);
+                setVersionSel(rated.length > 0 ? String(rated[rated.length - 1].number) : null);
             })
             .catch(() => setRiskVersions([]));
     };
 
     const navigateRiskVersion = (v: { id?: string }) => {
-        if (!editor.pid || !v.id || v.id === 'current') {
-            if (v.id) setVersionSel(v.id);
-            return;
-        }
+        if (!v.id) return;
         const version = riskVersions.find((x) => x.number === Number(v.id));
         if (!version) return;
         setVersionSel(String(version.number));
+        // switch the dialog to the picked revision and keep the pick on screen
+        // (the card shows it after closing) without touching the record
         setEditor((p) => ({
             ...p,
             impact: version.impact == null ? '' : String(version.impact),
             likelihood: version.likelihood == null ? '' : String(version.likelihood),
             comment: version.comment,
         }));
+        const riskPid = editor.pid;
+        if (riskPid) setPickedVersions((prev) => ({ ...prev, [riskPid]: version }));
     };
 
     const toggleMap = (objectiveId: string) =>
@@ -226,6 +233,12 @@ export default function RiskRegisterSection({
                 }
             }
             setEditor((e) => ({ ...e, open: false }));
+            // a real save moves the risk to the new state: drop any history pick
+            setPickedVersions((prev) => {
+                const next = { ...prev };
+                delete next[riskPid];
+                return next;
+            });
         });
 
     const removeRisk = (risk: ObjectiveRisk) =>
@@ -272,7 +285,13 @@ export default function RiskRegisterSection({
             ) : (
                 <Grid container spacing={2} className="plugins-grid">
                     {risks.map((risk) => {
-                        const rating = (risk.impact ?? 0) * (risk.likelihood ?? 0);
+                        // a history pick shows that revision's scores/version on the
+                        // card; otherwise the risk's current assessment is shown
+                        const picked = pickedVersions[risk.pid];
+                        const shownImpact = picked ? picked.impact : risk.impact;
+                        const shownLikelihood = picked ? picked.likelihood : risk.likelihood;
+                        const shownVersion = picked ? picked.number : risk.version;
+                        const rating = (shownImpact ?? 0) * (shownLikelihood ?? 0);
                         const band = ratingBand(rating);
                         const mapped = mappedObjectives(risk.pid);
                         return (
@@ -324,6 +343,15 @@ export default function RiskRegisterSection({
 
                                         <Box sx={{ mt: 'auto', pt: 2, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                                             <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
+                                                {(shownVersion ?? 0) > 0 && (
+                                                    <Chip
+                                                        label={`v${shownVersion}`}
+                                                        size="small"
+                                                        variant="filled"
+                                                        color="primary"
+                                                        sx={{ height: 22, fontWeight: 600 }}
+                                                    />
+                                                )}
                                                 <Chip
                                                     label={`${rating > 0 ? rating : '—'} · ${band.label}`}
                                                     size="small"
@@ -331,8 +359,8 @@ export default function RiskRegisterSection({
                                                     color={band.color}
                                                     variant={band.color === 'default' ? 'outlined' : 'filled'}
                                                 />
-                                                <Chip label={`Impact: ${risk.impact ?? '—'}`} size="small" sx={{ height: 22, fontWeight: 600, bgcolor: '#7c3aed', color: '#fff' }} />
-                                                <Chip label={`Likelihood: ${risk.likelihood ?? '—'}`} size="small" sx={{ height: 22, fontWeight: 600, bgcolor: '#ea580c', color: '#fff' }} />
+                                                <Chip label={`Impact: ${shownImpact ?? '—'}`} size="small" sx={{ height: 22, fontWeight: 600, bgcolor: '#7c3aed', color: '#fff' }} />
+                                                <Chip label={`Likelihood: ${shownLikelihood ?? '—'}`} size="small" sx={{ height: 22, fontWeight: 600, bgcolor: '#ea580c', color: '#fff' }} />
                                             </Stack>
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
                                                 <Chip label={`${mapped.length} objective${mapped.length === 1 ? '' : 's'}`} size="small" variant="outlined" sx={{ height: 22, fontWeight: 600 }} />
@@ -377,17 +405,14 @@ export default function RiskRegisterSection({
             >
                 <Stack spacing={2}>
                     {editor.pid !== null && riskVersionEntries(riskVersions).length > 0 && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 1 }}>
                             <Typography variant="caption" color="text.secondary">
                                 History
                             </Typography>
                             <VersionSelect
                                 options={riskVersionEntries(riskVersions)}
                                 value={versionSel}
-                                fallbackLabel={
-                                    riskVersionEntries(riskVersions)[riskVersionEntries(riskVersions).length - 1]
-                                        ?.label ?? 'Version'
-                                }
+                                fallbackLabel="Version"
                                 onSelect={(id) => {
                                     const entry = riskVersionEntries(riskVersions).find((v) => v.id === id);
                                     if (entry) navigateRiskVersion(entry);

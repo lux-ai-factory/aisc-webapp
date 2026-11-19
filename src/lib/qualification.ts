@@ -67,6 +67,8 @@ export interface ObjectiveRisk {
     likelihood: number | null;
     rating: number;
     comment: string;
+    /** current revision number (0 until first rated) */
+    version?: number;
 }
 
 export interface ObjectiveMapping {
@@ -359,15 +361,15 @@ export function getRiskVersion(
     );
 }
 
-/** Version-dropdown entries for a risk's revision chain. */
+/** Version-dropdown entries for a risk's revision chain: only rated versions,
+ *  an unrated snapshot is not a meaningful history entry. */
 export function riskVersionEntries(versions: RiskVersion[]): { id: string; label: string }[] {
-    return versions.map((v) => ({
-        id: String(v.number),
-        label:
-            v.rating > 0
-                ? `v${v.number} · ${v.impact}×${v.likelihood}`
-                : `v${v.number} · unrated`,
-    }));
+    return versions
+        .filter((v) => v.rating > 0)
+        .map((v) => ({
+            id: String(v.number),
+            label: `v${v.number} · ${v.impact}×${v.likelihood}`,
+        }));
 }
 
 export function listRiskMappings(pid: string): Promise<ObjectiveMapping[]> {

@@ -28,6 +28,7 @@ const risk = {
     likelihood: null,
     rating: 0,
     comment: '',
+    version: 1,
 };
 
 let container: HTMLElement;
@@ -40,7 +41,7 @@ beforeEach(() => {
             const json = (payload: unknown) => Promise.resolve({ ok: true, json: async () => payload });
             if (url.includes('/control-objectives/risks/r1/versions')) {
                 return json([
-                    { pid: 'rv1', risk_pid: 'r1', number: 1, name: 'Poisoned training data', impact: null, likelihood: null, rating: 0, comment: '', airo_text: '', created_at: '2026-01-01T00:00:00Z', created_by: '' },
+                    { pid: 'rv1', risk_pid: 'r1', number: 1, name: 'Poisoned training data', impact: 1, likelihood: 2, rating: 2, comment: 'early', airo_text: '', created_at: '2026-01-01T00:00:00Z', created_by: '' },
                     { pid: 'rv2', risk_pid: 'r1', number: 2, name: 'Poisoned training data', impact: 3, likelihood: 4, rating: 12, comment: 'assessed', airo_text: '', created_at: '2026-01-02T00:00:00Z', created_by: '' },
                 ]);
             }
@@ -100,6 +101,8 @@ describe('RiskRegister', () => {
         expect(text).toContain('Poisoned training data');
         expect(text).toContain('Impact');
         expect(text).toContain('Likelihood');
+        // the card carries the risk's current revision chip
+        expect(text).toContain('v1');
     });
 
     it('ratings save via PATCH on the risk', async () => {
@@ -259,31 +262,68 @@ describe('RiskRegister', () => {
     });
 
     it('the dialog shows the risk history and navigates an old version', async () => {
+        // a rated risk (current revision v2) with two rated revisions to browse
+        const ratedRisk = { ...risk, impact: 3, likelihood: 4, rating: 12, version: 2 };
+        vi.stubGlobal(
+            'fetch',
+            vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+                const json = (payload: unknown) => Promise.resolve({ ok: true, json: async () => payload });
+                if (url.includes('/control-objectives/risks/r1/versions')) {
+                    return json([
+                        { pid: 'rv1', risk_pid: 'r1', number: 1, name: 'Poisoned training data', impact: 1, likelihood: 2, rating: 2, comment: 'early', airo_text: '', created_at: '2026-01-01T00:00:00Z', created_by: '' },
+                        { pid: 'rv2', risk_pid: 'r1', number: 2, name: 'Poisoned training data', impact: 3, likelihood: 4, rating: 12, comment: 'assessed', airo_text: '', created_at: '2026-01-02T00:00:00Z', created_by: '' },
+                    ]);
+                }
+                if (url.includes('/control-objectives/risks')) return json([ratedRisk]);
+                if (url.includes('/control-objectives/mappings')) return json([]);
+                if (url.includes('/control-objectives/profile')) return json({ objectives: ['O1'], key_objectives: ['O1'] });
+                if (url.includes('/control-objectives/catalogue')) return json([{ id: 'O1', macro_requirement: 'REQ1', text: 'Human oversight', assessment_mode: 'Control' }]);
+                throw new Error(`unexpected fetch: ${url} ${init?.method ?? ''}`);
+            }),
+        );
         await renderPage();
+        // the card starts on the current revision: v2 with its scores
+        expect(riskCard().textContent).toContain('v2');
+        expect(riskCard().textContent).toContain('Impact: 3');
         await act(async () => {
             riskCard().dispatchEvent(new MouseEvent('click', { bubbles: true }));
         });
         await act(async () => {});
-        const versionButton = Array.from(document.body.querySelectorAll('button')).find(
-            (b) => b.textContent?.includes('v2 · 3×4'),
-        );
-        expect(versionButton).toBeTruthy();
+        const versionButton = (text: string) =>
+            Array.from(document.body.querySelectorAll('button')).find((b) =>
+                b.textContent?.includes(text),
+            ) as HTMLButtonElement | undefined;
+        const menuEntry = (text: string) => {
+            const entries = Array.from(document.body.querySelectorAll('*')).filter(
+                (el) => (el.textContent ?? '').trim() === text,
+            );
+            return entries.find((el) => !entries.some((n) => n !== el && el.contains(n))) as HTMLElement;
+        };
+        // the dropdown opens on the current (latest rated) revision, like the AI card
+        expect(versionButton('v2 · 3×4')).toBeTruthy();
         await act(async () => {
-            versionButton!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            versionButton('v2 · 3×4')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
         });
         await act(async () => {});
-        const entries = Array.from(document.body.querySelectorAll('*')).filter(
-            (el) => (el.textContent ?? '').trim() === 'v1 · unrated',
-        );
-        const oldEntry = entries.find((el) => !entries.some((n) => n !== el && el.contains(n))) as HTMLElement;
-        expect(oldEntry).toBeTruthy();
+        // both rated revisions are offered; picking one switches the dialog live
+        expect(menuEntry('v1 · 1×2')).toBeTruthy();
+        expect(menuEntry('v2 · 3×4')).toBeTruthy();
         await act(async () => {
-            oldEntry.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            menuEntry('v1 · 1×2').dispatchEvent(new MouseEvent('click', { bubbles: true }));
         });
         await act(async () => {});
-        const after = Array.from(document.body.querySelectorAll('button')).find(
-            (b) => b.textContent?.includes('v1 · unrated'),
-        );
-        expect(after).toBeTruthy();
+        expect(versionButton('v1 · 1×2')).toBeTruthy();
+        // leave the dialog without saving: the card now shows the picked v1
+        // (frontend "remembered pick" like the AI card, no data written)
+        const cancel = Array.from(document.body.querySelectorAll('button')).find(
+            (b) => b.textContent === 'Cancel',
+        ) as HTMLButtonElement;
+        await act(async () => {
+            cancel.click();
+        });
+        await act(async () => {});
+        expect(riskCard().textContent).toContain('v1');
+        expect(riskCard().textContent).toContain('Impact: 1');
+        expect(riskCard().textContent).toContain('Likelihood: 2');
     });
 });
