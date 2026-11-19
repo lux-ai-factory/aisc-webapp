@@ -1247,8 +1247,8 @@ export default function QualificationPage() {
         </>
     ) : null;
 
-    // Primary answer-form actions. The inline split-pane host keeps them in the
-    // header row; the drawer host moves them to its footer.
+    // Primary answer-form actions: shown bottom-right in the split-pane dialog
+    // footer and in the drawer host's footer, never in the form header.
     const answerFormActions = answerQ ? (
         <>
             <Button
@@ -1267,7 +1267,7 @@ export default function QualificationPage() {
         </>
     ) : null;
 
-    // Header row for the inline split-pane host only.
+    // Header row for the inline split-pane host only (actions are in the footer).
     const answerFormHeader = answerQ ? (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
             <Typography variant="h6" sx={{ flexGrow: 1, pr: 1 }}>
@@ -1283,7 +1283,6 @@ export default function QualificationPage() {
                 />
             )}
             {answerFormMeta}
-            {answerFormActions}
         </Box>
     ) : null;
 
@@ -1570,7 +1569,8 @@ export default function QualificationPage() {
             </Box>
     ) : null;
 
-    // Inline host (split-pane detail): primary actions stay in the header row.
+    // Inline host (split-pane detail): the answer actions render in the dialog
+    // footer (bottom-right), not in this form's header.
     const answerForm = answerQ ? (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, height: '100%' }}>
             {answerFormHeader}
@@ -1659,6 +1659,7 @@ export default function QualificationPage() {
                 <Grid size={{ xs: 12, md: 6 }}>
                     <AppCard
                         active
+                        onClick={() => setQPaneOpen(true)}
                         header={
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 <Box
@@ -1687,16 +1688,15 @@ export default function QualificationPage() {
                                 >
                                     Questionnaires
                                 </Typography>
-                            </Box>
-                        }
-                        footer={
-                            <Box sx={{ display: 'flex', gap: 1, ml: 'auto' }}>
+                                <Box sx={{ flexGrow: 1 }} />
                                 <Button
                                     size="small"
                                     variant="outlined"
                                     startIcon={<Icon>fact_check</Icon>}
                                     disabled={!selCard || busy !== null}
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                        // the whole card opens the dialog; the button only answers
+                                        e.stopPropagation();
                                         if (!selCard) return;
                                         void openAnswer({
                                             qid: selCard.id,
@@ -1709,58 +1709,53 @@ export default function QualificationPage() {
                                 >
                                     Answer
                                 </Button>
-                                <Button
-                                    size="small"
-                                    variant="outlined"
-                                    onClick={() => setQPaneOpen(true)}
-                                    sx={{ textTransform: 'none', borderRadius: '8px' }}
-                                >
-                                    Open
-                                </Button>
+                            </Box>
+                        }
+                        footer={
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                {selCard && versionLabel && (
+                                    <Chip label={versionLabel} size="small" variant="outlined" />
+                                )}
+                                {selCard && answersVersionLabel !== null && (
+                                    <Chip
+                                        label={`answers v${answersVersionLabel}`}
+                                        size="small"
+                                        color="info"
+                                        variant="outlined"
+                                    />
+                                )}
+                                {selCard && (
+                                    <Chip
+                                        label={selCard.isBuiltIn ? 'built-in' : 'project'}
+                                        size="small"
+                                        variant="outlined"
+                                    />
+                                )}
+                                {selCard && statusLabel && (
+                                    <Chip
+                                        label={statusLabel}
+                                        size="small"
+                                        color={
+                                            statusLabel === 'completed'
+                                                ? 'success'
+                                                : statusLabel === 'draft'
+                                                  ? 'warning'
+                                                  : 'default'
+                                        }
+                                    />
+                                )}
                             </Box>
                         }
                     >
                         <Typography variant="h6" sx={{ fontWeight: 600, lineHeight: 1.3 }}>
                             {selCard?.name ?? 'No questionnaire'}
                         </Typography>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, pt: 1 }}>
-                            {selCard && versionLabel && (
-                                <Chip label={versionLabel} size="small" variant="outlined" />
-                            )}
-                            {selCard && answersVersionLabel !== null && (
-                                <Chip
-                                    label={`answers v${answersVersionLabel}`}
-                                    size="small"
-                                    color="info"
-                                    variant="outlined"
-                                />
-                            )}
-                            {selCard && (
-                                <Chip
-                                    label={selCard.isBuiltIn ? 'built-in' : 'project'}
-                                    size="small"
-                                    variant="outlined"
-                                />
-                            )}
-                            {selCard && statusLabel && (
-                                <Chip
-                                    label={statusLabel}
-                                    size="small"
-                                    color={
-                                        statusLabel === 'completed'
-                                            ? 'success'
-                                            : statusLabel === 'draft'
-                                              ? 'warning'
-                                              : 'default'
-                                    }
-                                />
-                            )}
-                        </Box>
                     </AppCard>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
                     <AppCard
                         active
+                        onClick={openAiCard}
                         header={
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 <Box
@@ -1792,42 +1787,31 @@ export default function QualificationPage() {
                             </Box>
                         }
                         footer={
-                            <Box sx={{ ml: 'auto' }}>
-                                <Button
-                                    size="small"
-                                    variant="outlined"
-                                    onClick={openAiCard}
-                                    disabled={!latestCompleted}
-                                    sx={{ textTransform: 'none', borderRadius: '8px' }}
-                                >
-                                    Open
-                                </Button>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                {shownCard?.system_version && (
+                                    <Chip
+                                        label={`card v${shownCard.system_version.number}`}
+                                        size="small"
+                                        color="primary"
+                                    />
+                                )}
+                                {shownCard && typeof shownCard.questionnaire_version === 'number' && (
+                                    <Chip
+                                        label={`config v${shownCard.questionnaire_version}`}
+                                        size="small"
+                                        variant="outlined"
+                                        color="success"
+                                    />
+                                )}
+                                {selCard && (
+                                    <Chip label={selCard.name} size="small" variant="outlined" />
+                                )}
                             </Box>
                         }
                     >
                         <Typography variant="h6" sx={{ fontWeight: 600, lineHeight: 1.3 }}>
                             {aiCardLabel}
                         </Typography>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, pt: 1 }}>
-                            {shownCard?.system_version && (
-                                <Chip
-                                    label={`card v${shownCard.system_version.number}`}
-                                    size="small"
-                                    color="primary"
-                                />
-                            )}
-                            {shownCard && typeof shownCard.questionnaire_version === 'number' && (
-                                <Chip
-                                    label={`config v${shownCard.questionnaire_version}`}
-                                    size="small"
-                                    variant="outlined"
-                                    color="success"
-                                />
-                            )}
-                            {selCard && (
-                                <Chip label={selCard.name} size="small" variant="outlined" />
-                            )}
-                        </Box>
                     </AppCard>
                 </Grid>
             </Grid>
@@ -1951,7 +1935,13 @@ export default function QualificationPage() {
 
             <SplitPaneDialog
                 open={qpaneOpen}
-                onClose={() => setQPaneOpen(false)}
+                onClose={() => {
+                    setQPaneOpen(false);
+                    // dropping the dialog must also drop the inline answer/edit:
+                    // otherwise the answer SideDrawer (open when !qpaneOpen) pops up
+                    setAnswerQ(null);
+                    setEditQ(null);
+                }}
                 title="Questionnaires"
                 items={questionnaireItems}
                 maxWidth="lg"
@@ -1961,67 +1951,76 @@ export default function QualificationPage() {
                 detailOverride={answerForm ?? editForm ?? undefined}
                 actions={
                     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', width: '100%', flexWrap: 'wrap' }}>
-                        <Button
-                            size="small"
-                            variant="contained"
-                            className="gradient-btn"
-                            startIcon={<Icon fontSize="small">add</Icon>}
-                            onClick={openAdd}
-                            sx={{ textTransform: 'none' }}
-                        >
-                            Add questionnaire
-                        </Button>
-                        {qPaneCard && !answerQ && !editQ && (
+                        {answerQ ? (
                             <>
                                 <Box sx={{ flexGrow: 1 }} />
-                                {selection !== qPaneCard.id && (
-                                    <Button
-                                        size="small"
-                                        variant="outlined"
-                                        startIcon={<Icon>check_circle</Icon>}
-                                        disabled={busy !== null}
-                                        onClick={() =>
-                                            void run(`select-${qPaneCard.id}`, () =>
-                                                selectQuestionnaire(pid, qPaneCard.id),
-                                            )
-                                        }
-                                        sx={{ textTransform: 'none' }}
-                                    >
-                                        Select
-                                    </Button>
-                                )}
-                                <Button
-                                    size="small"
-                                    variant="outlined"
-                                    startIcon={<Icon>edit</Icon>}
-                                    disabled={busy !== null}
-                                    onClick={() => {
-                                        if (qPaneRaw) openEditor(qPaneRaw);
-                                        else void copyBuiltInAndEdit();
-                                    }}
-                                    sx={{ textTransform: 'none' }}
-                                >
-                                    {qPaneCard.isBuiltIn ? 'Copy & edit' : 'Edit'}
-                                </Button>
+                                {answerFormActions}
+                            </>
+                        ) : (
+                            <>
                                 <Button
                                     size="small"
                                     variant="contained"
                                     className="gradient-btn"
-                                    startIcon={<Icon>fact_check</Icon>}
-                                    disabled={!selCard || busy !== null}
-                                    onClick={() => {
-                                        if (!selCard) return;
-                                        void openAnswer({
-                                            qid: selCard.id,
-                                            name: selCard.name,
-                                            definition: selCard.definition,
-                                            versionPid: selCard.versionPid,
-                                        });
-                                    }}
+                                    startIcon={<Icon fontSize="small">add</Icon>}
+                                    onClick={openAdd}
                                     sx={{ textTransform: 'none' }}
                                 >
-                                    Answer
+                                    Add questionnaire
                                 </Button>
+                                {qPaneCard && !answerQ && !editQ && (
+                                    <>
+                                        <Box sx={{ flexGrow: 1 }} />
+                                        {selection !== qPaneCard.id && (
+                                            <Button
+                                                size="small"
+                                                variant="outlined"
+                                                startIcon={<Icon>check_circle</Icon>}
+                                                disabled={busy !== null}
+                                                onClick={() =>
+                                                    void run(`select-${qPaneCard.id}`, () =>
+                                                        selectQuestionnaire(pid, qPaneCard.id),
+                                                    )
+                                                }
+                                                sx={{ textTransform: 'none' }}
+                                            >
+                                                Select
+                                            </Button>
+                                        )}
+                                        <Button
+                                            size="small"
+                                            variant="outlined"
+                                            startIcon={<Icon>edit</Icon>}
+                                            disabled={busy !== null}
+                                            onClick={() => {
+                                                if (qPaneRaw) openEditor(qPaneRaw);
+                                                else void copyBuiltInAndEdit();
+                                            }}
+                                            sx={{ textTransform: 'none' }}
+                                        >
+                                            {qPaneCard.isBuiltIn ? 'Copy & edit' : 'Edit'}
+                                        </Button>
+                                        <Button
+                                            size="small"
+                                            variant="contained"
+                                            className="gradient-btn"
+                                            startIcon={<Icon>fact_check</Icon>}
+                                            disabled={!selCard || busy !== null}
+                                            onClick={() => {
+                                                if (!selCard) return;
+                                                void openAnswer({
+                                                    qid: selCard.id,
+                                                    name: selCard.name,
+                                                    definition: selCard.definition,
+                                                    versionPid: selCard.versionPid,
+                                                });
+                                            }}
+                                            sx={{ textTransform: 'none' }}
+                                        >
+                                            Answer
+                                        </Button>
+                                    </>
+                                )}
                             </>
                         )}
                     </Box>

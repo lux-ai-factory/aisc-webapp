@@ -152,11 +152,8 @@ function drawerPaper(): HTMLElement | null {
 /** Open the split-pane Questionnaires dialog from the page-level card. */
 async function openQuestionnairesPane() {
     const card = pageCard('Questionnaires') as HTMLElement;
-    const openBtn = Array.from(card.querySelectorAll('button')).find(
-        (b) => b.textContent === 'Open',
-    ) as HTMLButtonElement;
     await act(async () => {
-        openBtn.click();
+        card.click();
     });
     await act(async () => {});
 }
@@ -636,6 +633,22 @@ describe('QualificationPage', () => {
         expect(bodyText()).toContain('First revision question');
     });
 
+    it('closing the split-pane dialog while answering returns to the page (no answer drawer)', async () => {
+        await renderPage();
+        await openQuestionnairesPane();
+        await selectPaneItem('Annex IV', 'default');
+        await clickFooterButton('Answer');
+        expect(bodyText()).toContain('Answer — Annex IV');
+        // a backdrop click (outside the dialog) must drop BOTH the dialog and
+        // the inline answer form, else the answer SideDrawer opens on return
+        await act(async () => {
+            document.querySelector<HTMLElement>('.MuiBackdrop-root')!.click();
+        });
+        await act(async () => {});
+        expect(drawerPaper()).toBeNull();
+        expect(bodyText()).not.toContain('Answer — Annex IV');
+    });
+
     it('keeps the chosen questionnaire version on the card and in the detail', async () => {
         routes.length = 0;
         route((url) => url.includes('/questionnaires/projects/p1') && !url.includes('/versions'), [
@@ -848,11 +861,9 @@ describe('QualificationPage', () => {
         expect(aiCard.textContent).toContain('config v2');
         expect(aiCard.textContent).toContain('Annex IV');
 
-        const openBtn = Array.from(aiCard.querySelectorAll('button')).find(
-            (b) => b.textContent === 'Open',
-        ) as HTMLButtonElement;
+        // the whole card opens the AI-card drawer (no Open button anymore)
         await act(async () => {
-            openBtn.click();
+            aiCard.click();
         });
         await act(async () => {});
         expect(bodyText()).toContain('AI card');
@@ -899,12 +910,9 @@ describe('QualificationPage', () => {
         await renderPage();
         const aiCard = pageCard('AI card') as HTMLElement;
         expect(aiCard.textContent).toContain('card v2');
-        const openBtn = Array.from(aiCard.querySelectorAll('button')).find(
-            (b) => b.textContent === 'Open',
-        ) as HTMLButtonElement;
-        // open the graph: starts on the latest card version
+        // open the graph from the card itself: starts on the latest card version
         await act(async () => {
-            openBtn.click();
+            aiCard.click();
         });
         await act(async () => {});
         expect(cardVersionButton().textContent).toContain('v2');
@@ -926,7 +934,7 @@ describe('QualificationPage', () => {
         });
         await act(async () => {});
         await act(async () => {
-            openBtn.click();
+            aiCard.click();
         });
         await act(async () => {});
         expect(cardVersionButton().textContent).toContain('v1');
