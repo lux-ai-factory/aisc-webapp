@@ -24,6 +24,7 @@ import Grid from "@mui/material/Grid2";
 import DownloadIcon from '@mui/icons-material/Download';
 import {Plugin} from "../models/models.tsx";
 import EvaluationProgressList from "../components/EvaluationProgressList.tsx";
+import { evalTitle } from "../lib/sandbox";
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
@@ -338,7 +339,7 @@ function PluginEvaluations({
                                             <Box sx={{minWidth: 0}}>
                                                 <Tooltip title={evaluation.pid} placement="top">
                                                     <Typography variant="subtitle1" fontWeight={600} color="text.primary">
-                                                        Results
+                                                        {evalTitle(evaluation)}
                                                     </Typography>
                                                 </Tooltip>
 

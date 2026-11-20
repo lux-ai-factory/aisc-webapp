@@ -88,7 +88,7 @@ describe('SandboxPage', () => {
     it('renders completed evaluation results below the start flow', async () => {
         await renderPage();
         const text = document.body.textContent ?? '';
-        expect(text).toContain('Results');
+        expect(text).toContain('e-done');
         expect(text).toContain('Executed plugins');
         const link = Array.from(document.body.querySelectorAll('a')).find((a) =>
             a.getAttribute('href')?.includes('e-done'),
