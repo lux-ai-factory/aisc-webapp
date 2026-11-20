@@ -237,10 +237,11 @@ describe('ReportPage', () => {
         });
         await act(async () => {});
         expect(document.body.textContent ?? '').toContain('Generate report');
-        // the evaluation list names the executed plugins, not the UUID
+        // the evaluation list shows the evaluation title (short uuid here),
+        // with the executed plugins named underneath
         expect(document.body.textContent ?? '').toContain('Classification Performance');
         expect(document.body.textContent ?? '').toContain('Robustness');
-        expect(document.body.textContent ?? '').not.toContain('e1e1e1e1');
+        expect(document.body.textContent ?? '').toContain('e1e1e1e1');
         const confirmButtons = buttonsWithText('Generate');
         const confirm = confirmButtons[confirmButtons.length - 1]!;
         await act(async () => {
@@ -419,6 +420,6 @@ describe('ReportPage', () => {
         // a pending report cannot be downloaded or opened yet
         expect(document.body.querySelector('button[aria-label="Download P9"]')).toBeNull();
         // the card carries a chip per selected evaluation (short pid)
-        expect(text).toContain('#e1e1e1e1');
+        expect(text).toContain('e1e1e1e1');
     });
 });

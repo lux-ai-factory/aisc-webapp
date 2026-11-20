@@ -27,23 +27,27 @@ import {
     openReportDocument,
     setReportSettings,
 } from '../lib/report';
-import { SandboxRun, listAllRuns } from '../lib/sandbox';
+import { SandboxRun, evalTitle, listAllRuns } from '../lib/sandbox';
 import toast from 'react-hot-toast';
 
-/** What a run executed, in place of its UUID: plugin names + status + date. */
+/** One report-evaluation row: name with the Done date below it, and the
+ *  executed plugin chips inline to the right of both lines. */
 function runLabel(run: SandboxRun) {
     const plugins = (run.evaluation_plugins ?? [])
         .map((plugin) => plugin.display_name || plugin.name)
         .filter((name): name is string => Boolean(name));
     return (
-        <Box>
-            <Typography variant="body2">
-                {plugins.length > 0 ? plugins.join(', ') : run.task || 'Evaluation'}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-                {run.status}
-                {run.created_at ? ` · ${run.created_at.replace('T', ' ').slice(0, 16)}` : ''}
-            </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            <Box sx={{ minWidth: 0 }}>
+                <Typography variant="body2">{evalTitle(run)}</Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', whiteSpace: 'nowrap' }}>
+                    {run.status}
+                    {run.created_at ? ` · ${run.created_at.replace('T', ' ').slice(0, 16)}` : ''}
+                </Typography>
+            </Box>
+            {plugins.map((plugin) => (
+                <Chip key={plugin} size="small" variant="outlined" label={plugin} />
+            ))}
         </Box>
     );
 }
@@ -136,6 +140,9 @@ export default function ReportPage() {
     // a report only documents evaluations that actually ran (Done); pending or
     // failed runs have no measurements to report
     const doneRuns = runs.filter((run) => run.status === 'Done');
+
+    // names of the current runs, so past-report chips can show them too
+    const titleByPid = new Map(runs.map((r) => [r.pid, evalTitle(r)]));
 
     const generate = async () => {
         if (!settings) return;
@@ -309,7 +316,7 @@ export default function ReportPage() {
                                                     size="small"
                                                     variant="filled"
                                                     color="info"
-                                                    label={`#${ev.pid.slice(0, 8)}`}
+                                                    label={titleByPid.get(ev.pid) ?? ev.pid.slice(0, 8)}
                                                     title={`${ev.pid}${ev.status ? ` · ${ev.status}` : ''}`}
                                                 />
                                             ))}
