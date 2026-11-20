@@ -340,7 +340,7 @@ export default function ReportPage() {
             <AppDialog
                 open={generateOpen}
                 onClose={() => setGenerateOpen(false)}
-                maxWidth="md"
+                maxWidth="lg"
                 fullWidth
                 title="Generate report"
                 actions={
