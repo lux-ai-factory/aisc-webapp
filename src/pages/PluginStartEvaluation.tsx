@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { API_VERSION_PREFIX } from "../config.tsx";
 import { useProject } from "../context/ProjectContext.tsx";
-import {Button, Typography, Box, Tooltip, Alert, Stack} from "@mui/material";
+import {Button, Typography, Box, Tooltip, Alert, Stack, TextField} from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import { useEffect, useRef, useState } from "react";
 import { Plugin, PluginInputValue } from "../models/models.tsx";
@@ -39,7 +39,7 @@ function saveState(key: string, selectedPlugins: SelectedPluginsState, selection
     } catch { /* ignore storage quota/availability errors */ }
 }
 
-const createEvaluation = async (project_uuid: string, selectedPlugins: SelectedPluginsState, selectedConfigs: Record<string, number | null>) => {
+const createEvaluation = async (project_uuid: string, selectedPlugins: SelectedPluginsState, selectedConfigs: Record<string, number | null>, name?: string) => {
     if (!project_uuid) throw new Error('Invalid uuid');
 
     const plugins_to_run = Object.entries(selectedPlugins).map(([name, inputs]) => ({
@@ -50,7 +50,8 @@ const createEvaluation = async (project_uuid: string, selectedPlugins: SelectedP
 
     const data = {
         project_pid: project_uuid,
-        plugins_to_run
+        plugins_to_run,
+        ...(name?.trim() ? { name: name.trim() } : {}),
     };
 
     const response = await fetch(`${API_URL}/evaluations/task`, {
@@ -80,6 +81,7 @@ export default function PluginStartEvaluation({ onCreated }: { onCreated?: () =>
     const [activePlugin, setActivePlugin] = useState<string | null>(null);
     const [validPlugins, setValidPlugins] = useState<Record<string, boolean>>({});
     const [dispatchError, setDispatchError] = useState<{ message: string; missing: Array<Record<string, string>>; invalid: Array<Record<string, string>>; ambiguous: Array<Record<string, string>> } | null>(null);
+    const [evaluationName, setEvaluationName] = useState('');
     const navigate = useNavigate();
 
     const { data: project, isPending, error } = useQuery({
@@ -150,8 +152,9 @@ export default function PluginStartEvaluation({ onCreated }: { onCreated?: () =>
         if (validEntries.length === 0) return;
         setDispatchError(null);
         try {
-            await createEvaluation(projectUUID, Object.fromEntries(validEntries), selectedConfigs);
+            await createEvaluation(projectUUID, Object.fromEntries(validEntries), selectedConfigs, evaluationName);
             onCreated?.();
+            setEvaluationName('');
             // Clear the cards that were used in the evaluation; keep the
             // partial / not-valid ones so their chosen fields survive.
             const used = new Set(validEntries.map(([name]) => name));
@@ -272,6 +275,14 @@ export default function PluginStartEvaluation({ onCreated }: { onCreated?: () =>
                 <Typography variant="h4" className="page-header-title">
                     Start an Evaluation
                 </Typography>
+
+                <TextField
+                    size="small"
+                    value={evaluationName}
+                    onChange={(e) => setEvaluationName(e.target.value)}
+                    placeholder="Evaluation name (optional)"
+                    sx={{ flexShrink: 1, minWidth: { xs: 150, md: 260 } }}
+                />
 
                 <Tooltip title="Create Evaluation">
                     <Button
