@@ -3,6 +3,7 @@ import { API_VERSION_PREFIX } from '../config';
 export interface SandboxRun {
     pid: string;
     status: string;
+    name?: string;
     created_at?: string;
     task?: string | null;
     evaluation_plugins?: Array<{
@@ -25,6 +26,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 /** All runs of a project, newest first (the middle of the Sandbox). */
+/** Canonical title for an evaluation: "Name (short uuid)" when a name is set,
+ *  otherwise just the short uuid. Used in every evaluation list/dropdown. */
+export function evalTitle(e: { pid: string; name?: string | null }): string {
+    const name = e.name?.trim();
+    const short = e.pid.slice(0, 8);
+    return name ? `${name} (${short})` : short;
+}
+
 export async function listAllRuns(pid: string): Promise<SandboxRun[]> {
     const runs = await request<SandboxRun[]>(`/projects/${pid}/evaluations`);
     return sortRunsNewest(runs);

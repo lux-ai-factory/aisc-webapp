@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { listAllRuns, runStatusColor, SandboxRun, sortRunsNewest } from './sandbox';
+import { evalTitle, listAllRuns, runStatusColor, SandboxRun, sortRunsNewest } from './sandbox';
 
 beforeEach(() => {
     vi.unstubAllGlobals();
@@ -50,5 +50,15 @@ describe('runStatusColor', () => {
         expect(runStatusColor('Failed')).toBe('error');
         expect(runStatusColor('Processing')).toBe('info');
         expect(runStatusColor('Archived')).toBe('default');
+    });
+});
+
+describe('evalTitle', () => {
+    it('renders "Name (short uuid)" when a name is set', () => {
+        expect(evalTitle({ pid: 'abcdef123456', name: 'Accuracy sweep' })).toBe('Accuracy sweep (abcdef12)');
+    });
+
+    it('falls back to just the short uuid when no name is set', () => {
+        expect(evalTitle({ pid: 'abcdef123456' })).toBe('abcdef12');
     });
 });
