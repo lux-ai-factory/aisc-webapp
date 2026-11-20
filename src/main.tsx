@@ -19,7 +19,7 @@ import {Toaster} from "react-hot-toast";
 
 const queryClient = new QueryClient()
 
-/** Brand theme: pilot palette, typography and square corners (shared/theme/brand.json). */
+/** Brand theme: pilot palette, typography and square corners. */
 const brandTheme = createTheme({
   palette: {
     primary: { main: '#000fdf', dark: '#000079' },
