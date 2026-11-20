@@ -1,0 +1,53 @@
+/* Dashboard grid widget chrome: keep visual styles here, not in inline sx. */
+
+.grid-widget {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    background: #fff;
+}
+
+/* The header doubles as the drag handle; it uses the same light blue as the
+   dashboard cards (gradient-card), with brand-blue ink and a blue hairline. */
+.grid-widget-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    min-height: 40px;
+    background: linear-gradient(165deg, rgba(247, 251, 255, 0.98), rgba(232, 241, 255, 0.96));
+    border-bottom: 1px solid rgba(28, 92, 198, 0.28);
+    color: #1a1a1a;
+    cursor: grab;
+    user-select: none;
+}
+
+.grid-widget-header-title {
+    flex: 1;
+    min-width: 0;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.grid-widget-header .MuiIconButton-root {
+    flex-shrink: 0;
+    color: rgba(0, 0, 0, 0.54); /* MUI default action grey = the plugin reload icon's grey */
+}
+.grid-widget-header .MuiIconButton-root.MuiIconButton-colorError {
+    color: #d32f2f; /* app danger red (PluginConfigForm.css) — remove bin */
+}
+.grid-widget-header > .MuiSvgIcon-root:first-child {
+    color: rgba(0, 0, 0, 0.54); /* drag grip */
+}
+
+.grid-widget-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 8px;
+}
