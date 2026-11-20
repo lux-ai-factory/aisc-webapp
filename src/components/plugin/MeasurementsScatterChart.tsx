@@ -15,18 +15,39 @@ interface MeasurementsScatterChartProps {
     data: Measurement[];
     metricLabelDimension?: string;
     groupByDimensions?: string[];
+    labelOverrides?: Record<string, string>;
+    seriesOrder?: string[];
 }
 
-export const MeasurementsScatterChart = ({ title: title, description: description, data, metricLabelDimension, groupByDimensions }: MeasurementsScatterChartProps) => {
+export const MeasurementsScatterChart = ({ title: title, description: description, data, metricLabelDimension, groupByDimensions, labelOverrides, seriesOrder }: MeasurementsScatterChartProps) => {
     const keys = useMemo(
         () => buildDistinctSeriesKeys(data, groupByDimensions, metricLabelDimension),
         [data, groupByDimensions, metricLabelDimension],
     );
-    const labels = useMemo(() => new Map(keys.map(key => [key, labelFromSeriesKey(key)])), [keys]);
+    const labels = useMemo(() => {
+        const map = new Map<string, string>();
+        keys.forEach((key) => {
+            const base = labelFromSeriesKey(key);
+            map.set(key, labelOverrides?.[base] || base);
+        });
+        return map;
+    }, [keys, labelOverrides]);
+
+    const orderedKeys = useMemo(() => {
+        if (!seriesOrder || seriesOrder.length === 0) return keys;
+        const rank = new Map(seriesOrder.map((label, i) => [label, i]));
+        return [...keys].sort((a, b) => {
+            const la = labelFromSeriesKey(a);
+            const lb = labelFromSeriesKey(b);
+            const ia = rank.has(la) ? rank.get(la)! : Number.MAX_SAFE_INTEGER;
+            const ib = rank.has(lb) ? rank.get(lb)! : Number.MAX_SAFE_INTEGER;
+            return ia - ib;
+        });
+    }, [keys, seriesOrder]);
 
     const series = useMemo(
         () =>
-            keys.map((key, index) => ({
+            orderedKeys.map((key, index) => ({
                 id: key,
                 label: labels.get(key) ?? key,
                 data: data
@@ -36,7 +57,7 @@ export const MeasurementsScatterChart = ({ title: title, description: descriptio
                 color: getColorFromIndex(index),
                 markerSize: 6,
             })),
-        [data, groupByDimensions, keys, labels, metricLabelDimension],
+        [data, groupByDimensions, orderedKeys, labels, metricLabelDimension],
     );
 
     const maxIndex = Math.max(0, ...series.map((s) => (s.data.length ? s.data[s.data.length - 1].x : 0)));

@@ -12,14 +12,25 @@ interface MeasurementsRadarChartProps {
     data: Measurement[];
     metricLabelDimension?: string;
     groupByDimensions?: string[];
+    labelOverrides?: Record<string, string>;
+    seriesOrder?: string[];
 }
 
-export const MeasurementsRadarChart = ({title, description, data, metricLabelDimension, groupByDimensions}: MeasurementsRadarChartProps) => {
+export const MeasurementsRadarChart = ({title, description, data, metricLabelDimension, groupByDimensions, labelOverrides, seriesOrder}: MeasurementsRadarChartProps) => {
     // Distinct axis labels: one radar axis per label
     const axisLabels: string[] = Array.from(new Set(data.map(m => getMetricLabel(m, metricLabelDimension))));
 
-    // Distinct group labels: one radar series (polygon) per group
-    const groupLabels: string[] = Array.from(new Set(data.map(m => getGroupLabel(m, groupByDimensions))));
+    // Distinct group labels: one radar series (polygon) per group, in user order
+    const rawGroupLabels: string[] = Array.from(new Set(data.map(m => getGroupLabel(m, groupByDimensions))));
+    const groupLabels = (() => {
+        if (!seriesOrder || seriesOrder.length === 0) return rawGroupLabels;
+        const rank = new Map(seriesOrder.map((label, i) => [label, i]));
+        return [...rawGroupLabels].sort((a, b) => {
+            const ia = rank.has(a) ? rank.get(a)! : Number.MAX_SAFE_INTEGER;
+            const ib = rank.has(b) ? rank.get(b)! : Number.MAX_SAFE_INTEGER;
+            return ia - ib;
+        });
+    })();
 
     const series = groupLabels.map((groupLabel, index) => {
         const color = getColorFromIndex ? getColorFromIndex(index) : undefined;
@@ -36,7 +47,8 @@ export const MeasurementsRadarChart = ({title, description, data, metricLabelDim
             fillArea: true,
         };
         const shouldLabel = groupLabels.length > 1 || !!groupLabel;
-        return shouldLabel ? { ...base, label: groupLabel } : base;
+        const label = labelOverrides?.[groupLabel] || groupLabel;
+        return shouldLabel ? { ...base, label } : base;
     });
 
     return (

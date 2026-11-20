@@ -24,29 +24,44 @@ interface MeasurementsBarChartProps {
      *  This is the "iterate" counterpart of grouping: e.g. group by d2 inside
      *  each value of d1. A chart per facet value. */
     facetByDimension?: string;
+    /** Rename legend labels (key = original group label, value = displayed label). */
+    labelOverrides?: Record<string, string>;
+    /** Display series in this order (list of original group labels). */
+    seriesOrder?: string[];
 }
 
 /** One bar chart: metric labels on the X axis, one series per group. */
 function BarChartBody({
-    title, description, data, metricLabelDimension, groupByDimensions, stacked = false, fallbackSeriesLabel,
+    title, description, data, metricLabelDimension, groupByDimensions, stacked = false, fallbackSeriesLabel, labelOverrides, seriesOrder,
 }: Omit<MeasurementsBarChartProps, "facetByDimension"> & { fallbackSeriesLabel?: string }) {
     const [hidden, setHidden] = useState<string[]>([]);
 
     const metricLabels: string[] = Array.from(new Set(data.map(m => getMetricLabel(m, metricLabelDimension))));
     const groupLabels: string[] = Array.from(new Set(data.map(m => getGroupLabel(m, groupByDimensions))));
 
+    // Reorder groups to match the user's legend order.
+    const orderedGroupLabels = useMemo(() => {
+        if (!seriesOrder || seriesOrder.length === 0) return groupLabels;
+        const rank = new Map(seriesOrder.map((label, i) => [label, i]));
+        return [...groupLabels].sort((a, b) => {
+            const ia = rank.has(a) ? rank.get(a)! : Number.MAX_SAFE_INTEGER;
+            const ib = rank.has(b) ? rank.get(b)! : Number.MAX_SAFE_INTEGER;
+            return ia - ib;
+        });
+    }, [groupLabels, seriesOrder]);
+
     const baseSeries = useMemo(
         () =>
-            groupLabels.map((groupLabel, index) => ({
+            orderedGroupLabels.map((groupLabel, index) => ({
                 id: groupLabel || fallbackSeriesLabel || "__ungrouped__",
-                label: groupLabel || fallbackSeriesLabel || "All measurements",
+                label: labelOverrides?.[groupLabel] || groupLabel || fallbackSeriesLabel || "All measurements",
                 color: getColorFromIndex(index),
                 data: metricLabels.map(metricLabel =>
                     data.find(m => getGroupLabel(m, groupByDimensions) === groupLabel && getMetricLabel(m, metricLabelDimension) === metricLabel)?.score ?? null,
                 ),
                 ...(stacked ? { stack: "total" as const } : {}),
             })),
-        [data, groupLabels, metricLabels, groupByDimensions, metricLabelDimension, stacked, fallbackSeriesLabel],
+        [data, orderedGroupLabels, metricLabels, groupByDimensions, metricLabelDimension, stacked, fallbackSeriesLabel, labelOverrides],
     );
     const seriesForChart = useMemo(
         () => applyHiddenToSeries(baseSeries, hidden),

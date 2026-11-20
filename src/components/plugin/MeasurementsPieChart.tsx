@@ -18,21 +18,41 @@ interface MeasurementsPieChartProps {
     data: Measurement[];
     metricLabelDimension?: string;
     groupByDimensions?: string[];
+    labelOverrides?: Record<string, string>;
+    seriesOrder?: string[];
 }
 
-export const MeasurementsPieChart = ({title: title, description: description, data, metricLabelDimension, groupByDimensions}: MeasurementsPieChartProps) => {
+export const MeasurementsPieChart = ({title: title, description: description, data, metricLabelDimension, groupByDimensions, labelOverrides, seriesOrder}: MeasurementsPieChartProps) => {
     const times = useMemo(() => buildDistinctTimes(data), [data]);
     const keys = useMemo(() => buildDistinctSeriesKeys(data, groupByDimensions, metricLabelDimension), [data, groupByDimensions, metricLabelDimension]);
-    const labels = useMemo(() => new Map(keys.map(key => [key, labelFromSeriesKey(key)])), [keys]);
+    const orderedKeys = useMemo(() => {
+        if (!seriesOrder || seriesOrder.length === 0) return keys;
+        const rank = new Map(seriesOrder.map((label, i) => [label, i]));
+        return [...keys].sort((a, b) => {
+            const la = labelFromSeriesKey(a);
+            const lb = labelFromSeriesKey(b);
+            const ia = rank.has(la) ? rank.get(la)! : Number.MAX_SAFE_INTEGER;
+            const ib = rank.has(lb) ? rank.get(lb)! : Number.MAX_SAFE_INTEGER;
+            return ia - ib;
+        });
+    }, [keys, seriesOrder]);
+    const labels = useMemo(() => {
+        const map = new Map<string, string>();
+        keys.forEach((key) => {
+            const base = labelFromSeriesKey(key);
+            map.set(key, labelOverrides?.[base] || base);
+        });
+        return map;
+    }, [keys, labelOverrides]);
     const byKeyAndTime = useMemo(() => buildLookupBySeriesKeyAndTime(data, groupByDimensions, metricLabelDimension), [data, groupByDimensions, metricLabelDimension]);
 
     const baseSeries = useMemo(
         () =>
-            buildAlignedSeries(keys, times, byKeyAndTime, getColorFromIndex, {
+            buildAlignedSeries(orderedKeys, times, byKeyAndTime, getColorFromIndex, {
                 showMark: false,
                 curve: "linear",
             }, labels),
-        [keys, times, byKeyAndTime, labels]
+        [orderedKeys, times, byKeyAndTime, labels]
     );
 
     const pieData = useMemo(

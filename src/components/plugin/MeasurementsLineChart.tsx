@@ -20,9 +20,13 @@ interface MeasurementsLineChartProps {
     data: Measurement[];
     metricLabelDimension?: string;
     groupByDimensions?: string[];
+    /** Rename legend labels (key = original label, value = displayed label). */
+    labelOverrides?: Record<string, string>;
+    /** Display series in this order (list of original legend labels). */
+    seriesOrder?: string[];
 }
 
-export const MeasurementsLineChart = ({ title, description, data, metricLabelDimension, groupByDimensions }: MeasurementsLineChartProps) => {
+export const MeasurementsLineChart = ({ title, description, data, metricLabelDimension, groupByDimensions, labelOverrides, seriesOrder }: MeasurementsLineChartProps) => {
     // Fixed x-domain
     const times = useMemo(() => buildDistinctTimes(data), [data]);
     // Distinct series keys: (metric name, display label, group label)
@@ -31,7 +35,14 @@ export const MeasurementsLineChart = ({ title, description, data, metricLabelDim
         [data, groupByDimensions, metricLabelDimension],
     );
     // Display label per series key (metricLabel, plus " (groupLabel)" when grouped)
-    const labels = useMemo(() => new Map(keys.map(key => [key, labelFromSeriesKey(key)])), [keys]);
+    const labels = useMemo(() => {
+        const map = new Map<string, string>();
+        keys.forEach((key) => {
+            const base = labelFromSeriesKey(key);
+            map.set(key, labelOverrides?.[base] || base);
+        });
+        return map;
+    }, [keys, labelOverrides]);
     // Sparse lookup series key -> time -> score
     const byKeyAndTime = useMemo(
         () => buildLookupBySeriesKeyAndTime(data, groupByDimensions, metricLabelDimension),
@@ -47,19 +58,32 @@ export const MeasurementsLineChart = ({ title, description, data, metricLabelDim
         [keys, times, byKeyAndTime, labels],
     );
 
+    // Reorder series to match the user's legend order (by original label).
+    const orderedSeries = useMemo(() => {
+        if (!seriesOrder || seriesOrder.length === 0) return baseSeries;
+        const rank = new Map(seriesOrder.map((label, i) => [label, i]));
+        return [...baseSeries].sort((a, b) => {
+            const la = labelFromSeriesKey(String(a.id));
+            const lb = labelFromSeriesKey(String(b.id));
+            const ia = rank.has(la) ? rank.get(la)! : Number.MAX_SAFE_INTEGER;
+            const ib = rank.has(lb) ? rank.get(lb)! : Number.MAX_SAFE_INTEGER;
+            return ia - ib;
+        });
+    }, [baseSeries, seriesOrder]);
+
     // Visibility state
     const [hidden, setHidden] = useState<string[]>([]);
 
     // Replace hidden series with null data so they remain in the legend
     const seriesForChart = useMemo(
-        () => applyHiddenToSeries(baseSeries, hidden),
-        [baseSeries, hidden],
+        () => applyHiddenToSeries(orderedSeries, hidden),
+        [orderedSeries, hidden],
     );
 
     // Only Y-axis rescales (x-axis stays fixed)
     const { yMin, yMax } = useMemo(
-        () => computeYDomainFromVisible(baseSeries, hidden),
-        [baseSeries, hidden],
+        () => computeYDomainFromVisible(orderedSeries, hidden),
+        [orderedSeries, hidden],
     );
 
     return (

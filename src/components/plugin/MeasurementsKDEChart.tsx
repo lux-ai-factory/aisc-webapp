@@ -20,6 +20,8 @@ interface MeasurementsKDEChartProps {
     bins?: number;
     metricLabelDimension?: string;
     groupByDimensions?: string[];
+    labelOverrides?: Record<string, string>;
+    seriesOrder?: string[];
 }
 
 /** Helper: convert #RRGGBB to rgba(r,g,b,a) for semi‑transparent bars */
@@ -48,11 +50,22 @@ function makeXFormatter(range: number) {
         });
 }
 
-export const MeasurementsKDEChart = ({title: title, description: description, data, bins = 20, metricLabelDimension, groupByDimensions}: MeasurementsKDEChartProps) => {
+export const MeasurementsKDEChart = ({title: title, description: description, data, bins = 20, metricLabelDimension, groupByDimensions, labelOverrides, seriesOrder}: MeasurementsKDEChartProps) => {
     if (!data?.length) return null;
 
     // --- Grouping
-    const seriesKeys = buildDistinctSeriesKeys(data, groupByDimensions, metricLabelDimension);
+    const rawKeys = buildDistinctSeriesKeys(data, groupByDimensions, metricLabelDimension);
+    const seriesKeys = (() => {
+        if (!seriesOrder || seriesOrder.length === 0) return rawKeys;
+        const rank = new Map(seriesOrder.map((label, i) => [label, i]));
+        return [...rawKeys].sort((a, b) => {
+            const la = labelFromSeriesKey(a);
+            const lb = labelFromSeriesKey(b);
+            const ia = rank.has(la) ? rank.get(la)! : Number.MAX_SAFE_INTEGER;
+            const ib = rank.has(lb) ? rank.get(lb)! : Number.MAX_SAFE_INTEGER;
+            return ia - ib;
+        });
+    })();
     const scoresByKey = new Map<string, number[]>();
 
     for (const key of seriesKeys) {
@@ -129,10 +142,11 @@ export const MeasurementsKDEChart = ({title: title, description: description, da
     const series =
         seriesKeys.flatMap((key, idx) => {
             const baseLabel = labelFromSeriesKey(key);
+            const displayLabel = labelOverrides?.[baseLabel] || baseLabel;
             const bar = {
                 id: `${key}-bars`,
                 type: 'bar' as const,
-                label: `${baseLabel} count` ,
+                label: `${displayLabel} count` ,
                 dataKey: `count__${key}`,
                 color: hexToRgba(getColorFromIndex(idx), 0.25),
                 yAxisId: 'count',
@@ -140,7 +154,7 @@ export const MeasurementsKDEChart = ({title: title, description: description, da
             const line = {
                 id: `${key}-kde`,
                 type: 'line' as const,
-                label: `${baseLabel} density`,
+                label: `${displayLabel} density`,
                 dataKey: `kde__${key}`,
                 color: getColorFromIndex(idx),
                 yAxisId: 'density',
