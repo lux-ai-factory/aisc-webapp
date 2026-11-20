@@ -6,6 +6,32 @@ import { MemoryRouter } from 'react-router-dom';
 
 import DashboardPage from './DashboardPage';
 
+// react-grid-layout v2 measures the DOM via useContainerWidth; stub both it and
+// Responsive so page tests stay light.
+vi.mock('react-grid-layout', async () => {
+    const React = (await import('react')).default;
+    return {
+        useContainerWidth: () => ({
+            containerRef: { current: null },
+            width: 1000,
+            mounted: true,
+            measureWidth: () => {},
+        }),
+        Responsive: (props: { children?: React.ReactNode; 'data-testid'?: string }) =>
+            React.createElement('div', { 'data-testid': props['data-testid'] ?? 'rgl-canvas' }, props.children),
+    };
+});
+
+// The measurement chart components pull in @mui/x-charts / @mui/x-data-grid,
+// which don't resolve cleanly under vitest; they're leaf renderers, so stub them.
+vi.mock('../components/plugin/MeasurementsDataGrid', () => ({ default: () => null }));
+vi.mock('../components/plugin/MeasurementsLineChart', () => ({ default: () => null }));
+vi.mock('../components/plugin/MeasurementsScatterChart', () => ({ default: () => null }));
+vi.mock('../components/plugin/MeasurementsRadarChart', () => ({ default: () => null }));
+vi.mock('../components/plugin/MeasurementsKDEChart', () => ({ default: () => null }));
+vi.mock('../components/plugin/MeasurementsBarsChart', () => ({ default: () => null }));
+vi.mock('../components/plugin/MeasurementsPieChart', () => ({ default: () => null }));
+
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
 vi.mock('../context/ProjectContext', () => ({
@@ -46,6 +72,32 @@ beforeEach(() => {
                 return Promise.resolve({
                     ok: true,
                     json: async () => [{ pid: 'e1', status: 'Done' }],
+                });
+            }
+            if (url.includes('evaluations?status=Done')) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => [
+                        {
+                            pid: 'e1',
+                            status: 'Done',
+                            created_at: '2026-01-02T03:04:05Z',
+                            evaluation_plugins: [
+                                { pid: 'ep1', name: 'quality', display_name: 'Quality' },
+                            ],
+                        },
+                    ],
+                });
+            }
+            if (url.includes('/plugins/ep1/evaluations/e1/result')) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({
+                        measurements: [
+                            { name: 'accuracy', score: 0.9, time: '2026-01-02T03:04:05Z', dimensions: {} },
+                        ],
+                        metric_visualizations: [],
+                    }),
                 });
             }
             if (url.includes('/system-versions/latest')) {
@@ -92,6 +144,13 @@ describe('DashboardPage', () => {
         expect(text).toContain('1/1 completed');
         expect(text).toContain('1 installed');
         expect(text).toContain('1/1 done');
+    });
+
+    it('renders the charts workspace selector', async () => {
+        await renderPage();
+        const text = document.body.textContent ?? '';
+        expect(text).toContain('Add chart');
+        expect(text).toContain('No widgets yet');
     });
 
     it('links cards to their pages', async () => {

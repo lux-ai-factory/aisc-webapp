@@ -9,6 +9,7 @@ import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid2';
 import { useProject } from '../context/ProjectContext';
 import { DashboardStats, getDashboardStats } from '../lib/dashboard';
+import GridDashboard from '../components/dashboard/GridDashboard';
 import '../styles/common.css';
 
 interface StatCard {
@@ -153,9 +154,9 @@ export default function DashboardPage() {
                 ))}
             </Grid>
             <Typography variant="caption" color="text.secondary">
-                Result analytics land with the results-dashboard backend; until then this
-                page summarises project state.
+                Pick the evaluations and plugins you want to inspect, then add charts and comments that you can drag anywhere on the canvas.
             </Typography>
+            <GridDashboard projectUUID={pid} />
         </Box>
     );
 }
