@@ -27,6 +27,9 @@ interface PluginEvaluationFormProps {
     onUnselect?: () => void;
     onSelectionChange: (item: PluginInputValue | null, inputName: string) => void;
     onValidationChange?: (valid: boolean) => void;
+    /** why the test cannot be launched yet (a test that calls its target while no target has a connection):
+     *  the card is greyed out, says why, and cannot be ticked */
+    blockedReason?: string;
 }
 
 interface ModelSelectProps {
@@ -171,6 +174,7 @@ export default function PluginEvaluationForm({
     onUnselect,
     onSelectionChange,
     onValidationChange,
+    blockedReason,
 }: PluginEvaluationFormProps) {
     const { projectUUID } = useProject();
     const [selectedConfig, setSelectedConfig] = useState<number | null>(null);
@@ -293,6 +297,8 @@ export default function PluginEvaluationForm({
 
     const isReady = isConfigured && allMandatoryFilled;
     const backendConfigured = plugin.config !== null;
+    const blocked = !!blockedReason;
+    const clickable = backendConfigured && !blocked;
 
     if (isDefinitionsPending || isProjectPending) return <span>Loading...</span>;
 
@@ -322,6 +328,7 @@ export default function PluginEvaluationForm({
     const cardClasses = [
         className,
         !backendConfigured && 'plugin-eval-card--unconfigured',
+        blocked && 'plugin-eval-card--blocked',
         isActive && 'plugin-eval-card--active',
         isConfigured && !isActive && 'plugin-eval-card--configured',
         isReady && 'plugin-eval-card--ready',
@@ -331,8 +338,9 @@ export default function PluginEvaluationForm({
         <Card
             className={cardClasses}
             data-plugin-card
+            aria-disabled={blocked || undefined}
             onClick={(e: React.MouseEvent) => {
-                if (!backendConfigured) return;
+                if (!clickable) return;
                 e.stopPropagation();
                 if (!isActive) {
                     onToggle();
@@ -343,7 +351,7 @@ export default function PluginEvaluationForm({
                     border: '2px solid',
                     borderColor: 'rgba(25, 118, 210, 0.55)',
                 }),
-                ...(backendConfigured && {
+                ...(clickable && {
                     '&:hover': {
                         boxShadow: 4,
                         ...(isReady && { borderColor: 'rgba(25, 118, 210, 0.9)' }),
@@ -364,8 +372,17 @@ export default function PluginEvaluationForm({
                             <Chip label={plugin.package_name} size="small" color="primary" variant="filled" />
                             <Chip label={`v${plugin.version}`} size="small" color="info" variant="outlined" />
                         </Box>
+                        {blocked && (
+                            <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 1 }}>
+                                {blockedReason}
+                            </Typography>
+                        )}
                     </Box>
-                    {isReady ? (
+                    {blocked ? (
+                        <Tooltip title={blockedReason}>
+                            <Icon sx={{ color: 'action.disabled', alignSelf: 'center', fontSize: 24 }}>link_off</Icon>
+                        </Tooltip>
+                    ) : isReady ? (
                         <Tooltip title="Unselect plugin">
                             <CheckCircleIcon
                                 sx={{ color: 'success.main', alignSelf: 'center', fontSize: 24, cursor: 'pointer' }}
@@ -571,9 +588,16 @@ export default function PluginEvaluationForm({
         </Card>
     );
 
-    return backendConfigured ? card : (
-        <Tooltip title="Plugin not configured" placement="top">
+    if (!backendConfigured) {
+        return (
+            <Tooltip title="Plugin not configured" placement="top">
+                {card}
+            </Tooltip>
+        );
+    }
+    return blocked ? (
+        <Tooltip title={blockedReason} placement="top">
             {card}
         </Tooltip>
-    );
+    ) : card;
 }

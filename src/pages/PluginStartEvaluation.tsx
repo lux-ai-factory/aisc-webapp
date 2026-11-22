@@ -3,7 +3,7 @@ import { API_VERSION_PREFIX } from "../config.tsx";
 import { useProject } from "../context/ProjectContext.tsx";
 import {Button, Typography, Box, Tooltip, Alert, Stack, TextField} from "@mui/material";
 import Grid from "@mui/material/Grid2";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Plugin, PluginInputValue } from "../models/models.tsx";
 import toast from "react-hot-toast";
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
@@ -16,6 +16,7 @@ import './PluginStartEvaluation.css';
 import '../styles/common.css';
 import { inUse } from "../models/retired.ts";
 import { lastRunHelper } from "../api/projectHelpers.ts";
+import { getLaunchBlockers } from "../api/launchBlockers.ts";
 
 
 const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
@@ -143,7 +144,33 @@ export default function PluginStartEvaluation() {
         enabled: !!projectUUID
     });
 
+    // the tests that cannot be launched yet (a test that calls its target while no target has a connection),
+    // by plugin pid with the reason; asked again when the page gets the focus back, after a connection is set
+    const { data: blockers } = useQuery({
+        queryKey: ['launchBlockers', projectUUID],
+        queryFn: getLaunchBlockers,
+        enabled: !!projectUUID,
+    });
+    const blockedKeys = useMemo(() => new Set((project?.plugins ?? [])
+        .filter(p => blockers?.[p.pid]).map(p => pluginKey(p))), [project, blockers]);
+
+    // a blocked test is never ticked, however it got ticked (saved in this tab, the last run's inputs): its
+    // inputs stay in the cache, so they come back once it can be launched
+    useEffect(() => {
+        const ticked = Object.keys(selectedPlugins).filter(name => blockedKeys.has(name));
+        if (ticked.length === 0) return;
+        setSelectionCache(prev => ({ ...prev, ...Object.fromEntries(ticked.map(name => [name, selectedPlugins[name]])) }));
+        setSelectedPlugins(prev => {
+            const next = { ...prev };
+            for (const name of ticked) delete next[name];
+            return next;
+        });
+        setValidPlugins(prev => ({ ...prev, ...Object.fromEntries(ticked.map(name => [name, false])) }));
+        setActivePlugin(prev => (prev !== null && blockedKeys.has(prev) ? null : prev));
+    }, [blockedKeys, selectedPlugins]);
+
     const handleTogglePlugin = (pluginName: string) => {
+        if (blockedKeys.has(pluginName)) return;
         openedWithSavedState.current = true;
         if (activePlugin === pluginName && selectedPlugins[pluginName]) {
             setActivePlugin(null);
@@ -193,7 +220,7 @@ export default function PluginStartEvaluation() {
     const handleOnClick = async () => {
         // one launch at a time: the button is off until the engine has answered
         if (!projectUUID || launching || launchSent.current) return;
-        const validEntries = Object.entries(selectedPlugins).filter(([name]) => validPlugins[name]);
+        const validEntries = Object.entries(selectedPlugins).filter(([name]) => validPlugins[name] && !blockedKeys.has(name));
         if (validEntries.length === 0) return;
         setDispatchError(null);
         launchSent.current = true;
@@ -341,7 +368,7 @@ export default function PluginStartEvaluation() {
                         variant="contained"
                         className="gradient-btn"
                         onClick={handleOnClick}
-                        disabled={launching || !Object.keys(selectedPlugins).some(name => validPlugins[name])}
+                        disabled={launching || !Object.keys(selectedPlugins).some(name => validPlugins[name] && !blockedKeys.has(name))}
                         sx={{
                             minWidth: {xs: '44px', md: 'auto'},
                             px: {xs: 1.5, md: 3},
@@ -391,6 +418,7 @@ export default function PluginStartEvaluation() {
                                     handleUpdateSetting(pluginKey(projectPlugin), item, inputName)
                                 }
                                 onValidationChange={(valid) => setValidPlugins(prev => ({ ...prev, [pluginKey(projectPlugin)]: valid }))}
+                                blockedReason={blockers?.[projectPlugin.pid]}
                             />
                         </Grid>
                     ))}

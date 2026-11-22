@@ -54,3 +54,9 @@
 .plugin-eval-card--ready {
     background: #e8f0fe !important;
 }
+/* a test that cannot be launched yet (no target of the AI card has a connection): greyed out, not clickable */
+.plugin-eval-card--blocked {
+    cursor: not-allowed !important;
+    opacity: 0.55;
+    filter: grayscale(1);
+}
