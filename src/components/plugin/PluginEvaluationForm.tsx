@@ -161,13 +161,20 @@ export default function PluginEvaluationForm({
 
     if (isDefinitionsPending || isProjectPending) return <span>Loading...</span>;
 
-    // For file-based component types (model/dataset) only components with an
-    // uploaded file are runnable, so they are the only ones offered.
+    // Which components may fill a slot (ADR 0009): an `llm` slot takes an
+    // `endpoint` that speaks `openai-chat`; a file slot takes its own kind, with
+    // an uploaded file. The adapter itself is defaulted server-side.
     const componentOptions = (def: PluginInputDefinition) => {
-        const isFileType = def.input_type === 'model' || def.input_type === 'dataset';
-        return (project?.components ?? []).filter(c =>
-            c.component_type === def.input_type && (!isFileType || Boolean(c.data))
-        );
+        const matches = (c: AIComponent): boolean => {
+            if (def.input_type === 'llm') {
+                return c.component_type === 'endpoint' && (!c.protocol || c.protocol === 'openai-chat');
+            }
+            if (def.input_type === 'model' || def.input_type === 'dataset') {
+                return c.component_type === def.input_type && Boolean(c.data);
+            }
+            return c.component_type === def.input_type;
+        };
+        return (project?.components ?? []).filter(matches);
     };
 
     const findLabel = (def: PluginInputDefinition): string => {

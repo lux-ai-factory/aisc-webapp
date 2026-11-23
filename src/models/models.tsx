@@ -1,4 +1,4 @@
-export type AIComponentType = 'dataset' | 'model' | 'llm' | 'datashape' | 'resource';
+export type AIComponentType = 'dataset' | 'model' | 'datashape' | 'resource' | 'endpoint';
 
 export interface AIComponent {
     pid: string;
@@ -7,8 +7,19 @@ export interface AIComponent {
     component_type: AIComponentType;
     data: string;
     file_size: number | null;
+    format?: string;
     source_dataset_pid?: string | null;
     json_value?: Record<string, unknown>;
+    // endpoint components (ADR 0009)
+    url?: string;
+    protocol?: string;
+    adapter?: string;
+    adapter_version?: string;
+    adapter_config?: Record<string, unknown>;
+    preset?: string;
+    secret_key?: string;
+    has_secret?: boolean;
+    secret_headers?: string[];
 }
 
 export interface AISystem {

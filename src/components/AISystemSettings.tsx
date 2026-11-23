@@ -10,10 +10,10 @@ import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import LinkIcon from "@mui/icons-material/Link";
 import toast from "react-hot-toast";
 import { useProject } from "../context/ProjectContext";
-import { deriveFeaturesFromDataset, getProjectConfigs } from "../api/api";
+import { deriveFeaturesFromDataset } from "../api/api";
 import keycloak from "../auth/keycloak";
 import { API_VERSION_PREFIX } from "../config";
-import { AIComponent, AIComponentType, ProjectConfig } from "../models/models";
+import { AIComponent, AIComponentType } from "../models/models";
 import AppDialog from "./AppDialog";
 import "../styles/common.css";
 
@@ -63,13 +63,89 @@ async function uploadWithProgress(url: string, formData: FormData, onProgress: (
     });
 }
 
-const COMPONENT_TYPES: { value: AIComponentType; label: string }[] = [
+type ComponentKind =
+    | "model" | "dataset" | "datashape" | "resource"
+    | "llm" | "agent" | "model-api" | "endpoint";
+
+const COMPONENT_TYPES: { value: ComponentKind; label: string }[] = [
     { value: "model", label: "Model (file upload)" },
     { value: "dataset", label: "Dataset (file upload)" },
-    { value: "llm", label: "LLM (OpenAI-compatible endpoint)" },
     { value: "datashape", label: "DataShape (from dataset)" },
     { value: "resource", label: "Resource (generic reference)" },
+    { value: "llm", label: "LLM (OpenAI-compatible)" },
+    { value: "agent", label: "Agent (A2A)" },
+    { value: "model-api", label: "Model API (OIP)" },
+    { value: "endpoint", label: "Custom endpoint" },
 ];
+
+/** A task-shaped preset (ADR 0009 D-10); "Custom" is the advanced payload. */
+const PRESET_OF: Partial<Record<ComponentKind, string>> = {
+    llm: "llm", agent: "agent", "model-api": "model-api",
+};
+const ENDPOINT_KINDS: ComponentKind[] = ["llm", "agent", "model-api", "endpoint"];
+
+interface EndpointDraft {
+    url: string;
+    secret: string;
+    model: string;
+    protocol: string;
+    adapter: string;
+    adapterConfig: string;
+}
+
+const EMPTY_ENDPOINT: EndpointDraft = {
+    url: "", secret: "", model: "", protocol: "rest", adapter: "", adapterConfig: "{}",
+};
+
+function endpointPayload(kind: ComponentKind, draft: EndpointDraft): Record<string, unknown> {
+    const secret = draft.secret ? { secret: draft.secret } : {};
+    if (kind === "endpoint") {
+        let config: Record<string, unknown> = {};
+        try {
+            config = draft.adapterConfig.trim() ? JSON.parse(draft.adapterConfig) : {};
+        } catch {
+            throw new Error("The adapter config is not valid JSON");
+        }
+        return {
+            component_type: "endpoint",
+            url: draft.url.trim(),
+            protocol: draft.protocol.trim(),
+            adapter: draft.adapter.trim(),
+            adapter_config: config,
+            ...secret,
+        };
+    }
+    const fields: Record<string, unknown> = { url: draft.url.trim(), ...secret };
+    if (draft.model.trim()) fields.model = draft.model.trim();
+    return { preset: PRESET_OF[kind], fields };
+}
+
+function endpointLabel(component: AIComponent): string {
+    if (component.component_type !== "endpoint") return component.component_type;
+    if (component.preset === "llm") return "LLM";
+    if (component.preset === "agent") return "Agent";
+    if (component.preset === "model-api") return "Model API";
+    if (component.protocol === "rest") return "REST";
+    return "Custom";
+}
+
+interface AdapterOption { id: string; label: string; speaks: string; serves: string[] }
+
+function adaptersFromCatalogue(body: unknown): AdapterOption[] {
+    const packages = (body as { packages?: Record<string, Record<string, { adapters?: unknown[] }>> })?.packages ?? {};
+    const out: AdapterOption[] = [];
+    for (const versions of Object.values(packages)) {
+        for (const entry of Object.values(versions)) {
+            for (const raw of entry.adapters ?? []) {
+                const a = raw as { id?: string; kind?: string; label?: string; speaks?: string; serves?: string[] };
+                if (a.kind === "endpoint" && a.id) {
+                    out.push({ id: a.id, label: a.label || a.id, speaks: a.speaks || "", serves: a.serves || [] });
+                }
+            }
+        }
+    }
+    return out;
+}
 
 const SEMANTIC_TYPES = ["numeric", "categorical", "datetime", "text", "boolean"];
 const ROLES = ["feature", "target", "date", "ignore"];
@@ -140,21 +216,56 @@ function DataShapeFeaturesEditor({ value, onChange }: {
     );
 }
 
+function EndpointFields({ kind, draft, onChange, adapters, secretSet }: {
+    kind: ComponentKind;
+    draft: EndpointDraft;
+    onChange: (patch: Partial<EndpointDraft>) => void;
+    adapters: AdapterOption[];
+    secretSet?: boolean;
+}) {
+    const isCustom = kind === "endpoint";
+    const showModel = kind === "llm" || kind === "model-api";
+    return (
+        <>
+            <TextField label="Endpoint URL" value={draft.url} onChange={(e) => onChange({ url: e.target.value })}
+                placeholder="https://api.openai.com/v1" required />
+            {showModel && (
+                <TextField label="Model" value={draft.model} onChange={(e) => onChange({ model: e.target.value })}
+                    placeholder={kind === "model-api" ? "required" : "e.g. gpt-4o-mini"} />
+            )}
+            <TextField label={secretSet ? "API key (leave blank to keep)" : "API key"} type="password"
+                value={draft.secret} onChange={(e) => onChange({ secret: e.target.value })} />
+            {isCustom && (
+                <>
+                    <Stack direction="row" spacing={2}>
+                        <TextField label="Protocol" value={draft.protocol} onChange={(e) => onChange({ protocol: e.target.value })} sx={{ minWidth: 160 }} />
+                        <TextField select label="Adapter" value={draft.adapter} onChange={(e) => onChange({ adapter: e.target.value })} sx={{ flexGrow: 1 }}>
+                            <MenuItem value="">default for the protocol</MenuItem>
+                            {adapters.map(a => <MenuItem key={a.id} value={a.id}>{a.label} ({a.id})</MenuItem>)}
+                        </TextField>
+                    </Stack>
+                    <TextField label="Adapter config (JSON)" value={draft.adapterConfig} onChange={(e) => onChange({ adapterConfig: e.target.value })}
+                        multiline minRows={3} />
+                </>
+            )}
+        </>
+    );
+}
+
 export default function AISystemSettings() {
     const { projectUUID, fileUploadingPids, addFileUploadingPid, removeFileUploadingPid } = useProject();
     const [systemInfo, setSystemInfo] = useState<{ pid: string; name: string } | null>(null);
     const [components, setComponents] = useState<AIComponent[]>([]);
-    const [secrets, setSecrets] = useState<ProjectConfig[]>([]);
     const [loading, setLoading] = useState(true);
     const [open, setOpen] = useState(false);
     const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
 
     // add-dialog state
     const [name, setName] = useState("");
-    const [type, setType] = useState<AIComponentType>("model");
+    const [type, setType] = useState<ComponentKind>("model");
     const [file, setFile] = useState<File | undefined>();
-    const [addLlmUrl, setAddLlmUrl] = useState("");
-    const [addSecretKey, setAddSecretKey] = useState("");
+    const [addEndpoint, setAddEndpoint] = useState<EndpointDraft>(EMPTY_ENDPOINT);
+    const [adapters, setAdapters] = useState<AdapterOption[]>([]);
     const [addResourceValue, setAddResourceValue] = useState("");
     const [sourceDatasetPid, setSourceDatasetPid] = useState("");
     const [addJsonValue, setAddJsonValue] = useState<{ features?: FeatureDraft[] }>({});
@@ -173,8 +284,8 @@ export default function AISystemSettings() {
     const [editTarget, setEditTarget] = useState<AIComponent | null>(null);
     const [editName, setEditName] = useState("");
     const [editFile, setEditFile] = useState<File | undefined>();
-    const [editLlmUrl, setEditLlmUrl] = useState("");
-    const [editSecretKey, setEditSecretKey] = useState("");
+    const [editEndpoint, setEditEndpoint] = useState<EndpointDraft>(EMPTY_ENDPOINT);
+    const [editSecretSet, setEditSecretSet] = useState(false);
     const [editResourceValue, setEditResourceValue] = useState("");
     const [editSourceDatasetPid, setEditSourceDatasetPid] = useState("");
     const [editJsonValue, setEditJsonValue] = useState<{ features?: FeatureDraft[] }>({});
@@ -191,8 +302,6 @@ export default function AISystemSettings() {
             setSystemInfo({ pid: data.pid, name: data.name });
             setComponents(data.components ?? []);
         }
-        const settings = await getProjectConfigs(projectUUID);
-        setSecrets(settings.filter(s => s.category === "secrets"));
     }, [projectUUID]);
 
     const load = useCallback(async () => {
@@ -211,6 +320,14 @@ export default function AISystemSettings() {
     }, [fetchData]);
 
     useEffect(() => { load(); }, [load]);
+
+    // The adapter catalogue for the "Custom endpoint" form (ADR 0009).
+    useEffect(() => {
+        fetch(`${API_URL}/adapters`)
+            .then((res) => (res.ok ? res.json() : null))
+            .then((body) => { if (body) setAdapters(adaptersFromCatalogue(body)); })
+            .catch(() => { /* the dropdown simply stays empty */ });
+    }, []);
 
     // When a source dataset is picked in the add-dialog (datashape), derive the
     // data shape and let the user inspect/edit it BEFORE creating the component.
@@ -244,20 +361,13 @@ export default function AISystemSettings() {
         setName("");
         setType("model");
         setFile(undefined);
-        setAddLlmUrl("");
-        setAddSecretKey("");
+        setAddEndpoint(EMPTY_ENDPOINT);
         setAddResourceValue("");
         setSourceDatasetPid("");
         setAddJsonValue({});
         setAddDeriveError(null);
         setAddDeriving(false);
         setAddImported(false);
-        if (projectUUID) {
-            try {
-                const settings = await getProjectConfigs(projectUUID);
-                setSecrets(settings.filter(s => s.category === "secrets"));
-            } catch { /* keep current secrets on failure */ }
-        }
         setOpen(true);
     };
 
@@ -286,29 +396,41 @@ export default function AISystemSettings() {
 
     const addComponent = async () => {
         if (!projectUUID || name.trim().length < 1) return;
-        if (type === "llm" && (!addLlmUrl.trim() || !addSecretKey)) return;
+        const isEndpoint = ENDPOINT_KINDS.includes(type);
+        if (isEndpoint && !addEndpoint.url.trim()) return;
         if (type === "resource" && !addResourceValue.trim()) return;
         if (type === "datashape" && !sourceDatasetPid) return;
         if ((type === "model" || type === "dataset") && !file) return;
         setSaving(true);
         try {
-            const payload: Record<string, unknown> = { name: name.trim(), component_type: type };
-            if (type === "llm") {
-                payload.json_value = { endpoint_url: addLlmUrl.trim(), secret_key: addSecretKey };
-            }
-            if (type === "resource") {
-                payload.json_value = { value: addResourceValue.trim() };
-            }
-            if (type === "datashape") {
-                payload.source_dataset_pid = sourceDatasetPid;
-                payload.json_value = { features: addJsonValue.features ?? [] };
+            let payload: Record<string, unknown> = { name: name.trim() };
+            if (isEndpoint) {
+                try {
+                    payload = { ...payload, ...endpointPayload(type, addEndpoint) };
+                } catch (err) {
+                    toast.error((err as Error).message, { position: "bottom-right" });
+                    return;
+                }
+            } else {
+                payload.component_type = type;
+                if (type === "resource") {
+                    payload.json_value = { value: addResourceValue.trim() };
+                }
+                if (type === "datashape") {
+                    payload.source_dataset_pid = sourceDatasetPid;
+                    payload.json_value = { features: addJsonValue.features ?? [] };
+                }
             }
             const res = await fetch(`${API_URL}/projects/${projectUUID}/components`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
             });
-            if (!res.ok) return;
+            if (!res.ok) {
+                const body = (await res.json().catch(() => null)) as { detail?: string } | null;
+                toast.error(body?.detail ?? "Could not add the component", { position: "bottom-right" });
+                return;
+            }
             const created = await res.json();
             // Close the dialog immediately so the UI is not blocked while the
             // file uploads in the background.
@@ -355,13 +477,23 @@ export default function AISystemSettings() {
     };
 
     const startEdit = (c: AIComponent) => {
-        const json = (c.json_value ?? {}) as Record<string, unknown>;
         setEditTarget(c);
         setEditName(c.name);
         setEditFile(undefined);
-        setEditLlmUrl(typeof json.endpoint_url === "string" ? json.endpoint_url : "");
-        setEditSecretKey(typeof json.secret_key === "string" ? json.secret_key : "");
-        setEditResourceValue(typeof json.value === "string" ? json.value : "");
+        setEditSecretSet(Boolean(c.has_secret));
+        setEditEndpoint({
+            url: c.url ?? "",
+            secret: "",
+            model: String((c.adapter_config ?? {}).model ?? ""),
+            protocol: c.protocol || "rest",
+            adapter: c.adapter ?? "",
+            adapterConfig: JSON.stringify(c.adapter_config ?? {}, null, 2),
+        });
+        setEditResourceValue(
+            typeof (c.json_value ?? {}).value === "string"
+                ? String((c.json_value as Record<string, unknown>).value)
+                : "",
+        );
         setEditSourceDatasetPid(c.source_dataset_pid ?? "");
         setEditJsonValue((c.json_value as { features?: FeatureDraft[] }) ?? {});
     };
@@ -371,14 +503,18 @@ export default function AISystemSettings() {
         if (editTarget.component_type === "datashape" && !editSourceDatasetPid) return;
         setEditSaving(true);
         try {
-            const payload: Record<string, unknown> = { name: editName.trim() };
-            if (editTarget.component_type === "llm") {
-                payload.json_value = { endpoint_url: editLlmUrl.trim(), secret_key: editSecretKey };
-            }
-            if (editTarget.component_type === "resource") {
+            let payload: Record<string, unknown> = { name: editName.trim() };
+            if (editTarget.component_type === "endpoint") {
+                const kind = (editTarget.preset || "endpoint") as ComponentKind;
+                try {
+                    payload = { ...payload, ...endpointPayload(kind, editEndpoint) };
+                } catch (err) {
+                    toast.error((err as Error).message, { position: "bottom-right" });
+                    return;
+                }
+            } else if (editTarget.component_type === "resource") {
                 payload.json_value = { value: editResourceValue };
-            }
-            if (editTarget.component_type === "datashape") {
+            } else if (editTarget.component_type === "datashape") {
                 payload.source_dataset_pid = editSourceDatasetPid;
                 const current = (editTarget.json_value ?? {}) as Record<string, unknown>;
                 payload.json_value = { ...current, features: editJsonValue.features ?? [] };
@@ -388,7 +524,11 @@ export default function AISystemSettings() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
             });
-            if (!res.ok) return;
+            if (!res.ok) {
+                const body = (await res.json().catch(() => null)) as { detail?: string } | null;
+                toast.error(body?.detail ?? "Could not save the component", { position: "bottom-right" });
+                return;
+            }
             // Close the edit dialog immediately and stream any replacement
             // file in the background so the UI is not blocked.
             setEditTarget(null);
@@ -426,10 +566,8 @@ export default function AISystemSettings() {
                 return c.data
                     ? `file: ${c.data}`
                     : "no file";
-            case "llm": {
-                const secretName = secrets.find(s => s.key === json.secret_key)?.name ?? (json.secret_key ? String(json.secret_key) : null);
-                return `${json.endpoint_url || "no endpoint"}${secretName ? ` · key: ${secretName}` : " · no key"}`;
-            }
+            case "endpoint":
+                return `${c.url || "no endpoint"} · ${c.adapter || "no adapter"}${c.has_secret ? " · key set" : " · no key"}`;
             case "resource":
                 return json.value ? `value: ${String(json.value)}` : "no value";
             case "datashape": {
@@ -444,7 +582,7 @@ export default function AISystemSettings() {
     const componentTypeColor: Record<AIComponentType, { bg: string; fg: string }> = {
         dataset: { bg: "#bbdefb", fg: "#0d47a1" },
         model: { bg: "#f3e5f5", fg: "#7b1fa2" },
-        llm: { bg: "#c8e6c9", fg: "#1b5e20" },
+        endpoint: { bg: "#c8e6c9", fg: "#1b5e20" },
         datashape: { bg: "#ffe0b2", fg: "#e65100" },
         resource: { bg: "#b2dfdb", fg: "#004d40" },
     };
@@ -480,7 +618,7 @@ export default function AISystemSettings() {
 
     const canAdd = name.trim().length > 0
         && !((type === "model" || type === "dataset") && !file)
-        && !(type === "llm" && (!addLlmUrl.trim() || !addSecretKey))
+        && !(ENDPOINT_KINDS.includes(type) && !addEndpoint.url.trim())
         && !(type === "resource" && !addResourceValue.trim())
         && !(type === "datashape" && (!sourceDatasetPid || (!addImported && (addDeriving || addDeriveError !== null))));
 
@@ -547,7 +685,7 @@ export default function AISystemSettings() {
 
                                         <Stack direction="row" spacing={0.5} sx={{ mt: 1, flexWrap: "wrap", alignItems: "center" }}>
                                             <Chip
-                                                label={c.component_type}
+                                                label={endpointLabel(c)}
                                                 size="small"
                                                 variant="filled"
                                                 sx={{ height: 22, fontWeight: 600, bgcolor: componentTypeColor[c.component_type].bg, color: componentTypeColor[c.component_type].fg }}
@@ -603,7 +741,7 @@ export default function AISystemSettings() {
                 <Stack spacing={2}>
                         <Stack direction="row" spacing={2}>
                             <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} required autoFocus sx={{ flexGrow: 1, minWidth: 0 }} />
-                            <TextField select label="Type" value={type} onChange={(e) => setType(e.target.value as AIComponentType)} sx={{ minWidth: 140 }}>
+                            <TextField select label="Type" value={type} onChange={(e) => setType(e.target.value as ComponentKind)} sx={{ minWidth: 180 }}>
                                 {COMPONENT_TYPES.map(t => <MenuItem key={t.value} value={t.value}>{t.label}</MenuItem>)}
                             </TextField>
                         </Stack>
@@ -612,13 +750,13 @@ export default function AISystemSettings() {
                                 {file ? file.name : "Choose file"}
                             </Button>
                         )}
-                        {type === "llm" && (
-                            <>
-                                <TextField label="Endpoint URL" value={addLlmUrl} onChange={(e) => setAddLlmUrl(e.target.value)} placeholder="https://api.openai.com/v1" />
-                                <TextField select label="API key (from project secrets)" value={addSecretKey} onChange={(e) => setAddSecretKey(e.target.value)}>
-                                    {secrets.map(s => <MenuItem key={s.pid} value={s.key}>{s.name} ({s.masked_value})</MenuItem>)}
-                                </TextField>
-                            </>
+                        {ENDPOINT_KINDS.includes(type) && (
+                            <EndpointFields
+                                kind={type}
+                                draft={addEndpoint}
+                                onChange={(patch) => setAddEndpoint(prev => ({ ...prev, ...patch }))}
+                                adapters={adapters}
+                            />
                         )}
                         {type === "resource" && (
                             <TextField label="Resource reference" value={addResourceValue} onChange={(e) => setAddResourceValue(e.target.value)}
@@ -679,13 +817,14 @@ export default function AISystemSettings() {
                                     {editFile ? editFile.name : (editTarget.data ? "Replace file" : "Choose file")}
                                 </Button>
                             )}
-                            {editTarget.component_type === "llm" && (
-                                <>
-                                    <TextField label="Endpoint URL" value={editLlmUrl} onChange={(e) => setEditLlmUrl(e.target.value)} placeholder="https://api.openai.com/v1" />
-                                    <TextField select label="API key (from project secrets)" value={editSecretKey} onChange={(e) => setEditSecretKey(e.target.value)}>
-                                        {secrets.map(s => <MenuItem key={s.pid} value={s.key}>{s.name} ({s.masked_value})</MenuItem>)}
-                                    </TextField>
-                                </>
+                            {editTarget.component_type === "endpoint" && (
+                                <EndpointFields
+                                    kind={(editTarget.preset || "endpoint") as ComponentKind}
+                                    draft={editEndpoint}
+                                    onChange={(patch) => setEditEndpoint(prev => ({ ...prev, ...patch }))}
+                                    adapters={adapters}
+                                    secretSet={editSecretSet}
+                                />
                             )}
                             {editTarget.component_type === "resource" && (
                                 <TextField label="Resource reference" value={editResourceValue} onChange={(e) => setEditResourceValue(e.target.value)}

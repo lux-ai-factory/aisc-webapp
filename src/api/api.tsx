@@ -1,5 +1,6 @@
 import {API_VERSION_PREFIX} from "../config.tsx";
 import {Project, PluginFeatureFlags, PluginInputDefinition, Package,
+AIComponent,
 ProjectStatsOverview,
     MetricScoreSummary,
     PluginUsageSummary,
@@ -61,6 +62,13 @@ export const getEvaluationInputsTemplate = async (
 export const getProjectConfigs = async (projectPid: string): Promise<ProjectConfig[]> => {
     const res = await fetch(`${API_URL}/project/settings/${projectPid}`);
     if (!res.ok) throw new Error('Failed to fetch project settings');
+    return await res.json();
+};
+
+/** The project-level endpoints (judges, the assistant's model) (ADR 0009 D-8). */
+export const getProjectEndpoints = async (projectPid: string): Promise<AIComponent[]> => {
+    const res = await fetch(`${API_URL}/projects/${projectPid}/endpoints`);
+    if (!res.ok) throw new Error('Failed to fetch the project endpoints');
     return await res.json();
 };
 
