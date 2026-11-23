@@ -82,7 +82,7 @@ export function renderVisualization(
     const renderOne = (d: Measurement[]): ReactNode => {
         switch (viz.chart_type) {
             case 'line':
-                return <MeasurementsLineChart {...chartProps} data={d} labelOverrides={labelOverrides} seriesOrder={seriesOrder} />;
+                return <MeasurementsLineChart {...chartProps} data={d} height={height} labelOverrides={labelOverrides} seriesOrder={seriesOrder} />;
             case 'scatter':
                 return <MeasurementsScatterChart {...chartProps} data={d} labelOverrides={labelOverrides} seriesOrder={seriesOrder} />;
             case 'kde':

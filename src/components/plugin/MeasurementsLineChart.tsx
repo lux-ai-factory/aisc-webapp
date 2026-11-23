@@ -20,13 +20,15 @@ interface MeasurementsLineChartProps {
     data: Measurement[];
     metricLabelDimension?: string;
     groupByDimensions?: string[];
+    /** Fit the chart to a fixed pixel height (dashboard widgets pass their body height). */
+    height?: number;
     /** Rename legend labels (key = original label, value = displayed label). */
     labelOverrides?: Record<string, string>;
     /** Display series in this order (list of original legend labels). */
     seriesOrder?: string[];
 }
 
-export const MeasurementsLineChart = ({ title, description, data, metricLabelDimension, groupByDimensions, labelOverrides, seriesOrder }: MeasurementsLineChartProps) => {
+export const MeasurementsLineChart = ({ title, description, data, metricLabelDimension, groupByDimensions, height, labelOverrides, seriesOrder }: MeasurementsLineChartProps) => {
     // Fixed x-domain
     const times = useMemo(() => buildDistinctTimes(data), [data]);
     // Distinct series keys: (metric name, display label, group label)
@@ -99,7 +101,7 @@ export const MeasurementsLineChart = ({ title, description, data, metricLabelDim
                 </Typography>
             )}
             <LineChart
-                height={400}
+                height={height ?? 400}
                 series={seriesForChart}
                 margin={{right: 40}}
                 xAxis={[
