@@ -280,6 +280,13 @@ export interface ChartFields {
     groupBy: string[];
     labelDim: string;
     facetDim: string;
+    /** Facet values the user chose to expand into separate widgets (default: all). */
+    facets?: string[];
+    /** Optional per-facet overrides used when facets are split into separate widgets. */
+    facetTitles?: Record<string, string>;
+    facetComments?: Record<string, string>;
+    facetLabelOverrides?: Record<string, Record<string, string>>;
+    facetLabelOrder?: Record<string, string[]>;
     title?: string;
     /** Footer note, collapsed by default on the dashboard card. */
     comment?: string;
@@ -315,6 +322,43 @@ export function widgetConfigFromVisualization(plugin: string, viz: MetricVisuali
         labelDim: viz.metric_label_dimension ?? '',
         facetDim: viz.facet_by_dimension?.[0] ?? '',
     };
+}
+
+/** Expand a faceted bars submission into one widget per selected facet value (and,
+ *  when several metrics are chosen, per metric too): each widget is the same chart
+ *  pinned to that facet via a filter and to a single metric, no longer faceted.
+ *  Returns [] when there is nothing to split, so callers keep their single-widget path. */
+export function splitFacetWidgets(fields: ChartFields): GridWidget[] {
+    const facetDim = fields.facetDim;
+    if (!facetDim || !fields.facets || fields.facets.length === 0) return [];
+    // Several metrics → also split per metric ("fold: a · acc", …); otherwise one per facet.
+    const metricSplit = fields.metrics.length > 1;
+    const metricKeys = metricSplit ? fields.metrics : [''];
+    const baseTitle = (value: string, metric: string) =>
+        [fields.title, `${facetDim}: ${value}`, metric || undefined].filter(Boolean).join(' · ');
+    const out: GridWidget[] = [];
+    for (const value of fields.facets) {
+        for (const metric of metricKeys) {
+            const blockKey = metric ? `${value}::${metric}` : value;
+            out.push({
+                key: '',
+                kind: 'chart',
+                plugin: fields.plugin,
+                evaluations: fields.evaluations,
+                title: fields.facetTitles?.[blockKey] ?? (baseTitle(value, metric) || undefined),
+                comment: fields.facetComments?.[blockKey],
+                chartType: fields.chartType,
+                metrics: metric ? [metric] : fields.metrics,
+                filters: { ...fields.filters, [facetDim]: [value] },
+                groupBy: fields.groupBy,
+                labelDim: fields.labelDim,
+                facetDim: '',
+                labelOverrides: fields.facetLabelOverrides?.[blockKey],
+                labelOrder: fields.facetLabelOrder?.[blockKey],
+            });
+        }
+    }
+    return out;
 }
 
 const GRID_KEY = (projectUuid: string) => `dashboard_grid_${projectUuid}`;

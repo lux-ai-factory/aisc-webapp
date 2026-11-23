@@ -21,6 +21,7 @@ import {
     clearSessionCache,
     scaleLayout,
     nextWidgetSlot,
+    splitFacetWidgets,
     type EvalRow,
     type GridItemLayout,
     type GridWidget,
@@ -183,6 +184,90 @@ describe('scaleLayout', () => {
         const xxs = scaleLayout(lg, 24, 4);
         expect(xxs[0]).toMatchObject({ y: 0, w: 4 });
         expect(xxs[1]).toMatchObject({ y: 9, w: 4 });
+    });
+});
+
+describe('splitFacetWidgets', () => {
+    const fields = (over: Partial<Parameters<typeof splitFacetWidgets>[0]> = {}): Parameters<typeof splitFacetWidgets>[0] => ({
+        plugin: 'quality',
+        evaluations: ['e1'],
+        chartType: 'bars',
+        metrics: ['acc'],
+        filters: { model: ['m1'] },
+        groupBy: [],
+        labelDim: 'metric',
+        facetDim: 'fold',
+        facets: ['a', 'b'],
+        ...over,
+    });
+
+    it('splits one widget per selected facet, pinned via a filter', () => {
+        const out = splitFacetWidgets(fields());
+        expect(out.map((w) => w.filters?.fold)).toEqual([['a'], ['b']]);
+        expect(out[0]).toMatchObject({ kind: 'chart', chartType: 'bars', facetDim: '', title: 'fold: a' });
+        expect(out[1].title).toBe('fold: b');
+    });
+
+    it('keeps an explicit title and prefixes the facet label', () => {
+        const out = splitFacetWidgets(fields({ title: 'My chart' }));
+        expect(out[0].title).toBe('My chart · fold: a');
+    });
+
+    it('applies per-facet title/comment/legend overrides', () => {
+        const out = splitFacetWidgets(
+            fields({
+                facetTitles: { a: 'Facet A chart' },
+                facetComments: { a: 'note a' },
+                facetLabelOverrides: { a: { m1: 'Model 1' } },
+                facetLabelOrder: { b: ['x', 'y'] },
+            }),
+        );
+        expect(out[0].title).toBe('Facet A chart');
+        expect(out[0].comment).toBe('note a');
+        expect(out[0].labelOverrides).toEqual({ m1: 'Model 1' });
+        expect(out[1].labelOrder).toEqual(['x', 'y']);
+        // facets without an override fall back to the default title
+        expect(out[1].title).toBe('fold: b');
+    });
+
+    it('splits additionally by metric when several metrics are chosen', () => {
+        const out = splitFacetWidgets(fields({ metrics: ['acc', 'bleu'] }));
+        expect(out).toHaveLength(4); // 2 facets × 2 metrics
+        expect(out.map((w) => w.title).sort()).toEqual([
+            'fold: a · acc',
+            'fold: a · bleu',
+            'fold: b · acc',
+            'fold: b · bleu',
+        ]);
+        const accA = out.find((w) => w.title === 'fold: a · acc');
+        expect(accA?.metrics).toEqual(['acc']);
+        expect(accA?.filters?.fold).toEqual(['a']);
+        // every widget is pinned to a single metric
+        expect(out.every((w) => (w.metrics ?? []).length === 1)).toBe(true);
+    });
+
+    it('applies per-(facet, metric) title/comment/legend overrides', () => {
+        const out = splitFacetWidgets(
+            fields({
+                metrics: ['acc', 'bleu'],
+                facetTitles: { 'a::acc': 'Acc A' },
+                facetComments: { 'a::acc': 'note' },
+                facetLabelOrder: { 'b::bleu': ['x'] },
+            }),
+        );
+        expect(out.find((w) => w.title === 'Acc A')?.comment).toBe('note');
+        expect(out.find((w) => w.title === 'fold: b · bleu')?.labelOrder).toEqual(['x']);
+    });
+
+    it('facets apply to every chart type', () => {
+        expect(splitFacetWidgets(fields({ chartType: 'line' }))).toHaveLength(2);
+        expect(splitFacetWidgets(fields({ chartType: 'table' }))[0]).toMatchObject({ chartType: 'table' });
+        expect(splitFacetWidgets(fields({ chartType: 'pie' })).map((w) => w.filters?.fold)).toEqual([['a'], ['b']]);
+    });
+
+    it('returns no widgets to keep the single-chart path when not splittable', () => {
+        expect(splitFacetWidgets(fields({ facetDim: '' }))).toEqual([]);
+        expect(splitFacetWidgets(fields({ facets: [] }))).toEqual([]);
     });
 });
 
