@@ -42,6 +42,7 @@ import {
     refreshDoneEvaluations,
     scaleLayout,
     saveGridState,
+    splitFacetWidgets,
     uid,
     type DashboardEval,
     type ChartFields,
@@ -376,14 +377,34 @@ export default function GridDashboard({ projectUUID }: { projectUUID: string }) 
 
     const handleBuilderSubmit = (fields: ChartFields) => {
         if (editingKey) {
+            // facet-only fields matter when creating new widgets; drop them from the saved widget
+            const editable = { ...fields };
+            delete editable.facets;
+            delete editable.facetTitles;
+            delete editable.facetComments;
+            delete editable.facetLabelOverrides;
+            delete editable.facetLabelOrder;
             setWidgets((prev) =>
                 prev.map((w) =>
-                    w.key === editingKey ? { ...w, kind: 'chart', ...fields, plugin: fields.plugin } : w,
+                    w.key === editingKey ? { ...w, kind: 'chart', ...editable, plugin: fields.plugin } : w,
                 ),
             );
             setEditingKey(null);
         } else {
-            addWidget({ kind: 'chart', ...fields }, DEFAULT_CHART);
+            // A faceted bars submission becomes one widget per selected facet value.
+            const split = splitFacetWidgets(fields);
+            if (split.length) {
+                split.forEach((w) => addWidget(w, DEFAULT_CHART));
+            } else {
+                // single chart: drop the facet-only payload before persisting the widget
+                const single = { ...fields };
+                delete single.facets;
+                delete single.facetTitles;
+                delete single.facetComments;
+                delete single.facetLabelOverrides;
+                delete single.facetLabelOrder;
+                addWidget({ kind: 'chart', ...single }, DEFAULT_CHART);
+            }
         }
     };
 

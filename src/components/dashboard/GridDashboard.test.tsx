@@ -201,4 +201,86 @@ describe('GridDashboard', () => {
             expect(saved.layouts[bp].length).toBe(2);
         }
     });
+
+    it('creates one chart widget per selected facet through the builder', async () => {
+        vi.stubGlobal(
+            'fetch',
+            vi.fn().mockImplementation((url: string) => {
+                if (url.includes('evaluations?status=Done')) {
+                    return Promise.resolve({ ok: true, json: async () => doneEvals });
+                }
+                if (url.includes('/result')) {
+                    return Promise.resolve({
+                        ok: true,
+                        json: async () => ({
+                            measurements: [
+                                { name: 'acc', score: 0.5, time: 't', created_at: 't', dimensions: { fold: 'a' } },
+                                { name: 'acc', score: 0.6, time: 't2', created_at: 't2', dimensions: { fold: 'a' } },
+                                { name: 'acc', score: 0.9, time: 't3', created_at: 't3', dimensions: { fold: 'b' } },
+                            ],
+                            metric_visualizations: [],
+                        }),
+                    });
+                }
+                throw new Error(`unexpected fetch: ${url}`);
+            }),
+        );
+        await renderDashboard();
+
+        const openBuilder = Array.from(document.body.querySelectorAll('button')).find((b) =>
+            (b.textContent ?? '').includes('Add chart'),
+        )!;
+        await act(async () => { openBuilder.click(); });
+        await act(async () => {});
+
+        // chart type -> Bars, then facet by "fold"
+        for (const [labelText, optionText] of [
+            ['Chart type', 'Bars'],
+            ['Facet (iterate) by dim', 'fold'],
+        ] as const) {
+            const combo = Array.from(document.body.querySelectorAll<HTMLElement>('[role="combobox"]')).find((c) =>
+                (c.closest('.MuiFormControl-root')?.querySelector('label')?.textContent ?? '').includes(labelText),
+            );
+            expect(combo, `expected the "${labelText}" select`).toBeTruthy();
+            await act(async () => {
+                combo!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+                combo!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            });
+            await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+            const option = Array.from(document.body.querySelectorAll('.MuiMenuItem-root')).find(
+                (m) => (m.textContent ?? '').trim() === optionText,
+            );
+            expect(option, `expected a "${optionText}" option`).toBeTruthy();
+            await act(async () => { (option as HTMLElement).click(); });
+            await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+        }
+
+        // facet selection defaults to every value ("a","b") as chips in the select
+        const facetSelect = Array.from(document.body.querySelectorAll<HTMLElement>('[role="combobox"]')).find((c) =>
+            (c.closest('.MuiFormControl-root')?.querySelector('label')?.textContent ?? '').includes('Facet charts to add'),
+        )!;
+        expect(facetSelect.textContent).toContain('a');
+        expect(facetSelect.textContent).toContain('b');
+
+        // submit via the dialog action button
+        const submit = Array.from(document.body.querySelectorAll('button'))
+            .reverse()
+            .find((b) => (b.textContent ?? '').includes('Add chart'))!;
+        await act(async () => { submit.click(); });
+        await act(async () => {});
+
+        const saved = JSON.parse(localStorage.getItem('dashboard_grid_p1') ?? '{}');
+        expect(saved.widgets).toHaveLength(2);
+        const byFilter = new Map(saved.widgets.map((w: { filters: Record<string, string[]> }) => [
+            (w.filters?.fold ?? [])[0],
+            w,
+        ]));
+        // one chart per facet value, each pinned via filter and no longer faceted
+        expect(byFilter.get('a')).toMatchObject({ chartType: 'bars', facetDim: '' });
+        expect(byFilter.get('b')).toMatchObject({ chartType: 'bars', facetDim: '' });
+        // both appended on fresh rows below everything (per breakpoint)
+        for (const bp of ['lg', 'md', 'sm', 'xs', 'xxs']) {
+            expect(saved.layouts[bp]).toHaveLength(2);
+        }
+    });
 });
