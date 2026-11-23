@@ -16,6 +16,8 @@ vi.mock('react-grid-layout', async () => {
             mounted: true,
             measureWidth: () => {},
         }),
+        // no-op compactor so GridDashboard's `<Responsive compactor={noCompactor}>` resolves
+        noCompactor: { type: null, allowOverlap: false, compact: (l: unknown) => l },
         Responsive: (props: { children?: React.ReactNode; layouts?: unknown }) =>
             React.createElement('div', { 'data-layouts': JSON.stringify(props.layouts ?? null) }, props.children),
     };

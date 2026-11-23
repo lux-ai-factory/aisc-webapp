@@ -23,7 +23,7 @@ import DeleteSweepRounded from '@mui/icons-material/DeleteSweepRounded';
 import RefreshRounded from '@mui/icons-material/RefreshRounded';
 import AppDialog from '../AppDialog';
 import './GridDashboard.css';
-import { Responsive, useContainerWidth, type ResponsiveLayouts } from 'react-grid-layout';
+import { Responsive, noCompactor, useContainerWidth, type ResponsiveLayouts } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
@@ -469,7 +469,10 @@ export default function GridDashboard({ projectUUID }: { projectUUID: string }) 
                             margin={[12, 12]}
                             containerPadding={[4, 4]}
                             // dedicated header drag handle; resize stays on the corner handles.
-                            // Default (vertical) compaction resolves drag/resize overlaps live.
+                            // No compaction + preventCollision: widgets stay exactly where
+                            // placed/dropped (no vertical jump to fill gaps), and dragging or
+                            // resizing into another widget's space is blocked (no overlap).
+                            compactor={{ ...noCompactor, preventCollision: true }}
                             dragConfig={{ handle: '.widget-drag-handle' }}
                             onLayoutChange={(_layout, all) =>
                                 setLayouts(all as unknown as Record<string, GridItemLayout[] | undefined>)

@@ -17,6 +17,8 @@ vi.mock('react-grid-layout', async () => {
             mounted: true,
             measureWidth: () => {},
         }),
+        // no-op compactor so GridDashboard's `<Responsive compactor={noCompactor}>` resolves
+        noCompactor: { type: null, allowOverlap: false, compact: (l: unknown) => l },
         Responsive: (props: { children?: React.ReactNode; 'data-testid'?: string }) =>
             React.createElement('div', { 'data-testid': props['data-testid'] ?? 'rgl-canvas' }, props.children),
     };
