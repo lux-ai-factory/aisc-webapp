@@ -9,7 +9,6 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import SettingsIcon from '@mui/icons-material/Settings';
-import SettingsEthernetIcon from '@mui/icons-material/SettingsEthernet';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
 import ExtensionIcon from '@mui/icons-material/Extension';
@@ -236,7 +235,7 @@ export default function LeftBar({ drawerWidth, expandedDrawerWidth, collapsed, m
 
     const menuBody = (isCollapsedView: boolean, onNavigate?: () => void) => (
         <>
-            <Toolbar />
+            <Toolbar className="brand-toolbar" />
             {projectName &&
                 <Box sx={{ overflow: 'auto' }}>
                     {isCollapsedView ? (
@@ -282,8 +281,6 @@ export default function LeftBar({ drawerWidth, expandedDrawerWidth, collapsed, m
                          onNavigate={onNavigate}
                          items={[
                              { text: 'Overview', icon: <DashboardIcon />, target: `/projects/${projectName}/overview` },
-                             { text: 'Connections', icon: <SettingsEthernetIcon />, target: `/projects/${projectName}/connections` },
-                             { text: 'Helper models', icon: <SettingsEthernetIcon />, target: `/projects/${projectName}/helpers` },
                              { text: 'Settings', icon: <SettingsIcon />, target: `/projects/${projectName}/settings` },
                          ]}
                      />
