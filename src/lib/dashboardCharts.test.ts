@@ -192,29 +192,29 @@ describe('nextWidgetSlot', () => {
     });
 
     it('lands on an empty grid at the origin', () => {
-        expect(nextWidgetSlot([], 5, 24)).toEqual({ x: 0, y: 0 });
+        expect(nextWidgetSlot([])).toEqual({ x: 0, y: 0 });
     });
 
-    it('fills the empty space to the right of the bottom row when it fits', () => {
-        const out = nextWidgetSlot([l('a', 0, 0, 5, 3)], 5, 24);
-        expect(out).toEqual({ x: 5, y: 0 }); // same line, to the right
+    it('stacks below a lone widget instead of landing beside it on the same row', () => {
+        const out = nextWidgetSlot([l('a', 0, 0, 5, 3)]);
+        expect(out).toEqual({ x: 0, y: 3 }); // row below, not x=5 on the same header level
     });
 
-    it('fills a left-side gap on the bottom row instead of wrapping to a new line', () => {
-        // widget sits on the right half of the row; the new one fits the left gap
-        const out = nextWidgetSlot([l('a', 12, 0, 12, 9)], 5, 24);
-        expect(out).toEqual({ x: 0, y: 0 });
+    it('stacks below even when there is free space beside the widget', () => {
+        // widget sits on the right half of the row; the new one still goes below
+        const out = nextWidgetSlot([l('a', 12, 0, 12, 9)]);
+        expect(out).toEqual({ x: 0, y: 9 });
     });
 
-    it('wraps to a fresh line when the row can no longer fit it', () => {
-        const out = nextWidgetSlot([l('a', 0, 0, 14, 9), l('b', 14, 0, 14, 9)], 14, 24);
+    it('stacks below the whole grid when the bottom row is full', () => {
+        const out = nextWidgetSlot([l('a', 0, 0, 14, 9), l('b', 14, 0, 14, 9)]);
         expect(out).toEqual({ x: 0, y: 9 }); // below everything
     });
 
-    it('tracks the bottom-most row even when rows have different starts', () => {
-        // 'b' ends lower than 'a' even though it starts higher
-        const out = nextWidgetSlot([l('a', 0, 5, 12, 3), l('b', 0, 0, 12, 9)], 5, 24);
-        expect(out).toEqual({ x: 12, y: 0 }); // right of the row that ends lowest
+    it('uses the bottom-most edge even when rows have different starts', () => {
+        // 'a' starts lower but 'b' ends lowest
+        const out = nextWidgetSlot([l('a', 0, 5, 12, 3), l('b', 0, 0, 12, 9)]);
+        expect(out).toEqual({ x: 0, y: 9 });
     });
 });
 

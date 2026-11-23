@@ -337,7 +337,7 @@ export default function GridDashboard({ projectUUID }: { projectUUID: string }) 
                 (Object.keys(BREAKPOINT_COLS) as (keyof typeof BREAKPOINT_COLS)[]).forEach((bp) => {
                     const cols = BREAKPOINT_COLS[bp];
                     const list = prev[bp] ?? [];
-                    const { x, y } = nextWidgetSlot(list, w, cols);
+                    const { x, y } = nextWidgetSlot(list);
                     next[bp] = [...list, { i: key, x, y, w: Math.min(w, cols), h, minW, minH }];
                 });
                 return next;

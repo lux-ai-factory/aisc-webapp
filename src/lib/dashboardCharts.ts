@@ -257,31 +257,12 @@ export function scaleLayout(layout: GridItemLayout[], fromCols: number, toCols: 
     return out;
 }
 
-/** Where to drop a newly added widget: in the leftmost free slot of the
- *  bottom-most row (so it fills gaps instead of wrapping to a new line), and on
- *  a fresh line below that row only when it no longer fits in it. */
-export function nextWidgetSlot(
-    list: GridItemLayout[],
-    w: number,
-    cols: number,
-): { x: number; y: number } {
-    if (list.length === 0) return { x: 0, y: 0 };
-    const byBottomRight = [...list].sort(
-        (a, b) => (a.y + a.h) - (b.y + b.h) || (a.x + a.w) - (b.x + b.w),
-    );
-    const last = byBottomRight[byBottomRight.length - 1];
-    const rowEnd = (last.y ?? 0) + (last.h ?? 0);
-    const row = list
-        .filter((l) => (l.y ?? 0) + (l.h ?? 0) === rowEnd)
-        .sort((a, b) => (a.x ?? 0) - (b.x ?? 0));
-    // leftmost free slot with room for `w` columns
-    let x = 0;
-    for (const item of row) {
-        if ((item.x ?? 0) >= x + w) break;
-        x = Math.max(x, (item.x ?? 0) + (item.w ?? 0));
-    }
-    if (x + w <= cols) return { x, y: last.y ?? 0 };
-    return { x: 0, y: rowEnd };
+/** Where to drop a newly added widget: on a fresh row below every existing
+ *  widget, so a new chart/comment always stacks under current content instead
+ *  of landing beside it at the same header level. */
+export function nextWidgetSlot(list: GridItemLayout[]): { x: number; y: number } {
+    const bottom = list.reduce((max, l) => Math.max(max, (l.y ?? 0) + (l.h ?? 0)), 0);
+    return { x: 0, y: bottom };
 }
 
 export interface GridWidgetsState {
