@@ -24,6 +24,10 @@ interface MeasurementsBarChartProps {
      *  This is the "iterate" counterpart of grouping: e.g. group by d2 inside
      *  each value of d1. A chart per facet value. */
     facetByDimension?: string;
+    /** Compact per-facet height so stacked facet charts don't swallow the card. */
+    height?: number;
+    /** Compact preview mode: omit the toolbar and shrink the x-axis band. */
+    compact?: boolean;
     /** Rename legend labels (key = original group label, value = displayed label). */
     labelOverrides?: Record<string, string>;
     /** Display series in this order (list of original group labels). */
@@ -32,7 +36,7 @@ interface MeasurementsBarChartProps {
 
 /** One bar chart: metric labels on the X axis, one series per group. */
 function BarChartBody({
-    title, description, data, metricLabelDimension, groupByDimensions, stacked = false, fallbackSeriesLabel, labelOverrides, seriesOrder,
+    title, description, data, metricLabelDimension, groupByDimensions, stacked = false, fallbackSeriesLabel, height, compact, labelOverrides, seriesOrder,
 }: Omit<MeasurementsBarChartProps, "facetByDimension"> & { fallbackSeriesLabel?: string }) {
     const [hidden, setHidden] = useState<string[]>([]);
 
@@ -79,6 +83,13 @@ function BarChartBody({
         fontSize: 10,
     };
 
+    // Auto-size the x-axis band to the longest category label (measured in chars),
+    // so short labels hug the bars instead of leaving an empty band under them,
+    // while long labels still get room to breathe. The 0.87 factor matches the
+    // vertical extent of the fixed -60° label angle.
+    const longestLabelChars = metricLabels.reduce((max, l) => Math.max(max, l.length), 0);
+    const axisHeight = Math.min(160, Math.max(44, Math.round(longestLabelChars * 6 * 0.87) + 6));
+
     return (
         <Box>
             {title && (
@@ -92,14 +103,15 @@ function BarChartBody({
                 </Typography>
             )}
             <BarChart
-                height={600}
+                height={height ?? 600}
                 series={seriesForChart}
+                showToolbar={!compact}
                 xAxis={[
                     {
                         data: metricLabels,
                         scaleType: "band",
                         valueFormatter: (value: string) => value,
-                        height: 200,
+                        height: axisHeight,
                         tickLabelStyle: xAxisTick,
                     },
                 ]}
@@ -119,7 +131,6 @@ function BarChartBody({
                         },
                     },
                 }}
-                showToolbar
             />
         </Box>
     );
@@ -155,7 +166,7 @@ export const MeasurementsBarChart = (props: MeasurementsBarChartProps) => {
                 </Typography>
             )}
             {facetValues.map((value) => (
-                <Box key={value} sx={{ mb: 3 }}>
+                <Box key={value} sx={{ mb: 1.5 }}>
                     <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 0.5 }}>
                         {facetByDimension}: {value}
                         <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
@@ -164,6 +175,7 @@ export const MeasurementsBarChart = (props: MeasurementsBarChartProps) => {
                     </Typography>
                     <BarChartBody
                         {...props}
+                        height={props.height ?? 320}
                         data={data.filter(m => String(m.dimensions?.[facetByDimension]) === value)}
                         fallbackSeriesLabel={`${facetByDimension}: ${value}`}
                     />

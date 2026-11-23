@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
 import MeasurementsDataGrid from '../plugin/MeasurementsDataGrid';
 import MeasurementsLineChart from '../plugin/MeasurementsLineChart';
 import MeasurementsScatterChart from '../plugin/MeasurementsScatterChart';
@@ -22,6 +24,34 @@ export function chartWidgetToViz(widget: GridWidget): MetricVisualization {
     };
 }
 
+/** Split a visualization into one chart per facet value (generic faceting for every
+ *  chart type; bars instead uses its own built-in facet rendering with compact sizing). */
+function renderFaceted(
+    filtered: Measurement[],
+    facet: string,
+    renderOne: (data: Measurement[]) => ReactNode,
+): ReactNode {
+    const values = Array.from(
+        new Set(filtered.map((m) => m.dimensions?.[facet]).filter((v) => v !== undefined && v !== null).map(String)),
+    ).sort();
+    if (values.length === 0) return renderOne(filtered);
+    return (
+        <Box>
+            {values.map((value) => (
+                <Box key={value} sx={{ mb: 1.5 }}>
+                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 0.5 }}>
+                        {facet}: {value}
+                        <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                            ({filtered.filter((m) => String(m.dimensions?.[facet]) === value).length} measurements)
+                        </Typography>
+                    </Typography>
+                    {renderOne(filtered.filter((m) => String(m.dimensions?.[facet]) === value))}
+                </Box>
+            ))}
+        </Box>
+    );
+}
+
 /** Render one metric visualization on combined (multi-evaluation) measurements.
  *  `__eval` is always added to the grouping so each evaluation becomes its own series. */
 export function renderVisualization(
@@ -29,6 +59,8 @@ export function renderVisualization(
     viz: MetricVisualization,
     labelOverrides?: Record<string, string>,
     seriesOrder?: string[],
+    height?: number,
+    compact?: boolean,
 ): ReactNode {
     const filtered = selectMeasurements(data, viz.metrics ?? [], viz.filter_dimensions ?? {});
     if (filtered.length === 0) {
@@ -45,23 +77,30 @@ export function renderVisualization(
     const facet = viz.facet_by_dimension?.[0];
     const title = viz.title || undefined;
     const description = viz.description || undefined;
-    const chartProps = { title, description, data: filtered, metricLabelDimension: labelDim, groupByDimensions: groupBy };
+    const chartProps = { title, description, metricLabelDimension: labelDim, groupByDimensions: groupBy };
 
-    switch (viz.chart_type) {
-        case 'line':
-            return <MeasurementsLineChart {...chartProps} labelOverrides={labelOverrides} seriesOrder={seriesOrder} />;
-        case 'scatter':
-            return <MeasurementsScatterChart {...chartProps} labelOverrides={labelOverrides} seriesOrder={seriesOrder} />;
-        case 'kde':
-            return <MeasurementsKDEChart {...chartProps} labelOverrides={labelOverrides} seriesOrder={seriesOrder} />;
-        case 'bars':
-            return <MeasurementsBarsChart {...chartProps} facetByDimension={facet} labelOverrides={labelOverrides} seriesOrder={seriesOrder} />;
-        case 'radar':
-            return <MeasurementsRadarChart {...chartProps} labelOverrides={labelOverrides} seriesOrder={seriesOrder} />;
-        case 'pie':
-            return <MeasurementsPieChart {...chartProps} labelOverrides={labelOverrides} seriesOrder={seriesOrder} />;
-        case 'table':
-        default:
-            return <MeasurementsDataGrid title={title} description={description} data={filtered} />;
+    const renderOne = (d: Measurement[]): ReactNode => {
+        switch (viz.chart_type) {
+            case 'line':
+                return <MeasurementsLineChart {...chartProps} data={d} labelOverrides={labelOverrides} seriesOrder={seriesOrder} />;
+            case 'scatter':
+                return <MeasurementsScatterChart {...chartProps} data={d} labelOverrides={labelOverrides} seriesOrder={seriesOrder} />;
+            case 'kde':
+                return <MeasurementsKDEChart {...chartProps} data={d} labelOverrides={labelOverrides} seriesOrder={seriesOrder} />;
+            case 'bars':
+                return <MeasurementsBarsChart {...chartProps} data={d} facetByDimension={facet} height={height} compact={compact} labelOverrides={labelOverrides} seriesOrder={seriesOrder} />;
+            case 'radar':
+                return <MeasurementsRadarChart {...chartProps} data={d} labelOverrides={labelOverrides} seriesOrder={seriesOrder} />;
+            case 'pie':
+                return <MeasurementsPieChart {...chartProps} data={d} labelOverrides={labelOverrides} seriesOrder={seriesOrder} />;
+            case 'table':
+            default:
+                return <MeasurementsDataGrid title={title} description={description} data={d} />;
+        }
+    };
+
+    if (facet && viz.chart_type !== 'bars') {
+        return renderFaceted(filtered, facet, renderOne);
     }
+    return renderOne(filtered);
 }

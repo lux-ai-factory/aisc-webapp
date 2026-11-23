@@ -564,6 +564,20 @@ function GridWidgetBody({
         if (editingText) setDraft(widget.text ?? '');
     }, [editingText, widget.text]);
 
+    // Track the body's pixel height so bar charts fit the widget card instead of
+    // rendering a fixed tall chart with a blank band at the bottom.
+    const bodyRef = useRef<HTMLDivElement | null>(null);
+    const [bodyHeight, setBodyHeight] = useState(0);
+    useEffect(() => {
+        const el = bodyRef.current;
+        if (!el || typeof ResizeObserver === 'undefined') return;
+        const measure = () => setBodyHeight(el.clientHeight);
+        measure();
+        const ro = new ResizeObserver(measure);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
+
     let content: React.ReactNode;
     if (widget.kind === 'text') {
         content =
@@ -611,7 +625,8 @@ function GridWidgetBody({
                 No measurements for this plugin in the selected evaluations.
             </Alert>
         ) : (
-            renderVisualization(measurements, viz, widget.labelOverrides, widget.labelOrder)
+            // fit the chart to the widget body instead of a fixed tall height
+            renderVisualization(measurements, viz, widget.labelOverrides, widget.labelOrder, bodyHeight > 0 ? Math.max(bodyHeight - 16, 200) : undefined)
         );
     }
 
@@ -668,7 +683,7 @@ function GridWidgetBody({
                     </Tooltip>
                 )}
             </Box>
-            <Box className="grid-widget-body">{content}</Box>
+            <Box ref={bodyRef} className="grid-widget-body">{content}</Box>
             {widget.kind !== 'text' && widget.comment?.trim() && (
                 <Accordion
                     disableGutters
