@@ -47,7 +47,11 @@ export default function ControlObjectivesPage() {
     const [objectives, setObjectives] = useState<ObjectivePriority[] | null>(null);
     const [objectiveSel, setObjectiveSel] = useState<ObjectivePriority | null>(null);
     const [objectiveDetail, setObjectiveDetail] = useState<ObjectiveCatalogueItem | null>(null);
-    const [objectiveBusy, setObjectiveBusy] = useState(false);
+    const [pendingObjectives, setPendingObjectives] = useState<Set<string>>(new Set());
+    const pendingObjectivesRef = useRef(new Set<string>());
+    const objectiveSaveQueue = useRef(Promise.resolve());
+    const projectRef = useRef(pid);
+    projectRef.current = pid;
     const [objectiveCatalogueList, setObjectiveCatalogueList] = useState<ObjectiveCatalogueItem[]>([]);
     const [objectiveQuery, setObjectiveQuery] = useState('');
     const [error, setError] = useState<string | null>(null);
@@ -102,6 +106,8 @@ export default function ControlObjectivesPage() {
 
     useEffect(() => {
         setObjectives(null);
+        pendingObjectivesRef.current = new Set();
+        setPendingObjectives(new Set());
         void refresh();
     }, [refresh]);
 
@@ -120,35 +126,66 @@ export default function ControlObjectivesPage() {
         }
     };
 
-    const setKeyObjective = async (objectiveId: string, key: boolean) => {
-        setObjectiveBusy(true);
-        try {
-            const profile = await getObjectiveProfile(pid);
-            const current =
-                profile?.key_objectives ??
-                objectives?.filter((x) => x.key).map((x) => x.objective_id) ??
-                [];
-            const next = key
-                ? [...current.filter((id) => id !== objectiveId), objectiveId]
-                : current.filter((id) => id !== objectiveId);
-            await setObjectiveProfile(pid, {
-                objectives: enabledIds,
-                key_objectives: next,
-            });
-            await refresh();
+    const saveObjectiveChange = async (
+        objectiveId: string,
+        change: { key: boolean } | { enabled: boolean },
+    ) => {
+        if (pendingObjectivesRef.current.has(objectiveId)) return;
+        const objective = objectives?.find((o) => o.objective_id === objectiveId);
+        const previousKey = objective?.key ?? false;
+        const previousEnabled = enabledIds.includes(objectiveId);
+        const updateKey = (key: boolean) => {
+            setObjectives((prev) => prev?.map((o) =>
+                o.objective_id === objectiveId ? { ...o, key } : o,
+            ) ?? prev);
             setObjectiveSel((prev) =>
                 prev && prev.objective_id === objectiveId ? { ...prev, key } : prev,
             );
-        } catch (e) {
-            setError(e instanceof Error ? e.message : 'failed to update objective');
-        } finally {
-            setObjectiveBusy(false);
-        }
+        };
+        const updateEnabled = (enabled: boolean) => setEnabledIds((prev) => enabled
+            ? [...prev.filter((id) => id !== objectiveId), objectiveId]
+            : prev.filter((id) => id !== objectiveId));
+        pendingObjectivesRef.current.add(objectiveId);
+        setPendingObjectives(new Set(pendingObjectivesRef.current));
+        setError(null);
+        // Keys are selected explicitly; enabling a card never assigns a key.
+        updateKey('key' in change ? change.key : false);
+        if ('enabled' in change) updateEnabled(change.enabled);
+        objectiveSaveQueue.current = objectiveSaveQueue.current.then(async () => {
+            if (projectRef.current !== pid) return;
+            try {
+                const profile = await getObjectiveProfile(pid);
+                const currentKeys = profile?.key_objectives ?? [];
+                const keys = currentKeys.filter((id) => id !== objectiveId);
+                if ('key' in change && change.key) keys.push(objectiveId);
+                const currentEnabled = profile?.objectives ?? [];
+                const nextEnabled = 'enabled' in change
+                    ? currentEnabled.filter((id) => id !== objectiveId) : currentEnabled;
+                if ('enabled' in change && change.enabled) nextEnabled.push(objectiveId);
+                await setObjectiveProfile(pid, {
+                    ...profile,
+                    objectives: nextEnabled,
+                    key_objectives: keys,
+                });
+            } catch (e) {
+                if (projectRef.current !== pid) return;
+                updateKey(previousKey);
+                if ('enabled' in change) updateEnabled(previousEnabled);
+                setError(e instanceof Error ? e.message : 'failed to update objective');
+            } finally {
+                if (projectRef.current === pid) {
+                    pendingObjectivesRef.current.delete(objectiveId);
+                    setPendingObjectives(new Set(pendingObjectivesRef.current));
+                }
+            }
+        });
+        await objectiveSaveQueue.current;
     };
 
-    const toggleKeyObjective = async (o: ObjectivePriority) => {
-        await setKeyObjective(o.objective_id, !o.key);
-    };
+    const setKeyObjective = (objectiveId: string, key: boolean) =>
+        saveObjectiveChange(objectiveId, { key });
+
+    const toggleKeyObjective = (o: ObjectivePriority) => setKeyObjective(o.objective_id, !o.key);
 
     const setEnabledObjective = async (objectiveId: string, enabled: boolean) => {
         if (!enabled && mappings.some((m) => m.objective_id === objectiveId)) {
@@ -157,24 +194,7 @@ export default function ControlObjectivesPage() {
             );
             return;
         }
-        setObjectiveBusy(true);
-        try {
-            const next = enabled
-                ? [...enabledIds.filter((id) => id !== objectiveId), objectiveId]
-                : enabledIds.filter((id) => id !== objectiveId);
-            const keys = (objectives ?? [])
-                .filter((o) => o.key && o.objective_id !== objectiveId)
-                .map((o) => o.objective_id);
-            await setObjectiveProfile(pid, {
-                objectives: next,
-                key_objectives: keys,
-            });
-            await refresh();
-        } catch (e) {
-            setError(e instanceof Error ? e.message : 'failed to update objective');
-        } finally {
-            setObjectiveBusy(false);
-        }
+        await saveObjectiveChange(objectiveId, { enabled });
     };
 
     /** Next catalogue ID: the highest existing `O<n>` plus one. */
@@ -374,6 +394,7 @@ export default function ControlObjectivesPage() {
                 actionsSx={{ justifyContent: 'space-between' }}
             >
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                    {error && <Typography color="error" role="alert">{error}</Typography>}
                     <TextField
                         size="small"
                         fullWidth
@@ -426,7 +447,7 @@ export default function ControlObjectivesPage() {
                                         <AppCard
                                             theme="catalogue"
                                             active={enabled}
-                                            onClick={() => {
+                                            onClick={pendingObjectives.has(c.id) ? undefined : () => {
                                                 if (enabled && usedByRisks > 0) {
                                                     toast.error(
                                                         'This control objective is used by at least one risk — remove the risk mapping before disabling it.',
@@ -478,7 +499,7 @@ export default function ControlObjectivesPage() {
                                                         <Switch
                                                             size="small"
                                                             checked={standing?.key ?? false}
-                                                            disabled={objectiveBusy || !enabled}
+                                                            disabled={pendingObjectives.has(c.id) || !enabled}
                                                             onChange={(_, checked) =>
                                                                 void setKeyObjective(c.id, checked)
                                                             }
@@ -688,7 +709,7 @@ export default function ControlObjectivesPage() {
                             <Switch
                                 size="small"
                                 checked={objectiveSel.key}
-                                disabled={objectiveBusy}
+                                disabled={pendingObjectives.has(objectiveSel.objective_id)}
                                 onChange={() => void toggleKeyObjective(objectiveSel)}
                             />
                         </Box>
