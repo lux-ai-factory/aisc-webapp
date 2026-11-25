@@ -1,56 +1,38 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { startReportGeneration, useReportGeneration } from '../lib/reportGeneration';
+import { fetchDashboard } from '../lib/dashboardStorage';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Checkbox from '@mui/material/Checkbox';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
-import FormControlLabel from '@mui/material/FormControlLabel';
 import Icon from '@mui/material/Icon';
 import IconButton from '@mui/material/IconButton';
+import InputAdornment from '@mui/material/InputAdornment';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid2';
+import SearchIcon from '@mui/icons-material/Search';
 import { useProject } from '../context/ProjectContext';
 import AppDialog from '../components/AppDialog';
 import AppCard from '../components/AppCard';
 import ReportSettings, { ReportSettingsDraft } from '../components/ReportSettings';
+import DashboardWidgetPicker, {
+    type DashboardWidgetPickerHandle,
+} from '../components/dashboard/DashboardWidgetPicker';
 import {
     PastReport,
     cleanSections,
     deleteReport,
     downloadReportDocument,
-    generateReport,
     getReportSettings,
     listReports,
     openReportDocument,
-    setReportSettings,
 } from '../lib/report';
 import { SandboxRun, evalTitle, listAllRuns } from '../lib/sandbox';
+import { type GridWidget } from '../lib/dashboardCharts';
 import toast from 'react-hot-toast';
-
-/** One report-evaluation row: name with the Done date below it, and the
- *  executed plugin chips inline to the right of both lines. */
-function runLabel(run: SandboxRun) {
-    const plugins = (run.evaluation_plugins ?? [])
-        .map((plugin) => plugin.display_name || plugin.name)
-        .filter((name): name is string => Boolean(name));
-    return (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-            <Box sx={{ minWidth: 0 }}>
-                <Typography variant="body2">{evalTitle(run)}</Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', whiteSpace: 'nowrap' }}>
-                    {run.status}
-                    {run.created_at ? ` · ${run.created_at.replace('T', ' ').slice(0, 16)}` : ''}
-                </Typography>
-            </Box>
-            {plugins.map((plugin) => (
-                <Chip key={plugin} size="small" variant="outlined" label={plugin} />
-            ))}
-        </Box>
-    );
-}
 
 /** Report (WP8 W10): pick evaluations, format, sections and cover customisation in the
  *  generate dialog, then browse past reports as cards. The chosen settings are saved on
@@ -61,14 +43,27 @@ export default function ReportPage() {
     const [runs, setRuns] = useState<SandboxRun[]>([]);
     const [reports, setReports] = useState<PastReport[] | null>(null);
     const [picked, setPicked] = useState<string[]>([]);
+    // evaluations picker — search + plugin-tag filter, like the catalogue dialog
+    const [evalQuery, setEvalQuery] = useState('');
+    const [evalTags, setEvalTags] = useState<string[]>([]);
+    const [evalTagOpen, setEvalTagOpen] = useState(false);
     const [settings, setSettings] = useState<ReportSettingsDraft | null>(null);
     const [period, setPeriod] = useState('');
-    const [generating, setGenerating] = useState(false);
+    const job = useReportGeneration(pid);
+    const generating = job?.running ?? false;
     const [deleting, setDeleting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [generateOpen, setGenerateOpen] = useState(false);
     const [pendingDelete, setPendingDelete] = useState<PastReport | null>(null);
+    // the dashboard's current widgets, and which of them the report collects
+    const [widgets, setWidgets] = useState<GridWidget[]>([]);
+    const [pickedWidgetKeys, setPickedWidgetKeys] = useState<Set<string>>(new Set());
+    const pickerRef = useRef<DashboardWidgetPickerHandle>(null);
     const loadId = useRef(0);
+    const activeProject = useRef(pid);
+    activeProject.current = pid;
+    const operationId = useRef(0);
+    useEffect(() => () => { ++operationId.current; }, [pid]);
 
     const refresh = useCallback(async () => {
         const id = ++loadId.current;
@@ -107,18 +102,27 @@ export default function ReportPage() {
 
     useEffect(() => {
         // everything below is project-scoped: never carry one project's fields into another
+        setGenerateOpen(false);
+        setPendingDelete(null);
         setRuns([]);
         setReports(null);
         setPicked([]);
         setSettings(null);
         setPeriod('');
+        setEvalQuery('');
+        setEvalTags([]);
+        setEvalTagOpen(false);
+        setWidgets([]);
+        setPickedWidgetKeys(new Set());
         setError(null);
         void refresh();
     }, [refresh]);
 
+    useEffect(() => { if (job) void refresh(); }, [job, refresh]);
+
     // a generated report is created 'pending' and finalized in the background:
     // keep refreshing while any card is still generating
-    const hasPending = (reports ?? []).some((r) => r.status === 'pending');
+    const hasPending = (reports ?? []).some((r) => ['preparing', 'pending'].includes(r.status));
     useEffect(() => {
         if (!hasPending) return;
         const timer = setInterval(() => {
@@ -126,6 +130,38 @@ export default function ReportPage() {
         }, 2000);
         return () => clearInterval(timer);
     }, [hasPending, refresh]);
+
+    // a report only documents evaluations that actually ran (Done); pending or
+    // failed runs have no measurements to report
+    const doneRuns = runs.filter((run) => run.status === 'Done');
+
+    // Plugin names across the done runs, as toggleable filter chips (the tag
+    // filter of the catalogue dialog: pick a plugin to keep only its runs).
+    const pluginTags = useMemo(() => {
+        const set = new Set<string>();
+        doneRuns.forEach((run) =>
+            (run.evaluation_plugins ?? []).forEach((p) => {
+                const label = p.display_name || p.name;
+                if (label) set.add(label);
+            }),
+        );
+        return Array.from(set).sort();
+    }, [doneRuns]);
+
+    const filteredRuns = useMemo(() => {
+        const q = evalQuery.trim().toLowerCase();
+        return doneRuns.filter((run) => {
+            if (q && !evalTitle(run).toLowerCase().includes(q)) return false;
+            if (evalTags.length === 0) return true;
+            const plugins = (run.evaluation_plugins ?? []).map((p) => p.display_name || p.name);
+            return evalTags.some((tag) => plugins.includes(tag));
+        });
+    }, [doneRuns, evalQuery, evalTags]);
+
+    const toggleEvalTag = (tag: string) =>
+        setEvalTags((prev) =>
+            prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
+        );
 
     if (!pid) {
         return <Typography color="text.secondary">Select a project to open reports.</Typography>;
@@ -137,34 +173,41 @@ export default function ReportPage() {
         );
     };
 
-    // a report only documents evaluations that actually ran (Done); pending or
-    // failed runs have no measurements to report
-    const doneRuns = runs.filter((run) => run.status === 'Done');
+    // load the dashboard's widgets (and pre-select them all) when the dialog
+    // opens, so the report reflects the dashboard at generation time
+    const openGenerate = async () => {
+        const operation = ++operationId.current;
+        const isCurrent = () => activeProject.current === pid && operationId.current === operation;
+        let current: GridWidget[];
+        try { current = (await fetchDashboard(pid)).widgets; }
+        catch { if (isCurrent()) setError('Could not load dashboard'); return; }
+        if (!isCurrent()) return;
+        setWidgets(current);
+        setPickedWidgetKeys(new Set(current.map((w) => w.key)));
+        setGenerateOpen(true);
+    };
+
+    const toggleWidget = (key: string) => {
+        setPickedWidgetKeys((prev) => {
+            const next = new Set(prev);
+            if (next.has(key)) next.delete(key);
+            else next.add(key);
+            return next;
+        });
+    };
 
     // names of the current runs, so past-report chips can show them too
     const titleByPid = new Map(runs.map((r) => [r.pid, evalTitle(r)]));
 
-    const generate = async () => {
-        if (!settings) return;
-        setGenerating(true);
+    const generate = () => {
+        if (!settings || generating) return;
         setError(null);
-        try {
-            // the form's current values become the defaults the next report starts from
-            const saved = await setReportSettings(pid, settings);
-            await generateReport(pid, {
-                period,
-                format: saved.default_format,
-                evaluation_pids: picked,
-                sections: cleanSections(saved.default_sections),
-            });
-            await refresh();
-            setGenerateOpen(false);
-        } catch (e) {
-            setError(e instanceof Error ? e.message : 'generation failed');
-        } finally {
-            setGenerating(false);
-        }
+        const exporter = pickerRef.current;
+        startReportGeneration(pid, { settings, period, evaluations: picked },
+            () => exporter?.exportSelected() ?? Promise.resolve([]));
+        setGenerateOpen(false);
     };
+
 
     const remove = async () => {
         if (!pendingDelete) return;
@@ -192,13 +235,13 @@ export default function ReportPage() {
                     className="gradient-btn"
                     startIcon={<Icon>report</Icon>}
                     disabled={generating}
-                    onClick={() => setGenerateOpen(true)}
+                    onClick={openGenerate}
                     sx={{ textTransform: 'none' }}
                 >
                     Generate
                 </Button>
             </Box>
-            {error && <Typography color="error">{error}</Typography>}
+            {(error || job?.error) && <Typography color="error">{error || job?.error}</Typography>}
 
             {reports === null && <CircularProgress size={24} />}
             {reports !== null && reports.length === 0 && (
@@ -207,7 +250,7 @@ export default function ReportPage() {
             {reports !== null && reports.length > 0 && (
                 <Grid container spacing={2} className="plugins-grid">
                     {reports.map((report) => {
-                        const pending = report.status === 'pending';
+                        const pending = ['preparing', 'pending'].includes(report.status);
                         const failed = report.status === 'failed';
                         const openable = !pending && !failed;
                         return (
@@ -259,6 +302,7 @@ export default function ReportPage() {
                                                     size="small"
                                                     color="error"
                                                     aria-label={`Delete ${report.period || 'report'}`}
+                                                    disabled={report.status === 'preparing'}
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         setPendingDelete(report);
@@ -374,27 +418,131 @@ export default function ReportPage() {
                         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
                             None selected means the whole project.
                         </Typography>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', maxHeight: 240, overflowY: 'auto', pr: 1 }}>
-                            {doneRuns.map((run) => (
-                                <FormControlLabel
-                                    key={run.pid}
-                                    sx={{ alignItems: 'flex-start' }}
-                                    control={
-                                        <Checkbox
-                                            size="small"
-                                            checked={picked.includes(run.pid)}
-                                            onChange={() => toggle(run.pid)}
-                                        />
-                                    }
-                                    label={runLabel(run)}
-                                />
-                            ))}
-                            {doneRuns.length === 0 && (
-                                <Typography color="text.secondary" variant="body2">
-                                    No completed evaluations yet.
-                                </Typography>
-                            )}
-                        </Box>
+                        <Stack spacing={1} sx={{ mb: 1.5 }}>
+                            <TextField
+                                size="small"
+                                fullWidth
+                                placeholder="Search evaluations…"
+                                value={evalQuery}
+                                onChange={(e) => setEvalQuery(e.target.value)}
+                                slotProps={{
+                                    input: {
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <SearchIcon fontSize="small" />
+                                            </InputAdornment>
+                                        ),
+                                    },
+                                }}
+                            />
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                {pluginTags.slice(0, evalTagOpen ? pluginTags.length : 12).map((tag) => (
+                                    <Chip
+                                        key={tag}
+                                        label={tag}
+                                        size="small"
+                                        onClick={() => toggleEvalTag(tag)}
+                                        color={evalTags.includes(tag) ? 'primary' : 'default'}
+                                        variant={evalTags.includes(tag) ? 'filled' : 'outlined'}
+                                    />
+                                ))}
+                                {pluginTags.length > 12 && (
+                                    <Chip
+                                        label={evalTagOpen ? 'less' : `+${pluginTags.length - 12} tags`}
+                                        size="small"
+                                        variant="outlined"
+                                        onClick={() => setEvalTagOpen((o) => !o)}
+                                    />
+                                )}
+                            </Box>
+                        </Stack>
+                        {doneRuns.length === 0 ? (
+                            <Typography color="text.secondary" variant="body2">
+                                No completed evaluations yet.
+                            </Typography>
+                        ) : filteredRuns.length === 0 ? (
+                            <Typography color="text.secondary" variant="body2">
+                                No matching evaluations.
+                            </Typography>
+                        ) : (
+                            <Box sx={{ maxHeight: 320, overflowY: 'auto', pr: 0.5 }}>
+                                <Grid container spacing={1.5}>
+                                    {filteredRuns.map((run) => {
+                                        const pickedEval = picked.includes(run.pid);
+                                        const plugins = run.evaluation_plugins ?? [];
+                                        return (
+                                            <Grid key={run.pid} size={{ xs: 12, sm: 6, md: 4 }}>
+                                                <AppCard
+                                                    theme="catalogue"
+                                                    active={pickedEval}
+                                                    onClick={() => toggle(run.pid)}
+                                                    header={
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                                                            <Icon sx={{ color: 'primary.main', flexShrink: 0 }}>science</Icon>
+                                                            <Tooltip title={run.pid} placement="top">
+                                                                <Typography variant="subtitle1" fontWeight={600} noWrap sx={{ minWidth: 0 }}>
+                                                                    {evalTitle(run)}
+                                                                </Typography>
+                                                            </Tooltip>
+                                                        </Box>
+                                                    }
+                                                    footer={
+                                                        <>
+                                                            <Chip
+                                                                label={run.status}
+                                                                size="small"
+                                                                color={run.status === 'Done' ? 'success' : 'default'}
+                                                                variant={run.status === 'Done' ? 'filled' : 'outlined'}
+                                                            />
+                                                            {run.created_at && (
+                                                                <Chip
+                                                                    label={run.created_at.replace('T', ' ').slice(0, 16)}
+                                                                    size="small"
+                                                                    variant="outlined"
+                                                                />
+                                                            )}
+                                                            {plugins.slice(0, 2).map((p) => (
+                                                                <Chip
+                                                                    key={p.name ?? p.display_name}
+                                                                    label={p.display_name || p.name}
+                                                                    size="small"
+                                                                    variant="outlined"
+                                                                />
+                                                            ))}
+                                                            {plugins.length > 2 && (
+                                                                <Chip label={`+${plugins.length - 2}`} size="small" variant="outlined" />
+                                                            )}
+                                                            {pickedEval && (
+                                                                <Chip label="selected" size="small" color="success" />
+                                                            )}
+                                                        </>
+                                                    }
+                                                />
+                                            </Grid>
+                                        );
+                                    })}
+                                </Grid>
+                            </Box>
+                        )}
+                    </Box>
+
+                    <Box component="section" sx={{ p: 2, borderRadius: 2, border: 1, borderColor: 'divider' }}>
+                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                            <Icon sx={{ color: 'primary.main', fontSize: 20 }}>dashboard</Icon>
+                            <Typography variant="subtitle1" fontWeight={600}>Dashboard widgets</Typography>
+                        </Stack>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+                            Select the dashboard charts and comments to collect (all pre-selected). They are exported as
+                            they appear on the dashboard; a plugin without a dashboard chart still shows its default
+                            plots in the report's Evaluations chapter.
+                        </Typography>
+                        <DashboardWidgetPicker
+                            ref={pickerRef}
+                            projectPid={pid}
+                            widgets={widgets}
+                            selected={pickedWidgetKeys}
+                            onToggle={toggleWidget}
+                        />
                     </Box>
 
                     <Box component="section" sx={{ p: 2, borderRadius: 2, border: 1, borderColor: 'divider' }}>
