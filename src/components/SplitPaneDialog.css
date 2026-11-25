@@ -13,6 +13,8 @@
 }
 
 .split-pane-nav {
+    /* Let the selected detail content determine the dialog height. */
+    contain: size;
     flex-shrink: 0;
     border-right: 1px solid #e5e7eb;
     background: #f8fafc;
@@ -51,6 +53,7 @@
         flex-direction: column;
     }
     .split-pane-nav {
+        contain: none;
         width: 100% !important;
         border-right: 0;
         border-bottom: 1px solid #e5e7eb;
