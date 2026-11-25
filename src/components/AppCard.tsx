@@ -35,6 +35,15 @@ export default function AppCard({
             variant="outlined"
             className={className}
             onClick={onClick}
+            role={onClick ? 'button' : undefined}
+            tabIndex={onClick ? 0 : undefined}
+            onKeyDown={onClick ? (event) => {
+                if (event.target !== event.currentTarget) return;
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onClick();
+                }
+            } : undefined}
             sx={{
                 height: '100%',
                 display: 'flex',
