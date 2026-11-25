@@ -80,8 +80,12 @@ export const MeasurementsKDEChart = ({title: title, description: description, da
     if (allUniqueScores.length === 0) return null;
 
     // --- Global domain / bins
-    const globalMin = Math.min(...allUniqueScores);
-    const globalMax = Math.max(...allUniqueScores);
+    let globalMin = Infinity;
+    let globalMax = -Infinity;
+    for (const score of allUniqueScores) {
+        globalMin = Math.min(globalMin, score);
+        globalMax = Math.max(globalMax, score);
+    }
     const globalRange = globalMax - globalMin || 1;
     const binSize = globalRange / bins;
     const binCenters = Array.from({ length: bins }, (_, i) => globalMin + (i + 0.5) * binSize);
