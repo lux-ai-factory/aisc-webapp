@@ -7,6 +7,7 @@ import ReportPage from './ReportPage';
 import { prepareReport, uploadReportChart } from '../lib/report';
 import { fetchDashboard } from '../lib/dashboardStorage';
 import { exportEvaluationCharts } from '../lib/evaluationChartExport';
+import { exportDashboardWidgets } from '../lib/reportDashboard';
 
 vi.mock('../lib/evaluationChartExport', () => ({ exportEvaluationCharts: vi.fn(async () => []) }));
 
@@ -44,13 +45,19 @@ const pickerExport = vi.hoisted(() => ({
         { key: 'c1', kind: 'chart', image: 'png', title: 'T' },
     ] as Array<Record<string, string>>,
 }));
+vi.mock('../lib/reportDashboard', () => ({ exportDashboardWidgets: vi.fn(() => pickerExport.selected()) }));
+
 vi.mock('../components/dashboard/DashboardWidgetPicker', async () => {
     const React = (await import('react')).default;
-    const MockPicker = React.forwardRef((props: { widgets?: unknown[] }, ref: React.Ref<unknown>) => {
+    const MockPicker = React.forwardRef((props: { widgets?: Array<{ key: string }>; selected?: Set<string>; onToggle?: (key: string) => void }, ref: React.Ref<unknown>) => {
         React.useImperativeHandle(ref, () => ({
             exportSelected: pickerExport.selected,
         }));
-        return React.createElement('div', {}, `${(props.widgets ?? []).length} widgets`);
+        return React.createElement('div', {}, `${(props.widgets ?? []).length} widgets`,
+            ...(props.widgets ?? []).map(widget => React.createElement('button', {
+                key: widget.key, 'aria-pressed': props.selected?.has(widget.key),
+                onClick: () => props.onToggle?.(widget.key),
+            }, `Widget ${widget.key}`)));
     });
     MockPicker.displayName = 'DashboardWidgetPicker';
     return { __esModule: true, default: MockPicker };
@@ -114,6 +121,14 @@ afterEach(async () => {
     document.body.innerHTML = '';
     vi.unstubAllGlobals();
 });
+
+async function selectReportSection(label: string) {
+    const nav = document.querySelector('nav[aria-label="Split pane sections"]');
+    const item = Array.from(nav?.querySelectorAll<HTMLElement>('[role="button"]') ?? [])
+        .find(item => item.querySelector('.MuiListItemText-root')?.textContent === label);
+    expect(item).toBeTruthy();
+    await act(async () => item!.click());
+}
 
 async function renderPage() {
     await act(async () => {
@@ -185,6 +200,7 @@ describe('ReportPage', () => {
             buttons()[0]!.click();
         });
         await act(async () => {});
+        await selectReportSection('Settings');
         expect(document.querySelector('input[value="P1 title"]')).toBeTruthy();
 
         project.pid = 'p2';
@@ -199,6 +215,8 @@ describe('ReportPage', () => {
             releaseP2!();
         });
         await act(async () => {});
+        await act(async () => buttons()[0]!.click());
+        await selectReportSection('Settings');
         expect(document.querySelector('input[value="P2 title"]')).toBeTruthy();
     });
 
@@ -307,6 +325,46 @@ describe('ReportPage', () => {
         expect((body.dashboard as Array<{ key?: string }>)[0]?.key).toBe('c1');
     });
 
+    it('keeps selections across split-pane sections and exports from Settings without a mounted picker', async () => {
+        const widgets = [{ key: 'c1', kind: 'chart' as const, plugin: 'Tool' },
+            { key: 'n1', kind: 'text' as const, text: 'Note' }];
+        vi.mocked(fetchDashboard).mockResolvedValueOnce({ widgets, layouts: {}, revision: 1, can_edit: true });
+        const originalFetch = fetch;
+        const requests = vi.fn((url: string, init?: RequestInit) => url.endsWith('/reports/generate')
+            ? Promise.resolve({ ok: true, json: async () => ({ ...reports[0], pid: 'new-report' }) })
+            : originalFetch(url, init));
+        vi.stubGlobal('fetch', requests);
+        await renderPage();
+        await act(async () => Array.from(document.querySelectorAll('button')).find(button => button.textContent?.includes('Generate'))!.click());
+        const dialog = document.querySelector('[role="dialog"]')!;
+        expect(dialog.querySelector('.split-pane-body')).toBeTruthy();
+        expect(dialog.querySelector('input[placeholder="Search evaluations…"]')).toBeTruthy();
+        expect(dialog.querySelector('input[placeholder="AI system assessment report"]')).toBeNull();
+        await act(async () => (dialog.querySelector('.catalogue-card') as HTMLElement).click());
+        await selectReportSection('Dashboard widgets');
+        await act(async () => Array.from(dialog.querySelectorAll('button')).find(button => button.textContent === 'Widget n1')!.click());
+        await selectReportSection('Settings');
+        const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+        await act(async () => {
+            const title = dialog.querySelector('input[placeholder="AI system assessment report"]')!;
+            const period = dialog.querySelector('input[placeholder="2026-Q3"]')!;
+            setValue.call(title, 'Selected title'); title.dispatchEvent(new Event('input', { bubbles: true }));
+            setValue.call(period, '2026-Q4'); period.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        await selectReportSection('Evaluations');
+        expect(dialog.querySelector('.catalogue-card.is-enabled')).toBeTruthy();
+        await selectReportSection('Dashboard widgets');
+        expect(Array.from(dialog.querySelectorAll('button')).find(button => button.textContent === 'Widget n1')!.getAttribute('aria-pressed')).toBe('false');
+        await selectReportSection('Settings');
+        expect(dialog.querySelector('input[value="Selected title"]')).toBeTruthy();
+        expect(dialog.querySelector('input[value="2026-Q4"]')).toBeTruthy();
+        expect(dialog.textContent).not.toContain('2 widgets');
+        await act(async () => Array.from(dialog.querySelectorAll('button')).find(button => button.textContent?.includes('Generate'))!.click());
+        expect(exportDashboardWidgets).toHaveBeenLastCalledWith('p1', widgets, new Set(['c1']));
+        const request = requests.mock.calls.find(([url]) => url.endsWith('/reports/generate'))!;
+        expect(JSON.parse(String(request[1]?.body))).toMatchObject({ period: '2026-Q4', evaluation_pids: [runs[0].pid] });
+    });
+
     it('submits dashboard widgets as artifact ids, without inline images or svg', async () => {
         pickerExport.selected = async () => [{
             key: 'c1', kind: 'chart', title: 'Accuracy', comment: 'en',
@@ -404,6 +462,7 @@ describe('ReportPage', () => {
             buttons()[0]!.click();
         });
         await act(async () => {});
+        await selectReportSection('Settings');
         const title = document.body.querySelector(
             'input[placeholder="AI system assessment report"]',
         ) as HTMLInputElement | null;

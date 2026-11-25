@@ -16,11 +16,11 @@ import Grid from '@mui/material/Grid2';
 import SearchIcon from '@mui/icons-material/Search';
 import { useProject } from '../context/ProjectContext';
 import AppDialog from '../components/AppDialog';
+import SplitPaneDialog from '../components/SplitPaneDialog';
+import { exportDashboardWidgets } from '../lib/reportDashboard';
 import AppCard from '../components/AppCard';
 import ReportSettings, { ReportSettingsDraft } from '../components/ReportSettings';
-import DashboardWidgetPicker, {
-    type DashboardWidgetPickerHandle,
-} from '../components/dashboard/DashboardWidgetPicker';
+import DashboardWidgetPicker from '../components/dashboard/DashboardWidgetPicker';
 import {
     PastReport,
     cleanSections,
@@ -58,7 +58,7 @@ export default function ReportPage() {
     // the dashboard's current widgets, and which of them the report collects
     const [widgets, setWidgets] = useState<GridWidget[]>([]);
     const [pickedWidgetKeys, setPickedWidgetKeys] = useState<Set<string>>(new Set());
-    const pickerRef = useRef<DashboardWidgetPickerHandle>(null);
+    const [reportSection, setReportSection] = useState('evaluations');
     const loadId = useRef(0);
     const activeProject = useRef(pid);
     activeProject.current = pid;
@@ -184,6 +184,7 @@ export default function ReportPage() {
         if (!isCurrent()) return;
         setWidgets(current);
         setPickedWidgetKeys(new Set(current.map((w) => w.key)));
+        setReportSection('evaluations');
         setGenerateOpen(true);
     };
 
@@ -202,9 +203,9 @@ export default function ReportPage() {
     const generate = () => {
         if (!settings || generating) return;
         setError(null);
-        const exporter = pickerRef.current;
+        const selectedWidgets = new Set(pickedWidgetKeys);
         startReportGeneration(pid, { settings, period, evaluations: picked },
-            () => exporter?.exportSelected() ?? Promise.resolve([]));
+            () => exportDashboardWidgets(pid, widgets, selectedWidgets));
         setGenerateOpen(false);
     };
 
@@ -381,11 +382,10 @@ export default function ReportPage() {
                 </Grid>
             )}
 
-            <AppDialog
+            <SplitPaneDialog
                 open={generateOpen}
                 onClose={() => setGenerateOpen(false)}
                 maxWidth="lg"
-                fullWidth
                 title="Generate report"
                 actions={
                     <>
@@ -408,172 +408,176 @@ export default function ReportPage() {
                         </Button>
                     </>
                 }
-            >
-                <Stack spacing={2.5}>
-                    <Box component="section" sx={{ p: 2, borderRadius: 2, border: 1, borderColor: 'divider' }}>
-                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                            <Icon sx={{ color: 'primary.main', fontSize: 20 }}>science</Icon>
-                            <Typography variant="subtitle1" fontWeight={600}>Evaluations</Typography>
-                        </Stack>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                            None selected means the whole project.
-                        </Typography>
-                        <Stack spacing={1} sx={{ mb: 1.5 }}>
-                            <TextField
-                                size="small"
-                                fullWidth
-                                placeholder="Search evaluations…"
-                                value={evalQuery}
-                                onChange={(e) => setEvalQuery(e.target.value)}
-                                slotProps={{
-                                    input: {
-                                        startAdornment: (
-                                            <InputAdornment position="start">
-                                                <SearchIcon fontSize="small" />
-                                            </InputAdornment>
-                                        ),
-                                    },
-                                }}
+                navWidth={280}
+                selectedId={reportSection}
+                onSelectedChange={setReportSection}
+                items={[
+                    { id: 'evaluations', label: 'Evaluations', icon: <Icon>science</Icon>, content: (
+                        <Box component="section">
+                            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                                <Icon sx={{ color: 'primary.main', fontSize: 20 }}>science</Icon>
+                                <Typography variant="subtitle1" fontWeight={600}>Evaluations</Typography>
+                            </Stack>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                                None selected means the whole project.
+                            </Typography>
+                            <Stack spacing={1} sx={{ mb: 1.5 }}>
+                                <TextField
+                                    size="small"
+                                    fullWidth
+                                    placeholder="Search evaluations…"
+                                    value={evalQuery}
+                                    onChange={(e) => setEvalQuery(e.target.value)}
+                                    slotProps={{
+                                        input: {
+                                            startAdornment: (
+                                                <InputAdornment position="start">
+                                                    <SearchIcon fontSize="small" />
+                                                </InputAdornment>
+                                            ),
+                                        },
+                                    }}
+                                />
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                    {pluginTags.slice(0, evalTagOpen ? pluginTags.length : 12).map((tag) => (
+                                        <Chip
+                                            key={tag}
+                                            label={tag}
+                                            size="small"
+                                            onClick={() => toggleEvalTag(tag)}
+                                            color={evalTags.includes(tag) ? 'primary' : 'default'}
+                                            variant={evalTags.includes(tag) ? 'filled' : 'outlined'}
+                                        />
+                                    ))}
+                                    {pluginTags.length > 12 && (
+                                        <Chip
+                                            label={evalTagOpen ? 'less' : `+${pluginTags.length - 12} tags`}
+                                            size="small"
+                                            variant="outlined"
+                                            onClick={() => setEvalTagOpen((o) => !o)}
+                                        />
+                                    )}
+                                </Box>
+                            </Stack>
+                            {doneRuns.length === 0 ? (
+                                <Typography color="text.secondary" variant="body2">
+                                    No completed evaluations yet.
+                                </Typography>
+                            ) : filteredRuns.length === 0 ? (
+                                <Typography color="text.secondary" variant="body2">
+                                    No matching evaluations.
+                                </Typography>
+                            ) : (
+                                <Box sx={{ maxHeight: 320, overflowY: 'auto', pr: 0.5 }}>
+                                    <Grid container spacing={1.5}>
+                                        {filteredRuns.map((run) => {
+                                            const pickedEval = picked.includes(run.pid);
+                                            const plugins = run.evaluation_plugins ?? [];
+                                            return (
+                                                <Grid key={run.pid} size={{ xs: 12, sm: 6, md: 4 }}>
+                                                    <AppCard
+                                                        theme="catalogue"
+                                                        active={pickedEval}
+                                                        onClick={() => toggle(run.pid)}
+                                                        header={
+                                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                                                                <Icon sx={{ color: 'primary.main', flexShrink: 0 }}>science</Icon>
+                                                                <Tooltip title={run.pid} placement="top">
+                                                                    <Typography variant="subtitle1" fontWeight={600} noWrap sx={{ minWidth: 0 }}>
+                                                                        {evalTitle(run)}
+                                                                    </Typography>
+                                                                </Tooltip>
+                                                            </Box>
+                                                        }
+                                                        footer={
+                                                            <>
+                                                                <Chip
+                                                                    label={run.status}
+                                                                    size="small"
+                                                                    color={run.status === 'Done' ? 'success' : 'default'}
+                                                                    variant={run.status === 'Done' ? 'filled' : 'outlined'}
+                                                                />
+                                                                {run.created_at && (
+                                                                    <Chip
+                                                                        label={run.created_at.replace('T', ' ').slice(0, 16)}
+                                                                        size="small"
+                                                                        variant="outlined"
+                                                                    />
+                                                                )}
+                                                                {plugins.slice(0, 2).map((p) => (
+                                                                    <Chip
+                                                                        key={p.name ?? p.display_name}
+                                                                        label={p.display_name || p.name}
+                                                                        size="small"
+                                                                        variant="outlined"
+                                                                    />
+                                                                ))}
+                                                                {plugins.length > 2 && (
+                                                                    <Chip label={`+${plugins.length - 2}`} size="small" variant="outlined" />
+                                                                )}
+                                                                {pickedEval && (
+                                                                    <Chip label="selected" size="small" color="success" />
+                                                                )}
+                                                            </>
+                                                        }
+                                                    />
+                                                </Grid>
+                                            );
+                                        })}
+                                    </Grid>
+                                </Box>
+                            )}
+                        </Box>
+                    ) },
+                    { id: 'dashboard', label: 'Dashboard widgets', icon: <Icon>dashboard</Icon>, content: (
+                        <Box component="section">
+                            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                                <Icon sx={{ color: 'primary.main', fontSize: 20 }}>dashboard</Icon>
+                                <Typography variant="subtitle1" fontWeight={600}>Dashboard widgets</Typography>
+                            </Stack>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+                                Select the dashboard charts and comments to collect (all pre-selected). They are exported as
+                                they appear on the dashboard; a plugin without a dashboard chart still shows its default
+                                plots in the report's Evaluations chapter.
+                            </Typography>
+                            <DashboardWidgetPicker
+                                projectPid={pid}
+                                widgets={widgets}
+                                selected={pickedWidgetKeys}
+                                onToggle={toggleWidget}
                             />
-                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                {pluginTags.slice(0, evalTagOpen ? pluginTags.length : 12).map((tag) => (
-                                    <Chip
-                                        key={tag}
-                                        label={tag}
-                                        size="small"
-                                        onClick={() => toggleEvalTag(tag)}
-                                        color={evalTags.includes(tag) ? 'primary' : 'default'}
-                                        variant={evalTags.includes(tag) ? 'filled' : 'outlined'}
-                                    />
-                                ))}
-                                {pluginTags.length > 12 && (
-                                    <Chip
-                                        label={evalTagOpen ? 'less' : `+${pluginTags.length - 12} tags`}
-                                        size="small"
-                                        variant="outlined"
-                                        onClick={() => setEvalTagOpen((o) => !o)}
-                                    />
-                                )}
-                            </Box>
-                        </Stack>
-                        {doneRuns.length === 0 ? (
-                            <Typography color="text.secondary" variant="body2">
-                                No completed evaluations yet.
-                            </Typography>
-                        ) : filteredRuns.length === 0 ? (
-                            <Typography color="text.secondary" variant="body2">
-                                No matching evaluations.
-                            </Typography>
-                        ) : (
-                            <Box sx={{ maxHeight: 320, overflowY: 'auto', pr: 0.5 }}>
-                                <Grid container spacing={1.5}>
-                                    {filteredRuns.map((run) => {
-                                        const pickedEval = picked.includes(run.pid);
-                                        const plugins = run.evaluation_plugins ?? [];
-                                        return (
-                                            <Grid key={run.pid} size={{ xs: 12, sm: 6, md: 4 }}>
-                                                <AppCard
-                                                    theme="catalogue"
-                                                    active={pickedEval}
-                                                    onClick={() => toggle(run.pid)}
-                                                    header={
-                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
-                                                            <Icon sx={{ color: 'primary.main', flexShrink: 0 }}>science</Icon>
-                                                            <Tooltip title={run.pid} placement="top">
-                                                                <Typography variant="subtitle1" fontWeight={600} noWrap sx={{ minWidth: 0 }}>
-                                                                    {evalTitle(run)}
-                                                                </Typography>
-                                                            </Tooltip>
-                                                        </Box>
-                                                    }
-                                                    footer={
-                                                        <>
-                                                            <Chip
-                                                                label={run.status}
-                                                                size="small"
-                                                                color={run.status === 'Done' ? 'success' : 'default'}
-                                                                variant={run.status === 'Done' ? 'filled' : 'outlined'}
-                                                            />
-                                                            {run.created_at && (
-                                                                <Chip
-                                                                    label={run.created_at.replace('T', ' ').slice(0, 16)}
-                                                                    size="small"
-                                                                    variant="outlined"
-                                                                />
-                                                            )}
-                                                            {plugins.slice(0, 2).map((p) => (
-                                                                <Chip
-                                                                    key={p.name ?? p.display_name}
-                                                                    label={p.display_name || p.name}
-                                                                    size="small"
-                                                                    variant="outlined"
-                                                                />
-                                                            ))}
-                                                            {plugins.length > 2 && (
-                                                                <Chip label={`+${plugins.length - 2}`} size="small" variant="outlined" />
-                                                            )}
-                                                            {pickedEval && (
-                                                                <Chip label="selected" size="small" color="success" />
-                                                            )}
-                                                        </>
-                                                    }
-                                                />
-                                            </Grid>
-                                        );
-                                    })}
-                                </Grid>
-                            </Box>
-                        )}
-                    </Box>
-
-                    <Box component="section" sx={{ p: 2, borderRadius: 2, border: 1, borderColor: 'divider' }}>
-                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                            <Icon sx={{ color: 'primary.main', fontSize: 20 }}>dashboard</Icon>
-                            <Typography variant="subtitle1" fontWeight={600}>Dashboard widgets</Typography>
-                        </Stack>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
-                            Select the dashboard charts and comments to collect (all pre-selected). They are exported as
-                            they appear on the dashboard; a plugin without a dashboard chart still shows its default
-                            plots in the report's Evaluations chapter.
-                        </Typography>
-                        <DashboardWidgetPicker
-                            ref={pickerRef}
-                            projectPid={pid}
-                            widgets={widgets}
-                            selected={pickedWidgetKeys}
-                            onToggle={toggleWidget}
-                        />
-                    </Box>
-
-                    <Box component="section" sx={{ p: 2, borderRadius: 2, border: 1, borderColor: 'divider' }}>
-                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                            <Icon sx={{ color: 'primary.main', fontSize: 20 }}>palette</Icon>
-                            <Typography variant="subtitle1" fontWeight={600}>
-                                Report look, format &amp; sections
-                            </Typography>
-                        </Stack>
-                        {settings === null ? (
-                            <CircularProgress size={24} />
-                        ) : (
-                            <ReportSettings value={settings} onChange={setSettings} />
-                        )}
-                    </Box>
-
-                    <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
-                        <TextField
-                            label="Period"
-                            size="small"
-                            value={period}
-                            placeholder="2026-Q3"
-                            onChange={(e) => setPeriod(e.target.value)}
-                            sx={{ alignSelf: 'flex-start', minWidth: 220 }}
-                        />
-                        <Typography variant="caption" color="text.secondary">
-                            The settings are saved when you generate, so the next report starts from them.
-                        </Typography>
-                    </Stack>
-                </Stack>
-            </AppDialog>
+                        </Box>
+                    ) },
+                    { id: 'settings', label: 'Settings', icon: <Icon>settings</Icon>, content: (
+                        <Box component="section">
+                            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                                <Icon sx={{ color: 'primary.main', fontSize: 20 }}>palette</Icon>
+                                <Typography variant="subtitle1" fontWeight={600}>
+                                    Report look, format &amp; sections
+                                </Typography>
+                            </Stack>
+                            {settings === null ? (
+                                <CircularProgress size={24} />
+                            ) : (
+                                <ReportSettings value={settings} onChange={setSettings} />
+                            )}
+                            <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" sx={{ mt: 2.5 }}>
+                                <TextField
+                                    label="Period"
+                                    size="small"
+                                    value={period}
+                                    placeholder="2026-Q3"
+                                    onChange={(e) => setPeriod(e.target.value)}
+                                    sx={{ alignSelf: 'flex-start', minWidth: 220 }}
+                                />
+                                <Typography variant="caption" color="text.secondary">
+                                    The settings are saved when you generate, so the next report starts from them.
+                                </Typography>
+                            </Stack>
+                        </Box>
+                    ) }
+                ]}
+            />
 
             <AppDialog
                 open={pendingDelete !== null}
