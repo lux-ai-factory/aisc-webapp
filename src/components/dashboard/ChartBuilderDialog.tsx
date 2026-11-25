@@ -70,6 +70,10 @@ export default function ChartBuilderDialog({
     const [importIdx, setImportIdx] = useState('');
     const preImportRef = useRef<Partial<ChartFields> | null>(null);
     const wasOpen = useRef(false);
+    // Once the user customizes the facet selection, background data updates
+    // must preserve it (only values that disappear are dropped).
+    const facetsTouched = useRef(false);
+    const facetDimRef = useRef(facetDim);
     const isEdit = !!initial;
 
     // Reset the form once per dialog opening; later prop churn (e.g. the
@@ -98,6 +102,9 @@ export default function ChartBuilderDialog({
         setLabelOrder(initial?.labelOrder ?? []);
         setImportIdx('');
         preImportRef.current = null;
+        // a fresh opening starts a new facet-selection session
+        facetDimRef.current = initial?.facetDim ?? '';
+        facetsTouched.current = false;
         wasOpen.current = true;
     }, [open, initial, plugins, evals]);
 
@@ -138,8 +145,25 @@ export default function ChartBuilderDialog({
         return Array.from(values).sort();
     }, [pluginData, facetDim]);
 
-    // Default: every facet value included. Changing the dimension re-defaults to all.
+    // Reconciling the facet selection with the data instead of resetting it:
+    // choosing a different facet dimension defaults to every currently available
+    // value (a new selection session); if data arrives late and the user has not
+    // touched the selection yet, initialize from the first available value set.
+    // Once the user customizes the selection, background data updates only drop
+    // values that genuinely disappeared - never re-select new ones, and an
+    // intentionally empty selection stays empty.
     useEffect(() => {
+        if (facetDim !== facetDimRef.current) {
+            facetDimRef.current = facetDim;
+            facetsTouched.current = false;
+            setFacets(facetValueOptions);
+            return;
+        }
+        if (facetsTouched.current) {
+            setFacets((previous) => previous.filter((value) => facetValueOptions.includes(value)));
+            return;
+        }
+        // untouched: keep the default-to-all selection in sync with the data
         setFacets(facetValueOptions);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [facetDim, facetValueOptions.join('|')]);
@@ -229,13 +253,13 @@ export default function ChartBuilderDialog({
 
     // Legend labels exactly as the chart renders them (respecting the selected
     // metrics + filter rules, with the evaluation dimension always grouped), so
-    // the user can rename each visible series. Bars render one series per run/group
-    // (the x-axis already carries the metrics), so its legend lists group labels
+    // the user can rename each visible series. Bars and radar render one series per run/group
+    // (their axes already carry the metrics), so their legends list group labels
     // rather than "metric (run)" composites.
     const availableLabels = useMemo(() => {
         const data = selectMeasurements(scopedData, metrics, filters);
         const group: string[] = [...(groupBy.length ? groupBy : []), EVAL_DIM_KEY];
-        if (chartType === 'bars') {
+        if (chartType === 'bars' || chartType === 'radar') {
             return Array.from(new Set(data.map((m) => getGroupLabel(m, group)))).sort();
         }
         const keys = buildDistinctSeriesKeys(data, group, labelDim || undefined);
@@ -267,7 +291,7 @@ export default function ChartBuilderDialog({
     const facetLabelsOf = (value: string, metric: string): string[] => {
         const data = unitData(value, metric);
         const group: string[] = [...(groupBy.length ? groupBy : []), EVAL_DIM_KEY];
-        if (chartType === 'bars') {
+        if (chartType === 'bars' || chartType === 'radar') {
             return Array.from(new Set(data.map((m) => getGroupLabel(m, group)))).sort();
         }
         const keys = buildDistinctSeriesKeys(data, group, labelDim || undefined);
@@ -563,9 +587,10 @@ export default function ChartBuilderDialog({
                                 multiple
                                 label="Facet charts to add (one per value · metric)"
                                 value={facets}
-                                onChange={(e) =>
-                                    setFacets(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)
-                                }
+                                onChange={(e) => {
+                                    facetsTouched.current = true;
+                                    setFacets(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value);
+                                }}
                                 input={<OutlinedInput label="Facet charts to add (one per value · metric)" />}
                                 renderValue={(selected) => (
                                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
