@@ -38,6 +38,7 @@ interface ChartBuilderDialogProps {
     /** Existing chart widget being edited (null = create a new one). */
     initial?: GridWidget | null;
     onClose: () => void;
+    onExited?: () => void;
     onSubmit: (fields: ChartFields) => void;
 }
 
@@ -45,7 +46,7 @@ interface ChartBuilderDialogProps {
  *  type/metrics/dimensions, feed title and legend labels, with a live preview.
  *  Used both to create and to edit dashboard widgets. */
 export default function ChartBuilderDialog({
-    open, plugins, evals, dataFor, requestData, visualizationsFor, initial, onClose, onSubmit,
+    open, plugins, evals, dataFor, requestData, visualizationsFor, initial, onClose, onExited, onSubmit,
 }: ChartBuilderDialogProps) {
     const [plugin, setPlugin] = useState('');
     const [evaluations, setEvaluations] = useState<string[]>([]);
@@ -347,6 +348,7 @@ export default function ChartBuilderDialog({
         <AppDialog
             open={open}
             onClose={onClose}
+            slotProps={{ transition: { onExited } }}
             maxWidth="lg"
             fullWidth
             title={isEdit ? 'Edit chart' : 'Add chart'}

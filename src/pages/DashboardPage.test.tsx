@@ -102,6 +102,12 @@ beforeEach(() => {
                     }),
                 });
             }
+            if (url.endsWith('/projects/p1/dashboard')) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({ widgets: [], layouts: {}, revision: 0, can_edit: true }),
+                });
+            }
             if (url.includes('/system-versions/latest')) {
                 return Promise.resolve({ ok: true, json: async () => ({ number: 2 }) });
             }

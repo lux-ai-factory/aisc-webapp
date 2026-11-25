@@ -1,3 +1,4 @@
+import { fetchDashboard, flushDashboardSave, scheduleDashboardSave } from '../../lib/dashboardStorage';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -24,6 +25,7 @@ import RefreshRounded from '@mui/icons-material/RefreshRounded';
 import AppDialog from '../AppDialog';
 import './GridDashboard.css';
 import { Responsive, noCompactor, useContainerWidth, type ResponsiveLayouts } from 'react-grid-layout';
+import { useDashboardDrag } from './useDashboardDrag';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
@@ -31,7 +33,12 @@ import type { Measurement, MetricVisualization } from '../../models/models';
 import { evalTitle } from '../../lib/sandbox';
 import {
     BREAKPOINT_COLS,
-    clearGridState,
+    DASHBOARD_BREAKPOINTS,
+    DASHBOARD_ROW_HEIGHT,
+    DASHBOARD_MARGIN,
+    DASHBOARD_PADDING,
+    DEFAULT_CHART_SIZE,
+    DEFAULT_COMMENT_SIZE,
     clearSessionCache,
     combineByPlugin,
     getCachedDoneEvaluations,
@@ -41,7 +48,6 @@ import {
     nextWidgetSlot,
     refreshDoneEvaluations,
     scaleLayout,
-    saveGridState,
     splitFacetWidgets,
     uid,
     type DashboardEval,
@@ -54,12 +60,7 @@ import {
 } from '../../lib/dashboardCharts';
 import { chartWidgetToViz, renderVisualization } from './dashboardPlot';
 import ChartBuilderDialog from './ChartBuilderDialog';
-
-const BREAKPOINTS = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 } as const;
-const ROW_HEIGHT = 40;
-
-const DEFAULT_CHART = { w: 14, h: 9 } as const;
-const DEFAULT_COMMENT = { w: 5, h: 3 } as const;
+import WidgetChartSurface from './WidgetChartSurface';
 
 // Icon-only toolbar below this measured dashboard width.
 const TOOLBAR_COMPACT_WIDTH = 600;
@@ -94,6 +95,14 @@ function ToolbarButton({
     );
 }
 
+// Compare the fields the builder uses, including plugin data that can arrive later.
+function evaluationSignature(list: DashboardEval[]) {
+    return JSON.stringify([...list].sort((a, b) => a.pid.localeCompare(b.pid)).map((e) => ({
+        pid: e.pid, status: e.status, name: e.name, created_at: e.created_at,
+        plugins: e.evaluation_plugins,
+    })));
+}
+
 export default function GridDashboard({ projectUUID }: { projectUUID: string }) {
     // Seed from the session cache so returning to the dashboard shows data
     // immediately (no spinner / refetch — the dashboard stays "alive").
@@ -103,15 +112,53 @@ export default function GridDashboard({ projectUUID }: { projectUUID: string }) 
     const [refreshKey, setRefreshKey] = useState(0);
     // Seed synchronously from localStorage so returning to the dashboard paints
     // the saved grid immediately instead of flashing an empty state.
-    const [widgets, setWidgets] = useState<GridWidget[]>(() => loadGridState(projectUUID)?.widgets ?? []);
+    const [widgets, setWidgets] = useState<GridWidget[]>([]);
     const [layouts, setLayouts] = useState<Record<string, GridItemLayout[] | undefined>>(
-        () => loadGridState(projectUUID)?.layouts ?? {},
+        () => ({}),
     );
     const [builderOpen, setBuilderOpen] = useState(false);
+    const [builderExited, setBuilderExited] = useState(true);
+    const [scrollTarget, setScrollTarget] = useState<{ project: string; key: string } | null>(null);
+    const widgetGridRef = useRef<HTMLDivElement>(null);
+    const [builderLoading, setBuilderLoading] = useState(false);
+    const activeProject = useRef(projectUUID);
+    activeProject.current = projectUUID;
+    const builderRequest = useRef(0);
     const [editingKey, setEditingKey] = useState<string | null>(null);
     const [textEditingKey, setTextEditingKey] = useState<string | null>(null);
     const [clearOpen, setClearOpen] = useState(false);
-    const hydratedRef = useRef(false);
+    const [dashboardReady, setDashboardReady] = useState(false);
+    const [canEdit, setCanEdit] = useState(false);
+    const { dragging, onDragStart, onDragStop } = useDashboardDrag(projectUUID, canEdit);
+    const [dashboardError, setDashboardError] = useState('');
+    const [canImport, setCanImport] = useState(false);
+    const revisionRef = useRef(0);
+    const savedRef = useRef('');
+    const hydratedProject = useRef<string | null>(null);
+    useEffect(() => {
+        let cancelled = false;
+        hydratedProject.current = null;
+        setScrollTarget(null);
+        setBuilderExited(true);
+        setDashboardReady(false);
+        void fetchDashboard(projectUUID).then((state) => {
+            if (cancelled) return;
+            const value = { widgets: state.widgets, layouts: state.layouts };
+            savedRef.current = JSON.stringify(value);
+            revisionRef.current = state.revision;
+            hydratedProject.current = projectUUID;
+            setWidgets(state.widgets);
+            setLayouts(state.layouts);
+            setCanEdit(state.can_edit);
+            setCanImport(state.revision === 0 && Boolean(loadGridState(projectUUID)));
+            setDashboardReady(true);
+            setDashboardError('');
+        }).catch((error: Error) => { if (!cancelled) setDashboardError(error.message); });
+        return () => {
+            cancelled = true;
+            void flushDashboardSave(projectUUID).catch(() => {});
+        };
+    }, [projectUUID]);
     const { containerRef, width, mounted } = useContainerWidth();
     const gridRef = containerRef as unknown as Ref<HTMLDivElement>;
     const compactToolbar = mounted && width > 0 && width < TOOLBAR_COMPACT_WIDTH;
@@ -122,18 +169,22 @@ export default function GridDashboard({ projectUUID }: { projectUUID: string }) 
 
     // Poll for finished evaluations while the dashboard is open so newly
     // completed runs appear automatically (~15s, plus on tab focus). The evals
-    // state is only replaced when the set of evaluations actually changed, and
+    // state is only replaced when evaluation or plugin metadata changes, and
     // existing chart rows are never wiped, so charts do not reload spuriously.
     // Manual Refresh is the only full reload.
     useEffect(() => {
         let cancelled = false;
         let inFlight = false;
-        const pids = (list: DashboardEval[]) => list.map((e) => e.pid).sort().join('|');
+        const cached = getCachedDoneEvaluations(projectUUID);
+        setEvals(cached ?? []);
+        setEvalsLoaded(cached !== undefined);
+        setEvalsError(null);
 
         const applyIfChanged = (fresh: DashboardEval[]) => {
             if (cancelled) return;
-            setEvals((prev) => (pids(prev) === pids(fresh) ? prev : fresh));
+            setEvals((prev) => (evaluationSignature(prev) === evaluationSignature(fresh) ? prev : fresh));
             setEvalsLoaded(true);
+            setEvalsError(null);
         };
 
         const poll = async () => {
@@ -148,11 +199,8 @@ export default function GridDashboard({ projectUUID }: { projectUUID: string }) 
             }
         };
 
-        // first visit of the session: fetch right away; cached return visits keep
-        // their instant paint and let the poll pick up any new runs a moment later.
-        if (getCachedDoneEvaluations(projectUUID) === undefined) {
-            void poll();
-        }
+        // Cache provides the first paint; always revalidate immediately.
+        void poll();
         const timer = window.setInterval(() => void poll(), 15_000);
         const onFocus = () => void poll();
         window.addEventListener('focus', onFocus);
@@ -170,13 +218,23 @@ export default function GridDashboard({ projectUUID }: { projectUUID: string }) 
     };
 
     useEffect(() => {
-        // skip the initial empty save so a persisted layout isn't transiently wiped
-        if (!hydratedRef.current) {
-            hydratedRef.current = true;
-            return;
-        }
-        saveGridState(projectUUID, { widgets, layouts });
-    }, [widgets, layouts, projectUUID]);
+        if (!dashboardReady || !canEdit || hydratedProject.current !== projectUUID) return;
+        const value = { widgets, layouts };
+        const serialized = JSON.stringify(value);
+        if (serialized === savedRef.current) return;
+        let cancelled = false;
+        void scheduleDashboardSave(projectUUID, value, revisionRef.current).then((state) => {
+            if (cancelled) return;
+            revisionRef.current = state.revision;
+            savedRef.current = serialized;
+            setCanImport(false);
+        }).catch((error: Error) => {
+            if (cancelled) return;
+            setDashboardError(error.message);
+            setCanEdit(false);
+        });
+        return () => { cancelled = true; };
+    }, [widgets, layouts, projectUUID, dashboardReady, canEdit]);
 
     // Mirror every other breakpoint from the current `lg` arrangement whenever it
     // changes, so a page-width change always shows the layout scaled to that size
@@ -329,6 +387,8 @@ export default function GridDashboard({ projectUUID }: { projectUUID: string }) 
     const addWidget = useCallback(
         (widget: Omit<GridWidget, 'key'>, { w, h }: { w: number; h: number }, minW = 2, minH = 2) => {
             const key = uid();
+            // Batched facet additions should reveal their first widget.
+            setScrollTarget((previous) => previous ?? { project: projectUUID, key });
             setWidgets((prev) => [...prev, { ...widget, key }]);
             // Append the new item to every breakpoint's layout so it renders at
             // the current size too (clamped to the page width, not a 1×1 box).
@@ -344,8 +404,22 @@ export default function GridDashboard({ projectUUID }: { projectUUID: string }) 
                 return next;
             });
         },
-        [],
+        [projectUUID],
     );
+
+    useEffect(() => {
+        if (!scrollTarget || scrollTarget.project !== projectUUID || builderOpen || !builderExited
+            || !dashboardReady || !evalsLoaded || !mounted || width <= 0) return;
+        // RGL owns the item refs; find our marked wrapper after it has laid out.
+        const frame = requestAnimationFrame(() => {
+            if (activeProject.current !== scrollTarget.project) return;
+            const element = widgetGridRef.current?.querySelector<HTMLElement>('[data-scroll-target]');
+            if (!element) return;
+            element.scrollIntoView({ behavior: 'instant', block: 'nearest' });
+            setScrollTarget(null);
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [scrollTarget, projectUUID, builderOpen, builderExited, dashboardReady, evalsLoaded, mounted, width, layouts]);
 
     const deleteWidget = (key: string) => {
         setWidgets((prev) => prev.filter((w) => w.key !== key));
@@ -365,13 +439,40 @@ export default function GridDashboard({ projectUUID }: { projectUUID: string }) 
         setTextEditingKey(null);
     };
 
-    const openCreate = () => {
-        setEditingKey(null);
-        setBuilderOpen(true);
+    useEffect(() => {
+        const requests = builderRequest;
+        ++requests.current;
+        setBuilderOpen(false);
+        setBuilderLoading(false);
+        setRowMap({});
+        setExtraPairs(new Set());
+        return () => { ++requests.current; };
+    }, [projectUUID]);
+
+    const openCreate = async () => {
+        const request = ++builderRequest.current;
+        setBuilderLoading(true);
+        try {
+            const fresh = await refreshDoneEvaluations(projectUUID);
+            if (activeProject.current !== projectUUID || request !== builderRequest.current) return;
+            setEvals((prev) => evaluationSignature(prev) === evaluationSignature(fresh) ? prev : fresh);
+            setEvalsLoaded(true);
+            setEvalsError(null);
+            setEditingKey(null);
+            setBuilderExited(false);
+            setBuilderOpen(true);
+        } catch (error) {
+            if (activeProject.current === projectUUID && request === builderRequest.current) {
+                setEvalsError(error instanceof Error ? error.message : 'failed to load evaluations');
+            }
+        } finally {
+            if (activeProject.current === projectUUID && request === builderRequest.current) setBuilderLoading(false);
+        }
     };
 
     const openEdit = (key: string) => {
         setEditingKey(key);
+        setBuilderExited(false);
         setBuilderOpen(true);
     };
 
@@ -394,7 +495,7 @@ export default function GridDashboard({ projectUUID }: { projectUUID: string }) 
             // A faceted bars submission becomes one widget per selected facet value.
             const split = splitFacetWidgets(fields);
             if (split.length) {
-                split.forEach((w) => addWidget(w, DEFAULT_CHART));
+                split.forEach((w) => addWidget(w, DEFAULT_CHART_SIZE));
             } else {
                 // single chart: drop the facet-only payload before persisting the widget
                 const single = { ...fields };
@@ -403,7 +504,7 @@ export default function GridDashboard({ projectUUID }: { projectUUID: string }) 
                 delete single.facetComments;
                 delete single.facetLabelOverrides;
                 delete single.facetLabelOrder;
-                addWidget({ kind: 'chart', ...single }, DEFAULT_CHART);
+                addWidget({ kind: 'chart', ...single }, DEFAULT_CHART_SIZE);
             }
         }
     };
@@ -411,14 +512,26 @@ export default function GridDashboard({ projectUUID }: { projectUUID: string }) 
     const clearWidgets = () => {
         setWidgets([]);
         setLayouts({});
-        clearGridState(projectUUID);
         setClearOpen(false);
     };
 
+    if (!dashboardReady) return (
+        <Box ref={gridRef} sx={{ width: '100%' }}>
+            <Typography>{dashboardError || 'Loading dashboard…'}</Typography>
+        </Box>
+    );
+
     return (
         <Box ref={gridRef} sx={{ display: 'flex', flexDirection: 'column', gap: 2, width: '100%' }}>
-            <Box
-                sx={{
+            {dashboardError && <Typography color="error">{dashboardError}</Typography>}
+            {canImport && canEdit && <Button onClick={() => {
+                if (revisionRef.current !== 0) return;
+                const state = loadGridState(projectUUID);
+                if (state) { setWidgets(state.widgets); setLayouts(state.layouts); }
+                setCanImport(false);
+            }}>Import this browser’s dashboard</Button>}
+            <Box component="fieldset" disabled={!canEdit}
+                sx={{ border: 0, m: 0, p: 0,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -451,15 +564,16 @@ export default function GridDashboard({ projectUUID }: { projectUUID: string }) 
                         icon={<CommentRounded />}
                         variant="contained"
                         className="gradient-btn"
-                        onClick={() => addWidget({ kind: 'text', text: '' }, DEFAULT_COMMENT)}
+                        onClick={() => addWidget({ kind: 'text', text: '' }, DEFAULT_COMMENT_SIZE)}
                     />
                     <ToolbarButton
                         compact={compactToolbar}
                         label="Add chart"
-                        icon={<Addchart />}
+                        icon={builderLoading ? <CircularProgress size={16} /> : <Addchart />}
                         variant="contained"
                         className="gradient-btn"
-                        onClick={openCreate}
+                        disabled={builderLoading}
+                        onClick={() => void openCreate()}
                     />
                 </Box>
             </Box>
@@ -479,37 +593,39 @@ export default function GridDashboard({ projectUUID }: { projectUUID: string }) 
                     </Typography>
                 </Paper>
             ) : (
-                <div style={{ width: '100%' }}>
+                <div ref={widgetGridRef} style={{ width: '100%' }}>
                     {mounted && width > 0 && (
                         <Responsive
                             width={width}
                             layouts={layouts as ResponsiveLayouts}
-                            breakpoints={BREAKPOINTS}
+                            breakpoints={DASHBOARD_BREAKPOINTS}
                             cols={BREAKPOINT_COLS}
-                            rowHeight={ROW_HEIGHT}
-                            margin={[12, 12]}
-                            containerPadding={[4, 4]}
+                            rowHeight={DASHBOARD_ROW_HEIGHT}
+                            margin={DASHBOARD_MARGIN}
+                            containerPadding={DASHBOARD_PADDING}
                             // dedicated header drag handle; resize stays on the corner handles.
-                            // No compaction + preventCollision: widgets stay exactly where
-                            // placed/dropped (no vertical jump to fill gaps), and dragging or
-                            // resizing into another widget's space is blocked (no overlap).
-                            compactor={{ ...noCompactor, preventCollision: true }}
-                            dragConfig={{ handle: '.widget-drag-handle' }}
+                            // Cross cards freely during a drag; keep resizing collision-safe.
+                            // No compaction: other widgets never move to fill gaps.
+                            compactor={{ ...noCompactor, allowOverlap: dragging, preventCollision: !dragging }}
+                            onDragStart={onDragStart}
+                            onDragStop={onDragStop}
+                            dragConfig={{ enabled: canEdit, handle: '.widget-drag-handle' }}
+                            resizeConfig={{ enabled: canEdit }}
                             onLayoutChange={(_layout, all) =>
                                 setLayouts(all as unknown as Record<string, GridItemLayout[] | undefined>)
                             }
                         >
                             {widgets.map((widget) => (
-                                <div key={widget.key}>
+                                <div key={widget.key} data-scroll-target={scrollTarget?.key === widget.key ? '' : undefined}>
                                     <GridWidgetBody
                                         widget={widget}
                                         measurements={measurementsByKey[widget.key] ?? []}
                                         visualizations={widget.kind === 'plugin' ? vizFor(widget) : []}
                                         displayName={(p) => displayNames.get(p) ?? p}
-                                        onEdit={widget.kind !== 'text' ? () => openEdit(widget.key) : undefined}
-                                        onDelete={() => deleteWidget(widget.key)}
+                                        onEdit={canEdit && widget.kind !== 'text' ? () => openEdit(widget.key) : undefined}
+                                        onDelete={() => { if (canEdit) deleteWidget(widget.key); }}
                                         editingText={textEditingKey === widget.key}
-                                        onEditText={() => setTextEditingKey(widget.key)}
+                                        onEditText={() => { if (canEdit) setTextEditingKey(widget.key); }}
                                         onSaveText={(text) => saveText(widget.key, text)}
                                         onCancelText={() => setTextEditingKey(null)}
                                     />
@@ -529,6 +645,7 @@ export default function GridDashboard({ projectUUID }: { projectUUID: string }) 
                 visualizationsFor={visualizationsFor}
                 initial={editingKey ? widgets.find((w) => w.key === editingKey) : null}
                 onClose={() => { setBuilderOpen(false); setEditingKey(null); }}
+                onExited={() => setBuilderExited(true)}
                 onSubmit={handleBuilderSubmit}
             />
 
@@ -585,71 +702,61 @@ function GridWidgetBody({
         if (editingText) setDraft(widget.text ?? '');
     }, [editingText, widget.text]);
 
-    // Track the body's pixel height so bar charts fit the widget card instead of
-    // rendering a fixed tall chart with a blank band at the bottom.
-    const bodyRef = useRef<HTMLDivElement | null>(null);
-    const [bodyHeight, setBodyHeight] = useState(0);
-    useEffect(() => {
-        const el = bodyRef.current;
-        if (!el || typeof ResizeObserver === 'undefined') return;
-        const measure = () => setBodyHeight(el.clientHeight);
-        measure();
-        const ro = new ResizeObserver(measure);
-        ro.observe(el);
-        return () => ro.disconnect();
-    }, []);
-
-    let content: React.ReactNode;
-    if (widget.kind === 'text') {
-        content =
-            editingText ? (
-                <TextField
-                    autoFocus
-                    multiline
-                    fullWidth
-                    size="small"
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                            e.preventDefault();
-                            onSaveText?.(draft);
-                        }
-                        if (e.key === 'Escape') onCancelText?.();
-                    }}
-                    placeholder="Write a note or comment…"
-                    sx={{ height: '100%', '& .MuiInputBase-root': { height: '100%', alignItems: 'flex-start' } }}
-                />
+    const fitCharts = widget.kind !== 'text' && widget.chartType !== 'table';
+    const renderContent = (chartHeight?: number) => {
+        let content: React.ReactNode;
+        if (widget.kind === 'text') {
+            content =
+                editingText ? (
+                    <TextField
+                        autoFocus
+                        multiline
+                        fullWidth
+                        size="small"
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                                e.preventDefault();
+                                onSaveText?.(draft);
+                            }
+                            if (e.key === 'Escape') onCancelText?.();
+                        }}
+                        placeholder="Write a note or comment…"
+                        sx={{ height: '100%', '& .MuiInputBase-root': { height: '100%', alignItems: 'flex-start' } }}
+                    />
+                ) : (
+                    <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }} color={widget.text ? 'text.primary' : 'text.disabled'}>
+                        {widget.text && widget.text.trim() ? widget.text : 'Empty note — press Edit to write one.'}
+                    </Typography>
+                );
+        } else if (widget.kind === 'plugin') {
+            content = measurements.length === 0 ? (
+                <Alert severity="info" sx={{ my: 1 }}>
+                    No measurements yet for this plugin in the selected evaluations.
+                </Alert>
+            ) : visualizations.length === 0 ? (
+                renderVisualization(measurements, { chart_type: 'table', metrics: [] })
             ) : (
-                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }} color={widget.text ? 'text.primary' : 'text.disabled'}>
-                    {widget.text && widget.text.trim() ? widget.text : 'Empty note — press Edit to write one.'}
-                </Typography>
+                visualizations.map((viz, i) => (
+                    <Box key={i} sx={{ mb: 2 }}>
+                        {renderVisualization(measurements, viz, widget.labelOverrides, widget.labelOrder, chartHeight)}
+                    </Box>
+                ))
             );
-    } else if (widget.kind === 'plugin') {
-        content = measurements.length === 0 ? (
-            <Alert severity="info" sx={{ my: 1 }}>
-                No measurements yet for this plugin in the selected evaluations.
-            </Alert>
-        ) : visualizations.length === 0 ? (
-            renderVisualization(measurements, { chart_type: 'table', metrics: [] })
-        ) : (
-            visualizations.map((viz, i) => (
-                <Box key={i} sx={{ mb: 2 }}>
-                    {renderVisualization(measurements, viz, widget.labelOverrides, widget.labelOrder)}
-                </Box>
-            ))
-        );
-    } else {
-        const viz = chartWidgetToViz(widget);
-        content = measurements.length === 0 ? (
-            <Alert severity="info" sx={{ my: 1 }}>
-                No measurements for this plugin in the selected evaluations.
-            </Alert>
-        ) : (
-            // fit the chart to the widget body instead of a fixed tall height
-            renderVisualization(measurements, viz, widget.labelOverrides, widget.labelOrder, bodyHeight > 0 ? Math.max(bodyHeight - 16, 200) : undefined)
-        );
-    }
+        } else {
+            const viz = chartWidgetToViz(widget);
+            content = measurements.length === 0 ? (
+                <Alert severity="info" sx={{ my: 1 }}>
+                    No measurements for this plugin in the selected evaluations.
+                </Alert>
+            ) : (
+                renderVisualization(measurements, viz, widget.labelOverrides, widget.labelOrder, chartHeight)
+            );
+        }
+
+        return content;
+    };
 
     const title = widget.kind === 'text'
         ? 'Comment'
@@ -704,7 +811,7 @@ function GridWidgetBody({
                     </Tooltip>
                 )}
             </Box>
-            <Box ref={bodyRef} className="grid-widget-body">{content}</Box>
+            <WidgetChartSurface enabled={fitCharts}>{renderContent}</WidgetChartSurface>
             {widget.kind !== 'text' && widget.comment?.trim() && (
                 <Accordion
                     disableGutters
