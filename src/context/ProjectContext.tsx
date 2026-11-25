@@ -23,16 +23,8 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
     const [projectName, setProjectNameState] = useState<string | null>(null);
     const [fileUploadingPids, setFileUploadingPids] = useState<Set<string>>(new Set());
 
-    // Wrap setters to sync with cookies
-    const setProjectUUID = (uuid: string | null) => {
-        setProjectUUIDState(uuid);
-        // setCookie("projectUUID", uuid);
-    };
-
-    const setProjectName = (name: string | null) => {
-        setProjectNameState(name);
-        // setCookie("projectName", name);
-    };
+    const setProjectUUID = setProjectUUIDState;
+    const setProjectName = setProjectNameState;
 
     const addFileUploadingPid = useCallback((pid: string) => {
         setFileUploadingPids(prev => new Set(prev).add(pid));

@@ -13,10 +13,9 @@ import SettingsPage from './pages/Settings';
 import GlobalHome from './pages/GlobalHome';
 import ProjectHome from './pages/ProjectHome';
 import React, { useEffect, useState } from 'react';
-import { useParams, Navigate } from 'react-router-dom';
-import { useProject } from './context/ProjectContext';
+import { Navigate } from 'react-router-dom';
+import ProjectContextWrapper from './components/ProjectContextWrapper';
 import { useAuth } from './context/AuthContext';
-import { API_VERSION_PREFIX } from './config';
 import Plugins from "./pages/Plugins.tsx";
 import PluginConfig from "./pages/PluginsConfig.tsx";
 import PluginStartEvaluation from "./pages/PluginStartEvaluation.tsx";
@@ -41,44 +40,12 @@ import './App.css';
 /** Width of the left drawer in pixels (expanded / collapsed) */
 const drawerWidth = 320;
 const collapsedWidth = 72;
-const API_URL = import.meta.env.VITE_API_URL + API_VERSION_PREFIX;
 
 const SHOW_CELERY_TASKS =
     String(import.meta.env.VITE_SHOW_CELERY_TASKS).toLowerCase() === 'true';
 
 const AUTH_ENABLED =
     String(import.meta.env.VITE_AUTH_ENABLED || 'true').toLowerCase() !== 'false';
-
-
-type ProjectContextWrapperProps = {
-    children: React.ReactNode;
-};
-
-const ProjectContextWrapper: React.FC<ProjectContextWrapperProps> = ({ children }) => {
-    const { setProjectUUID, setProjectName } = useProject();
-    const { project_name } = useParams();
-    const { authenticated } = useAuth();
-
-    useEffect(() => {
-        if (!authenticated) return;
-        if (!project_name) return;
-
-        fetch(`${API_URL}/projects/by-name/${project_name}`).then((res) => {
-            if (!res.ok) throw new Error("Network response was not ok");
-            return res.json();
-        })
-            .then((data) => {
-                setProjectName(data.name)
-                setProjectUUID(data.pid);
-            })
-
-
-    }, [authenticated, project_name]);
-
-    if (!authenticated) return <Navigate to="/" replace />;
-
-    return <>{children}</>;
-};
 
 
 /**
