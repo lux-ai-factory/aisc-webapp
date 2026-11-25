@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import validator from '@rjsf/validator-ajv8';
-import React, {useCallback, useEffect, useImperativeHandle, useRef, useState} from 'react';
+import React, {useMemo, useEffect, useImperativeHandle, useRef, useState} from 'react';
 import { debounce } from 'lodash';
 import { API_VERSION_PREFIX } from "../../config.tsx";
 import toast from "react-hot-toast";
@@ -25,7 +25,7 @@ interface PluginConfigFormProps {
     projectSettingSelections?: ProjectConfigSelection[];
 }
 
-const updateConfigDynamics = async ({ pluginPID, config, projectSettingSelections }: { pluginPID: string; config: object; projectSettingSelections: ProjectConfigSelection[] }) => {
+const updateConfigDynamics = async ({ pluginPID, config, projectSettingSelections }: { pluginPID: string; config: object; projectSettingSelections: ProjectConfigSelection[]; requestId: number }) => {
     const data = { config, project_config_selections: projectSettingSelections };
 
     const response = await fetch(`${API_URL}/plugins/${pluginPID}/config/state`, {
@@ -58,7 +58,7 @@ const PluginConfigForm = React.forwardRef<any, PluginConfigFormProps>(function P
         const selections: Record<string, string> = {};
         for (const definition of projectConfigDefinitions) {
             const compatible = projectSettings.find(setting =>
-                projectSettingSelections.some(selection => selection.project_config_pid === setting.pid) &&
+                projectSettingSelections.some(selection => selection.plugin_config_key === definition.key && selection.project_config_pid === setting.pid) &&
                 setting.category === definition.category &&
                 (definition.category !== 'variables' || !definition.value_type || setting.json_value?.type === definition.value_type)
             );
@@ -72,30 +72,33 @@ const PluginConfigForm = React.forwardRef<any, PluginConfigFormProps>(function P
     }, [projectSettingSelections, projectSettings, projectConfigDefinitions]);
 
     const queryClient = useQueryClient();
+    const latestRequest = useRef(0);
     // Mutation to handle background schema/data synchronization
-    const mutation = useMutation({
+    const { mutate } = useMutation({
         mutationFn: updateConfigDynamics,
-        onSuccess: (data) => {
+        onSuccess: (data, variables) => {
+            if (variables.requestId !== latestRequest.current) return;
             onFormUpdate(data);
             // I added this to remove the warning icon on the plugin on the left bar, but it takes like 10s
             queryClient.invalidateQueries({ queryKey: ['project'] });
         },
     });
 
-    // Debounced function to avoid hammering the server on every keystroke
-    const debouncedUpdate = useCallback(
-        debounce((data: any) => {
-            mutation.mutate({ pluginPID, config: data, projectSettingSelections: settingSelectionsToPayload(settingSelections) });
-        }, 500),
-        [pluginPID, mutation.mutate, settingSelections]
-    );
+    const debouncedUpdate = useMemo(() => debounce((data: object, requestId: number) => {
+        mutate({ pluginPID, config: data, requestId,
+            projectSettingSelections: settingSelectionsToPayload(settingSelections) });
+    }, 500), [pluginPID, mutate, settingSelections]);
+    useEffect(() => () => {
+        debouncedUpdate.cancel();
+    }, [debouncedUpdate]);
+    useEffect(() => () => { ++latestRequest.current; }, [pluginPID]);
 
     const handleChange = (e: any) => {
         const newData = e.formData;
         // Update parent immediately so the UI is responsive
         onFormUpdate({ config: newData, formSchema, uiSchema });
         // Trigger server-side validation/schema updates
-        debouncedUpdate(newData);
+        debouncedUpdate(newData, ++latestRequest.current);
     };
 
     const toSnakeCase = (value: string) =>
@@ -168,7 +171,7 @@ const PluginConfigForm = React.forwardRef<any, PluginConfigFormProps>(function P
                 }
 
                 onFormUpdate({ config: parsed as object, formSchema, uiSchema });
-                debouncedUpdate(parsed);
+                debouncedUpdate(parsed as object, ++latestRequest.current);
                 toast.success('Config JSON file imported', {position: "bottom-right"});
             } catch (err) {
                 const message = err instanceof Error ? err.message : 'Unknown error';
@@ -219,7 +222,9 @@ const PluginConfigForm = React.forwardRef<any, PluginConfigFormProps>(function P
                                 };
                                 if (!pid) delete next[definition.key];
                                 setSettingSelections(next);
-                                mutation.mutate({
+                                debouncedUpdate.cancel();
+                                mutate({
+                                    requestId: ++latestRequest.current,
                                     pluginPID,
                                     config: config ?? {},
                                     projectSettingSelections: settingSelectionsToPayload(next),
