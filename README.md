@@ -83,3 +83,7 @@ By submitting contributions, you agree to the [CLA](CLA/CLA_VERA.md) and license
 This project is licensed under the [Apache License 2.0](LICENSE).  
 © 2024–2026 Université du Luxembourg and Luxembourg Institute of Science and Technology (LIST).
 
+
+## Report generation
+
+Chart preparation continues across app navigation and project switches while the browser tab stays open. After upload, the backend renders the document in the background. No separate report worker is required.

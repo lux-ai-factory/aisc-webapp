@@ -237,8 +237,7 @@ Each button carries an `aria-label` so it stays accessible and testable.
 ## 9. Tables / data grids
 
 - Dense tabular data with columns of raw values → MUI **`DataGrid`**
-  (`@mui/x-data-grid`, `GenericCsvDataGrid` for raw CSV, `SummaryTable` for the
-  overview). Give columns `flex`/`minWidth`; keep density default.
+  (`@mui/x-data-grid`, `GenericCsvDataGrid` for raw CSV). Give columns `flex`/`minWidth`; keep density default.
 - Style every `DataGrid` with `className="app-data-grid"` (defined in
   `common.css`): no-wrap cells with ellipsis, no focus outline, and a light blue
   gradient header with bold, primary-tinted titles. Do not repeat the look inline.
@@ -269,8 +268,8 @@ Create new shared components in `src/components/` when a pattern recurs:
 - `CatalogueExploreDialog` — catalogue browsing (search + tag filter + install).
 - `RiskRegisterSection` — risk register block (cards + edit dialog + versions).
 - `InfoBanner` — small grey info strip above a form/table.
-- `ReportSettings`, `PagePlaceholder`, `UploadFileField`, `ZipFileList`,
-  `GenericCsvDataGrid`, `SummaryTable` — page-building blocks.
+- `ReportSettings`, `PagePlaceholder`, `ZipFileList`,
+  `GenericCsvDataGrid` — page-building blocks.
 - `common.css` — `gradient-card`, `plugins-card`, `gradient-btn`,
   `page-header*`, `wrap-chip`, dialog paper/content classes.
 
