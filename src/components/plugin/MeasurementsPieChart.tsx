@@ -14,6 +14,7 @@ import { Box, Typography } from "@mui/material";
 
 interface MeasurementsPieChartProps {
     title?: string;
+    height?: number;
     description?: string;
     data: Measurement[];
     metricLabelDimension?: string;
@@ -22,7 +23,7 @@ interface MeasurementsPieChartProps {
     seriesOrder?: string[];
 }
 
-export const MeasurementsPieChart = ({title: title, description: description, data, metricLabelDimension, groupByDimensions, labelOverrides, seriesOrder}: MeasurementsPieChartProps) => {
+export const MeasurementsPieChart = ({title: title, description: description, data, metricLabelDimension, groupByDimensions, labelOverrides, seriesOrder, height}: MeasurementsPieChartProps) => {
     const times = useMemo(() => buildDistinctTimes(data), [data]);
     const keys = useMemo(() => buildDistinctSeriesKeys(data, groupByDimensions, metricLabelDimension), [data, groupByDimensions, metricLabelDimension]);
     const orderedKeys = useMemo(() => {
@@ -114,7 +115,7 @@ export const MeasurementsPieChart = ({title: title, description: description, da
                 </Typography>
             )}
             <PieChart
-                height={400}
+                height={height ?? 400}
                 series={[
                     {
                         data: normalizedSeriesData,
@@ -124,7 +125,7 @@ export const MeasurementsPieChart = ({title: title, description: description, da
                 slotProps={{
                     legend: {
                         toggleVisibilityOnClick: true,
-                        onItemClick: (_evt: any, item: { seriesId: string | number }) =>
+                        onItemClick: (_evt: unknown, item: { seriesId: string | number }) =>
                             setHidden(prev => toggleHidden(prev, String(item.seriesId))),
                     },
                 }}

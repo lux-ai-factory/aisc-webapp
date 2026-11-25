@@ -47,7 +47,27 @@
 
 .grid-widget-body {
     flex: 1;
+    min-width: 0;
     min-height: 0;
     overflow: auto;
     padding: 8px;
+}
+
+/* Only live dashboard plots: export roots retain their dedicated sizing. */
+.dashboard-chart-content {
+    display: flow-root;
+    width: 100%;
+    min-width: 0;
+}
+
+.dashboard-chart-content :is(.MuiChartsWrapper-root, .MuiChartsLegend-root, .MuiChartsLegend-item, .MuiChartsLegend-series) {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.dashboard-chart-content .MuiChartsLegend-label {
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.3;
 }

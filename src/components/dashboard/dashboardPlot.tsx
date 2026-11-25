@@ -61,6 +61,7 @@ export function renderVisualization(
     seriesOrder?: string[],
     height?: number,
     compact?: boolean,
+    groupByEvaluation = true,
 ): ReactNode {
     const filtered = selectMeasurements(data, viz.metrics ?? [], viz.filter_dimensions ?? {});
     if (filtered.length === 0) {
@@ -72,7 +73,7 @@ export function renderVisualization(
     }
 
     const groupBy: string[] = [...(viz.group_by_dimensions ?? [])];
-    if (!groupBy.includes(EVAL_DIM_KEY)) groupBy.push(EVAL_DIM_KEY);
+    if (groupByEvaluation && !groupBy.includes(EVAL_DIM_KEY)) groupBy.push(EVAL_DIM_KEY);
     const labelDim = viz.metric_label_dimension || undefined;
     const facet = viz.facet_by_dimension?.[0];
     const title = viz.title || undefined;
@@ -84,15 +85,15 @@ export function renderVisualization(
             case 'line':
                 return <MeasurementsLineChart {...chartProps} data={d} height={height} labelOverrides={labelOverrides} seriesOrder={seriesOrder} />;
             case 'scatter':
-                return <MeasurementsScatterChart {...chartProps} data={d} labelOverrides={labelOverrides} seriesOrder={seriesOrder} />;
+                return <MeasurementsScatterChart {...chartProps} data={d} height={height} labelOverrides={labelOverrides} seriesOrder={seriesOrder} />;
             case 'kde':
-                return <MeasurementsKDEChart {...chartProps} data={d} labelOverrides={labelOverrides} seriesOrder={seriesOrder} />;
+                return <MeasurementsKDEChart {...chartProps} data={d} height={height} labelOverrides={labelOverrides} seriesOrder={seriesOrder} />;
             case 'bars':
                 return <MeasurementsBarsChart {...chartProps} data={d} facetByDimension={facet} height={height} compact={compact} labelOverrides={labelOverrides} seriesOrder={seriesOrder} />;
             case 'radar':
-                return <MeasurementsRadarChart {...chartProps} data={d} labelOverrides={labelOverrides} seriesOrder={seriesOrder} />;
+                return <MeasurementsRadarChart {...chartProps} data={d} height={height} labelOverrides={labelOverrides} seriesOrder={seriesOrder} />;
             case 'pie':
-                return <MeasurementsPieChart {...chartProps} data={d} labelOverrides={labelOverrides} seriesOrder={seriesOrder} />;
+                return <MeasurementsPieChart {...chartProps} data={d} height={height} labelOverrides={labelOverrides} seriesOrder={seriesOrder} />;
             case 'table':
             default:
                 return <MeasurementsDataGrid title={title} description={description} data={d} />;

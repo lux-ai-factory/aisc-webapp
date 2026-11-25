@@ -8,6 +8,7 @@ import { getMetricLabel, getGroupLabel } from "./ChartUtils.tsx";
 
 interface MeasurementsRadarChartProps {
     title?: string;
+    height?: number;
     description?: string;
     data: Measurement[];
     metricLabelDimension?: string;
@@ -16,7 +17,7 @@ interface MeasurementsRadarChartProps {
     seriesOrder?: string[];
 }
 
-export const MeasurementsRadarChart = ({title, description, data, metricLabelDimension, groupByDimensions, labelOverrides, seriesOrder}: MeasurementsRadarChartProps) => {
+export const MeasurementsRadarChart = ({title, description, data, metricLabelDimension, groupByDimensions, labelOverrides, seriesOrder, height}: MeasurementsRadarChartProps) => {
     // Distinct axis labels: one radar axis per label
     const axisLabels: string[] = Array.from(new Set(data.map(m => getMetricLabel(m, metricLabelDimension))));
 
@@ -64,7 +65,7 @@ export const MeasurementsRadarChart = ({title, description, data, metricLabelDim
                 </Typography>
             )}
             <RadarChart
-                height={400}
+                height={height ?? 400}
                 series={series}
                 radar={{
                     max: 1,

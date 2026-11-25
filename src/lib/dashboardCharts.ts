@@ -220,6 +220,12 @@ export interface GridItemLayout {
 }
 
 export const BREAKPOINT_COLS = { lg: 24, md: 20, sm: 12, xs: 8, xxs: 4 } as const;
+export const DASHBOARD_BREAKPOINTS = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 } as const;
+export const DASHBOARD_ROW_HEIGHT = 40;
+export const DASHBOARD_MARGIN: [number, number] = [12, 12];
+export const DASHBOARD_PADDING: [number, number] = [4, 4];
+export const DEFAULT_CHART_SIZE = { w: 14, h: 9 } as const;
+export const DEFAULT_COMMENT_SIZE = { w: 5, h: 3 } as const;
 
 /** Narrowest a widget may become on smaller breakpoints before its row wraps to
  *  a new line (avoids squeezing charts into slivers). */

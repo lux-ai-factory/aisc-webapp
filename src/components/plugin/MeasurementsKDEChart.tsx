@@ -15,6 +15,7 @@ import { Box, Typography } from "@mui/material";
 
 interface MeasurementsKDEChartProps {
     title?: string;
+    height?: number;
     description?: string;
     data: Measurement[];
     bins?: number;
@@ -50,7 +51,7 @@ function makeXFormatter(range: number) {
         });
 }
 
-export const MeasurementsKDEChart = ({title: title, description: description, data, bins = 20, metricLabelDimension, groupByDimensions, labelOverrides, seriesOrder}: MeasurementsKDEChartProps) => {
+export const MeasurementsKDEChart = ({title: title, description: description, data, bins = 20, metricLabelDimension, groupByDimensions, labelOverrides, seriesOrder, height}: MeasurementsKDEChartProps) => {
     if (!data?.length) return null;
 
     // --- Grouping
@@ -190,7 +191,7 @@ export const MeasurementsKDEChart = ({title: title, description: description, da
                 <ChartDataProvider
                     series={series}
                     dataset={dataset}
-                    height={400}
+                    height={height ?? 400}
                     xAxis={[{ scaleType: 'band', dataKey: 'x', label: 'Score', valueFormatter: (value) => xFormatter(value as number) }]}
                     yAxis={[
                         { id: 'count', label: 'Count', width: 65, position: 'right' },

@@ -24,7 +24,7 @@ interface MeasurementsBarChartProps {
      *  This is the "iterate" counterpart of grouping: e.g. group by d2 inside
      *  each value of d1. A chart per facet value. */
     facetByDimension?: string;
-    /** Compact per-facet height so stacked facet charts don't swallow the card. */
+    /** Shared chart height for both faceted and non-faceted plots. */
     height?: number;
     /** Compact preview mode: omit the toolbar and shrink the x-axis band. */
     compact?: boolean;
@@ -91,7 +91,7 @@ function BarChartBody({
     const axisHeight = Math.min(160, Math.max(44, Math.round(longestLabelChars * 6 * 0.87) + 6));
 
     return (
-        <Box>
+        <Box sx={{ width: '100%', minWidth: 0 }}>
             {title && (
                 <Typography variant="h6" gutterBottom>
                     {title}
@@ -159,14 +159,14 @@ export const MeasurementsBarChart = (props: MeasurementsBarChartProps) => {
     }
 
     return (
-        <Box>
+        <Box sx={{ width: '100%', minWidth: 0 }}>
             {title && (
                 <Typography variant="h6" gutterBottom>
                     {title}
                 </Typography>
             )}
             {facetValues.map((value) => (
-                <Box key={value} sx={{ mb: 1.5 }}>
+                <Box key={value} sx={{ mb: 1.5, width: '100%', minWidth: 0 }}>
                     <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 0.5 }}>
                         {facetByDimension}: {value}
                         <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
@@ -175,7 +175,7 @@ export const MeasurementsBarChart = (props: MeasurementsBarChartProps) => {
                     </Typography>
                     <BarChartBody
                         {...props}
-                        height={props.height ?? 320}
+                        height={props.height}
                         data={data.filter(m => String(m.dimensions?.[facetByDimension]) === value)}
                         fallbackSeriesLabel={`${facetByDimension}: ${value}`}
                     />

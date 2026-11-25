@@ -11,6 +11,7 @@ import { Box, Typography } from "@mui/material";
 
 interface MeasurementsScatterChartProps {
     title?: string;
+    height?: number;
     description?: string;
     data: Measurement[];
     metricLabelDimension?: string;
@@ -19,7 +20,7 @@ interface MeasurementsScatterChartProps {
     seriesOrder?: string[];
 }
 
-export const MeasurementsScatterChart = ({ title: title, description: description, data, metricLabelDimension, groupByDimensions, labelOverrides, seriesOrder }: MeasurementsScatterChartProps) => {
+export const MeasurementsScatterChart = ({ title: title, description: description, data, metricLabelDimension, groupByDimensions, labelOverrides, seriesOrder, height }: MeasurementsScatterChartProps) => {
     const keys = useMemo(
         () => buildDistinctSeriesKeys(data, groupByDimensions, metricLabelDimension),
         [data, groupByDimensions, metricLabelDimension],
@@ -90,7 +91,7 @@ export const MeasurementsScatterChart = ({ title: title, description: descriptio
                     width: 50,
                 }]}
                 series={series}
-                height={400}
+                height={height ?? 400}
                 grid={{vertical: true, horizontal: true}}
                 slotProps={{
                 legend: {
