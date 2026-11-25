@@ -43,16 +43,7 @@ const EVALS_TTL_MS = 60_000;
 export function getDoneEvaluations(projectUuid: string): Promise<DashboardEval[]> {
     const cached = evalsCache.get(projectUuid);
     if (cached) return Promise.resolve(cached);
-    const inFlight = evalsInFlight.get(projectUuid);
-    if (inFlight) return inFlight;
-    const pending = get<DashboardEval[]>(`/projects/${projectUuid}/evaluations?status=Done`).then((data) => {
-        evalsCache.set(projectUuid, data);
-        evalsFetchedAt.set(projectUuid, Date.now());
-        evalsInFlight.delete(projectUuid);
-        return data;
-    });
-    evalsInFlight.set(projectUuid, pending);
-    return pending;
+    return refreshDoneEvaluations(projectUuid);
 }
 
 /** Synchronous read of the cached evaluations (undefined = not fetched yet). */
@@ -77,9 +68,15 @@ export function getPluginMeasurements(
     if (inFlight) return inFlight;
     const pending = get<EvalPluginResults>(`/plugins/${evalPluginPid}/evaluations/${evaluationUuid}/result`).then(
         (data) => {
-            resultsCache.set(key, data);
-            resultsInFlight.delete(key);
+            if (resultsInFlight.get(key) === pending) {
+                resultsCache.set(key, data);
+                resultsInFlight.delete(key);
+            }
             return data;
+        },
+        (error: unknown) => {
+            if (resultsInFlight.get(key) === pending) resultsInFlight.delete(key);
+            throw error;
         },
     );
     resultsInFlight.set(key, pending);
@@ -118,11 +115,26 @@ export interface EvalRow {
 
 /** Re-fetch the done evaluations for a project (bypassing the session cache)
  *  and update the cache, so dropdown lists pick up newly finished runs. */
-export async function refreshDoneEvaluations(projectUuid: string): Promise<DashboardEval[]> {
-    const data = await get<DashboardEval[]>(`/projects/${projectUuid}/evaluations?status=Done`);
-    evalsCache.set(projectUuid, data);
-    evalsFetchedAt.set(projectUuid, Date.now());
-    return data;
+export function refreshDoneEvaluations(projectUuid: string): Promise<DashboardEval[]> {
+    const inFlight = evalsInFlight.get(projectUuid);
+    if (inFlight) return inFlight;
+    const pending = get<DashboardEval[]>(`/projects/${projectUuid}/evaluations?status=Done`).then(
+        (data) => {
+            // A manual cache clear may have started a newer request in the meantime.
+            if (evalsInFlight.get(projectUuid) === pending) {
+                evalsCache.set(projectUuid, data);
+                evalsFetchedAt.set(projectUuid, Date.now());
+                evalsInFlight.delete(projectUuid);
+            }
+            return data;
+        },
+        (error: unknown) => {
+            if (evalsInFlight.get(projectUuid) === pending) evalsInFlight.delete(projectUuid);
+            throw error;
+        },
+    );
+    evalsInFlight.set(projectUuid, pending);
+    return pending;
 }
 
 /** Synthetic dimension tagging which evaluation a measurement came from, so

@@ -14,6 +14,7 @@ import {
     saveSelection,
     uid,
     getDoneEvaluations,
+    refreshDoneEvaluations,
     getPluginMeasurements,
     getCachedDoneEvaluations,
     getCachedPluginMeasurements,
@@ -342,4 +343,53 @@ describe('session caching', () => {
         expect(isEvalsCacheFresh('p1')).toBe(false);
         expect(getCachedPluginMeasurements('ep1', 'e1')).toBeUndefined();
     });
+});
+
+
+describe('evaluation revalidation', () => {
+    beforeEach(() => clearSessionCache());
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('shares fresh and initial requests, including after a cached empty list', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => [] }));
+        await getDoneEvaluations('p1');
+        let release!: (response: unknown) => void;
+        const fetchMock = vi.fn(() => new Promise((resolve) => { release = resolve; }));
+        vi.stubGlobal('fetch', fetchMock);
+        const first = refreshDoneEvaluations('p1');
+        const second = refreshDoneEvaluations('p1');
+        expect(first).toBe(second);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        release({ ok: true, json: async () => [{ pid: 'new', status: 'Done' }] });
+        await first;
+        expect(getCachedDoneEvaluations('p1')?.map((e) => e.pid)).toEqual(['new']);
+    });
+
+    it('clears failed in-flight requests so retry can succeed', async () => {
+        const fetchMock = vi.fn().mockRejectedValueOnce(new Error('offline'))
+            .mockResolvedValueOnce({ ok: true, json: async () => [{ pid: 'e1', status: 'Done' }] });
+        vi.stubGlobal('fetch', fetchMock);
+        await expect(getDoneEvaluations('p1')).rejects.toThrow('offline');
+        expect((await getDoneEvaluations('p1'))[0].pid).toBe('e1');
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+});
+
+it('retries failed measurement requests and ignores responses superseded by a cache clear', async () => {
+    clearSessionCache();
+    const fetchMock = vi.fn().mockRejectedValueOnce(new Error('offline'));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(getPluginMeasurements('retry-plugin', 'retry-eval')).rejects.toThrow();
+    const result = { measurements: [] };
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => result });
+    expect(await getPluginMeasurements('retry-plugin', 'retry-eval')).toEqual(result);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    clearSessionCache();
+    let finish!: (value: unknown) => void;
+    fetchMock.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    const stale = getPluginMeasurements('retry-plugin', 'retry-eval');
+    clearSessionCache();
+    finish({ ok: true, json: async () => result });
+    await stale;
+    expect(getCachedPluginMeasurements('retry-plugin', 'retry-eval')).toBeUndefined();
 });
