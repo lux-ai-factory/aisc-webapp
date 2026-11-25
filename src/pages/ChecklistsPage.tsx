@@ -172,13 +172,12 @@ export default function ChecklistsPage() {
         setSaving(true);
         setAnswerError(null);
         try {
-            const entries = detail.questions.flatMap((q) => {
+            const entries = detail.questions.map((q) => {
                 const answer = (answersDraft[String(q.order)] ?? '').trim();
                 const score = scoresDraft[String(q.order)] ?? null;
-                if (!answer && score === null) return [];
-                return [{ question_order: q.order, answer, score }];
+                return { question_order: q.order, answer, score };
             });
-            if (entries.length === 0) {
+            if (entries.length === 0 || (!submissionVersionSel && entries.every(entry => !entry.answer && entry.score === null))) {
                 setAnswerError('nothing to save: fill in at least one answer or score');
                 return;
             }

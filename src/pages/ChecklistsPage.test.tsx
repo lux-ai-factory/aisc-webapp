@@ -766,4 +766,28 @@ describe('ChecklistsPage', () => {
             calls.some((c) => c.startsWith('POST') && c.includes('/controls/submissions/sub1/answers')),
         ).toBe(true);
     });
+    it('sends explicit blanks when clearing an existing answer and score', async () => {
+        let payload: unknown;
+        vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+            let value: unknown = {};
+            if (url.endsWith('/controls')) value = installed;
+            else if (url.endsWith('/catalogue')) value = { plugins: [], controls: [] };
+            else if (url.endsWith('/controls/cl1')) value = { ...installed[0], questions: [{ order: 1, text: 'First question', article: '', category: '' }] };
+            else if (url.endsWith('/cl1/submissions')) value = [{ pid: 's1', checklist_pid: 'cl1', version: 1, status: 'draft' }];
+            else if (url.endsWith('/submissions/s1')) value = { pid: 's1', checklist_pid: 'cl1', version: 1, status: 'draft', answers: [{ question_order: 1, answer: 'old answer', score: null }] };
+            else if (url.endsWith('/s1/answers')) { payload = JSON.parse(String(init?.body)); value = {}; }
+            return { ok: true, status: 200, json: async () => value };
+        }));
+        await renderPage();
+        await act(async () => { (document.body.querySelector('.gradient-card') as HTMLElement).click(); });
+        const field = document.body.querySelector('[aria-label="Question 1"]') as HTMLTextAreaElement;
+        expect(field.value).toBe('old answer');
+        await act(async () => {
+            Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(field, '');
+            field.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        await act(async () => { Array.from(document.body.querySelectorAll('button')).find(button => button.textContent === 'Save')!.click(); });
+        expect(payload).toEqual([{ question_order: 1, answer: '', score: null }]);
+    });
+
 });
