@@ -12,6 +12,7 @@ import {
     Tooltip,
     Typography
 } from "@mui/material";
+import { useNavigate } from 'react-router-dom';
 import Grid from "@mui/material/Grid2";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { API_VERSION_PREFIX } from "../config";
@@ -78,7 +79,8 @@ function ProjectDetailsSection() {
     const [fetchedProject, setFetchedProject] = useState<ProjectDetails | null>(null);
     const [loading, setLoading] = useState(true);
     const [edited, setEdited] = useState(false);
-    const { projectUUID } = useProject();
+    const { projectUUID, setProjectName } = useProject();
+    const navigate = useNavigate();
     const [errors, setErrors] = useState<{ name?: string }>({});
 
     useEffect(() => {
@@ -114,12 +116,15 @@ function ProjectDetailsSection() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: project.name }),
             });
+            if (!response.ok) throw new Error('Could not rename project');
             const updated = await response.json();
+            setProjectName(updated.name);
+            navigate(`/projects/${encodeURIComponent(updated.name)}/settings`, { replace: true });
             setProject(prev => prev ? { ...prev, name: updated.name ?? '' } : prev);
             setFetchedProject(prev => prev ? { ...prev, name: updated.name ?? '' } : prev);
             setEdited(false);
         } catch (error) {
-            console.error('Error updating project:', error);
+            toast.error(error instanceof Error ? error.message : 'Could not rename project');
         } finally {
             setLoading(false);
         }

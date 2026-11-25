@@ -127,7 +127,11 @@ const TopBar: React.FC = () => {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ name: c.name, component_type: c.type })
                 }
-            ).then(r => r.json());
+            ).then(async r => {
+                if (!r.ok) throw new Error(`Could not create component ${c.name}`);
+                return r.json();
+            }).catch(() => { toast.error(`Could not create component ${c.name}`); return null; });
+            if (!created) continue;
 
             c.pid = created.pid;
 
@@ -136,8 +140,11 @@ const TopBar: React.FC = () => {
                 const formData = new FormData();
                 formData.append("file", c.file);
                 uploads.push(
-                    fetch(`${API_URL}/components/${c.pid}/data`, { method: "PUT", body: formData }).then(() => {
+                    fetch(`${API_URL}/components/${c.pid}/data`, { method: "PUT", body: formData }).then(response => {
+                        if (!response.ok) throw new Error(`Upload failed (${response.status})`);
                         toast.success(`Component \`${c.name}\` uploaded`, { position: 'bottom-right' });
+                    }).catch(() => {
+                        toast.error(`Component ${c.name} upload failed. Retry in project settings.`);
                     }).finally(() => removeFileUploadingPid(c.pid))
                 );
             }
