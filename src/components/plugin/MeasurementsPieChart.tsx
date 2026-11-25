@@ -59,7 +59,7 @@ export const MeasurementsPieChart = ({title: title, description: description, da
         () =>
             baseSeries.map(s => ({
                 id: s.id,
-                rawValue: typeof s.data[0] === "number" ? s.data[0]! : 0,
+                rawValue: s.data.find(value => value !== null) ?? 0,
                 label: s.label,
                 color: s.color,
             })),
