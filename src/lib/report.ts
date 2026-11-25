@@ -1,6 +1,7 @@
 import { API_VERSION_PREFIX } from '../config';
+import type { ReportDashboardWidget } from './reportCharts';
 
-export const REPORT_SECTIONS = ['system', 'controls', 'objectives', 'evaluations'] as const;
+export const REPORT_SECTIONS = ['system', 'controls', 'objectives', 'evaluations', 'dashboard'] as const;
 export type ReportSection = (typeof REPORT_SECTIONS)[number];
 
 export interface ReportSettings {
@@ -83,13 +84,24 @@ export function listReports(pid: string): Promise<PastReport[]> {
     return request<PastReport[]>(`/projects/${pid}/reports`);
 }
 
+export interface EvaluationChartExport {
+    evaluation_pid: string;
+    evaluation_plugin_pid: string;
+    visualization_index: number;
+    panels: Array<{ artifact_id: string; label?: string }>;
+}
+
 export function generateReport(
     pid: string,
     data: {
+        report_pid?: string;
         period: string;
         format: string;
         evaluation_pids: string[];
         sections: string[];
+        /** the dashboard's current widgets (charts/comments) to collect */
+        dashboard?: ReportDashboardWidget[];
+        evaluation_charts?: EvaluationChartExport[];
     },
 ): Promise<PastReport> {
     return request<PastReport>(`/projects/${pid}/reports/generate`, {
@@ -143,4 +155,16 @@ export function cleanSections(sections: string[]): string[] {
     return sections.filter((s): s is ReportSection =>
         (REPORT_SECTIONS as readonly string[]).includes(s),
     );
+}
+
+export function prepareReport(pid: string, period: string, format: string): Promise<PastReport> {
+    return request(`/projects/${pid}/reports/prepare`, { method: 'POST', body: JSON.stringify({ period, format }) });
+}
+export async function uploadReportChart(pid: string, reportPid: string, image: string): Promise<string> {
+    const file = await (await fetch(image)).blob();
+    const body = new FormData();
+    body.append('file', file, 'chart.png');
+    const response = await fetch(`${API_URL}/projects/${pid}/reports/${reportPid}/artifacts`, { method: 'POST', body });
+    if (!response.ok) throw new Error('Could not upload report chart');
+    return (await response.json()).pid;
 }

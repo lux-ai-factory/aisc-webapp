@@ -81,6 +81,6 @@ describe('report settings api', () => {
 describe('cleanSections', () => {
     it('drops unknown section keys', () => {
         expect(cleanSections(['system', 'nope', 'evaluations'])).toEqual(['system', 'evaluations']);
-        expect(REPORT_SECTIONS).toEqual(['system', 'controls', 'objectives', 'evaluations']);
+        expect(REPORT_SECTIONS).toEqual(['system', 'controls', 'objectives', 'evaluations', 'dashboard']);
     });
 });
