@@ -82,6 +82,8 @@ export default function PluginStartEvaluation({ onCreated }: { onCreated?: () =>
     const [validPlugins, setValidPlugins] = useState<Record<string, boolean>>({});
     const [dispatchError, setDispatchError] = useState<{ message: string; missing: Array<Record<string, string>>; invalid: Array<Record<string, string>>; ambiguous: Array<Record<string, string>> } | null>(null);
     const [evaluationName, setEvaluationName] = useState('');
+    const submitting = useRef(false);
+    const [creating, setCreating] = useState(false);
     const navigate = useNavigate();
 
     const { data: project, isPending, error } = useQuery({
@@ -147,9 +149,11 @@ export default function PluginStartEvaluation({ onCreated }: { onCreated?: () =>
     };
 
     const handleOnClick = async () => {
-        if (!projectUUID) return;
+        if (!projectUUID || submitting.current) return;
         const validEntries = Object.entries(selectedPlugins).filter(([name]) => validPlugins[name]);
         if (validEntries.length === 0) return;
+        submitting.current = true;
+        setCreating(true);
         setDispatchError(null);
         try {
             await createEvaluation(projectUUID, Object.fromEntries(validEntries), selectedConfigs, evaluationName);
@@ -180,6 +184,9 @@ export default function PluginStartEvaluation({ onCreated }: { onCreated?: () =>
                 }
             } catch { /* display the generic error below */ }
             toast.error(error instanceof Error ? error.message : 'Failed to create evaluation', { position: 'bottom-right' });
+        } finally {
+            submitting.current = false;
+            setCreating(false);
         }
     };
 
@@ -289,7 +296,7 @@ export default function PluginStartEvaluation({ onCreated }: { onCreated?: () =>
                         variant="contained"
                         className="gradient-btn"
                         onClick={handleOnClick}
-                        disabled={Object.values(validPlugins).filter(Boolean).length === 0}
+                        disabled={creating || Object.values(validPlugins).filter(Boolean).length === 0}
                         sx={{
                             minWidth: {xs: '44px', md: 'auto'},
                             px: {xs: 1.5, md: 3},

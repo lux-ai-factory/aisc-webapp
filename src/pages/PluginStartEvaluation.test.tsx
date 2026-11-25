@@ -172,3 +172,27 @@ it('does not leak cached fields from another project', async () => {
     expect(container.textContent).not.toContain('Model A');
     container.remove();
 });
+
+it('dispatches only once while a create request is pending', async () => {
+    sessionStorage.setItem('start-eval-state:proj-1', JSON.stringify({ selectedPlugins: { DemoPlugin: [
+        { pid: 'comp-model', name: 'model', input_type: 'model', value: {} },
+        { pid: 'comp-dataset', name: 'dataset', input_type: 'dataset', value: {} },
+    ] }, selectionCache: {} }));
+    const original = globalThis.fetch;
+    let release!: (response: Response) => void;
+    const fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => String(input).endsWith('/evaluations/task')
+        ? new Promise<Response>(resolve => { release = resolve; }) : original(input, init));
+    globalThis.fetch = fetch;
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = mountPage(host);
+    try {
+        await waitForHtml(el => Array.from(el.querySelectorAll('button')).some(button => button.textContent?.includes('Create Evaluation') && !button.disabled), host);
+        const button = Array.from(host.querySelectorAll('button')).find(button => button.textContent?.includes('Create Evaluation'))!;
+        await act(async () => { button.click(); button.click(); });
+        expect(fetch.mock.calls.filter(([url]) => String(url).endsWith('/evaluations/task'))).toHaveLength(1);
+        expect(button.disabled).toBe(true);
+        await act(async () => { release({ ok: false, status: 500 } as Response); });
+        expect(button.disabled).toBe(false);
+    } finally { await act(async () => root.unmount()); host.remove(); }
+});
