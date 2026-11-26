@@ -3,6 +3,21 @@ import { uploadReportCharts, type RenderedDashboardWidget } from './reportCharts
 import { uploadReportChart } from './report';
 vi.mock('./report', () => ({ uploadReportChart: vi.fn() }));
 
+it('uploads more than 100 panels across dashboard charts and multiple evaluations', async () => {
+    vi.mocked(uploadReportChart).mockImplementation(async (_pid, _report, image) => image);
+    const dashboard: RenderedDashboardWidget[] = Array.from({ length: 5 }, (_, i) => ({
+        key: `d${i}`, kind: 'chart', image: `dashboard-${i}`,
+    }));
+    const evaluations = ['e1', 'e2'].map((evaluation_pid) => ({
+        evaluation_pid, evaluation_plugin_pid: 'p', visualization_index: 0,
+        panels: Array.from({ length: 50 }, (_, i) => ({ image: `${evaluation_pid}-${i}`, label: `${i}` })),
+    }));
+    const payload = await uploadReportCharts('project', 'report', dashboard, evaluations);
+    expect(payload.dashboard).toHaveLength(5);
+    expect(payload.evaluation_charts.map((chart) => chart.panels.length)).toEqual([50, 50]);
+    expect(payload.evaluation_charts[1].panels[49]).toEqual({ artifact_id: 'e2-49', label: '49' });
+});
+
 it('builds ordered artifact-only payloads without mutating render results', async () => {
     vi.mocked(uploadReportChart).mockImplementation(async (_pid, _report, image) => `artifact:${image}`);
     const dashboard: RenderedDashboardWidget[] = [

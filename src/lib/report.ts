@@ -165,6 +165,10 @@ export async function uploadReportChart(pid: string, reportPid: string, image: s
     const body = new FormData();
     body.append('file', file, 'chart.png');
     const response = await fetch(`${API_URL}/projects/${pid}/reports/${reportPid}/artifacts`, { method: 'POST', body });
-    if (!response.ok) throw new Error('Could not upload report chart');
+    if (!response.ok) {
+        const error = await response.json().catch(() => null);
+        const detail = typeof error?.detail === 'string' ? `: ${error.detail}` : '';
+        throw new Error(`Could not upload report chart (HTTP ${response.status})${detail}`);
+    }
     return (await response.json()).pid;
 }

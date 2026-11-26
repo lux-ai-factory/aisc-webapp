@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { cleanSections, getReportSettings, REPORT_SECTIONS, setReportSettings } from './report';
+import { cleanSections, getReportSettings, REPORT_SECTIONS, setReportSettings, uploadReportChart } from './report';
 
 function mockFetchOnce(payload: unknown, status = 200) {
     const fn = vi.fn().mockResolvedValue({
@@ -17,6 +17,24 @@ beforeEach(() => {
 
 afterEach(() => {
     vi.unstubAllGlobals();
+});
+
+describe('chart upload errors', () => {
+    it.each([
+        [413, { detail: 'Report chart limit reached' }, 'HTTP 413): Report chart limit reached'],
+        [502, { detail: 'Chart upload failed' }, 'HTTP 502): Chart upload failed'],
+        [500, null, 'HTTP 500)'],
+        [422, { detail: [{ msg: 'invalid' }] }, 'HTTP 422)'],
+    ])('explains an HTTP %s failure', async (status, payload, message) => {
+        vi.stubGlobal('fetch', vi.fn()
+            .mockResolvedValueOnce({ blob: async () => new Blob(['png']) })
+            .mockResolvedValueOnce({ ok: false, status, json: async () => {
+                if (payload === null) throw new SyntaxError('Not JSON');
+                return payload;
+            } }));
+        await expect(uploadReportChart('p', 'r', 'data:image/png;base64,AA=='))
+            .rejects.toThrow(`Could not upload report chart (${message}`);
+    });
 });
 
 describe('report settings api', () => {
