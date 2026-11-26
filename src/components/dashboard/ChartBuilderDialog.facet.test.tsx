@@ -124,6 +124,38 @@ afterEach(async () => {
 });
 
 describe('ChartBuilderDialog facet selection', () => {
+    it.each([false, true])('hides preview editors without evaluations and restores values (faceted: %s)', async (faceted) => {
+        suppliedRows = rows(['a']);
+        await render();
+        if (faceted) await pickFacetDimension('fold');
+        const title = () => Array.from(document.querySelectorAll<HTMLInputElement>('input'))
+            .find((input) => input.labels?.[0]?.textContent === 'Widget title (optional)');
+        await act(async () => {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(title()!, 'Keep this title');
+            title()!.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        const toggleEvaluation = async () => {
+            const combo = Array.from(document.querySelectorAll<HTMLElement>('[role="combobox"]'))
+                .find((c) => c.closest('.MuiFormControl-root')?.querySelector('label')?.textContent === 'Evaluations');
+            await act(async () => { combo!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); });
+            const option = document.querySelector<HTMLElement>('[role="option"][data-value="e1"]')!;
+            await act(async () => { option.click(); });
+            await act(async () => {
+                document.querySelector<HTMLElement>('.MuiBackdrop-root')?.click();
+            });
+        };
+        await toggleEvaluation();
+        expect(document.body.textContent).not.toContain('Live preview');
+        expect(document.body.textContent).not.toContain('Footer comment');
+        expect(title()).toBeUndefined();
+        const add = Array.from(document.querySelectorAll('button')).find((b) => b.textContent === 'Add chart')!;
+        expect(add.disabled).toBe(true);
+        await toggleEvaluation();
+        expect(document.body.textContent).toContain('Live preview');
+        expect(title()?.value).toBe('Keep this title');
+        expect(add.disabled).toBe(false);
+    });
+
     it('defaults to all values and preserves a customized selection across data updates', async () => {
         suppliedRows = rows(['a']);
         await render();

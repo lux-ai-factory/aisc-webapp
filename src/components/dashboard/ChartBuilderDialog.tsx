@@ -317,9 +317,8 @@ export default function ChartBuilderDialog({
         setFacetOrder((prev) => ({ ...prev, [unitKey(value, metric)]: next }));
     };
 
-    // Enabled as soon as a plugin is picked so one click always adds the
-    // widget; its data loads in the background right after.
-    const hasSelection = plugins.length > 0 && Boolean(plugin);
+    // Measurements may still load after a plugin and evaluations are selected.
+    const hasSelection = plugins.length > 0 && Boolean(plugin) && evaluations.length > 0;
 
     const facetEnabled = Boolean(facetDim);
     const previewFacets = facetEnabled ? facetValueOptions.filter((v) => facets.includes(v)) : [];
@@ -581,140 +580,142 @@ export default function ChartBuilderDialog({
                     </Box>
                 </Stack>
 
-                <Stack spacing={2} sx={{ flex: '1 1 360px', minWidth: 320 }}>
-                    {facetEnabled && facetValueOptions.length > 0 && (
-                        <FormControl size="small" fullWidth>
-                            <InputLabel>Facet charts to add (one per value · metric)</InputLabel>
-                            <Select
-                                multiple
-                                label="Facet charts to add (one per value · metric)"
-                                value={facets}
-                                onChange={(e) => {
-                                    facetsTouched.current = true;
-                                    setFacets(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value);
-                                }}
-                                input={<OutlinedInput label="Facet charts to add (one per value · metric)" />}
-                                renderValue={(selected) => (
-                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                        {selected.length === 0 ? (
-                                            <em>None (one faceted chart)</em>
-                                        ) : (
-                                            selected.map((value) => <Chip key={value} label={value} size="small" />)
-                                        )}
-                                    </Box>
-                                )}
-                            >
-                                {facetValueOptions.map((value) => (
-                                    <MenuItem key={value} value={value}>
-                                        {value}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-                    )}
-                    <Typography variant="subtitle2" color="text.secondary">
-                        Live preview
-                    </Typography>
-                    {facetEnabled ? (
-                        previewFacets.length === 0 ? (
-                            hasSelection ? (
-                                renderVisualization(scopedData, viz, labelOverrides, displayedLabels)
+                {evaluations.length > 0 && (
+                    <Stack spacing={2} sx={{ flex: '1 1 360px', minWidth: 320 }}>
+                        {facetEnabled && facetValueOptions.length > 0 && (
+                            <FormControl size="small" fullWidth>
+                                <InputLabel>Facet charts to add (one per value · metric)</InputLabel>
+                                <Select
+                                    multiple
+                                    label="Facet charts to add (one per value · metric)"
+                                    value={facets}
+                                    onChange={(e) => {
+                                        facetsTouched.current = true;
+                                        setFacets(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value);
+                                    }}
+                                    input={<OutlinedInput label="Facet charts to add (one per value · metric)" />}
+                                    renderValue={(selected) => (
+                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                            {selected.length === 0 ? (
+                                                <em>None (one faceted chart)</em>
+                                            ) : (
+                                                selected.map((value) => <Chip key={value} label={value} size="small" />)
+                                            )}
+                                        </Box>
+                                    )}
+                                >
+                                    {facetValueOptions.map((value) => (
+                                        <MenuItem key={value} value={value}>
+                                            {value}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        )}
+                        <Typography variant="subtitle2" color="text.secondary">
+                            Live preview
+                        </Typography>
+                        {facetEnabled ? (
+                            previewFacets.length === 0 ? (
+                                hasSelection ? (
+                                    renderVisualization(scopedData, viz, labelOverrides, displayedLabels)
+                                ) : (
+                                    <Alert severity="info">Select a plugin with measurements to preview the chart.</Alert>
+                                )
                             ) : (
-                                <Alert severity="info">Select a plugin with measurements to preview the chart.</Alert>
+                                previewUnits.map(({ value, metric }) => {
+                                    const key = unitKey(value, metric);
+                                    return (
+                                        <Box
+                                            key={key}
+                                            sx={{ borderTop: 1, borderColor: 'divider', pt: 1, display: 'flex', flexDirection: 'column', gap: 1 }}
+                                        >
+                                            <Typography variant="subtitle1" fontWeight={600}>
+                                                {unitLabel(value, metric)}
+                                            </Typography>
+                                            {hasSelection ? (
+                                                renderVisualization(
+                                                    unitData(value, metric),
+                                                    singleViz,
+                                                    facetOverrides[key],
+                                                    orderedFacetLabels(value, metric),
+                                                    facetChartHeight(value, metric),
+                                                    true,
+                                                )
+                                            ) : (
+                                                <Alert severity="info">No measurements yet to preview.</Alert>
+                                            )}
+                                            <TextField
+                                                size="small"
+                                                fullWidth
+                                                label="Widget title (optional)"
+                                                value={facetTitles[key] ?? `${defaultTitle} · ${unitLabel(value, metric)}`}
+                                                onChange={(e) =>
+                                                    setFacetTitles((prev) => ({ ...prev, [key]: e.target.value }))
+                                                }
+                                            />
+                                            <TextField
+                                                size="small"
+                                                fullWidth
+                                                multiline
+                                                minRows={2}
+                                                label="Footer comment (optional, collapsed)"
+                                                value={facetComments[key] ?? ''}
+                                                onChange={(e) =>
+                                                    setFacetComments((prev) => ({ ...prev, [key]: e.target.value }))
+                                                }
+                                            />
+                                            <LegendLabelsEditor
+                                                overrides={facetOverrides[key] ?? {}}
+                                                order={orderedFacetLabels(value, metric)}
+                                                onMove={(index, dir) => moveFacetLabel(value, metric, index, dir)}
+                                                onOverride={(label, v) =>
+                                                    setFacetOverrides((prev) => ({
+                                                        ...prev,
+                                                        [key]: { ...(prev[key] ?? {}), [label]: v },
+                                                    }))
+                                                }
+                                            />
+                                        </Box>
+                                    );
+                                })
                             )
+                        ) : hasSelection ? (
+                            renderVisualization(scopedData, viz, labelOverrides, displayedLabels)
                         ) : (
-                            previewUnits.map(({ value, metric }) => {
-                                const key = unitKey(value, metric);
-                                return (
-                                    <Box
-                                        key={key}
-                                        sx={{ borderTop: 1, borderColor: 'divider', pt: 1, display: 'flex', flexDirection: 'column', gap: 1 }}
-                                    >
-                                        <Typography variant="subtitle1" fontWeight={600}>
-                                            {unitLabel(value, metric)}
-                                        </Typography>
-                                        {hasSelection ? (
-                                            renderVisualization(
-                                                unitData(value, metric),
-                                                singleViz,
-                                                facetOverrides[key],
-                                                orderedFacetLabels(value, metric),
-                                                facetChartHeight(value, metric),
-                                                true,
-                                            )
-                                        ) : (
-                                            <Alert severity="info">No measurements yet to preview.</Alert>
-                                        )}
-                                        <TextField
-                                            size="small"
-                                            fullWidth
-                                            label="Widget title (optional)"
-                                            value={facetTitles[key] ?? `${defaultTitle} · ${unitLabel(value, metric)}`}
-                                            onChange={(e) =>
-                                                setFacetTitles((prev) => ({ ...prev, [key]: e.target.value }))
-                                            }
-                                        />
-                                        <TextField
-                                            size="small"
-                                            fullWidth
-                                            multiline
-                                            minRows={2}
-                                            label="Footer comment (optional, collapsed)"
-                                            value={facetComments[key] ?? ''}
-                                            onChange={(e) =>
-                                                setFacetComments((prev) => ({ ...prev, [key]: e.target.value }))
-                                            }
-                                        />
-                                        <LegendLabelsEditor
-                                            overrides={facetOverrides[key] ?? {}}
-                                            order={orderedFacetLabels(value, metric)}
-                                            onMove={(index, dir) => moveFacetLabel(value, metric, index, dir)}
-                                            onOverride={(label, v) =>
-                                                setFacetOverrides((prev) => ({
-                                                    ...prev,
-                                                    [key]: { ...(prev[key] ?? {}), [label]: v },
-                                                }))
-                                            }
-                                        />
-                                    </Box>
-                                );
-                            })
-                        )
-                    ) : hasSelection ? (
-                        renderVisualization(scopedData, viz, labelOverrides, displayedLabels)
-                    ) : (
-                        <Alert severity="info">
-                            Select a plugin with measurements to preview the chart.
-                        </Alert>
-                    )}
+                            <Alert severity="info">
+                                Select a plugin with measurements to preview the chart.
+                            </Alert>
+                        )}
 
-                    {!facetEnabled && (
-                        <>
-                            <TextField
-                                size="small"
-                                label="Widget title (optional)"
-                                value={title || defaultTitle}
-                                onChange={(e) => setTitle(e.target.value)}
-                            />
+                        {!facetEnabled && (
+                            <>
+                                <TextField
+                                    size="small"
+                                    label="Widget title (optional)"
+                                    value={title || defaultTitle}
+                                    onChange={(e) => setTitle(e.target.value)}
+                                />
 
-                            <TextField
-                                size="small"
-                                multiline
-                                minRows={2}
-                                label="Footer comment (optional, collapsed)"
-                                value={comment}
-                                onChange={(e) => setComment(e.target.value)}
-                            />
+                                <TextField
+                                    size="small"
+                                    multiline
+                                    minRows={2}
+                                    label="Footer comment (optional, collapsed)"
+                                    value={comment}
+                                    onChange={(e) => setComment(e.target.value)}
+                                />
 
-                            <LegendLabelsEditor
-                                overrides={labelOverrides}
-                                order={displayedLabels}
-                                onMove={moveLabel}
-                                onOverride={(label, v) => setLabelOverrides((prev) => ({ ...prev, [label]: v }))}
-                            />
-                        </>
-                    )}
-                </Stack>
+                                <LegendLabelsEditor
+                                    overrides={labelOverrides}
+                                    order={displayedLabels}
+                                    onMove={moveLabel}
+                                    onOverride={(label, v) => setLabelOverrides((prev) => ({ ...prev, [label]: v }))}
+                                />
+                            </>
+                        )}
+                    </Stack>
+                )}
             </Box>
         </AppDialog>
     );
