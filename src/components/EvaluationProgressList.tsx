@@ -340,11 +340,6 @@ function EvalProgressRow({
                                         <Typography variant="body2" fontWeight={700}>
                                             Evaluation Progress
                                         </Typography>
-                                        <StopEvaluationButton
-                                            stopping={stopping}
-                                            stopped={stopped}
-                                            onClick={(e) => { e.stopPropagation(); setStopDialog(true); }}
-                                        />
                                         <Typography
                                             className="eval-pid"
                                             variant="caption"
@@ -354,15 +349,18 @@ function EvalProgressRow({
                                             {evaluation.pid}
                                         </Typography>
                                     </Box>
-                                    <Typography
-                                        variant="caption"
-                                        sx={{
-                                            fontWeight: 700,
-                                            color: failedPlugins > 0 ? 'error.main' : 'primary.main',
-                                        }}
-                                    >
-                                        {failedPlugins > 0 ? 'Attention needed' : 'In progress'}
-                                    </Typography>
+                                    <Stack direction="row" alignItems="center" spacing={1}>
+                                        {failedPlugins > 0 && (
+                                            <Typography variant="caption" color="error.main" fontWeight={700}>
+                                                Attention needed
+                                            </Typography>
+                                        )}
+                                        <StopEvaluationButton
+                                            stopping={stopping}
+                                            stopped={stopped}
+                                            onClick={(e) => { e.stopPropagation(); setStopDialog(true); }}
+                                        />
+                                    </Stack>
                                 </Stack>
 
                                 {Object.keys(statuses).length === 0 && completedPlugins === 0 ? (
